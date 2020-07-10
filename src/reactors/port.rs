@@ -1,48 +1,53 @@
-use std::cell::{RefCell, Ref};
-
-use std::rc::Rc;
 use std::borrow::Borrow;
+use std::cell::{Ref, RefCell};
 use std::ops::{Deref, DerefMut};
-use super::assembler::Assembler;
+use std::rc::Rc;
+
 use crate::reactors::assembler::{GraphElement, Stamped};
 
-
-#[derive(Debug)]
-pub enum Port<'a, T> {
-    Input(&'a InPort<T>),
-    Output(&'a OutPort<T>),
-}
+use super::assembler::Assembler;
 
 #[derive(Debug)]
 pub struct InPort<T> {
     name: &'static str,
+
     /// The binding for an input port is the output port to
     /// which it is connected.
-    binding: Option<Rc<OutPort<T>>>,
+    ///
+    /// RefCell<            // For internal mutability
+    /// Option<             // The port may be unbound
+    /// Rc<                 // The referenced output port may be referenced by several input ports
+    /// OutPort<T>>>>       // Finally the value!
+    ///
+    binding: RefCell<Option<Rc<OutPort<T>>>>,
 }
 
 impl<'a, T> GraphElement<'a> for InPort<T> {}
 
 impl<T> InPort<T> {
-    pub fn new<'a>(assembler: &mut Assembler<'a>, name: &'static str) -> Stamped<'a, InPort<T>> {
+    pub fn new<'a>(assembler: &mut Assembler<'a>, name: &'static str) -> Stamped<'a, InPort<T>>
+        where T: 'static {
         assembler.create_node(
             InPort {
                 name,
-                binding: None,
+                binding: RefCell::new(None),
             }
         )
     }
 
-    pub fn bind(&mut self, binding: &Rc<OutPort<T>>) {
-        if let Some(b) = &self.binding {
+    pub fn bind(&self, binding: &Rc<OutPort<T>>) {
+        // that it's important that the borrow here is dropped before borrow_mut is called
+        //                                        vvvvvv
+        if let Some(b) = self.binding.borrow().as_deref() {
             panic!("Input port {} already bound to {}", self.name, b.name)
         }
-        self.binding = Some(Rc::clone(binding))
+        *self.binding.borrow_mut() = Some(Rc::clone(binding))
     }
 
-    pub fn borrow_or_panic(&self) -> impl Deref<Target=T> + '_ {
-        match &self.binding {
-            Some(output) => output.get(),
+    pub fn borrow_or_panic(&self) -> Rc<OutPort<T>> {
+        let x = self.binding.borrow();
+        match &*x {
+            Some(output) => Rc::clone(output),
             None => panic!("No binding for port {}", self.name)
         }
     }
@@ -62,15 +67,18 @@ pub struct OutPort<T> {
 
 
 impl<T> OutPort<T> {
-    pub fn new(name: &'static str, initial_val: T) -> OutPort<T> {
-        OutPort { name, cell: RefCell::new(initial_val) }
+    pub fn new<'a>(assembler: &mut Assembler<'a>, name: &'static str, initial_val: T) -> Stamped<'a, OutPort<T>>
+        where T: 'static {
+        assembler.create_node(
+            OutPort { name, cell: RefCell::new(initial_val) }
+        )
     }
 
     pub fn set(&self, new_val: T) {
         *self.cell.borrow_mut() = new_val
     }
 
-    pub fn get(&self) -> impl Deref<Target=T> + '_ {
+    pub fn get<'a>(&'a self) -> impl Deref<Target=T> + 'a {
         self.cell.borrow()
     }
 

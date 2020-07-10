@@ -1,4 +1,3 @@
-use crate::reactors::port::Port;
 use crate::reactors::reactor::Reactor;
 
 /// A reaction may be triggered by
@@ -31,7 +30,7 @@ macro_rules! reaction {
                 $( $trigger, )*
             ],
             |reactor| {
-                $( let $var = *reactor.$var.borrow_or_panic(); );*
+                $( let $var = *reactor.$var.data.borrow_or_panic().get(); );*
 
                 $body
             }
