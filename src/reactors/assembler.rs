@@ -30,6 +30,7 @@ enum EdgeTag {
         means I is bound to O
      */
     PortConnection,
+
     /*
         O: (Output | Action) -> N: Reaction
         means N depends on the action/output port
@@ -67,7 +68,7 @@ type DepGraph = DiGraph<NodeData, EdgeTag, NodeIdRepr>;
 /// of the tree).
 ///
 /// Internally the dependencies are encoded into a graph, which is the
-/// output of the assembly -> should be passed to the scheduler later
+/// output of the assembly -> todo should be passed to the scheduler later
 ///
 pub struct Assembler {
     graph: DepGraph,
@@ -106,6 +107,7 @@ pub enum NodeKind {
     Output,
     Reaction,
     Reactor,
+    Action,
     // TODO
 }
 
@@ -156,40 +158,37 @@ impl Assembler {
     pub fn reaction_link<T, R>(&mut self,
                                reaction: &Stamped<Reaction<R>>,
                                element: &Stamped<T>,
-                               fwd: bool)
+                               is_dep: bool) // if false, this is an antidependency
         where T: GraphElement, R: Reactor {
-        let tag = if fwd {
-            EdgeTag::ReactionDep
-        } else {
-            EdgeTag::ReactionAntiDep
-        };
 
-        match element.data.kind() {
-            NodeKind::Input => {
-                // todo validity
-                //     fwd && C(p) == self.reactor      => dependency on container input
-                //  or !fwd && C(C(p)) == self.reactor  => antidependency on sibling output
+        let tag = match element.data.kind() {
+            NodeKind::Input | NodeKind::Output | NodeKind::Action => {
+                // todo validity if input:
+                //     fwd && C(port) == C(reaction)      => dependency on container input
+                //  or !fwd && C(C(port)) == C(reaction)  => antidependency on sibling output
 
-                self.graph.add_edge(
-                    reaction.id,
-                    element.id,
-                    tag,
-                )
-            }
-            NodeKind::Output => {
-                // todo validity
-                //     !fwd && C(p) == self.reactor     => antidependency on container output
-                //  or fwd && C(C(p)) == self.reactor   => dependency on sibling output
+                // todo validity if output
+                //     !fwd && C(port) == C(reaction)     => antidependency on container output
+                //  or fwd && C(C(port)) == C(reaction)   => dependency on sibling output
 
-                self.graph.add_edge(
-                    reaction.id,
-                    element.id,
-                    tag,
-                )
+                // todo validity if Action
+                //   C(action) == C(reaction)
+
+                if is_dep {
+                    EdgeTag::ReactionDep
+                } else {
+                    EdgeTag::ReactionAntiDep
+                }
             }
             NodeKind::Reaction | NodeKind::Reactor => {
                 panic!("A reaction cannot declare a dependency on a {:?}", element.data.kind())
             }
+        };
+
+        if is_dep {
+            self.graph.add_edge(reaction.id, element.id, tag)
+        } else {
+            self.graph.add_edge(element.id, reaction.id, tag)
         };
     }
 
