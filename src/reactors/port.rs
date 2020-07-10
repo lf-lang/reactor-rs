@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-use crate::reactors::assembler::{GraphElement, Stamped, NodeKind};
+use super::assembler::{GraphElement, Stamped, NodeKind};
 
 use super::assembler::Assembler;
 use std::pin::Pin;
@@ -23,14 +23,14 @@ pub struct InPort<T> {
     binding: RefCell<Option<Pin<Rc<OutPort<T>>>>>,
 }
 
-impl<'a, T> GraphElement<'a> for InPort<T> {
+impl<T> GraphElement for InPort<T> {
     fn kind(&self) -> NodeKind {
         NodeKind::Input
     }
 }
 
 impl<T> InPort<T> {
-    pub fn new<'a>(assembler: &mut Assembler<'a>, name: &'static str) -> Stamped<'a, InPort<T>>
+    pub fn new(assembler: &mut Assembler, name: &'static str) -> Stamped<InPort<T>>
         where T: 'static {
         assembler.create_node(
             InPort {
@@ -41,7 +41,7 @@ impl<T> InPort<T> {
     }
 
     pub fn bind(&self, binding: &Pin<Rc<OutPort<T>>>) {
-        // that it's important that the borrow here is dropped before borrow_mut is called
+        // it's important that the borrow here is dropped before borrow_mut is called
         //                                        vvvvvv
         if let Some(b) = self.binding.borrow().as_deref() {
             panic!("Input port {} already bound to {}", self.name, b.name)
@@ -72,7 +72,7 @@ pub struct OutPort<T> {
 
 
 impl<T> OutPort<T> {
-    pub fn new<'a>(assembler: &mut Assembler<'a>, name: &'static str, initial_val: T) -> Stamped<'a, OutPort<T>>
+    pub fn new(assembler: &mut Assembler, name: &'static str, initial_val: T) -> Stamped<OutPort<T>>
         where T: 'static, {
         assembler.create_node(
             OutPort { name, cell: RefCell::new(initial_val) }
@@ -83,7 +83,7 @@ impl<T> OutPort<T> {
         *self.cell.borrow_mut() = new_val
     }
 
-    pub fn get<'a>(&'a self) -> impl Deref<Target=T> + 'a {
+    pub fn get(&self) -> impl Deref<Target=T> + '_ {
         self.cell.borrow()
     }
 
@@ -92,7 +92,7 @@ impl<T> OutPort<T> {
     }
 }
 
-impl<'a, T> GraphElement<'a> for OutPort<T> {
+impl<T> GraphElement for OutPort<T> {
     fn kind(&self) -> NodeKind {
         NodeKind::Output
     }

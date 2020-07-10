@@ -1,5 +1,6 @@
-use crate::reactors::reactor::Reactor;
-use crate::reactors::assembler::{Assembler, Stamped, GraphElement, NodeKind};
+use super::reactor::Reactor;
+use super::assembler::{Assembler, Stamped, GraphElement, NodeKind};
+use std::fmt::{Debug, Formatter};
 
 /// A reaction is some managed executable code, owned by a reactor.
 ///
@@ -25,17 +26,24 @@ use crate::reactors::assembler::{Assembler, Stamped, GraphElement, NodeKind};
 /// Note that all of this information (except the body) is
 /// encoded into the graph at assembly time, it's not part of this struct.
 ///
-#[derive(Debug)]
-pub struct Reaction<'a, Container>
-    where Container: Reactor<'a> + Sized + 'a {
+pub struct Reaction<Container>
+    where Container: Reactor + Sized {
     name: &'static str,
 
     /// Body to execute
     /// Arguments:
     /// - the reactor instance that contains the reaction todo should this be mut?
     /// - todo the scheduler, to send events like schedule, etc
-    body: fn(&'a Container),
+    body: fn(&Container),
 
+}
+
+impl<C> Debug for Reaction<C>
+    where C: Reactor + Sized {
+
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "reaction {}()", self.name)
+    }
 }
 
 #[macro_export]
@@ -53,27 +61,27 @@ macro_rules! link_reaction {
     };
 }
 
-impl<'a, Container> GraphElement<'a>
-for Reaction<'a, Container>
-    where Container: Reactor<'a> {
+impl<Container> GraphElement
+for Reaction<Container>
+    where Container: Reactor {
     fn kind(&self) -> NodeKind {
         NodeKind::Reaction
     }
 }
 
 
-impl<'a, Container> Reaction<'a, Container>
-    where Container: Reactor<'a> {
-
-    pub fn fire(&self, c: &'a Container) {
+impl<Container> Reaction<Container>
+    where Container: Reactor {
+    pub fn fire(&self, c: &Container) {
         (self.body)(c)
     }
 
     pub fn new(
-        assembler: &mut Assembler<'a>,
+        assembler: &mut Assembler,
         name: &'static str,
-        body: fn(&'a Container),
-    ) -> Stamped<'a, Reaction<'a, Container>> {
+        body: fn(&Container),
+    ) -> Stamped<Reaction<Container>>
+        where Container: 'static {
         assembler.create_node(Reaction { body, name })
     }
 }

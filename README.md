@@ -1,3 +1,8 @@
+# Rust reactors prototype
+
+In safe Rust it's complicated to build recursive/self-referential 
+data structures that are mutable. But see assembler.rs to look at
+a potential solution.
 
 
 #### Interesting links

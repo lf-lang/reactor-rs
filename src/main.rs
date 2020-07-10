@@ -1,13 +1,12 @@
 mod reactors;
 
-use reactors::reactor::{Reactor, ProduceReactor};
-use crate::reactors::reactor::ConsumeReactor;
-use crate::reactors::assembler::Assembler;
+use reactors::reactor::{ProduceReactor, ConsumeReactor};
+use reactors::assembler::Assembler;
 
 fn main() {
-    let mut assembler = Assembler::root();
-    let mut producer = ProduceReactor::new(&mut assembler);
-    let mut consumer = ConsumeReactor::new(&mut assembler);
+    let mut assembler = Assembler::new();
+    let producer = ProduceReactor::new(&mut assembler);
+    let consumer = ConsumeReactor::new(&mut assembler);
 
 
     assembler.connect(&producer.value, &consumer.input);

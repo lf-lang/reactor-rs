@@ -1,20 +1,25 @@
-
-use crate::reactors::assembler::{Assembler, GraphElement, Stamped, NodeKind};
+use super::assembler::{Assembler, GraphElement, Stamped, NodeKind};
 
 use super::port::{InPort, OutPort};
 use super::reaction::Reaction;
 
 /// Trait for a reactor.
-pub trait Reactor<'a> {
+pub trait Reactor {
     // Translation strategy:
     // Ports are struct fields
     // Reactions are implemented with regular methods, described by a Reaction
 
+
+    /// Returns the reactions defined on this instance.
+    /// Order is important, as it determines the relative priority
+    /// of reactions that should execute at the same timestamp
+    fn reactions(&self) -> Vec<&Stamped<Reaction<Self>>>
+        where Self: Sized;
 }
 
 
-impl<'a, T> GraphElement<'a> for T
-    where T: Reactor<'a> + Sized {
+impl<T> GraphElement for T
+    where T: Reactor + Sized {
     fn kind(&self) -> NodeKind {
         NodeKind::Reactor
     }
@@ -24,30 +29,29 @@ impl<'a, T> GraphElement<'a> for T
 // Dummy reactor implementations
 
 #[derive(Debug)]
-pub struct ProduceReactor<'a> {
+pub struct ProduceReactor {
     /// This is the ouput port, that should be borrowed
     // output: RefCell<i32>,
     // output_borrower: Rc<RefCell<i32>>,
 
-    pub value: Stamped<'a, OutPort<i32>>,
+    pub value: Stamped<OutPort<i32>>,
 
-    pub react_incr: Stamped<'a, Reaction<'a, Self>>
+    pub react_incr: Stamped<Reaction<Self>>,
 }
 
-impl<'a> ProduceReactor<'a> {
-    pub fn new(assembler: &mut Assembler<'a>) -> Stamped<'a, Self> {
-        let r = assembler.create_node(ProduceReactor {
-            value: OutPort::new(assembler, "value", 0),
-            react_incr: Reaction::new(
-                assembler,
-                "incr",
-                |r| *r.value.get_mut() += 2
-            )
-        });
+impl ProduceReactor {
+    pub fn new(assembler: &mut Assembler) -> Stamped<Self> {
+        let value = OutPort::new(assembler, "value", 0);
+        let react_incr = Reaction::new(
+            assembler,
+            "incr",
+            |r: &ProduceReactor| *r.value.get_mut() += 2,
+        );
+        let r = assembler.create_node(ProduceReactor { value, react_incr });
 
-        link_reaction! (
-            (assembler)(r.react_incr)
-            (deps r.value)
+        link_reaction!(
+            (assembler)(&r.react_incr)
+            (deps &r.value)
             (antideps)
         );
 
@@ -55,35 +59,39 @@ impl<'a> ProduceReactor<'a> {
     }
 }
 
-impl<'a> Reactor<'a> for ProduceReactor<'a> {
-
+impl Reactor for ProduceReactor {
+    fn reactions(&self) -> Vec<&Stamped<Reaction<Self>>> {
+        vec![&self.react_incr]
+    }
 }
 
 #[derive(Debug)]
-pub struct ConsumeReactor<'a> {
+pub struct ConsumeReactor {
     /// This is the ouput port, that should be borrowed
     // output: RefCell<i32>,
     // output_borrower: Rc<RefCell<i32>>,
 
-    pub input: Stamped<'a, InPort<i32>>,
-    pub react_print: Stamped<'a, Reaction<'a, Self>>,
+    pub input: Stamped<InPort<i32>>,
+    pub react_print: Stamped<Reaction<Self>>,
 }
 
-impl<'a> ConsumeReactor<'a> {
-    pub fn new(assembler: &mut Assembler<'a>) -> Stamped<'a, Self> {
+impl ConsumeReactor {
+    pub fn new(assembler: &mut Assembler) -> Stamped<Self> {
         let input = InPort::new(assembler, "value");
+        let react_print = Reaction::new(
+            assembler,
+            "print_input",
+            |r: &ConsumeReactor| println!("Value is {}", *r.input.borrow_or_panic().get()),
+        );
         assembler.create_node(ConsumeReactor {
             input,
-            react_print: Reaction::new(
-                assembler,
-                "print_input",
-                |r| println!("Value is {}", *r.input.borrow_or_panic().get()),
-            ),
+            react_print,
         })
     }
 }
 
-
-impl<'a> Reactor<'a> for ConsumeReactor<'a> {
-
+impl Reactor for ConsumeReactor {
+    fn reactions(&self) -> Vec<&Stamped<Reaction<Self>>> {
+        vec![&self.react_print]
+    }
 }

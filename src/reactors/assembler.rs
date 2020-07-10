@@ -1,21 +1,26 @@
+//! Assembler logic
+//!
+//! This contains the logic to build a reactor graph, upon
+//! initialization of the program.
+
+
 use std::fmt::{Debug, Formatter};
-use std::marker::PhantomData;
 use std::rc::Rc;
 
 use petgraph::graph::DiGraph;
 use petgraph::graph::NodeIndex;
 
-use crate::reactors::port::{InPort, OutPort};
-use crate::reactors::reactor::Reactor;
-use crate::reactors::reaction::Reaction;
+use super::port::{InPort, OutPort};
+use super::reactor::Reactor;
+use super::reaction::Reaction;
 use std::ops::Deref;
 use std::pin::Pin;
 
 type NodeIdRepr = u32;
-type NodeId = NodeIndex<NodeIdRepr>;
+pub(crate) type NodeId = NodeIndex<NodeIdRepr>;
 
 
-pub trait GraphElement<'a> {
+pub trait GraphElement {
     fn kind(&self) -> NodeKind;
 }
 
@@ -38,10 +43,10 @@ enum EdgeTag {
 }
 
 
-type NodeData<'a> = Pin<Rc<dyn GraphElement<'a>>>;
+type NodeData = Pin<Rc<dyn GraphElement>>;
 
 /// The dependency graph between structures
-type DepGraph<'a> = DiGraph<NodeData<'a>, EdgeTag, NodeIdRepr>;
+type DepGraph = DiGraph<NodeData, EdgeTag, NodeIdRepr>;
 
 
 /// Manages the construction phase.
@@ -64,23 +69,22 @@ type DepGraph<'a> = DiGraph<NodeData<'a>, EdgeTag, NodeIdRepr>;
 /// Internally the dependencies are encoded into a graph, which is the
 /// output of the assembly -> should be passed to the scheduler later
 ///
-pub struct Assembler<'a> {
-    // TODO the assembler should be a zipper
-    graph: DepGraph<'a>,
+pub struct Assembler {
+    graph: DepGraph,
 
-    parent: Option<Box<Assembler<'a>>>,
+    // TODO the idea is to form a tree of assemblers (bottom up),
+    //  to check the validity of dependencies (eg the level of a node)
+    // children: Vec<Box<Assembler>>
 }
 
 
 /// Zips an element with its global graph id
-pub struct Stamped<'a, T> {
+pub struct Stamped<T> {
     id: NodeId,
     data: Pin<Rc<T>>,
-
-    life: PhantomData<&'a ()>,
 }
 
-impl<'a, T> Deref for Stamped<'a, T> {
+impl<T> Deref for Stamped<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -88,7 +92,7 @@ impl<'a, T> Deref for Stamped<'a, T> {
     }
 }
 
-impl<'a, T> Debug for Stamped<'a, T>
+impl<T> Debug for Stamped<T>
     where T: Debug {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.data.fmt(f)
@@ -96,6 +100,7 @@ impl<'a, T> Debug for Stamped<'a, T>
 }
 
 
+#[derive(Debug)]
 pub enum NodeKind {
     Input,
     Output,
@@ -105,17 +110,11 @@ pub enum NodeKind {
 }
 
 
-impl<'a> Assembler<'a> {
-    pub fn new(parent: Option<Box<Assembler<'a>>>) -> Self {
+impl Assembler {
+    pub fn new() -> Self {
         Assembler {
-            parent: parent,
             graph: DepGraph::new(),
         }
-    }
-
-
-    pub fn root() -> Self {
-        Self::new(None)
     }
 
     /// Create a node, associating it a ID in the graph (which
@@ -125,25 +124,23 @@ impl<'a> Assembler<'a> {
     /// value is used to associate topological info with the node
     /// (todo hierarchy relations + dependency relations)
     ///
-    pub fn create_node<N: GraphElement<'a> + 'a>(&mut self, elt: N) -> Stamped<'a, N> {
-        // let elt_box: Rc<N> = Box::new(elt);
-        // let mut upcast: Rc<dyn GraphElement<'a>> = Box::new(elt_box.);
+    pub fn create_node<N: GraphElement + 'static>(&mut self, elt: N) -> Stamped<N> {
+        // todo guarantee unicity
 
         let rc = Rc::pin(elt);
-        let rc_erased: Pin<Rc<dyn GraphElement<'a> + 'a>> = rc.clone();
+        let rc_erased: Pin<Rc<dyn GraphElement>> = rc.clone();
 
         let id = self.graph.add_node(rc_erased);
 
         Stamped {
             id,
             data: rc,
-            life: PhantomData,
         }
     }
 
     pub fn connect<T>(&mut self,
-                      upstream: &Stamped<'a, OutPort<T>>,
-                      downstream: &Stamped<'a, InPort<T>>) {
+                      upstream: &Stamped<OutPort<T>>,
+                      downstream: &Stamped<InPort<T>>) {
         // todo assertions
 
         downstream.bind(&upstream.data);
@@ -157,11 +154,10 @@ impl<'a> Assembler<'a> {
     }
 
     pub fn reaction_link<T, R>(&mut self,
-                               reaction: Stamped<'a, Reaction<'a, R>>,
-                               element: Stamped<'a, T>,
+                               reaction: &Stamped<Reaction<R>>,
+                               element: &Stamped<T>,
                                fwd: bool)
-        where T: GraphElement<'a>, R: Reactor<'a> {
-
+        where T: GraphElement, R: Reactor {
         let tag = if fwd {
             EdgeTag::ReactionDep
         } else {
@@ -170,7 +166,7 @@ impl<'a> Assembler<'a> {
 
         match element.data.kind() {
             NodeKind::Input => {
-                // validity
+                // todo validity
                 //     fwd && C(p) == self.reactor      => dependency on container input
                 //  or !fwd && C(C(p)) == self.reactor  => antidependency on sibling output
 
@@ -181,7 +177,7 @@ impl<'a> Assembler<'a> {
                 )
             }
             NodeKind::Output => {
-                // validity
+                // todo validity
                 //     !fwd && C(p) == self.reactor     => antidependency on container output
                 //  or fwd && C(C(p)) == self.reactor   => dependency on sibling output
 
@@ -191,8 +187,8 @@ impl<'a> Assembler<'a> {
                     tag,
                 )
             }
-            _ => {
-                unimplemented!();
+            NodeKind::Reaction | NodeKind::Reactor => {
+                panic!("A reaction cannot declare a dependency on a {:?}", element.data.kind())
             }
         };
     }
