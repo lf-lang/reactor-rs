@@ -11,11 +11,11 @@ fn main() {
 
     consumer.input.bind(&producer.value);
 
-    consumer.emit();
+    consumer.reactions()[0].fire(&consumer); // print
 
     producer.value.set(42);
 
-    consumer.emit();
+    consumer.reactions()[0].fire(&consumer); // print
 
 
     //

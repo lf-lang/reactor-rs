@@ -2,7 +2,7 @@ use std::cell::{RefCell, Ref};
 
 use std::rc::Rc;
 use std::borrow::Borrow;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 
 #[derive(Debug)]
@@ -31,9 +31,9 @@ impl<T> InPort<T> {
         self.binding = Some(Rc::clone(binding))
     }
 
-    pub fn borrow_or_panic(&self) -> impl Deref<Target = T>  + '_ {
+    pub fn borrow_or_panic(&self) -> impl Deref<Target=T> + '_ {
         match &self.binding {
-            Some(output) => output.borrow_val(),
+            Some(output) => output.get(),
             None => panic!("No binding for port {}", self.name)
         }
     }
@@ -56,11 +56,15 @@ impl<T> OutPort<T> {
         OutPort { name, cell: RefCell::new(initial_val) }
     }
 
-    pub fn borrow_val(&self) -> impl Deref<Target = T> + '_ {
+    pub fn set(&self, new_val: T) {
+        *self.cell.borrow_mut() = new_val
+    }
+
+    pub fn get(&self) -> impl Deref<Target=T> + '_ {
         self.cell.borrow()
     }
 
-    pub fn set(&self, new_val: T) {
-        *self.cell.borrow_mut() = new_val
+    pub fn get_mut(&self) -> impl DerefMut<Target=T> + '_ {
+        self.cell.borrow_mut()
     }
 }

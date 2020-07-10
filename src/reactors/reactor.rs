@@ -1,35 +1,17 @@
 use std::any::Any;
 
 use super::port::{InPort, OutPort, Port};
+use super::reaction::{Reaction};
 use std::rc::Rc;
 
 /// Trait for a reactor.
-pub trait Reactor<'a> {
+pub trait Reactor<'a> where Self: Sized {
+    // Translation strategy:
+    // Ports are struct fields
+    // Reactions are implemented with regular methods, described by a Reaction
 
-    // TODO reify reactions
+    fn reactions(&self) -> Vec<Reaction<'a, Self>>;
 }
-
-
-/// The World reactor is the toplevel reactor. It has no output
-/// or output ports, no state.
-/// TODO this is not needed if reactors manage themselves the creation of their ReactorGraph
-pub struct World {}
-
-impl World {
-    pub fn new() -> Self {
-        let mut world = World {};
-
-
-        world
-    }
-}
-//
-// impl Reactor<'static> for World {
-//     fn ports(&self) -> Vec<Box<Port<'static, ()>>> {
-//         vec![]
-//     }
-// }
-
 
 // Dummy reactor implementations
 
@@ -48,6 +30,33 @@ impl ProduceReactor {
             value: Rc::new(OutPort::new("value", 0))
         }
     }
+
+    fn incr_value(&self) {
+        *self.value.get_mut() += 2
+    }
+}
+
+impl<'a> Reactor<'a> for ProduceReactor {
+    fn reactions(&self) -> Vec<Reaction<'a, Self>> {
+        vec![
+            // reaction! {
+            //     "incr"("value") -> () {
+            //         reactor.incr_value()
+            //     }
+            // }
+            Reaction::new(
+                "incr",
+                vec![
+                    "value",
+                ],
+                |reactor| {
+                    {
+                        reactor.incr_value()
+                    }
+                },
+            )
+        ]
+    }
 }
 
 #[derive(Debug)]
@@ -63,23 +72,17 @@ impl ConsumeReactor {
     pub fn new() -> Self {
         ConsumeReactor { input: InPort::new("value") }
     }
-
-    pub fn emit(&self) {
-        let v = *self.input.borrow_or_panic();
-        println!("{}", v)
-    }
 }
 
 
-//
-// impl<'a> Reactor<'a> for ProduceReactor {
-//     fn ports(&self) -> Vec<Box<Port<'a, dyn Any>>> {
-//         vec![
-//             Box::new(Port::Output(&self.value)),
-//         ]
-//         // Vec::new()
-//         // &[
-//         //
-//         // ]
-//     }
-// }
+impl<'a> Reactor<'a> for ConsumeReactor {
+    fn reactions(&self) -> Vec<Reaction<'a, Self>> {
+        vec![
+            reaction! {
+                "print_input"("input") -> (input) {
+                    println!("{}", input)
+                }
+            }
+        ]
+    }
+}
