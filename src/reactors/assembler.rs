@@ -1,28 +1,44 @@
-use std::any::Any;
-use std::borrow::Borrow;
 use std::fmt::{Debug, Formatter};
-use std::hash::Hash;
 use std::marker::PhantomData;
 use std::rc::Rc;
 
-use petgraph::Graph;
 use petgraph::graph::DiGraph;
 use petgraph::graph::NodeIndex;
-use petgraph::stable_graph::StableDiGraph;
 
 use crate::reactors::port::{InPort, OutPort};
 use crate::reactors::reactor::Reactor;
+use crate::reactors::reaction::Reaction;
+use std::ops::Deref;
+use std::pin::Pin;
 
 type NodeIdRepr = u32;
 type NodeId = NodeIndex<NodeIdRepr>;
 
 
-pub trait GraphElement<'a> {}
+pub trait GraphElement<'a> {
+    fn kind(&self) -> NodeKind;
+}
 
-struct EdgeTag {}
+enum EdgeTag {
+    /*
+        O: OutPort -> I: InPort
+        means I is bound to O
+     */
+    PortConnection,
+    /*
+        O: (Output | Action) -> N: Reaction
+        means N depends on the action/output port
+     */
+    ReactionDep,
+    /*
+        N: Reaction -> I: (Input | Action)
+        means I depends on N
+     */
+    ReactionAntiDep,
+}
 
 
-type NodeData<'a> = Rc<dyn GraphElement<'a>>;
+type NodeData<'a> = Pin<Rc<dyn GraphElement<'a>>>;
 
 /// The dependency graph between structures
 type DepGraph<'a> = DiGraph<NodeData<'a>, EdgeTag, NodeIdRepr>;
@@ -52,17 +68,24 @@ pub struct Assembler<'a> {
     // TODO the assembler should be a zipper
     graph: DepGraph<'a>,
 
-    parent: Option<&'a Assembler<'a>>,
-
+    parent: Option<Box<Assembler<'a>>>,
 }
 
 
 /// Zips an element with its global graph id
 pub struct Stamped<'a, T> {
     id: NodeId,
-    pub data: Rc<T>,
+    data: Pin<Rc<T>>,
 
     life: PhantomData<&'a ()>,
+}
+
+impl<'a, T> Deref for Stamped<'a, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        self.data.deref()
+    }
 }
 
 impl<'a, T> Debug for Stamped<'a, T>
@@ -73,12 +96,26 @@ impl<'a, T> Debug for Stamped<'a, T>
 }
 
 
+pub enum NodeKind {
+    Input,
+    Output,
+    Reaction,
+    Reactor,
+    // TODO
+}
+
+
 impl<'a> Assembler<'a> {
-    pub fn new() -> Assembler<'a> {
+    pub fn new(parent: Option<Box<Assembler<'a>>>) -> Self {
         Assembler {
-            parent: None,
+            parent: parent,
             graph: DepGraph::new(),
         }
+    }
+
+
+    pub fn root() -> Self {
+        Self::new(None)
     }
 
     /// Create a node, associating it a ID in the graph (which
@@ -88,18 +125,18 @@ impl<'a> Assembler<'a> {
     /// value is used to associate topological info with the node
     /// (todo hierarchy relations + dependency relations)
     ///
-    pub fn create_node<N: GraphElement<'a> + 'static>(&mut self, elt: N) -> Stamped<'a, N> {
+    pub fn create_node<N: GraphElement<'a> + 'a>(&mut self, elt: N) -> Stamped<'a, N> {
         // let elt_box: Rc<N> = Box::new(elt);
         // let mut upcast: Rc<dyn GraphElement<'a>> = Box::new(elt_box.);
 
-        let rc = Rc::new(elt);
-        let rc_erased: Rc<dyn GraphElement<'a>> = rc.clone();
+        let rc = Rc::pin(elt);
+        let rc_erased: Pin<Rc<dyn GraphElement<'a> + 'a>> = rc.clone();
 
         let id = self.graph.add_node(rc_erased);
 
         Stamped {
             id,
-            data: Rc::clone(&rc),
+            data: rc,
             life: PhantomData,
         }
     }
@@ -109,14 +146,55 @@ impl<'a> Assembler<'a> {
                       downstream: &Stamped<'a, InPort<T>>) {
         // todo assertions
 
-        downstream.data.bind(&upstream.data);
+        downstream.bind(&upstream.data);
 
 
         self.graph.add_edge(
             upstream.id,
             downstream.id,
-            EdgeTag {},
+            EdgeTag::PortConnection,
         );
+    }
+
+    pub fn reaction_link<T, R>(&mut self,
+                               reaction: Stamped<'a, Reaction<'a, R>>,
+                               element: Stamped<'a, T>,
+                               fwd: bool)
+        where T: GraphElement<'a>, R: Reactor<'a> {
+
+        let tag = if fwd {
+            EdgeTag::ReactionDep
+        } else {
+            EdgeTag::ReactionAntiDep
+        };
+
+        match element.data.kind() {
+            NodeKind::Input => {
+                // validity
+                //     fwd && C(p) == self.reactor      => dependency on container input
+                //  or !fwd && C(C(p)) == self.reactor  => antidependency on sibling output
+
+                self.graph.add_edge(
+                    reaction.id,
+                    element.id,
+                    tag,
+                )
+            }
+            NodeKind::Output => {
+                // validity
+                //     !fwd && C(p) == self.reactor     => antidependency on container output
+                //  or fwd && C(C(p)) == self.reactor   => dependency on sibling output
+
+                self.graph.add_edge(
+                    reaction.id,
+                    element.id,
+                    tag,
+                )
+            }
+            _ => {
+                unimplemented!();
+            }
+        };
     }
 
 

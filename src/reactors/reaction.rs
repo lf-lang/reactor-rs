@@ -1,13 +1,33 @@
 use crate::reactors::reactor::Reactor;
+use crate::reactors::assembler::{Assembler, Stamped, GraphElement, NodeKind};
 
-/// A reaction may be triggered by
-/// - An event occurring on an input port of the reactor
-/// - An action of the reactor, that was scheduled or executed
-///   by another reaction
-/// - todo a clock? I think that's conceptually like an event
+/// A reaction is some managed executable code, owned by a reactor.
+///
+/// Components of a reaction n of a reactor C:
+///
+/// - dependencies, a subset of
+///   - the input ports of C
+///   - the output ports of the reactors contained in C
+///
+/// - triggers, a subset of
+///   - the dependencies of n
+///   - the actions of C
+///
+/// - an executable body
+///
+/// - antidependencies, a subset of
+///   - the output ports of C
+///   - the input ports of the reactors contained in C
+///
+/// - a set of schedulable actions, which is the subset of the actions of C
+/// for which n can generate events
+///
+/// Note that all of this information (except the body) is
+/// encoded into the graph at assembly time, it's not part of this struct.
+///
+#[derive(Debug)]
 pub struct Reaction<'a, Container>
     where Container: Reactor<'a> + Sized + 'a {
-
     name: &'static str,
 
     /// Body to execute
@@ -16,27 +36,31 @@ pub struct Reaction<'a, Container>
     /// - todo the scheduler, to send events like schedule, etc
     body: fn(&'a Container),
 
-    /// These will be resolved against the input port names
-    /// of the containing reactor
-    port_dependencies: Vec<&'static str>,
 }
 
 #[macro_export]
-macro_rules! reaction {
-    { $name:literal ($( $trigger:literal ),*) -> ($( $var:ident ),*) $body:tt } => {
-        Reaction::new(
-            $name,
-            vec![
-                $( $trigger, )*
-            ],
-            |reactor| {
-                $( let $var = *reactor.$var.data.borrow_or_panic().get(); );*
+macro_rules! link_reaction {
+    {($assembler:expr)($reaction:expr) (deps $( $dep:expr )*) (antideps $( $anti:expr )*)} => {
 
-                $body
-            }
-        )
+        {
+            $(
+                $assembler.reaction_link($reaction, $dep, true);
+            )*
+            $(
+                $assembler.reaction_link($reaction, $anti, false);
+            )*
+        }
     };
 }
+
+impl<'a, Container> GraphElement<'a>
+for Reaction<'a, Container>
+    where Container: Reactor<'a> {
+    fn kind(&self) -> NodeKind {
+        NodeKind::Reaction
+    }
+}
+
 
 impl<'a, Container> Reaction<'a, Container>
     where Container: Reactor<'a> {
@@ -46,14 +70,10 @@ impl<'a, Container> Reaction<'a, Container>
     }
 
     pub fn new(
+        assembler: &mut Assembler<'a>,
         name: &'static str,
-        port_deps: Vec<&'static str>,
         body: fn(&'a Container),
-    ) -> Reaction<'a, Container> {
-        Reaction {
-            name,
-            port_dependencies: port_deps,
-            body,
-        }
+    ) -> Stamped<'a, Reaction<'a, Container>> {
+        assembler.create_node(Reaction { body, name })
     }
 }

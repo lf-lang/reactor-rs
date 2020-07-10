@@ -1,11 +1,11 @@
-use std::borrow::Borrow;
-use std::cell::{Ref, RefCell};
+use std::cell::RefCell;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-use crate::reactors::assembler::{GraphElement, Stamped};
+use crate::reactors::assembler::{GraphElement, Stamped, NodeKind};
 
 use super::assembler::Assembler;
+use std::pin::Pin;
 
 #[derive(Debug)]
 pub struct InPort<T> {
@@ -16,13 +16,18 @@ pub struct InPort<T> {
     ///
     /// RefCell<            // For internal mutability
     /// Option<             // The port may be unbound
+    /// Pin<                // The inner reference may not be moved
     /// Rc<                 // The referenced output port may be referenced by several input ports
-    /// OutPort<T>>>>       // Finally the value!
+    /// OutPort<T>>>>>      // Finally the value (which in fact is in its own refcell)
     ///
-    binding: RefCell<Option<Rc<OutPort<T>>>>,
+    binding: RefCell<Option<Pin<Rc<OutPort<T>>>>>,
 }
 
-impl<'a, T> GraphElement<'a> for InPort<T> {}
+impl<'a, T> GraphElement<'a> for InPort<T> {
+    fn kind(&self) -> NodeKind {
+        NodeKind::Input
+    }
+}
 
 impl<T> InPort<T> {
     pub fn new<'a>(assembler: &mut Assembler<'a>, name: &'static str) -> Stamped<'a, InPort<T>>
@@ -35,19 +40,19 @@ impl<T> InPort<T> {
         )
     }
 
-    pub fn bind(&self, binding: &Rc<OutPort<T>>) {
+    pub fn bind(&self, binding: &Pin<Rc<OutPort<T>>>) {
         // that it's important that the borrow here is dropped before borrow_mut is called
         //                                        vvvvvv
         if let Some(b) = self.binding.borrow().as_deref() {
             panic!("Input port {} already bound to {}", self.name, b.name)
         }
-        *self.binding.borrow_mut() = Some(Rc::clone(binding))
+        *self.binding.borrow_mut() = Some(binding.clone())
     }
 
-    pub fn borrow_or_panic(&self) -> Rc<OutPort<T>> {
+    pub fn borrow_or_panic(&self) -> Pin<Rc<OutPort<T>>> {
         let x = self.binding.borrow();
         match &*x {
-            Some(output) => Rc::clone(output),
+            Some(output) => Pin::clone(output),
             None => panic!("No binding for port {}", self.name)
         }
     }
@@ -68,7 +73,7 @@ pub struct OutPort<T> {
 
 impl<T> OutPort<T> {
     pub fn new<'a>(assembler: &mut Assembler<'a>, name: &'static str, initial_val: T) -> Stamped<'a, OutPort<T>>
-        where T: 'static {
+        where T: 'static, {
         assembler.create_node(
             OutPort { name, cell: RefCell::new(initial_val) }
         )
@@ -87,4 +92,8 @@ impl<T> OutPort<T> {
     }
 }
 
-impl<'a, T> GraphElement<'a> for OutPort<T> {}
+impl<'a, T> GraphElement<'a> for OutPort<T> {
+    fn kind(&self) -> NodeKind {
+        NodeKind::Output
+    }
+}
