@@ -1,4 +1,3 @@
-pub mod scheduler;
 pub mod action;
 pub mod assembler;
 #[macro_use]

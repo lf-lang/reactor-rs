@@ -47,7 +47,7 @@ enum EdgeTag {
 type NodeData = Pin<Rc<dyn GraphElement>>;
 
 /// The dependency graph between structures
-pub(in super) type DepGraph = DiGraph<NodeData, EdgeTag, NodeIdRepr>;
+type DepGraph = DiGraph<NodeData, EdgeTag, NodeIdRepr>;
 
 
 /// Manages the construction phase.
