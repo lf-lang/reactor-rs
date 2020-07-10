@@ -3,9 +3,21 @@ mod reactors;
 
 use reactors::reactor::{Reactor, ProduceReactor};
 use toys::zipped_tree::{Node, NodeZipper};
+use crate::reactors::reactor::ConsumeReactor;
 
 fn main() {
-    let world = ProduceReactor::new();
+    let mut producer = ProduceReactor::new();
+    let mut consumer = ConsumeReactor::new();
+
+    consumer.input.bind(&producer.value);
+
+    consumer.emit();
+
+    producer.value.set(42);
+
+    consumer.emit();
+
+
     //
     // let mut root = Node::new("");
     // let mut c0 = Node::new("0");

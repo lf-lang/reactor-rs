@@ -1,33 +1,12 @@
-use super::port::Port;
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::any::Any;
 
+use super::port::{InPort, OutPort, Port};
+use std::rc::Rc;
+
 /// Trait for a reactor.
-pub trait Reactor {
-    /// The set of output & input ports.
-    /// This is manipulated by the container reactor, as part
-    /// of a ReactorGraph
-    fn ports(&self) -> &[Port];
+pub trait Reactor<'a> {
 
     // TODO reify reactions
-}
-
-type RPort = (Box<dyn Reactor>, Port);
-
-/// A reactor graph describes the internal topology of a reactor.
-/// It connects ports of the sub-reactors of a container.
-struct ReactorGraph {
-    // TODO connections + use zipper idea
-    nodes: Vec<Box<dyn Reactor>>,
-    // map of input port to their connection
-    edges: HashMap<RPort, RPort>,
-}
-
-impl ReactorGraph {
-    fn empty() -> ReactorGraph {
-        ReactorGraph { nodes: Vec::new(), edges: HashMap::new() }
-    }
 }
 
 
@@ -37,38 +16,70 @@ impl ReactorGraph {
 pub struct World {}
 
 impl World {
-    const NO_PORTS: [Port; 0] = [];
-
-
     pub fn new() -> Self {
-        World {}
-    }
-}
+        let mut world = World {};
 
-impl Reactor for World {
-    fn ports(&self) -> &[Port] {
-        &Self::NO_PORTS
+
+        world
     }
 }
+//
+// impl Reactor<'static> for World {
+//     fn ports(&self) -> Vec<Box<Port<'static, ()>>> {
+//         vec![]
+//     }
+// }
 
 
 // Dummy reactor implementations
 
 #[derive(Debug)]
 pub struct ProduceReactor {
-    state: i32,
+    /// This is the ouput port, that should be borrowed
+    // output: RefCell<i32>,
+    // output_borrower: Rc<RefCell<i32>>,
+
+    pub value: Rc<OutPort<i32>>
 }
 
 impl ProduceReactor {
-    const PORTS: [Port; 1] = [Port::Output("value")];
-
     pub fn new() -> Self {
-        ProduceReactor { state: 4 }
+        ProduceReactor {
+            value: Rc::new(OutPort::new("value", 0))
+        }
     }
 }
 
-impl Reactor for ProduceReactor {
-    fn ports(&self) -> &[Port] {
-        &Self::PORTS
+#[derive(Debug)]
+pub struct ConsumeReactor {
+    /// This is the ouput port, that should be borrowed
+    // output: RefCell<i32>,
+    // output_borrower: Rc<RefCell<i32>>,
+
+    pub input: InPort<i32>
+}
+
+impl ConsumeReactor {
+    pub fn new() -> Self {
+        ConsumeReactor { input: InPort::new("value") }
+    }
+
+    pub fn emit(&self) {
+        let v = *self.input.borrow_or_panic();
+        println!("{}", v)
     }
 }
+
+
+//
+// impl<'a> Reactor<'a> for ProduceReactor {
+//     fn ports(&self) -> Vec<Box<Port<'a, dyn Any>>> {
+//         vec![
+//             Box::new(Port::Output(&self.value)),
+//         ]
+//         // Vec::new()
+//         // &[
+//         //
+//         // ]
+//     }
+// }
