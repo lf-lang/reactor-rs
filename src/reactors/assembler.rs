@@ -47,7 +47,7 @@ enum EdgeTag {
 type NodeData = Pin<Rc<dyn GraphElement>>;
 
 /// The dependency graph between structures
-type DepGraph = DiGraph<NodeData, EdgeTag, NodeIdRepr>;
+pub(in super) type DepGraph = DiGraph<NodeData, EdgeTag, NodeIdRepr>;
 
 
 /// Manages the construction phase.
@@ -81,7 +81,7 @@ pub struct Assembler {
 
 /// Zips an element with its global graph id
 pub struct Stamped<T> {
-    id: NodeId,
+    pub(in super) id: NodeId,
     data: Pin<Rc<T>>,
 }
 
@@ -160,7 +160,6 @@ impl Assembler {
                                element: &Stamped<T>,
                                is_dep: bool) // if false, this is an antidependency
         where T: GraphElement, R: Reactor {
-
         let tag = match element.data.kind() {
             NodeKind::Input | NodeKind::Output | NodeKind::Action => {
                 // todo validity if input:

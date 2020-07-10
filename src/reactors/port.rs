@@ -14,6 +14,8 @@ pub struct InPort<T> {
     /// The binding for an input port is the output port to
     /// which it is connected.
     ///
+    /// todo this scheme is not thread-safe, abandon internal mutability
+    ///
     /// RefCell<            // For internal mutability
     /// Option<             // The port may be unbound
     /// Pin<                // The inner reference may not be moved
