@@ -3,15 +3,21 @@ use std::any::Any;
 use super::port::{InPort, OutPort, Port};
 use super::reaction::{Reaction};
 use std::rc::Rc;
+use crate::reactors::assembler::{Assembler, Stamped, GraphElement};
 
 /// Trait for a reactor.
-pub trait Reactor<'a> where Self: Sized {
+pub trait Reactor<'a> {
     // Translation strategy:
     // Ports are struct fields
     // Reactions are implemented with regular methods, described by a Reaction
 
-    fn reactions(&self) -> Vec<Reaction<'a, Self>>;
+    fn reactions(&self) -> Vec<Reaction<'a, Self>> where Self: Sized;
 }
+
+
+impl<'a, T> GraphElement<'a> for T
+    where T: Reactor<'a> + Sized {}
+
 
 // Dummy reactor implementations
 
@@ -60,22 +66,22 @@ impl<'a> Reactor<'a> for ProduceReactor {
 }
 
 #[derive(Debug)]
-pub struct ConsumeReactor {
+pub struct ConsumeReactor<'a> {
     /// This is the ouput port, that should be borrowed
     // output: RefCell<i32>,
     // output_borrower: Rc<RefCell<i32>>,
 
-    pub input: InPort<i32>
+    pub input: Stamped<'a, InPort<i32>>
 }
 
-impl ConsumeReactor {
-    pub fn new() -> Self {
-        ConsumeReactor { input: InPort::new("value") }
+impl<'a> ConsumeReactor<'a> {
+    pub fn new(assembler: &mut Assembler<'a>) -> Self {
+        ConsumeReactor { input: InPort::new(assembler, "value") }
     }
 }
 
 
-impl<'a> Reactor<'a> for ConsumeReactor {
+impl<'a> Reactor<'a> for ConsumeReactor<'a> {
     fn reactions(&self) -> Vec<Reaction<'a, Self>> {
         vec![
             reaction! {

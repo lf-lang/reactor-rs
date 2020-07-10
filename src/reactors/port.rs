@@ -3,6 +3,8 @@ use std::cell::{RefCell, Ref};
 use std::rc::Rc;
 use std::borrow::Borrow;
 use std::ops::{Deref, DerefMut};
+use super::assembler::Assembler;
+use crate::reactors::assembler::{GraphElement, Stamped};
 
 
 #[derive(Debug)]
@@ -19,9 +21,16 @@ pub struct InPort<T> {
     binding: Option<Rc<OutPort<T>>>,
 }
 
+impl<'a, T> GraphElement<'a> for InPort<T> {}
+
 impl<T> InPort<T> {
-    pub fn new(name: &'static str) -> InPort<T> {
-        InPort { name, binding: None }
+    pub fn new<'a>(assembler: &mut Assembler<'a>, name: &'static str) -> Stamped<'a, InPort<T>> {
+        assembler.create_node(
+            InPort {
+                name,
+                binding: None,
+            }
+        )
     }
 
     pub fn bind(&mut self, binding: &Rc<OutPort<T>>) {
@@ -41,7 +50,7 @@ impl<T> InPort<T> {
 
 
 /// An OutPort is an internally mutable container for a value
-/// In reactors, ports should be wrapped inside an Rc; when 
+/// In reactors, ports should be wrapped inside an Rc; when
 /// linked to an input port of another reactor, that Rc should
 /// be cloned.
 #[derive(Debug)]
@@ -50,6 +59,7 @@ pub struct OutPort<T> {
     /// Mutable container for the value
     cell: RefCell<T>,
 }
+
 
 impl<T> OutPort<T> {
     pub fn new(name: &'static str, initial_val: T) -> OutPort<T> {
@@ -68,3 +78,5 @@ impl<T> OutPort<T> {
         self.cell.borrow_mut()
     }
 }
+
+impl<'a, T> GraphElement<'a> for OutPort<T> {}

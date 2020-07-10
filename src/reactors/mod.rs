@@ -1,3 +1,4 @@
+pub mod assembler;
 #[macro_use]
 pub mod reaction;
 pub mod port;

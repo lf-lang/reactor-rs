@@ -7,7 +7,7 @@ use crate::reactors::reactor::Reactor;
 ///   by another reaction
 /// - todo a clock? I think that's conceptually like an event
 pub struct Reaction<'a, Container>
-    where Container: Reactor<'a> {
+    where Container: Reactor<'a> + Sized + 'a {
 
     name: &'static str,
 
