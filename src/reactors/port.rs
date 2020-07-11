@@ -1,8 +1,8 @@
-use std::cell::RefCell;
+use std::cell::{RefCell, Ref};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-use super::assembler::{GraphElement, Stamped, NodeKind};
+use super::assembler::{GraphElement, Linked, NodeKind};
 
 use super::assembler::Assembler;
 use std::pin::Pin;
@@ -15,7 +15,7 @@ pub struct InPort<T> {
     /// The binding for an input port is the output port to
     /// which it is connected.
     ///
-    /// todo this scheme is not thread-safe, abandon internal mutability
+    /// todo this scheme is not thread-safe, abandon internal mutability?
     ///
     /// RefCell<            // For internal mutability
     /// Option<             // The port may be unbound
@@ -33,7 +33,7 @@ impl<T> GraphElement for InPort<T> {
 }
 
 impl<T> InPort<T> {
-    pub fn new<R: Reactor>(assembler: &mut Assembler<R>, name: &'static str) -> Stamped<InPort<T>>
+    pub fn new<R: Reactor>(assembler: &mut Assembler<R>, name: &'static str) -> Linked<InPort<T>>
         where T: 'static {
         assembler.create_node(
             InPort {
@@ -61,6 +61,12 @@ impl<T> InPort<T> {
     }
 }
 
+// Get the current value, or panics
+#[macro_export]
+macro_rules! port_value {
+    [$port:expr] => {*($port).borrow_or_panic().get()};
+}
+
 
 /// An OutPort is an internally mutable container for a value
 /// In reactors, ports should be wrapped inside an Rc; when
@@ -75,7 +81,7 @@ pub struct OutPort<T> {
 
 
 impl<T> OutPort<T> {
-    pub fn new<R:Reactor>(assembler: &mut Assembler<R>, name: &'static str, initial_val: T) -> Stamped<OutPort<T>>
+    pub fn new<R:Reactor>(assembler: &mut Assembler<R>, name: &'static str, initial_val: T) -> Linked<OutPort<T>>
         where T: 'static, {
         assembler.create_node(
             OutPort { name, cell: RefCell::new(initial_val) }

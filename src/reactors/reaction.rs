@@ -1,6 +1,7 @@
-use super::reactor::Reactor;
-use super::assembler::{Assembler, Stamped, GraphElement, NodeKind};
 use std::fmt::{Debug, Formatter};
+
+use super::assembler::{Assembler, GraphElement, Linked, NodeKind};
+use super::reactor::Reactor;
 
 /// A reaction is some managed executable code, owned by a reactor.
 ///
@@ -26,15 +27,16 @@ use std::fmt::{Debug, Formatter};
 /// Note that all of this information (except the body) is
 /// encoded into the graph at assembly time, it's not part of this struct.
 ///
-pub struct Reaction<Container>
-    where Container: Reactor + Sized {
+pub struct Reaction<R>
+    where R: Reactor + Sized {
+    /// Has no importance except for debug
     name: &'static str,
 
     /// Body to execute
     /// Arguments:
     /// - the reactor instance that contains the reaction todo should this be mut?
     /// - todo the scheduler, to send events like schedule, etc
-    body: fn(&Container),
+    body: fn(&R),
 
 }
 
@@ -45,9 +47,10 @@ impl<C> Debug for Reaction<C>
     }
 }
 
+/// Declares the dependencies of a reaction on ports & actions
 #[macro_export]
 macro_rules! link_reaction {
-    {($assembler:expr)($reaction:expr) (deps $( $dep:expr )*) (antideps $( $anti:expr )*)} => {
+    {($reaction:expr) with ($assembler:expr) (uses $( $dep:expr )*) (affects $( $anti:expr )*)} => {
 
         {
             $(
@@ -60,27 +63,23 @@ macro_rules! link_reaction {
     };
 }
 
-impl<Container> GraphElement
-for Reaction<Container>
-    where Container: Reactor {
+
+impl<R> GraphElement for Reaction<R>
+    where R: Reactor {
     fn kind(&self) -> NodeKind {
         NodeKind::Reaction
     }
 }
 
 
-impl<Container> Reaction<Container>
-    where Container: Reactor {
-    pub fn fire(&self, c: &Container) {
+impl<R> Reaction<R>
+    where R: Reactor {
+    pub fn fire(&self, c: &R) {
         (self.body)(c)
     }
 
-    pub fn new(
-        assembler: &mut Assembler<Container>,
-        name: &'static str,
-        body: fn(&Container),
-    ) -> Stamped<Reaction<Container>>
-        where Container: 'static {
-        assembler.create_node(Reaction { body, name })
+    pub fn new(assembler: &mut Assembler<R>, name: &'static str, body: fn(&R)) -> Linked<Reaction<R>>
+        where R: 'static {
+        assembler.add_reaction(Reaction { body, name })
     }
 }

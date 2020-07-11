@@ -31,6 +31,8 @@ pub trait GraphElement {
 }
 
 enum EdgeTag {
+    // TODO this is messy
+
     /*
         O: OutPort -> I: InPort
         means I is bound to O
@@ -57,6 +59,7 @@ type DepGraph = DiGraph<NodeData, EdgeTag, NodeIdRepr>;
 
 
 /// Identifies an assembly uniquely in the tree
+/// This is just a path built from the root down.
 #[derive(Eq, PartialEq, Debug)]
 enum AssemblyId {
     Root,
@@ -73,7 +76,7 @@ impl Clone for AssemblyId {
         match self {
             Self::Root => Self::Root,
             Self::Nested { ext_id, parent } =>
-            Self::Nested { ext_id: *ext_id, parent: Rc::clone(parent)}
+                Self::Nested { ext_id: *ext_id, parent: Rc::clone(parent) }
         }
     }
 }
@@ -85,26 +88,12 @@ impl AssemblyId {
             Self::Nested { parent, .. } => Some(Rc::borrow(parent)),
         }
     }
-
-    fn depth(&self) -> u32 {
-        match self {
-            Self::Root => 0,
-            Self::Nested { parent, .. } => 1 + parent.depth()
-        }
-    }
-
-    fn fork(self: Rc<AssemblyId>, idx: NodeId) -> AssemblyId {
-        Nested {
-            parent: Rc::clone(&self),
-            ext_id: idx,
-        }
-    }
 }
 
 
 /// Zips an element with its ID relative to all the other elements
 /// in the graph.
-pub struct Stamped<T> {
+pub struct Linked<T> {
     /// Id of the assembly
     assembly_id: Rc<AssemblyId>,
 
@@ -116,7 +105,7 @@ pub struct Stamped<T> {
     data: Pin<Rc<T>>,
 }
 
-impl<T> Deref for Stamped<T> {
+impl<T> Deref for Linked<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
@@ -124,7 +113,7 @@ impl<T> Deref for Stamped<T> {
     }
 }
 
-impl<T> Debug for Stamped<T>
+impl<T> Debug for Linked<T>
     where T: Debug {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.data.fmt(f)
@@ -150,24 +139,25 @@ pub enum NodeKind {
 /// - dependency relations form a graph, eg an output port may
 /// be connected to several input ports of other reactors
 ///
-/// Hierarchy relations are ideally built implicitly by the assembler.
-/// It should remember the current container, and every time we add a
-/// node, it should be linked that way.
-///
 /// Dependency relations are constructed explicitly by `connect`ing
-/// elements. This uses the hierarchical information to validate the
-/// structure (eg you can only connect ports that are on the same level
-/// of the tree).
+/// elements. An element must receive an ID in the dependency
+/// graph of its reactor, which is what the assembler controls.
 ///
-/// Internally the dependencies are encoded into a graph, which is the
-/// output of the assembly -> todo should be passed to the scheduler later
+/// Hierarchy relations are encoded into a path object, the `AssemblyId`,
+/// that is carried around during construction. This information
+/// is only used at assembly-time, to validate the connections
+/// between elements (eg you can only connect ports that are
+/// on the same level of the tree).
 ///
+/// The output of assembly is a [RunnableReactor].
 ///
 /// Basic assembly procedure:
 ///     - assemble all subreactors (this is recursive)
-///     - label all subcomponents (using Stamped). A subreactor
-///     is a black box, we ignore its own topology.
-///     - record all dependencies into 2 graphs:
+///     - label all subcomponents (using [Linked]). A subreactor
+///     is a black box, we ignore its own topology. It still has
+///     an ID in the graph of its parent.
+///     - connect components using their [Linked] wrapper.
+///     This records connections into 2 graphs:
 ///       1. data dependencies: connections between ports & reactions (not actions).
 ///       This must be a DAG that orders reactions by priority (toposort).
 ///       2. trigger dependencies: these are timely dependencies,
@@ -182,6 +172,9 @@ pub struct Assembler<T: Reactor> {
 
     dataflow: DepGraph,
 
+    /// This order defines priority of reactions
+    reactions: Vec<NodeId>,
+
     _t_phantom: PhantomData<T>,
 }
 
@@ -191,6 +184,7 @@ impl<R: Reactor> Assembler<R> {
         Assembler {
             id: Rc::new(AssemblyId::Root),
             dataflow: DepGraph::new(),
+            reactions: Vec::new(),
             _t_phantom: PhantomData,
         }
     }
@@ -203,13 +197,14 @@ impl<R: Reactor> Assembler<R> {
         }
     }
 
-    pub fn assemble_subreactor<T: Reactor + 'static>(&mut self) -> Stamped<RunnableReactor<T>> {
+    pub fn assemble_subreactor<T: Reactor + 'static>(&mut self) -> Linked<RunnableReactor<T>> {
         let idx = NodeIndex::new(self.dataflow.node_count()); //
         let subid = self.subid(idx);
 
         let mut sub_assembler = Assembler::<T> {
             id: Rc::new(subid),
             dataflow: DepGraph::new(),
+            reactions: Vec::new(),
             _t_phantom: PhantomData,
         };
 
@@ -228,11 +223,19 @@ impl<R: Reactor> Assembler<R> {
         result
     }
 
+    pub fn add_reaction(&mut self, reaction: Reaction<R>) -> Linked<Reaction<R>>
+        where R: 'static {
+
+        let linked = self.create_node(reaction);
+        self.reactions.push(linked.local_id);
+        linked
+    }
+
     /// Create a node, associating it a ID in the graph (which
     /// is hidden in the returned Stamped instance).
     ///
     /// The N is for example a port, or a reactor.
-    pub fn create_node<N: GraphElement + 'static>(&mut self, elt: N) -> Stamped<N> {
+    pub fn create_node<N: GraphElement + 'static>(&mut self, elt: N) -> Linked<N> {
         // todo guarantee unicity
 
         let rc = Rc::pin(elt);
@@ -240,7 +243,7 @@ impl<R: Reactor> Assembler<R> {
 
         let id = self.dataflow.add_node(rc_erased);
 
-        Stamped {
+        Linked {
             assembly_id: Rc::clone(&self.id),
             local_id: id,
             data: rc,
@@ -248,8 +251,8 @@ impl<R: Reactor> Assembler<R> {
     }
 
     pub fn connect<T>(&mut self,
-                      upstream: &Stamped<OutPort<T>>,
-                      downstream: &Stamped<InPort<T>>) {
+                      upstream: &Linked<OutPort<T>>,
+                      downstream: &Linked<InPort<T>>) {
         assert_eq!(upstream.assembly_id.parent(), downstream.assembly_id.parent(),
                    "Connection between ports must be made between sibling reactors");
 
@@ -266,8 +269,8 @@ impl<R: Reactor> Assembler<R> {
     /// Declare the dependencies of a reaction
     /// Module super::reaction defines a macro to do that easily
     pub fn reaction_link<T>(&mut self,
-                            reaction: &Stamped<Reaction<R>>,
-                            element: &Stamped<T>,
+                            reaction: &Linked<Reaction<R>>,
+                            element: &Linked<T>,
                             is_dep: bool) // if false, this is an antidependency
         where T: GraphElement {
         let target_kind = element.data.kind();
@@ -285,7 +288,9 @@ impl<R: Reactor> Assembler<R> {
             }
             NodeKind::Action => {
                 assert_eq!(reaction.assembly_id, element.assembly_id,
-                           "A reaction may only depend on/schedule the actions of its container")
+                           "A reaction may only depend on/schedule the actions of its container");
+
+                unimplemented!("actions");
             }
             NodeKind::Reaction | NodeKind::Reactor => {
                 panic!("A reaction cannot declare a dependency on a {:?}", target_kind)
@@ -311,7 +316,7 @@ pub struct RunnableReactor<R: Reactor> {
     /// The flow graph delimited by inputs & outputs.
     /// This is local to a reactor and not global. It
     /// determines the topological ordering between
-    /// reactions & mutations
+    /// reactions & mutations *on an instantaneous time step*
     data_flow: DepGraph,
 
     // Those ids are local to this reactor's topology
@@ -329,7 +334,7 @@ impl<R: Reactor> GraphElement for RunnableReactor<R> {
 }
 
 impl<R: Reactor> RunnableReactor<R> {
-    fn downstream<N>(&self, stamped: &Stamped<N>) -> Neighbors<EdgeTag, NodeIdRepr> {
+    fn downstream<N>(&self, stamped: &Linked<N>) -> Neighbors<EdgeTag, NodeIdRepr> {
         self.data_flow.neighbors_directed(stamped.local_id, Direction::Outgoing)
     }
 }

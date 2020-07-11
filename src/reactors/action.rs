@@ -1,5 +1,5 @@
 use std::time::Duration;
-use crate::reactors::assembler::{Assembler, Stamped, GraphElement, NodeKind};
+use crate::reactors::assembler::{Assembler, Linked, GraphElement, NodeKind};
 use crate::reactors::reactor::Reactor;
 
 
@@ -24,15 +24,15 @@ impl GraphElement for Action {
 }
 
 impl Action {
-    pub fn new_physical<R: Reactor>(assembler: &mut Assembler<R>, name: &'static str, delay: Duration) -> Stamped<Self> {
+    pub fn new_physical<R: Reactor>(assembler: &mut Assembler<R>, name: &'static str, delay: Duration) -> Linked<Self> {
         Self::new(assembler, name, delay, false)
     }
 
-    pub fn new_logical<R: Reactor>(assembler: &mut Assembler<R>, name: &'static str, delay: Duration) -> Stamped<Self> {
+    pub fn new_logical<R: Reactor>(assembler: &mut Assembler<R>, name: &'static str, delay: Duration) -> Linked<Self> {
         Self::new(assembler, name, delay, true)
     }
 
-    fn new<R: Reactor>(assembler: &mut Assembler<R>, name: &'static str, delay: Duration, logical: bool) -> Stamped<Self> {
+    fn new<R: Reactor>(assembler: &mut Assembler<R>, name: &'static str, delay: Duration, logical: bool) -> Linked<Self> {
         assembler.create_node(Action { name, delay, logical })
     }
 

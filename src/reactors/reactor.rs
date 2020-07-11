@@ -1,5 +1,5 @@
 
-use super::assembler::{Assembler, GraphElement, NodeKind, Stamped};
+use super::assembler::{Assembler, GraphElement, NodeKind, Linked};
 use super::port::{InPort, OutPort};
 use super::reaction::Reaction;
 
@@ -13,7 +13,7 @@ pub trait Reactor {
     /// Returns the reactions defined on this instance.
     /// Order is important, as it determines the relative priority
     /// of reactions that should execute at the same timestamp
-    fn reactions(&self) -> Vec<&Stamped<Reaction<Self>>>
+    fn reactions(&self) -> Vec<&Linked<Reaction<Self>>>
         where Self: Sized;
 
     fn new(assembler: &mut Assembler<Self>) -> Self
