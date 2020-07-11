@@ -21,6 +21,10 @@ impl GraphElement for Action {
     fn kind(&self) -> NodeKind {
         NodeKind::Action
     }
+
+    fn name(&self) -> &'static str {
+        self.name
+    }
 }
 
 impl Action {

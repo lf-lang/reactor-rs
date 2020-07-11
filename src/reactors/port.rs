@@ -29,6 +29,10 @@ impl<T> GraphElement for InPort<T> {
     fn kind(&self) -> NodeKind {
         NodeKind::Input
     }
+
+    fn name(&self) -> &'static str {
+        self.name
+    }
 }
 
 impl<T> InPort<T> {
@@ -103,5 +107,9 @@ impl<T> OutPort<T> {
 impl<T> GraphElement for OutPort<T> {
     fn kind(&self) -> NodeKind {
         NodeKind::Output
+    }
+
+    fn name(&self) -> &'static str {
+        self.name
     }
 }

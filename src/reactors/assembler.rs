@@ -4,25 +4,27 @@
 //! initialization of the program.
 
 
-use std::fmt::{Debug, Formatter, Display};
+use std::any::type_name;
+use std::borrow::Borrow;
+use std::cmp::Ordering;
+use std::fmt::{Debug, Display, Formatter};
+use std::marker::PhantomData;
+use std::ops::Deref;
+use std::pin::Pin;
+use std::process::id;
 use std::rc::Rc;
 
+use petgraph::algo::toposort;
+use petgraph::Direction;
 use petgraph::graph::{DiGraph, Neighbors};
 use petgraph::graph::NodeIndex;
 
-use super::port::{InPort, OutPort};
-use super::reactor::Reactor;
-use super::reaction::Reaction;
-use std::ops::Deref;
-use std::pin::Pin;
-use petgraph::Direction;
-use crate::reactors::assembler::AssemblyId::Nested;
-use std::process::id;
-use std::cmp::Ordering;
-use std::borrow::Borrow;
-use std::marker::PhantomData;
-use std::any::type_name;
 use crate::reactors::action::Action;
+use crate::reactors::assembler::AssemblyId::Nested;
+
+use super::port::{InPort, OutPort};
+use super::reaction::Reaction;
+use super::reactor::Reactor;
 
 type NodeIdRepr = u32;
 type NodeId = NodeIndex<NodeIdRepr>;
@@ -30,6 +32,7 @@ type NodeId = NodeIndex<NodeIdRepr>;
 
 pub trait GraphElement {
     fn kind(&self) -> NodeKind;
+    fn name(&self) -> &'static str;
 }
 
 enum EdgeTag {
@@ -103,19 +106,41 @@ impl AssemblyId {
     }
 }
 
+#[derive(Eq, PartialEq, Clone)]
+struct GlobalId {
+    assembly_id: Rc<AssemblyId>,
+    local_id: NodeId,
+
+    kind: NodeKind,
+    name: &'static str,
+}
+
+impl Debug for GlobalId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&self.assembly_id, f);
+        write!(f, "/{}[{}]: {}", self.kind, self.local_id.index(), self.name)
+    }
+}
+
 
 /// Zips an element with its ID relative to all the other elements
 /// in the graph.
 pub struct Linked<T> {
-    /// Id of the assembly
-    assembly_id: Rc<AssemblyId>,
-
-    /// Id in the containing reactor
-    local_id: NodeId,
+    id: GlobalId,
 
     /// Value
     /// TODO is pin necessary?
     data: Rc<T>,
+}
+
+impl<T> Linked<T> {
+    fn assembly_id(&self) -> &AssemblyId {
+        self.id.assembly_id.borrow()
+    }
+
+    fn local_id(&self) -> NodeId {
+        self.id.local_id
+    }
 }
 
 impl<T> Deref for Linked<T> {
@@ -134,7 +159,7 @@ impl<T> Debug for Linked<T>
 }
 
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum NodeKind {
     Input,
     Output,
@@ -142,6 +167,12 @@ pub enum NodeKind {
     Reactor,
     Action,
     // TODO
+}
+
+impl Display for NodeKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
 }
 
 /// Manages the construction phase.
@@ -236,11 +267,13 @@ impl<R: Reactor> Assembler<R> {
             id: sub_assembler.id,
             state,
             data_flow: sub_assembler.data_flow,
+            inputs: sub_assembler.inputs,
+            outputs: sub_assembler.outputs,
         };
 
         let result = self.create_node(r);
 
-        assert_eq!(result.local_id, idx,
+        assert_eq!(result.local_id(), idx,
                    "Mismatched ID (this means, the code is outdated to work with the petgraph crate, should never happen)");
 
         result
@@ -248,26 +281,26 @@ impl<R: Reactor> Assembler<R> {
 
     pub fn declare_input<T: 'static>(&mut self, port: InPort<T>) -> Linked<InPort<T>> {
         let linked = self.create_node(port);
-        self.inputs.push(linked.local_id);
+        self.inputs.push(linked.local_id());
         linked
     }
 
     pub fn declare_output<T: 'static>(&mut self, port: OutPort<T>) -> Linked<OutPort<T>> {
         let linked = self.create_node(port);
-        self.outputs.push(linked.local_id);
+        self.outputs.push(linked.local_id());
         linked
     }
 
     pub fn declare_reaction(&mut self, reaction: Reaction<R>) -> Linked<Reaction<R>>
         where R: 'static {
         let linked = self.create_node(reaction);
-        self.reactions.push(linked.local_id);
+        self.reactions.push(linked.local_id());
         linked
     }
 
     pub fn declare_action(&mut self, action: Action) -> Linked<Action> {
         let linked = self.create_node(action);
-        self.actions.push(linked.local_id);
+        self.actions.push(linked.local_id());
         linked
     }
 
@@ -284,8 +317,12 @@ impl<R: Reactor> Assembler<R> {
         let id = self.data_flow.add_node(rc_erased);
 
         Linked {
-            assembly_id: Rc::clone(&self.id),
-            local_id: id,
+            id: GlobalId {
+                assembly_id: Rc::clone(&self.id),
+                local_id: id,
+                kind: (&rc).kind(),
+                name: (&rc).name(),
+            },
             data: rc,
         }
     }
@@ -293,16 +330,16 @@ impl<R: Reactor> Assembler<R> {
     pub fn connect<T>(&mut self,
                       upstream: &Linked<OutPort<T>>,
                       downstream: &Linked<InPort<T>>) {
-        assert_eq!(upstream.assembly_id.parent(), Some(self.id.borrow()),
+        assert_eq!(upstream.assembly_id().parent(), Some(self.id.borrow()),
                    "Cannot connect outside of this reactor");
-        assert_eq!(upstream.assembly_id.parent(), downstream.assembly_id.parent(),
+        assert_eq!(upstream.assembly_id().parent(), downstream.assembly_id().parent(),
                    "Connection between ports must be made between sibling reactors");
 
         downstream.bind(&upstream.data);
 
         self.data_flow.add_edge(
-            upstream.local_id,
-            downstream.local_id,
+            upstream.local_id(),
+            downstream.local_id(),
             EdgeTag::PortConnection,
         );
     }
@@ -320,24 +357,24 @@ impl<R: Reactor> Assembler<R> {
             NodeKind::Input | NodeKind::Output => {
                 if is_dep ^ (target_kind == NodeKind::Input) {
                     // C(reaction) == C(C(port))
-                    assert_eq!(Some(reaction.assembly_id.borrow()), element.assembly_id.parent(),
+                    assert_eq!(Some(reaction.assembly_id()), element.assembly_id().parent(),
                                "A reaction may only affect input ports of sibling reactors");
                 } else {
                     // C(reaction) == C(port)
-                    assert_eq!(reaction.assembly_id, element.assembly_id,
+                    assert_eq!(reaction.assembly_id(), element.assembly_id(),
                                "A reaction may only depend on input ports of its container");
                 }
 
                 // TODO those IDs are not local
                 if is_dep {
                     // reaction uses the item, data flows from element to reaction
-                    self.data_flow.add_edge(element.local_id, reaction.local_id, EdgeTag::ReactionDep)
+                    self.data_flow.add_edge(element.local_id(), reaction.local_id(), EdgeTag::ReactionDep)
                 } else {
-                    self.data_flow.add_edge(reaction.local_id, element.local_id, EdgeTag::ReactionAntiDep)
+                    self.data_flow.add_edge(reaction.local_id(), element.local_id(), EdgeTag::ReactionAntiDep)
                 }
             }
             NodeKind::Action => {
-                assert_eq!(reaction.assembly_id, element.assembly_id,
+                assert_eq!(reaction.assembly_id(), element.assembly_id(),
                            "A reaction may only depend on/schedule the actions of its container");
 
                 unimplemented!("actions");
@@ -348,15 +385,6 @@ impl<R: Reactor> Assembler<R> {
         };
     }
 }
-
-// this is private to the assembler impl
-macro_rules! record_node {
-        ($node:expr, $vec:expr) => {
-             let linked = self.create_node($node);
-             $vec.push(linked.local_id);
-             linked
-        };
-    }
 
 /// Declares the dependencies of a reaction on ports & actions
 #[macro_export]
@@ -391,13 +419,17 @@ pub struct RunnableReactor<R: Reactor> {
 
     // Nested reactors are black boxes, which share a single id for all ports
 
-    // inputs: Vec<NodeId>,
-    // outputs: Vec<NodeId>,
+    inputs: Vec<NodeId>,
+    outputs: Vec<NodeId>,
 }
 
 impl<R: Reactor> GraphElement for RunnableReactor<R> {
     fn kind(&self) -> NodeKind {
         NodeKind::Reactor
+    }
+
+    fn name(&self) -> &'static str {
+        type_name::<R>()
     }
 }
 
@@ -408,8 +440,23 @@ impl<R: Reactor> Debug for RunnableReactor<R> {
 }
 
 impl<R: Reactor> RunnableReactor<R> {
-    fn downstream<N>(&self, stamped: &Linked<N>) -> Neighbors<EdgeTag, NodeIdRepr> {
-        self.data_flow.neighbors_directed(stamped.local_id, Direction::Outgoing)
+    fn new(state: R, assembler: Assembler<R>) -> RunnableReactor<R> {
+        let sorted_flow: Vec<NodeId> = match toposort(&assembler.data_flow, None) {
+            Ok(sorted) => sorted,
+            Err(cycle) => panic!("Cycle in dependency graph for {}: {:?}", assembler.id, cycle)
+        };
+        RunnableReactor {
+            id: assembler.id,
+            state,
+            data_flow: assembler.data_flow,
+            inputs: assembler.inputs,
+            outputs: assembler.outputs,
+        }
+    }
+
+
+    fn downstream<N>(&self, stamped: &Linked<N>) -> impl Iterator<Item=NodeId> + '_ {
+        self.data_flow.neighbors_directed(stamped.local_id(), Direction::Outgoing)
     }
 }
 

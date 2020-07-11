@@ -24,9 +24,6 @@ fn main() {
 pub struct WorldReactor;
 
 impl Reactor for WorldReactor {
-    fn reactions(&self) -> Vec<&Linked<Reaction<Self>>> where Self: Sized {
-        vec![]
-    }
 
     fn new(_: &mut Assembler<Self>) -> Self where Self: Sized {
         WorldReactor
@@ -46,9 +43,6 @@ pub struct ProduceReactor {
 }
 
 impl Reactor for ProduceReactor {
-    fn reactions(&self) -> Vec<&Linked<Reaction<Self>>> {
-        vec![&self.react_incr]
-    }
     fn new(assembler: &mut Assembler<ProduceReactor>) -> Self {
         let out_value = OutPort::new(assembler, "value", 0);
         let react_incr = Reaction::new(
@@ -72,9 +66,6 @@ pub struct ConsumeReactor {
 }
 
 impl Reactor for ConsumeReactor {
-    fn reactions(&self) -> Vec<&Linked<Reaction<Self>>> {
-        vec![&self.react_print]
-    }
 
     fn new(assembler: &mut Assembler<ConsumeReactor>) -> Self {
         let in_value = InPort::new(assembler, "value");

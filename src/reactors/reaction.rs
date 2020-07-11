@@ -52,6 +52,10 @@ impl<R> GraphElement for Reaction<R>
     fn kind(&self) -> NodeKind {
         NodeKind::Reaction
     }
+
+    fn name(&self) -> &'static str {
+        self.name
+    }
 }
 
 
