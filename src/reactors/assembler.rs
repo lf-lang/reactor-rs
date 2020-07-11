@@ -52,7 +52,7 @@ enum EdgeTag {
 }
 
 
-type NodeData = Pin<Rc<dyn GraphElement>>;
+type NodeData = Rc<dyn GraphElement>;
 
 /// The dependency graph between structures
 type DepGraph = DiGraph<NodeData, EdgeTag, NodeIdRepr>;
@@ -102,7 +102,7 @@ pub struct Linked<T> {
 
     /// Value
     /// TODO is pin necessary?
-    data: Pin<Rc<T>>,
+    data: Rc<T>,
 }
 
 impl<T> Deref for Linked<T> {
@@ -198,7 +198,8 @@ impl<R: Reactor> Assembler<R> {
     }
 
     pub fn assemble_subreactor<T: Reactor + 'static>(&mut self) -> Linked<RunnableReactor<T>> {
-        let idx = NodeIndex::new(self.dataflow.node_count()); //
+        // get the id before adding the node (this is a hack, see assert below)
+        let idx = NodeIndex::new(self.dataflow.node_count());
         let subid = self.subid(idx);
 
         let mut sub_assembler = Assembler::<T> {
@@ -238,8 +239,8 @@ impl<R: Reactor> Assembler<R> {
     pub fn create_node<N: GraphElement + 'static>(&mut self, elt: N) -> Linked<N> {
         // todo guarantee unicity
 
-        let rc = Rc::pin(elt);
-        let rc_erased: Pin<Rc<dyn GraphElement>> = rc.clone();
+        let rc = Rc::new(elt);
+        let rc_erased: Rc<dyn GraphElement> = rc.clone();
 
         let id = self.dataflow.add_node(rc_erased);
 

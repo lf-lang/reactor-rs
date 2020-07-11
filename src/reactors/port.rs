@@ -19,11 +19,10 @@ pub struct InPort<T> {
     ///
     /// RefCell<            // For internal mutability
     /// Option<             // The port may be unbound
-    /// Pin<                // The inner reference may not be moved
     /// Rc<                 // The referenced output port may be referenced by several input ports
-    /// OutPort<T>>>>>      // Finally the value (which in fact is in its own refcell)
+    /// OutPort<T>>>>       // Finally the value (which in fact is in its own refcell)
     ///
-    binding: RefCell<Option<Pin<Rc<OutPort<T>>>>>,
+    binding: RefCell<Option<Rc<OutPort<T>>>>,
 }
 
 impl<T> GraphElement for InPort<T> {
@@ -43,7 +42,7 @@ impl<T> InPort<T> {
         )
     }
 
-    pub fn bind(&self, binding: &Pin<Rc<OutPort<T>>>) {
+    pub fn bind(&self, binding: &Rc<OutPort<T>>) {
         // it's important that the borrow here is dropped before borrow_mut is called
         //                                        vvvvvv
         if let Some(b) = self.binding.borrow().as_deref() {
@@ -52,10 +51,10 @@ impl<T> InPort<T> {
         *self.binding.borrow_mut() = Some(binding.clone())
     }
 
-    pub fn borrow_or_panic(&self) -> Pin<Rc<OutPort<T>>> {
+    pub fn borrow_or_panic(&self) -> Rc<OutPort<T>> {
         let x = self.binding.borrow();
         match &*x {
-            Some(output) => Pin::clone(output),
+            Some(output) => Rc::clone(output),
             None => panic!("No binding for port {}", self.name)
         }
     }
