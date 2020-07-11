@@ -40,7 +40,6 @@ pub struct Reaction<Container>
 
 impl<C> Debug for Reaction<C>
     where C: Reactor + Sized {
-
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "reaction {}()", self.name)
     }
@@ -77,7 +76,7 @@ impl<Container> Reaction<Container>
     }
 
     pub fn new(
-        assembler: &mut Assembler,
+        assembler: &mut Assembler<Container>,
         name: &'static str,
         body: fn(&Container),
     ) -> Stamped<Reaction<Container>>

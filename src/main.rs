@@ -8,16 +8,28 @@ use reactors::reactor::Reactor;
 mod reactors;
 
 fn main() {
-    let mut assembler = Assembler::new();
-    let producer = ProduceReactor::new(&mut assembler);
-    let consumer = ConsumeReactor::new(&mut assembler);
+    let mut assembler = Assembler::<WorldReactor>::root();
+    let producer = assembler.assemble_subreactor::<ProduceReactor>();
+    let consumer = assembler.assemble_subreactor::<ConsumeReactor>();
 
+    assembler.connect(&producer.state.value, &consumer.state.input);
 
-    assembler.connect(&producer.value, &consumer.input);
+    consumer.state.react_print.fire(&consumer.state);
+    producer.state.react_incr.fire(&producer.state);
+    consumer.state.react_print.fire(&consumer.state);
+}
 
-    consumer.react_print.fire(&consumer);
-    producer.react_incr.fire(&producer);
-    consumer.react_print.fire(&consumer);
+// toplevel reactor containing the others
+pub struct WorldReactor;
+
+impl Reactor for WorldReactor {
+    fn reactions(&self) -> Vec<&Stamped<Reaction<Self>>> where Self: Sized {
+        vec![]
+    }
+
+    fn new(_: &mut Assembler<Self>) -> Self where Self: Sized {
+        WorldReactor
+    }
 }
 
 
@@ -32,29 +44,24 @@ pub struct ProduceReactor {
     pub react_incr: Stamped<Reaction<Self>>,
 }
 
-impl ProduceReactor {
-    pub fn new(assembler: &mut Assembler) -> Stamped<Self> {
+impl Reactor for ProduceReactor {
+    fn reactions(&self) -> Vec<&Stamped<Reaction<Self>>> {
+        vec![&self.react_incr]
+    }
+    fn new(assembler: &mut Assembler<ProduceReactor>) -> Self {
         let value = OutPort::new(assembler, "value", 0);
         let react_incr = Reaction::new(
             assembler,
             "incr",
             |r: &ProduceReactor| *r.value.get_mut() += 2,
         );
-        let r = assembler.create_node(ProduceReactor { value, react_incr });
 
         link_reaction!(
-            (assembler)(&r.react_incr)
-            (deps &r.value)
-            (antideps)
+            (assembler)(&react_incr)
+            (deps)
+            (antideps &value)
         );
-
-        r
-    }
-}
-
-impl Reactor for ProduceReactor {
-    fn reactions(&self) -> Vec<&Stamped<Reaction<Self>>> {
-        vec![&self.react_incr]
+        ProduceReactor { value, react_incr }
     }
 }
 
@@ -68,23 +75,26 @@ pub struct ConsumeReactor {
     pub react_print: Stamped<Reaction<Self>>,
 }
 
-impl ConsumeReactor {
-    pub fn new(assembler: &mut Assembler) -> Stamped<Self> {
+impl Reactor for ConsumeReactor {
+    fn reactions(&self) -> Vec<&Stamped<Reaction<Self>>> {
+        vec![&self.react_print]
+    }
+
+    fn new(assembler: &mut Assembler<ConsumeReactor>) -> Self {
         let input = InPort::new(assembler, "value");
         let react_print = Reaction::new(
             assembler,
             "print_input",
             |r: &ConsumeReactor| println!("Value is {}", *r.input.borrow_or_panic().get()),
         );
-        assembler.create_node(ConsumeReactor {
-            input,
-            react_print,
-        })
-    }
-}
 
-impl Reactor for ConsumeReactor {
-    fn reactions(&self) -> Vec<&Stamped<Reaction<Self>>> {
-        vec![&self.react_print]
+
+        link_reaction!(
+            (assembler)(&react_print)
+            (deps &input)
+            (antideps)
+        );
+
+        ConsumeReactor { input, react_print }
     }
 }

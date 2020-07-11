@@ -6,6 +6,7 @@ use super::assembler::{GraphElement, Stamped, NodeKind};
 
 use super::assembler::Assembler;
 use std::pin::Pin;
+use crate::reactors::reactor::Reactor;
 
 #[derive(Debug)]
 pub struct InPort<T> {
@@ -32,7 +33,7 @@ impl<T> GraphElement for InPort<T> {
 }
 
 impl<T> InPort<T> {
-    pub fn new(assembler: &mut Assembler, name: &'static str) -> Stamped<InPort<T>>
+    pub fn new<R: Reactor>(assembler: &mut Assembler<R>, name: &'static str) -> Stamped<InPort<T>>
         where T: 'static {
         assembler.create_node(
             InPort {
@@ -74,7 +75,7 @@ pub struct OutPort<T> {
 
 
 impl<T> OutPort<T> {
-    pub fn new(assembler: &mut Assembler, name: &'static str, initial_val: T) -> Stamped<OutPort<T>>
+    pub fn new<R:Reactor>(assembler: &mut Assembler<R>, name: &'static str, initial_val: T) -> Stamped<OutPort<T>>
         where T: 'static, {
         assembler.create_node(
             OutPort { name, cell: RefCell::new(initial_val) }
