@@ -54,6 +54,11 @@ enum EdgeTag {
         means I depends on N
      */
     ReactionAntiDep,
+    /*
+       N: Reaction -> M: Reaction
+       means N has greater priority than M
+     */
+    ReactionPriority,
 }
 
 
@@ -84,7 +89,7 @@ impl Display for AssemblyId {
         match self {
             Self::Root => write!(f, ""),
             AssemblyId::Nested { typename, ext_id, parent } => {
-                Debug::fmt(parent, f);
+                Debug::fmt(parent, f)?;
                 write!(f, "/{}[{}]", typename, ext_id.index())
             }
         }
@@ -117,7 +122,7 @@ struct GlobalId {
 
 impl Debug for GlobalId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(&self.assembly_id, f);
+        Debug::fmt(&self.assembly_id, f)?;
         write!(f, "/{}[{}]: {}", self.kind, self.local_id.index(), self.name)
     }
 }
@@ -263,13 +268,13 @@ impl<R: Reactor> Assembler<R> {
 
         let state = T::new(&mut sub_assembler);
 
-        let r = RunnableReactor {
-            id: sub_assembler.id,
-            state,
-            data_flow: sub_assembler.data_flow,
-            inputs: sub_assembler.inputs,
-            outputs: sub_assembler.outputs,
-        };
+        // Add priority links
+        for (r0, r1) in sub_assembler.reactions.iter().zip(sub_assembler.reactions.iter().skip(1)) {
+            // r0 has higher priority than r1
+            sub_assembler.data_flow.add_edge(*r0, *r1, EdgeTag::ReactionPriority);
+        }
+
+        let r = RunnableReactor::new(state, sub_assembler);
 
         let result = self.create_node(r);
 
@@ -441,10 +446,6 @@ impl<R: Reactor> Debug for RunnableReactor<R> {
 
 impl<R: Reactor> RunnableReactor<R> {
     fn new(state: R, assembler: Assembler<R>) -> RunnableReactor<R> {
-        let sorted_flow: Vec<NodeId> = match toposort(&assembler.data_flow, None) {
-            Ok(sorted) => sorted,
-            Err(cycle) => panic!("Cycle in dependency graph for {}: {:?}", assembler.id, cycle)
-        };
         RunnableReactor {
             id: assembler.id,
             state,
