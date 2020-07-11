@@ -4,7 +4,7 @@
 //! initialization of the program.
 
 
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Formatter, Display};
 use std::rc::Rc;
 
 use petgraph::graph::{DiGraph, Neighbors};
@@ -21,6 +21,7 @@ use std::process::id;
 use std::cmp::Ordering;
 use std::borrow::Borrow;
 use std::marker::PhantomData;
+use std::any::type_name;
 
 type NodeIdRepr = u32;
 type NodeId = NodeIndex<NodeIdRepr>;
@@ -60,10 +61,11 @@ type DepGraph = DiGraph<NodeData, EdgeTag, NodeIdRepr>;
 
 /// Identifies an assembly uniquely in the tree
 /// This is just a path built from the root down.
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Clone)]
 enum AssemblyId {
     Root,
     Nested {
+        typename: &'static str,
         // This is the node id used in the parent
         ext_id: NodeId,
         // the id of the parent
@@ -71,13 +73,21 @@ enum AssemblyId {
     },
 }
 
-impl Clone for AssemblyId {
-    fn clone(&self) -> Self {
+impl Display for AssemblyId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Root => Self::Root,
-            Self::Nested { ext_id, parent } =>
-                Self::Nested { ext_id: *ext_id, parent: Rc::clone(parent) }
+            Self::Root => write!(f, ""),
+            AssemblyId::Nested { typename, ext_id, parent } => {
+                Debug::fmt(parent, f);
+                write!(f, "/{}[{}]", typename, ext_id.index())
+            }
         }
+    }
+}
+
+impl Debug for AssemblyId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(self, f)
     }
 }
 
@@ -190,17 +200,18 @@ impl<R: Reactor> Assembler<R> {
     }
 
 
-    fn subid(&mut self, idx: NodeId) -> AssemblyId {
+    fn subid<T:Reactor>(&mut self, idx: NodeId) -> AssemblyId {
         Nested {
             parent: Rc::clone(&self.id),
             ext_id: idx,
+            typename: type_name::<T>()
         }
     }
 
     pub fn assemble_subreactor<T: Reactor + 'static>(&mut self) -> Linked<RunnableReactor<T>> {
         // get the id before adding the node (this is a hack, see assert below)
         let idx = NodeIndex::new(self.dataflow.node_count());
-        let subid = self.subid(idx);
+        let subid = self.subid::<T>(idx);
 
         let mut sub_assembler = Assembler::<T> {
             id: Rc::new(subid),
@@ -212,6 +223,7 @@ impl<R: Reactor> Assembler<R> {
         let state = T::new(&mut sub_assembler);
 
         let r = RunnableReactor {
+            id: sub_assembler.id,
             state,
             data_flow: sub_assembler.dataflow,
         };
@@ -254,6 +266,8 @@ impl<R: Reactor> Assembler<R> {
     pub fn connect<T>(&mut self,
                       upstream: &Linked<OutPort<T>>,
                       downstream: &Linked<InPort<T>>) {
+        assert_eq!(upstream.assembly_id.parent(), Some(self.id.borrow()),
+                   "Cannot connect outside of this reactor");
         assert_eq!(upstream.assembly_id.parent(), downstream.assembly_id.parent(),
                    "Connection between ports must be made between sibling reactors");
 
@@ -311,6 +325,8 @@ impl<R: Reactor> Assembler<R> {
 
 
 pub struct RunnableReactor<R: Reactor> {
+    id: Rc<AssemblyId>,
+
     /// Strongly typed state (ports, reactions, etc)
     pub(crate) state: R,
 
@@ -331,6 +347,12 @@ pub struct RunnableReactor<R: Reactor> {
 impl<R: Reactor> GraphElement for RunnableReactor<R> {
     fn kind(&self) -> NodeKind {
         NodeKind::Reactor
+    }
+}
+
+impl<R:Reactor> Debug for RunnableReactor<R> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(&self.id, f)
     }
 }
 

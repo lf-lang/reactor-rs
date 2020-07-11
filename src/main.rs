@@ -4,6 +4,7 @@ use reactors::assembler::Linked;
 use reactors::port::{InPort, OutPort};
 use reactors::reaction::Reaction;
 use reactors::reactor::Reactor;
+use std::fmt::format;
 
 mod reactors;
 
@@ -15,6 +16,7 @@ fn main() {
     assembler.connect(&producer.state.out_value, &consumer.state.in_value);
 
     consumer.state.react_print.fire(&consumer.state);
+    println!("{:?}", producer);
     producer.state.react_incr.fire(&producer.state);
     consumer.state.react_print.fire(&consumer.state);
 }
