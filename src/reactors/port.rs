@@ -34,7 +34,7 @@ impl<T> GraphElement for InPort<T> {
 impl<T> InPort<T> {
     pub fn new<R: Reactor>(assembler: &mut Assembler<R>, name: &'static str) -> Linked<InPort<T>>
         where T: 'static {
-        assembler.create_node(
+        assembler.declare_input(
             InPort {
                 name,
                 binding: RefCell::new(None),
@@ -82,7 +82,7 @@ pub struct OutPort<T> {
 impl<T> OutPort<T> {
     pub fn new<R:Reactor>(assembler: &mut Assembler<R>, name: &'static str, initial_val: T) -> Linked<OutPort<T>>
         where T: 'static, {
-        assembler.create_node(
+        assembler.declare_output(
             OutPort { name, cell: RefCell::new(initial_val) }
         )
     }

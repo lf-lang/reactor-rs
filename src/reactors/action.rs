@@ -33,7 +33,7 @@ impl Action {
     }
 
     fn new<R: Reactor>(assembler: &mut Assembler<R>, name: &'static str, delay: Duration, logical: bool) -> Linked<Self> {
-        assembler.create_node(Action { name, delay, logical })
+        assembler.declare_action(Action { name, delay, logical })
     }
 
     fn is_logical(&self) -> bool {

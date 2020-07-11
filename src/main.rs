@@ -16,7 +16,6 @@ fn main() {
     assembler.connect(&producer.state.out_value, &consumer.state.in_value);
 
     consumer.state.react_print.fire(&consumer.state);
-    println!("{:?}", producer);
     producer.state.react_incr.fire(&producer.state);
     consumer.state.react_print.fire(&consumer.state);
 }

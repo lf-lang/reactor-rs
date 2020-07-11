@@ -22,6 +22,7 @@ use std::cmp::Ordering;
 use std::borrow::Borrow;
 use std::marker::PhantomData;
 use std::any::type_name;
+use crate::reactors::action::Action;
 
 type NodeIdRepr = u32;
 type NodeId = NodeIndex<NodeIdRepr>;
@@ -65,11 +66,13 @@ type DepGraph = DiGraph<NodeData, EdgeTag, NodeIdRepr>;
 enum AssemblyId {
     Root,
     Nested {
-        typename: &'static str,
         // This is the node id used in the parent
         ext_id: NodeId,
         // the id of the parent
         parent: Rc<AssemblyId>,
+
+        // this is just for debugging
+        typename: &'static str,
     },
 }
 
@@ -180,10 +183,16 @@ pub struct Assembler<T: Reactor> {
     /// root reactor to this assembly, used for equality
     id: Rc<AssemblyId>,
 
-    dataflow: DepGraph,
+    data_flow: DepGraph,
+
+    actions: Vec<NodeId>,
 
     /// This order defines priority of reactions
     reactions: Vec<NodeId>,
+
+    // These remain stable, even in case of internal mutation of the reactor
+    inputs: Vec<NodeId>,
+    outputs: Vec<NodeId>,
 
     _t_phantom: PhantomData<T>,
 }
@@ -191,41 +200,42 @@ pub struct Assembler<T: Reactor> {
 
 impl<R: Reactor> Assembler<R> {
     pub fn root() -> Self {
+        Self::new(Rc::new(AssemblyId::Root))
+    }
+
+    fn new(id: Rc<AssemblyId>) -> Self {
         Assembler {
-            id: Rc::new(AssemblyId::Root),
-            dataflow: DepGraph::new(),
+            id,
+            data_flow: DepGraph::new(),
             reactions: Vec::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+            actions: Vec::new(),
             _t_phantom: PhantomData,
         }
     }
 
-
-    fn subid<T:Reactor>(&mut self, idx: NodeId) -> AssemblyId {
+    fn subid<T: Reactor>(&mut self, idx: NodeId) -> AssemblyId {
         Nested {
             parent: Rc::clone(&self.id),
             ext_id: idx,
-            typename: type_name::<T>()
+            typename: type_name::<T>(),
         }
     }
 
     pub fn assemble_subreactor<T: Reactor + 'static>(&mut self) -> Linked<RunnableReactor<T>> {
         // get the id before adding the node (this is a hack, see assert below)
-        let idx = NodeIndex::new(self.dataflow.node_count());
+        let idx = NodeIndex::new(self.data_flow.node_count());
         let subid = self.subid::<T>(idx);
 
-        let mut sub_assembler = Assembler::<T> {
-            id: Rc::new(subid),
-            dataflow: DepGraph::new(),
-            reactions: Vec::new(),
-            _t_phantom: PhantomData,
-        };
+        let mut sub_assembler = Assembler::<T>::new(Rc::new(subid));
 
         let state = T::new(&mut sub_assembler);
 
         let r = RunnableReactor {
             id: sub_assembler.id,
             state,
-            data_flow: sub_assembler.dataflow,
+            data_flow: sub_assembler.data_flow,
         };
 
         let result = self.create_node(r);
@@ -236,11 +246,28 @@ impl<R: Reactor> Assembler<R> {
         result
     }
 
-    pub fn add_reaction(&mut self, reaction: Reaction<R>) -> Linked<Reaction<R>>
-        where R: 'static {
+    pub fn declare_input<T: 'static>(&mut self, port: InPort<T>) -> Linked<InPort<T>> {
+        let linked = self.create_node(port);
+        self.inputs.push(linked.local_id);
+        linked
+    }
 
+    pub fn declare_output<T: 'static>(&mut self, port: OutPort<T>) -> Linked<OutPort<T>> {
+        let linked = self.create_node(port);
+        self.outputs.push(linked.local_id);
+        linked
+    }
+
+    pub fn declare_reaction(&mut self, reaction: Reaction<R>) -> Linked<Reaction<R>>
+        where R: 'static {
         let linked = self.create_node(reaction);
         self.reactions.push(linked.local_id);
+        linked
+    }
+
+    pub fn declare_action(&mut self, action: Action) -> Linked<Action> {
+        let linked = self.create_node(action);
+        self.actions.push(linked.local_id);
         linked
     }
 
@@ -248,13 +275,13 @@ impl<R: Reactor> Assembler<R> {
     /// is hidden in the returned Stamped instance).
     ///
     /// The N is for example a port, or a reactor.
-    pub fn create_node<N: GraphElement + 'static>(&mut self, elt: N) -> Linked<N> {
+    fn create_node<N: GraphElement + 'static>(&mut self, elt: N) -> Linked<N> {
         // todo guarantee unicity
 
         let rc = Rc::new(elt);
         let rc_erased: Rc<dyn GraphElement> = rc.clone();
 
-        let id = self.dataflow.add_node(rc_erased);
+        let id = self.data_flow.add_node(rc_erased);
 
         Linked {
             assembly_id: Rc::clone(&self.id),
@@ -273,7 +300,7 @@ impl<R: Reactor> Assembler<R> {
 
         downstream.bind(&upstream.data);
 
-        self.dataflow.add_edge(
+        self.data_flow.add_edge(
             upstream.local_id,
             downstream.local_id,
             EdgeTag::PortConnection,
@@ -298,7 +325,15 @@ impl<R: Reactor> Assembler<R> {
                 } else {
                     // C(reaction) == C(port)
                     assert_eq!(reaction.assembly_id, element.assembly_id,
-                               "A reaction may only depend on input ports of its container")
+                               "A reaction may only depend on input ports of its container");
+                }
+
+                // TODO those IDs are not local
+                if is_dep {
+                    // reaction uses the item, data flows from element to reaction
+                    self.data_flow.add_edge(element.local_id, reaction.local_id, EdgeTag::ReactionDep)
+                } else {
+                    self.data_flow.add_edge(reaction.local_id, element.local_id, EdgeTag::ReactionAntiDep)
                 }
             }
             NodeKind::Action => {
@@ -311,16 +346,32 @@ impl<R: Reactor> Assembler<R> {
                 panic!("A reaction cannot declare a dependency on a {:?}", target_kind)
             }
         };
+    }
+}
 
-        if is_dep {
-            self.dataflow.add_edge(reaction.local_id, element.local_id, EdgeTag::ReactionDep)
-        } else {
-            self.dataflow.add_edge(element.local_id, reaction.local_id, EdgeTag::ReactionAntiDep)
+// this is private to the assembler impl
+macro_rules! record_node {
+        ($node:expr, $vec:expr) => {
+             let linked = self.create_node($node);
+             $vec.push(linked.local_id);
+             linked
         };
     }
 
+/// Declares the dependencies of a reaction on ports & actions
+#[macro_export]
+macro_rules! link_reaction {
+    {($reaction:expr) with ($assembler:expr) (uses $( $dep:expr )*) (affects $( $anti:expr )*)} => {
 
-    // fn stamp<N>(&mut self, elt: N, tag: NodeTag)
+        {
+            $(
+                $assembler.reaction_link($reaction, $dep, true);
+            )*
+            $(
+                $assembler.reaction_link($reaction, $anti, false);
+            )*
+        }
+    };
 }
 
 
@@ -350,7 +401,7 @@ impl<R: Reactor> GraphElement for RunnableReactor<R> {
     }
 }
 
-impl<R:Reactor> Debug for RunnableReactor<R> {
+impl<R: Reactor> Debug for RunnableReactor<R> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(&self.id, f)
     }

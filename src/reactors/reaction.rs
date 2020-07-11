@@ -47,23 +47,6 @@ impl<C> Debug for Reaction<C>
     }
 }
 
-/// Declares the dependencies of a reaction on ports & actions
-#[macro_export]
-macro_rules! link_reaction {
-    {($reaction:expr) with ($assembler:expr) (uses $( $dep:expr )*) (affects $( $anti:expr )*)} => {
-
-        {
-            $(
-                $assembler.reaction_link($reaction, $dep, true);
-            )*
-            $(
-                $assembler.reaction_link($reaction, $anti, false);
-            )*
-        }
-    };
-}
-
-
 impl<R> GraphElement for Reaction<R>
     where R: Reactor {
     fn kind(&self) -> NodeKind {
@@ -80,6 +63,6 @@ impl<R> Reaction<R>
 
     pub fn new(assembler: &mut Assembler<R>, name: &'static str, body: fn(&R)) -> Linked<Reaction<R>>
         where R: 'static {
-        assembler.add_reaction(Reaction { body, name })
+        assembler.declare_reaction(Reaction { body, name })
     }
 }
