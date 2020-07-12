@@ -1,8 +1,13 @@
+use std::collections::HashSet;
 use std::fmt::Debug;
+use std::rc::Rc;
 use std::time::Duration;
-use crate::reactors::util::{Enumerated, Named};
-use crate::reactors::ports::PortId;
+
 use crate::reactors::action::ActionId;
+use crate::reactors::assembler::{Assembler, RunnableReactor};
+use crate::reactors::id::{AssemblyId, GlobalId, Identified};
+use crate::reactors::ports::{PortId, PortKind};
+use crate::reactors::util::{Enumerated, Named};
 
 /// Describes the structure of a reactor.
 ///
@@ -35,7 +40,7 @@ pub trait Reactor {
     /// This will create subcomponents and link them using the [Assembler].
     ///
     /// The returned instance is wrapped into a [RunnableReactor] for execution.
-    fn assemble(assembler: &mut dyn Assembler<Self>) -> Self;
+    fn assemble(assembler: &mut Assembler<Self>) -> Self;
 
     /// Execute a reaction of this reactor.
     fn react(
@@ -48,84 +53,6 @@ pub trait Reactor {
         // Scheduler instance, that can make the reaction affect the event queue
         scheduler: &mut dyn Scheduler,
     );
-}
-
-
-/// The output of the assembly of a reactor.
-pub struct RunnableReactor<R: Reactor> {
-    me: R
-}
-
-
-/// Assembles a reactor.
-pub trait Assembler<R: Reactor> {
-    /*
-     * These methods create new subcomponents, they're supposed
-     * to be stored on the struct of the reactor.
-     */
-
-    fn new_output_port<T>(&mut self, name: &str) -> PortId<T>;
-    fn new_input_port<T>(&mut self, name: &str) -> PortId<T>;
-    fn new_action(&mut self, name: &str, min_delay: Option<Duration>, is_logical: bool) -> ActionId;
-
-    /// Assembles a subreactor. After this, the ports of the subreactor
-    /// may be used in some connections, see [reaction_uses], [reaction_affects]
-    fn new_subreactor<S: Reactor>(&mut self, name: &str) -> RunnableReactor<S>;
-
-    /*
-     * These methods record dependencies between components.
-     *
-     * These 2 are trigger dependencies, they may be cyclic (but have delays)
-     */
-
-    /// Record that an action triggers the given reaction
-    ///
-    /// Validity: the action ID was created by this assembler
-    fn action_triggers(&mut self, port: ActionId, reaction_id: R::ReactionId);
-
-
-    /// Record that the given reaction may schedule the action for (future)? execution
-    ///
-    /// Validity: the action ID was created by this assembler
-    fn reaction_schedules(&mut self, reaction_id: R::ReactionId, action: ActionId);
-
-    /*
-     * The remaining ones are data-flow dependencies, i.e. relevant for the priority graph, which is a DAG
-     */
-
-    /// Binds the values of the given two ports. Every value set
-    /// to the upstream port will be reflected in the downstream port.
-    ///
-    /// # Validity
-    ///
-    /// Either
-    ///  1. upstream is an input port of this reactor, and either
-    ///   1.i   downstream is an input port of a direct sub-reactor
-    ///   1.ii  downstream is an output port of this reactor
-    ///  2. upstream is an output port of a direct sub-reactor, and either
-    ///   2.i  downstream is an input port of another sub-reactor
-    ///   2.ii downstream is an output port of this reactor
-    ///
-    /// and all the following:
-    /// - downstream is not already bound to another port
-    /// - no reaction uses upstream
-    /// - no reaction affects downstream
-    ///
-    fn bind_ports<T>(&mut self, upstream: PortId<T>, downstream: PortId<T>);
-
-    /// Record that the reaction depends on the value of the given port
-    ///
-    /// Validity: either
-    ///  1. the port is an input port of this reactor
-    ///  2. the port is an output port of a direct sub-reactor
-    fn reaction_uses<T>(&mut self, reaction_id: R::ReactionId, port: PortId<T>);
-
-
-    /// Record that the given reaction may set the value of the port
-    ///
-    ///  1. the port is an output port of this reactor
-    ///  2. the port is an input port of a direct sub-reactor
-    fn reaction_affects<T>(&mut self, reaction_id: R::ReactionId, port: PortId<T>);
 }
 
 

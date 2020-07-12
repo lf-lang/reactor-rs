@@ -71,4 +71,23 @@ impl Debug for GlobalId {
     }
 }
 
+pub(super) trait Identified {
+    fn global_id(&self) -> &GlobalId;
+
+    fn is_in_direct_subreactor_of(&self, reactor_id: AssemblyId) -> bool {
+        let my_assembly = self.global_id().assembly_id.borrow();
+
+        my_assembly.parent().map_or(false, |it| it == reactor_id)
+    }
+
+    fn is_in_reactor(&self, reactor_id: AssemblyId) -> bool {
+        my_assembly == reactor_id
+    }
+}
+
+impl<T> Named for T where T: Identified {
+    fn name(&self) -> &'static str {
+        self.global_id().name
+    }
+}
 

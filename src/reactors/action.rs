@@ -1,5 +1,5 @@
 use std::time::Duration;
-use crate::reactors::id::{AssemblyId, GlobalId};
+use crate::reactors::id::{AssemblyId, GlobalId, Identified};
 use crate::reactors::util::Named;
 
 pub struct ActionId {
@@ -16,8 +16,8 @@ impl ActionId {
     }
 }
 
-impl Named for ActionId {
-    fn name(&self) -> &'static str {
-        self.id.name()
+impl Identified for ActionId {
+    fn global_id(&self) -> &GlobalId {
+        &self.global_id
     }
 }

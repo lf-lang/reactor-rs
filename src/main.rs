@@ -1,11 +1,11 @@
-use reactors::assembler2::Assembler;
+use reactors::assembler::Assembler;
 
-use reactors::assembler2::Linked;
+use reactors::assembler::Linked;
 use reactors::port::{InPort, OutPort};
 use reactors::reaction::Reaction;
 use reactors::framework::{Reactor, StatelessReactor};
 use std::fmt::format;
-use crate::reactors::assembler2::RunnableReactor;
+use crate::reactors::assembler::RunnableReactor;
 use std::marker::PhantomData;
 use std::borrow::BorrowMut;
 use crate::reactors::framework::{ReactionId, Enumerated, Scheduler, OutputPortId};
