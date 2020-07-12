@@ -1,27 +1,8 @@
 use std::fmt::Debug;
 use std::time::Duration;
-
-
-pub enum PortId<T> {
-    Input { name: &'static str },
-    Output { name: &'static str },
-}
-
-pub struct InputPortId<T> {}
-
-pub struct OutputPortId<T> {}
-
-pub struct ActionId {}
-
-/// A type whose instances have statically known names
-trait Named {
-    fn name(&self) -> &'static str;
-}
-
-/// A type that can list all its instances
-pub trait Enumerated {
-    fn list() -> Vec<Self>;
-}
+use crate::reactors::util::{Enumerated, Named};
+use crate::reactors::ports::PortId;
+use crate::reactors::action::ActionId;
 
 /// Describes the structure of a reactor.
 ///
@@ -85,7 +66,7 @@ pub trait Assembler<R: Reactor> {
 
     fn new_output_port<T>(&mut self, name: &str) -> PortId<T>;
     fn new_input_port<T>(&mut self, name: &str) -> PortId<T>;
-    fn new_action(&mut self, name: &str, delay: Option<Duration>, is_physical: bool) -> ActionId;
+    fn new_action(&mut self, name: &str, min_delay: Option<Duration>, is_logical: bool) -> ActionId;
 
     /// Assembles a subreactor. After this, the ports of the subreactor
     /// may be used in some connections, see [reaction_uses], [reaction_affects]
@@ -115,13 +96,21 @@ pub trait Assembler<R: Reactor> {
     /// Binds the values of the given two ports. Every value set
     /// to the upstream port will be reflected in the downstream port.
     ///
-    /// Validity: either
+    /// # Validity
+    ///
+    /// Either
     ///  1. upstream is an input port of this reactor, and either
     ///   1.i   downstream is an input port of a direct sub-reactor
     ///   1.ii  downstream is an output port of this reactor
     ///  2. upstream is an output port of a direct sub-reactor, and either
     ///   2.i  downstream is an input port of another sub-reactor
     ///   2.ii downstream is an output port of this reactor
+    ///
+    /// and all the following:
+    /// - downstream is not already bound to another port
+    /// - no reaction uses upstream
+    /// - no reaction affects downstream
+    ///
     fn bind_ports<T>(&mut self, upstream: PortId<T>, downstream: PortId<T>);
 
     /// Record that the reaction depends on the value of the given port
