@@ -15,20 +15,22 @@ fn main() {
     let mut world =
         Assembler::<WorldReactor>::root().assemble_subreactor::<AppReactor>();
 
-    let state_box= world.state.borrow_mut();
+    let state_box= world.description;
     let AppReactor { consumer, producer, .. } = state_box;
 
-    consumer.state.react_print.fire(&mut consumer.state);
-    producer.state.react_incr.fire(&mut producer.state);
-    consumer.state.react_print.fire(&mut consumer.state);
+    consumer.description.react_print.fire(&consumer.description, &mut consumer.state);
+    producer.description.react_incr.fire(&producer.description, &mut producer.state);
+    consumer.description.react_print.fire(&consumer.description, &mut consumer.state);
 }
 
 // toplevel reactor containing the others todo hide as implementation detail
 pub struct WorldReactor;
 
 impl Reactor for WorldReactor {
-    fn new<'a>(_: &mut Assembler<'a, Self>) -> Self where Self: 'a {
-        WorldReactor
+    type State = ();
+
+    fn new<'a>(_: &mut Assembler<'a, Self>) -> (Self, ()) where Self: 'a {
+        (WorldReactor, ())
     }
 }
 
@@ -41,13 +43,15 @@ pub struct AppReactor<'a> {
 }
 
 impl<'b> Reactor for AppReactor<'b> {
-    fn new<'a>(assembler: &mut Assembler<'a, Self>) -> Self where 'b : 'a {
+    type State = ();
+
+    fn new<'a>(assembler: &mut Assembler<'a, Self>) -> (Self, ()) where 'b : 'a {
         let producer = assembler.assemble_subreactor::<ProduceReactor>();
         let consumer = assembler.assemble_subreactor::<ConsumeReactor>();
 
-        assembler.connect(&producer.state.out_value, &consumer.state.in_value);
+        assembler.connect(&producer.description.out_value, &consumer.description.in_value);
 
-        AppReactor { producer, consumer, _phantom_a: PhantomData }
+        (AppReactor { producer, consumer, _phantom_a: PhantomData }, ())
     }
 }
 
@@ -66,19 +70,21 @@ pub struct ProduceReactor<'a> {
 }
 
 impl<'b> Reactor for ProduceReactor<'b> {
-    fn new<'a>(assembler: &mut Assembler<'a, Self>) -> Self where 'b : 'a {
+    type State = ();
+
+    fn new<'a>(assembler: &mut Assembler<'a, Self>) -> (Self, ()) where 'b : 'a {
         let out_value = OutPort::new(assembler, "value", 0);
         let react_incr = Reaction::new(
             assembler,
             "incr",
-            |r: &mut ProduceReactor| *r.out_value.get_mut() += 2,
+            |r: &ProduceReactor, _| *r.out_value.get_mut() += 2,
         );
 
         link_reaction!((&react_incr) with (assembler)
             (uses)
             (affects &out_value)
         );
-        ProduceReactor { out_value, react_incr, _phantom_a: PhantomData }
+        (ProduceReactor { out_value, react_incr, _phantom_a: PhantomData }, ())
     }
 }
 
@@ -90,12 +96,14 @@ pub struct ConsumeReactor<'a> {
 }
 
 impl<'b> Reactor for ConsumeReactor<'b> {
-    fn new<'a>(assembler: &mut Assembler<'a, Self>) -> Self where 'b : 'a {
+    type State = ();
+
+    fn new<'a>(assembler: &mut Assembler<'a, Self>) -> (Self, ()) where 'b : 'a {
         let in_value = InPort::new(assembler, "value");
         let react_print = Reaction::new(
             assembler,
             "print_input",
-            |r: &mut ConsumeReactor| println!("Value is {}", port_value!(*r.in_value)),
+            |r: &ConsumeReactor, _| println!("Value is {}", port_value!(*r.in_value)),
         );
 
 
@@ -104,6 +112,6 @@ impl<'b> Reactor for ConsumeReactor<'b> {
             (affects)
         );
 
-        ConsumeReactor { in_value, react_print, _phantom_a: PhantomData }
+        (ConsumeReactor { in_value, react_print, _phantom_a: PhantomData }, ())
     }
 }

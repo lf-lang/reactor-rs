@@ -36,7 +36,7 @@ pub struct Reaction<'a, R> where R: Reactor + Sized + 'a {
     /// Arguments:
     /// - the reactor instance that contains the reaction todo should this be mut?
     /// - todo the scheduler, to send events like schedule, etc
-    body: fn(&mut R) -> (),
+    body: fn(&R, &mut R::State) -> (),
 
     _phantom_a: PhantomData<&'a ()>,
 
@@ -60,13 +60,13 @@ impl<'a, C> GraphElement for Reaction<'a, C> where C: Reactor + 'a {
 
 
 impl<'a, R> Reaction<'a, R> where R: Reactor + 'a {
-    pub fn fire(&self, c: &mut R) {
-        (self.body)(c)
+    pub fn fire(&self, reactor: &R, state: &mut R::State) {
+        (self.body)(reactor, state)
     }
 
     pub fn new<'b>(assembler: &mut Assembler<'b, R>,
                    name: &'static str,
-                   body: fn(&mut R)) -> Linked<Reaction<'a, R>> where R: 'a, 'a : 'b {
+                   body: fn(&R, &mut R::State)) -> Linked<Reaction<'a, R>> where R: 'a, 'a : 'b {
         assembler.declare_reaction(Reaction { body, name, _phantom_a: PhantomData })
     }
 }

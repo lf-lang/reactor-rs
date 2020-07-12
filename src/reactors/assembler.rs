@@ -273,7 +273,7 @@ impl<'a, R: Reactor> Assembler<'a, R> {
 
         let mut sub_assembler = Assembler::<'b, T>::new(Rc::new(subid));
 
-        let mut state = Box::new(T::new(&mut sub_assembler));
+        let (desc, state) = T::new(&mut sub_assembler);
 
         // Add priority links
         for (r0, r1) in sub_assembler.reactions.iter().zip(sub_assembler.reactions.iter().skip(1)) {
@@ -281,7 +281,7 @@ impl<'a, R: Reactor> Assembler<'a, R> {
             sub_assembler.data_flow.add_edge(*r0, *r1, EdgeTag::ReactionPriority);
         }
 
-        let r = RunnableReactor::<'b, T>::new(state, sub_assembler);
+        let r = RunnableReactor::<'b, T>::new(desc, Box::new(state), sub_assembler);
 
         let result = self.create_node(r);
 
@@ -418,7 +418,9 @@ pub struct RunnableReactor<'a, R: Reactor> {
     id: Rc<AssemblyId>,
 
     /// Strongly typed state (ports, reactions, etc)
-    pub(crate) state: Box<R>,
+    pub(crate) description: R,
+    /// State variables typed state (ports, reactions, etc)
+    pub(crate) state: Box<R::State>,
 
     /// The flow graph delimited by inputs & outputs.
     /// This is local to a reactor and not global. It
@@ -451,9 +453,10 @@ impl<R: Reactor> Debug for RunnableReactor<'_, R> {
 }
 
 impl<'a, R: Reactor> RunnableReactor<'a, R> {
-    fn new(mut state: Box<R>, assembler: Assembler<'a, R>) -> RunnableReactor<'a, R> {
+    fn new(description: R, state: Box<R::State>, assembler: Assembler<'a, R>) -> RunnableReactor<'a, R> {
         RunnableReactor {
             id: assembler.id,
+            description,
             state,
             data_flow: assembler.data_flow,
             inputs: assembler.inputs,
