@@ -1,6 +1,6 @@
 use std::time::Duration;
-use crate::reactors::id::{AssemblyId, GlobalId, Identified};
-use crate::reactors::util::Named;
+
+use crate::reactors::id::{GlobalId, Identified};
 
 pub struct ActionId {
     min_delay: Duration,
@@ -8,11 +8,13 @@ pub struct ActionId {
     global_id: GlobalId,
 }
 
-const ZERO_DELAY: Duration = Duration::new(0, 0);
-
 impl ActionId {
     pub(in super) fn new(min_delay: Option<Duration>, id: GlobalId, is_logical: bool) -> Self {
-        ActionId { min_delay: min_delay.unwrap_or(ZERO_DELAY), global_id: id, is_logical }
+        ActionId {
+            min_delay: min_delay.unwrap_or(Duration::new(0, 0)),
+            global_id: id,
+            is_logical
+        }
     }
 }
 

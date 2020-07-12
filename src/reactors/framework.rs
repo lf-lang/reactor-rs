@@ -1,13 +1,9 @@
-use std::collections::HashSet;
-use std::fmt::Debug;
-use std::rc::Rc;
 use std::time::Duration;
 
 use crate::reactors::action::ActionId;
 use crate::reactors::assembler::{Assembler, RunnableReactor};
-use crate::reactors::id::{AssemblyId, GlobalId, Identified};
-use crate::reactors::ports::{PortId, PortKind};
 use crate::reactors::util::{Enumerated, Named};
+use crate::reactors::ports::PortId;
 
 /// Describes the structure of a reactor.
 ///
@@ -21,7 +17,7 @@ use crate::reactors::util::{Enumerated, Named};
 pub trait Reactor {
     /// Enumerates the reactions available for this reactor.
     /// This is used as input to the [react] function.
-    type ReactionId: Ord + Eq + Enumerated + Named;
+    type ReactionId: Ord + Eq + Enumerated + Named + Sized;
 
     /// The type for the internal state of the reactor.
     ///
@@ -40,7 +36,7 @@ pub trait Reactor {
     /// This will create subcomponents and link them using the [Assembler].
     ///
     /// The returned instance is wrapped into a [RunnableReactor] for execution.
-    fn assemble(assembler: &mut Assembler<Self>) -> Self;
+    fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized;
 
     /// Execute a reaction of this reactor.
     fn react(
@@ -52,7 +48,7 @@ pub trait Reactor {
         reaction_id: Self::ReactionId,
         // Scheduler instance, that can make the reaction affect the event queue
         scheduler: &mut dyn Scheduler,
-    );
+    ) where Self: Sized;
 }
 
 
@@ -68,9 +64,11 @@ pub trait Scheduler {
     /// reactions that should execute on the same logical
     /// step.
     ///
-    /// Validity: the port belongs to the reactor whose reaction is being executed
+    /// Validity: either
+    /// - the port is an output port of the reactor whose reaction is being executed
+    /// - the port is an input port of one of the sub-reactors
     ///
-    fn set_port<T>(&mut self, port: OutputPortId<T>, value: T);
+    fn set_port<T>(&mut self, port: PortId<T>, value: T) where Self: Sized;
 
     /// Schedule an action to run after its own implicit time delay,
     /// plus an optional additional time delay. These delays are in

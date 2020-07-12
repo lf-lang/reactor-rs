@@ -1,12 +1,15 @@
-use std::fmt::{Debug, Display, Formatter};
-use std::rc::Rc;
 use std::borrow::Borrow;
+use std::fmt::{Debug, Display, Formatter};
+use std::ops::Deref;
+use std::rc::Rc;
+
+use crate::reactors::flowgraph::NodeId;
 use crate::reactors::util::Named;
 
 /// Identifies an assembly uniquely in the tree
 /// This is just a path built from the root down.
 #[derive(Eq, PartialEq, Clone)]
-pub(super) enum AssemblyId {
+pub enum AssemblyId {
     Root,
     Nested {
         // This is the node id used in the parent
@@ -47,7 +50,7 @@ impl AssemblyId {
 }
 
 #[derive(Eq, PartialEq, Clone)]
-pub(super) struct GlobalId {
+pub struct GlobalId {
     assembly_id: Rc<AssemblyId>,
     name: &'static str,
 }
@@ -71,17 +74,19 @@ impl Debug for GlobalId {
     }
 }
 
-pub(super) trait Identified {
+pub trait Identified {
     fn global_id(&self) -> &GlobalId;
 
     fn is_in_direct_subreactor_of(&self, reactor_id: AssemblyId) -> bool {
-        let my_assembly = self.global_id().assembly_id.borrow();
+        let my_assembly: &AssemblyId = self.global_id().assembly_id.borrow();
 
-        my_assembly.parent().map_or(false, |it| it == reactor_id)
+        my_assembly.parent().map_or(false, |it| *it == reactor_id)
     }
 
     fn is_in_reactor(&self, reactor_id: AssemblyId) -> bool {
-        my_assembly == reactor_id
+        let my_assembly: &AssemblyId = self.global_id().assembly_id.borrow();
+
+        *my_assembly == reactor_id
     }
 }
 

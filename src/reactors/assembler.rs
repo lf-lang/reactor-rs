@@ -1,22 +1,17 @@
-use core::panicking::panic_fmt;
+use std::cell::RefCell;
 use std::collections::HashSet;
-use std::fmt::{Debug, Display, Formatter};
+use std::marker::PhantomData;
+use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Duration;
 
-use petgraph::prelude::NodeIndex;
+use petgraph::graph::DiGraph;
 
 use crate::reactors::action::ActionId;
-use crate::reactors::framework::{ActionId, Assembler, PortId, Reactor, RunnableReactor};
-use crate::reactors::id::{AssemblyId, GlobalId};
-use crate::reactors::id::Identified;
-use crate::reactors::ports::PortId;
-use crate::reactors::ports::PortKind;
-use crate::reactors::ports::PortKind::Output;
-
-type NodeIdRepr = u32;
-type NodeId = NodeIndex<NodeIdRepr>;
-
+use crate::reactors::flowgraph::FlowGraph;
+use crate::reactors::framework::Reactor;
+use crate::reactors::id::{AssemblyId, GlobalId, Identified};
+use crate::reactors::ports::{PortId, PortKind};
 
 /// Assembles a reactor.
 pub struct Assembler<R: Reactor> {
@@ -26,6 +21,10 @@ pub struct Assembler<R: Reactor> {
 
     /// Pool of currently known names
     local_names: HashSet<&'static str>,
+
+    data_flow: FlowGraph,
+
+    _phantom_r: PhantomData<R>,
 }
 
 
@@ -37,28 +36,32 @@ impl<R> Assembler<R> where R: Reactor {
      * to be stored on the struct of the reactor.
      */
 
-    pub fn new_output_port<T>(&mut self, name: &str) -> PortId<T> {
+    pub fn new_output_port<T>(&mut self, name: &'static str) -> PortId<T> {
         self.new_port(PortKind::Output, name)
     }
 
-    pub fn new_input_port<T>(&mut self, name: &str) -> PortId<T> {
+    pub fn new_input_port<T>(&mut self, name: &'static str) -> PortId<T> {
         self.new_port(PortKind::Input, name)
     }
 
-    pub fn new_action(&mut self, name: &str, min_delay: Option<Duration>, is_logical: bool) -> ActionId {
+    pub fn new_action(&mut self, name: &'static str, min_delay: Option<Duration>, is_logical: bool) -> ActionId {
         ActionId::new(min_delay, self.new_id(name), is_logical)
     }
 
     /// Assembles a subreactor. After this, the ports of the subreactor
     /// may be used in some connections, see [reaction_uses], [reaction_affects].
-    pub fn new_subreactor<S: Reactor>(&mut self, name: &str) -> RunnableReactor<S> {
+    pub fn new_subreactor<S: Reactor>(&mut self, name: &'static str) -> RunnableReactor<S> {
         let id = self.new_id(name);
 
-        let mut sub_assembler = Assembler::<R>::new(&self.id);
+        let mut sub_assembler = Assembler::<S>::new(&self.id);
 
         let sub_reactor = S::assemble(&mut sub_assembler);
 
-        RunnableReactor { me: sub_reactor, global_id: id }
+        RunnableReactor {
+            me: sub_reactor,
+            global_id: id,
+            state: RefCell::new(S::initial_state())
+        }
     }
 
     /*
@@ -134,14 +137,14 @@ impl<R> Assembler<R> where R: Reactor {
 
 impl<R> Assembler<R> where R: Reactor { // this is the private impl block
 
-    fn new_id(&mut self, name: &str) -> GlobalId {
+    fn new_id(&mut self, name: &'static str) -> GlobalId {
         if !self.local_names.insert(name) {
-            panic!("Name {} is already used in {}", name, self) // todo impl display
+            panic!("Name {} is already used in {}", name, self.id.deref()) // todo impl display
         }
         GlobalId::new(Rc::clone(&self.id), name)
     }
 
-    fn new_port<T>(&mut self, kind: PortKind, name: &str) -> PortId<T> {
+    fn new_port<T>(&mut self, kind: PortKind, name: &'static str) -> PortId<T> {
         PortId::<T>::new(kind, self.new_id(name))
     }
 
@@ -150,6 +153,8 @@ impl<R> Assembler<R> where R: Reactor { // this is the private impl block
         Assembler {
             id: Rc::clone(id),
             local_names: Default::default(),
+            data_flow: Default::default(),
+            _phantom_r: PhantomData,
         }
     }
 }
@@ -158,6 +163,17 @@ impl<R> Assembler<R> where R: Reactor { // this is the private impl block
 pub struct RunnableReactor<R: Reactor> {
     me: R,
     global_id: GlobalId,
+    // needs to be refcell for transparent mutability
+    state: RefCell<R::State>,
+}
+
+// makes it so, that we can use the members of R on a RunnableReactor<R>
+impl<R> Deref for RunnableReactor<R> where R: Reactor {
+    type Target = R;
+
+    fn deref(&self) -> &Self::Target {
+        &self.me
+    }
 }
 
 impl<R> Identified for RunnableReactor<R> where R: Reactor {
@@ -166,15 +182,4 @@ impl<R> Identified for RunnableReactor<R> where R: Reactor {
     }
 }
 
-
-struct GlobalReactionId<R: Reactor> {
-    reaction: R::ReactionId,
-    global_id: GlobalId,
-}
-
-impl<R> Identified for GlobalReactionId<R> where R: Reactor {
-    fn global_id(&self) -> &GlobalId {
-        &self.global_id
-    }
-}
 

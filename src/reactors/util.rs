@@ -6,5 +6,5 @@ pub trait Named {
 
 /// A type that can list all its instances
 pub trait Enumerated {
-    fn list() -> Vec<Self>;
+    fn list() -> Vec<Self> where Self: Sized;
 }

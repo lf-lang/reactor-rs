@@ -1,15 +1,3 @@
-use reactors::assembler::Assembler;
-
-use reactors::assembler::Linked;
-use reactors::port::{InPort, OutPort};
-use reactors::reaction::Reaction;
-use reactors::framework::{Reactor, StatelessReactor};
-use std::fmt::format;
-use crate::reactors::assembler::RunnableReactor;
-use std::marker::PhantomData;
-use std::borrow::BorrowMut;
-use crate::reactors::framework::{ReactionId, Enumerated, Scheduler, OutputPortId};
-
 mod reactors;
 
 fn main() {
@@ -24,41 +12,41 @@ fn main() {
     // consumer.description.react_print.fire(&consumer.description, &mut consumer.state);
 }
 
-
-pub struct ProduceReactor {
-    output_port: OutputPortId<i32>
-}
-
-
-#[derive(Ord, PartialOrd, Eq, PartialEq, Debug)]
-enum ProduceReactions {
-    Emit
-}
-
-impl Enumerated for ProduceReactions {
-    fn list() -> Vec<Self> {
-        vec![Self::Emit]
-    }
-}
-
-impl ReactionId<ProduceReactor> for ProduceReactions {}
-
-
-impl Reactor for ProduceReactor {
-    type ReactionId = ProduceReactions;
-    type State = ();
-
-
-    fn initial_state() -> Self::State {
-        ()
-    }
-
-    fn react(_: &mut Self::State, reaction_id: Self::ReactionId, scheduler: &dyn Scheduler) {
-        match reaction_id {
-            Self::ReactionId::Emit => {}
-        }
-    }
-}
+//
+// pub struct ProduceReactor {
+//     output_port: OutputPortId<i32>
+// }
+//
+//
+// #[derive(Ord, PartialOrd, Eq, PartialEq, Debug)]
+// enum ProduceReactions {
+//     Emit
+// }
+//
+// impl Enumerated for ProduceReactions {
+//     fn list() -> Vec<Self> {
+//         vec![Self::Emit]
+//     }
+// }
+//
+// impl ReactionId<ProduceReactor> for ProduceReactions {}
+//
+//
+// impl Reactor for ProduceReactor {
+//     type ReactionId = ProduceReactions;
+//     type State = ();
+//
+//
+//     fn initial_state() -> Self::State {
+//         ()
+//     }
+//
+//     fn react(_: &mut Self::State, reaction_id: Self::ReactionId, scheduler: &dyn Scheduler) {
+//         match reaction_id {
+//             Self::ReactionId::Emit => {}
+//         }
+//     }
+// }
 
 
 //
