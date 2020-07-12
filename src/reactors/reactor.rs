@@ -1,4 +1,3 @@
-
 use super::assembler::{Assembler, GraphElement, NodeKind, Linked};
 use super::port::{InPort, OutPort};
 use super::reaction::Reaction;
@@ -9,6 +8,5 @@ pub trait Reactor {
     // Ports are struct fields
     // Reactions are implemented with regular methods, described by a Reaction
 
-    fn new(assembler: &mut Assembler<Self>) -> Self
-        where Self: Sized;
+    fn new<'a>(assembler: &mut Assembler<'a, Self>) -> Self where Self: Sized + 'a;
 }

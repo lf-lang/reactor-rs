@@ -2,6 +2,7 @@ use std::fmt::{Debug, Formatter};
 
 use super::assembler::{Assembler, GraphElement, Linked, NodeKind};
 use super::reactor::Reactor;
+use std::marker::PhantomData;
 
 /// A reaction is some managed executable code, owned by a reactor.
 ///
@@ -27,8 +28,7 @@ use super::reactor::Reactor;
 /// Note that all of this information (except the body) is
 /// encoded into the graph at assembly time, it's not part of this struct.
 ///
-pub struct Reaction<R>
-    where R: Reactor + Sized {
+pub struct Reaction<'a, R> where R: Reactor + Sized + 'a {
     /// Has no importance except for debug
     name: &'static str,
 
@@ -36,19 +36,19 @@ pub struct Reaction<R>
     /// Arguments:
     /// - the reactor instance that contains the reaction todo should this be mut?
     /// - todo the scheduler, to send events like schedule, etc
-    body: fn(&R),
+    body: fn(&mut R) -> (),
+
+    _phantom_a: PhantomData<&'a ()>,
 
 }
 
-impl<C> Debug for Reaction<C>
-    where C: Reactor + Sized {
+impl<'a, C> Debug for Reaction<'a, C> where C: Reactor + Sized + 'a {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "reaction {}()", self.name)
     }
 }
 
-impl<R> GraphElement for Reaction<R>
-    where R: Reactor {
+impl<'a, C> GraphElement for Reaction<'a, C> where C: Reactor + 'a {
     fn kind(&self) -> NodeKind {
         NodeKind::Reaction
     }
@@ -59,14 +59,14 @@ impl<R> GraphElement for Reaction<R>
 }
 
 
-impl<R> Reaction<R>
-    where R: Reactor {
-    pub fn fire(&self, c: &R) {
+impl<'a, R> Reaction<'a, R> where R: Reactor + 'a {
+    pub fn fire(&self, c: &mut R) {
         (self.body)(c)
     }
 
-    pub fn new(assembler: &mut Assembler<R>, name: &'static str, body: fn(&R)) -> Linked<Reaction<R>>
-        where R: 'static {
-        assembler.declare_reaction(Reaction { body, name })
+    pub fn new<'b>(assembler: &mut Assembler<'b, R>,
+                   name: &'static str,
+                   body: fn(&mut R)) -> Linked<Reaction<'a, R>> where R: 'a, 'a : 'b {
+        assembler.declare_reaction(Reaction { body, name, _phantom_a: PhantomData })
     }
 }

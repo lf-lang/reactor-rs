@@ -5,11 +5,11 @@
 
 
 use std::any::type_name;
-use std::borrow::Borrow;
+use std::borrow::{Borrow, BorrowMut};
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::marker::PhantomData;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::process::id;
 use std::rc::Rc;
@@ -62,10 +62,10 @@ enum EdgeTag {
 }
 
 
-type NodeData = Rc<dyn GraphElement>;
+type NodeData<'a> = Rc<dyn GraphElement + 'a>;
 
 /// The dependency graph between structures
-type DepGraph = DiGraph<NodeData, EdgeTag, NodeIdRepr>;
+type DepGraph<'a> = DiGraph<NodeData<'a>, EdgeTag, NodeIdRepr>;
 
 
 /// Identifies an assembly uniquely in the tree
@@ -156,6 +156,13 @@ impl<T> Deref for Linked<T> {
     }
 }
 
+
+impl<'b, R: Reactor> DerefMut for Linked<RunnableReactor<'b, R>> {
+    fn deref_mut(&mut self) -> &mut RunnableReactor<'b, R> {
+        (&self.data).borrow_mut()
+    }
+}
+
 impl<T> Debug for Linked<T>
     where T: Debug {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -214,12 +221,12 @@ impl Display for NodeKind {
 ///     - put this all together into a RunnableReactor & we're done.
 ///
 ///
-pub struct Assembler<T: Reactor> {
+pub struct Assembler<'a, T: Reactor + 'a> {
     /// The ID of this assembler. This is the path from the
     /// root reactor to this assembly, used for equality
     id: Rc<AssemblyId>,
 
-    data_flow: DepGraph,
+    data_flow: DepGraph<'a>,
 
     actions: Vec<NodeId>,
 
@@ -234,7 +241,7 @@ pub struct Assembler<T: Reactor> {
 }
 
 
-impl<R: Reactor> Assembler<R> {
+impl<'a, R: Reactor> Assembler<'a, R> {
     pub fn root() -> Self {
         Self::new(Rc::new(AssemblyId::Root))
     }
@@ -259,14 +266,14 @@ impl<R: Reactor> Assembler<R> {
         }
     }
 
-    pub fn assemble_subreactor<T: Reactor + 'static>(&mut self) -> Linked<RunnableReactor<T>> {
+    pub fn assemble_subreactor<'b: 'a, T: Reactor + 'b>(&mut self) -> Linked<RunnableReactor<'b, T>> {
         // get the id before adding the node (this is a hack, see assert below)
         let idx = NodeIndex::new(self.data_flow.node_count());
         let subid = self.subid::<T>(idx);
 
-        let mut sub_assembler = Assembler::<T>::new(Rc::new(subid));
+        let mut sub_assembler = Assembler::<'b, T>::new(Rc::new(subid));
 
-        let state = T::new(&mut sub_assembler);
+        let mut state = Box::new(T::new(&mut sub_assembler));
 
         // Add priority links
         for (r0, r1) in sub_assembler.reactions.iter().zip(sub_assembler.reactions.iter().skip(1)) {
@@ -274,7 +281,7 @@ impl<R: Reactor> Assembler<R> {
             sub_assembler.data_flow.add_edge(*r0, *r1, EdgeTag::ReactionPriority);
         }
 
-        let r = RunnableReactor::new(state, sub_assembler);
+        let r = RunnableReactor::<'b, T>::new(state, sub_assembler);
 
         let result = self.create_node(r);
 
@@ -284,20 +291,19 @@ impl<R: Reactor> Assembler<R> {
         result
     }
 
-    pub fn declare_input<T: 'static>(&mut self, port: InPort<T>) -> Linked<InPort<T>> {
+    pub fn declare_input<T: 'a>(&mut self, port: InPort<T>) -> Linked<InPort<T>> {
         let linked = self.create_node(port);
         self.inputs.push(linked.local_id());
         linked
     }
 
-    pub fn declare_output<T: 'static>(&mut self, port: OutPort<T>) -> Linked<OutPort<T>> {
+    pub fn declare_output<T: 'a>(&mut self, port: OutPort<T>) -> Linked<OutPort<T>> {
         let linked = self.create_node(port);
         self.outputs.push(linked.local_id());
         linked
     }
 
-    pub fn declare_reaction(&mut self, reaction: Reaction<R>) -> Linked<Reaction<R>>
-        where R: 'static {
+    pub fn declare_reaction<'b>(&mut self, reaction: Reaction<'b, R>) -> Linked<Reaction<'b, R>> where 'b : 'a {
         let linked = self.create_node(reaction);
         self.reactions.push(linked.local_id());
         linked
@@ -313,7 +319,7 @@ impl<R: Reactor> Assembler<R> {
     /// is hidden in the returned Stamped instance).
     ///
     /// The N is for example a port, or a reactor.
-    fn create_node<N: GraphElement + 'static>(&mut self, elt: N) -> Linked<N> {
+    fn create_node<N: GraphElement + 'a>(&mut self, elt: N) -> Linked<N> {
         // todo guarantee unicity
 
         let rc = Rc::new(elt);
@@ -353,10 +359,10 @@ impl<R: Reactor> Assembler<R> {
     /// Declare the dependencies of a reaction
     /// Module super::reaction defines a macro to do that easily
     pub fn reaction_link<T>(&mut self,
-                            reaction: &Linked<Reaction<R>>,
+                            reaction: &Linked<Reaction<'a, R>>,
                             element: &Linked<T>,
                             is_dep: bool) // if false, this is an antidependency
-        where T: GraphElement {
+        where T: GraphElement + 'a {
         let target_kind = element.data.kind();
         match target_kind {
             NodeKind::Input | NodeKind::Output => {
@@ -408,17 +414,17 @@ macro_rules! link_reaction {
 }
 
 
-pub struct RunnableReactor<R: Reactor> {
+pub struct RunnableReactor<'a, R: Reactor> {
     id: Rc<AssemblyId>,
 
     /// Strongly typed state (ports, reactions, etc)
-    pub(crate) state: R,
+    pub(crate) state: Box<R>,
 
     /// The flow graph delimited by inputs & outputs.
     /// This is local to a reactor and not global. It
     /// determines the topological ordering between
     /// reactions & mutations *on an instantaneous time step*
-    data_flow: DepGraph,
+    data_flow: DepGraph<'a>,
 
     // Those ids are local to this reactor's topology
 
@@ -428,7 +434,7 @@ pub struct RunnableReactor<R: Reactor> {
     outputs: Vec<NodeId>,
 }
 
-impl<R: Reactor> GraphElement for RunnableReactor<R> {
+impl<R: Reactor> GraphElement for RunnableReactor<'_, R> {
     fn kind(&self) -> NodeKind {
         NodeKind::Reactor
     }
@@ -438,14 +444,14 @@ impl<R: Reactor> GraphElement for RunnableReactor<R> {
     }
 }
 
-impl<R: Reactor> Debug for RunnableReactor<R> {
+impl<R: Reactor> Debug for RunnableReactor<'_, R> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         Debug::fmt(&self.id, f)
     }
 }
 
-impl<R: Reactor> RunnableReactor<R> {
-    fn new(state: R, assembler: Assembler<R>) -> RunnableReactor<R> {
+impl<'a, R: Reactor> RunnableReactor<'a, R> {
+    fn new(mut state: Box<R>, assembler: Assembler<'a, R>) -> RunnableReactor<'a, R> {
         RunnableReactor {
             id: assembler.id,
             state,
