@@ -4,6 +4,7 @@ use crate::reactors::action::ActionId;
 use crate::reactors::assembler::{Assembler, RunnableReactor};
 use crate::reactors::util::{Enumerated, Named};
 use crate::reactors::ports::PortId;
+use std::hash::Hash;
 
 /// Describes the structure of a reactor.
 ///
@@ -17,7 +18,7 @@ use crate::reactors::ports::PortId;
 pub trait Reactor {
     /// Enumerates the reactions available for this reactor.
     /// This is used as input to the [react] function.
-    type ReactionId: Ord + Eq + Enumerated + Named + Sized;
+    type ReactionId: Ord + Eq + Hash + Enumerated + Named + Sized + Copy;
 
     /// The type for the internal state of the reactor.
     ///
@@ -26,11 +27,11 @@ pub trait Reactor {
     /// argument as an immutable reference.
     ///
     /// Use `()` for a stateless reactor.
-    type State;
+    type State: Sized;
 
     /// Produce the initial state. This is passed by reference
     /// to the [react] function.
-    fn initial_state() -> Self::State;
+    fn initial_state() -> Self::State where Self: Sized;
 
     /// Initializes the structure of this reactor.
     /// This will create subcomponents and link them using the [Assembler].
@@ -48,7 +49,7 @@ pub trait Reactor {
         reaction_id: Self::ReactionId,
         // Scheduler instance, that can make the reaction affect the event queue
         scheduler: &mut dyn Scheduler,
-    ) where Self: Sized;
+    ) where Self: Sized; // todo this could return a Result
 }
 
 

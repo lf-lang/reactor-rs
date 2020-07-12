@@ -1,33 +1,41 @@
+use std::any::Any;
+use std::time::Duration;
+
 use petgraph::graph::{DefaultIx, DiGraph, NodeIndex};
 
-use crate::reactors::id::{GlobalId, Identified};
 use crate::reactors::framework::Reactor;
+use crate::reactors::id::{GlobalId, Identified};
+use crate::reactors::ports::PortId;
+use crate::reactors::assembler::{RunnableReactor, ClosedReaction};
+use crate::reactors::action::ActionId;
 
-pub struct EdgeWeight;
+/*
+    TODO like with ClosedReaction, we must erase the external
+    generic param on ports.
+
+    Pre-binding everything while the type information is available could be possible
+    (the previous prototype did that). But we lose some possibilities
+    w.r.t. error handling.
+
+ */
+
 
 pub type NodeId = NodeIndex<u32>;
-
 
 pub struct FlowGraph {
     graph: DiGraph<GlobalId, EdgeWeight>
 }
 
-
-impl Default for FlowGraph {
-    fn default() -> Self {
-        FlowGraph {
-            graph: Default::default()
-        }
-    }
+pub enum EdgeWeight {
+    Dataflow,
+    Trigger { delay: Duration },
 }
 
 enum FlowGraphElement {
-
-
-
+    Reaction(ClosedReaction),
+    Port(GlobalId), // TODO
+    Action(ActionId),
 }
-
-
 
 pub struct GlobalReactionId<R: Reactor> {
     reaction: R::ReactionId,
@@ -40,3 +48,10 @@ impl<R> Identified for GlobalReactionId<R> where R: Reactor {
     }
 }
 
+impl Default for FlowGraph {
+    fn default() -> Self {
+        FlowGraph {
+            graph: Default::default()
+        }
+    }
+}
