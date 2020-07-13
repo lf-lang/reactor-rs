@@ -74,6 +74,12 @@ impl Debug for GlobalId {
     }
 }
 
+impl Display for GlobalId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
 pub trait Identified {
     fn global_id(&self) -> &GlobalId;
 

@@ -38,12 +38,12 @@ impl<R> Assembler<R> where R: Reactor {
      * to be stored on the struct of the reactor.
      */
 
-    pub fn new_output_port<T>(&mut self, name: &'static str) -> PortId<T> {
-        self.new_port(PortKind::Output, name)
+    pub fn new_output_port<T>(&mut self, name: &'static str, default: T) -> PortId<T> {
+        self.new_port(PortKind::Output, name, default)
     }
 
-    pub fn new_input_port<T>(&mut self, name: &'static str) -> PortId<T> {
-        self.new_port(PortKind::Input, name)
+    pub fn new_input_port<T>(&mut self, name: &'static str, default: T) -> PortId<T> {
+        self.new_port(PortKind::Input, name, default)
     }
 
     pub fn new_action(&mut self, name: &'static str, min_delay: Option<Duration>, is_logical: bool) -> ActionId {
@@ -143,8 +143,8 @@ impl<R> Assembler<R> where R: Reactor { // this is the private impl block
         GlobalId::new(Rc::clone(&self.id), name)
     }
 
-    fn new_port<T>(&mut self, kind: PortKind, name: &'static str) -> PortId<T> {
-        PortId::<T>::new(kind, self.new_id(name))
+    fn new_port<T>(&mut self, kind: PortKind, name: &'static str, default: T) -> PortId<T> {
+        PortId::<T>::new(kind, self.new_id(name), default)
     }
 
     fn sub_id_for<T>(&self, id: NodeId, name: &'static str) -> AssemblyId {
