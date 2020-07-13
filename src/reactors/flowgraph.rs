@@ -3,11 +3,12 @@ use std::time::Duration;
 
 use petgraph::graph::{DefaultIx, DiGraph, NodeIndex};
 
+use crate::reactors::action::ActionId;
+use crate::reactors::assembler::RunnableReactor;
 use crate::reactors::framework::Reactor;
 use crate::reactors::id::{GlobalId, Identified};
 use crate::reactors::ports::PortId;
-use crate::reactors::assembler::{RunnableReactor, ClosedReaction};
-use crate::reactors::action::ActionId;
+use crate::reactors::reaction::ClosedReaction;
 
 /*
     TODO like with ClosedReaction, we must erase the external
@@ -31,6 +32,7 @@ pub enum EdgeWeight {
     Trigger { delay: Duration },
 }
 
+// the flow graph is transparent to reactors (they're all flattened)
 enum FlowGraphElement {
     Reaction(ClosedReaction),
     Port(GlobalId), // TODO

@@ -2,6 +2,7 @@ use std::marker::PhantomData;
 
 use crate::reactors::id::{GlobalId, Identified};
 
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum PortKind { Input, Output }
 
 pub struct PortId<T> {
@@ -13,6 +14,10 @@ pub struct PortId<T> {
 impl<T> PortId<T> {
     pub(in super) fn new(kind: PortKind, global_id: GlobalId) -> Self {
         PortId::<T> { kind, global_id, _phantom_t: PhantomData }
+    }
+
+    fn kind(&self) -> PortKind {
+        self.kind
     }
 }
 

@@ -1,3 +1,4 @@
+mod reaction;
 pub mod action;
 pub mod ports;
 pub mod assembler;
