@@ -1,6 +1,5 @@
 use std::borrow::Borrow;
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::Deref;
 use std::rc::Rc;
 
 use crate::reactors::flowgraph::NodeId;
@@ -18,6 +17,7 @@ pub enum AssemblyId {
         parent: Rc<AssemblyId>,
 
         // this is just for debugging
+        user_name: &'static str,
         typename: &'static str,
     },
 }
@@ -26,9 +26,9 @@ impl Display for AssemblyId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Root => write!(f, ""),
-            AssemblyId::Nested { typename, ext_id, parent } => {
+            AssemblyId::Nested { typename, user_name, ext_id, parent } => {
                 Debug::fmt(parent, f)?;
-                write!(f, "/{}[{}]", typename, ext_id.index())
+                write!(f, "/{}@{}[{}]", typename, user_name, ext_id.index())
             }
         }
     }

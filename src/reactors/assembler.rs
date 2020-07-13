@@ -7,10 +7,10 @@ use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::time::Duration;
 
-use petgraph::graph::DiGraph;
+use petgraph::graph::{DiGraph, NodeIndex};
 
 use crate::reactors::action::ActionId;
-use crate::reactors::flowgraph::FlowGraph;
+use crate::reactors::flowgraph::{FlowGraph, NodeId};
 use crate::reactors::framework::{Reactor, Scheduler};
 use crate::reactors::id::{AssemblyId, GlobalId, Identified};
 use crate::reactors::ports::{PortId, PortKind};
@@ -55,7 +55,8 @@ impl<R> Assembler<R> where R: Reactor {
     pub fn new_subreactor<S: Reactor>(&mut self, name: &'static str) -> RunnableReactor<S> {
         let id = self.new_id(name);
 
-        let mut sub_assembler = Assembler::<S>::new(&self.id);
+        let new_index = NodeIndex::new(0); // TODO
+        let mut sub_assembler = Assembler::<S>::new(Rc::new(self.sub_id_for::<S>(new_index, name)));
 
         let sub_reactor = S::assemble(&mut sub_assembler);
 
@@ -128,7 +129,7 @@ impl<R> Assembler<R> where R: Reactor {
     }
 
     pub fn root() -> Self {
-        Self::new(&Rc::new(AssemblyId::Root))
+        Self::new(Rc::new(AssemblyId::Root))
     }
 }
 
@@ -146,10 +147,19 @@ impl<R> Assembler<R> where R: Reactor { // this is the private impl block
         PortId::<T>::new(kind, self.new_id(name))
     }
 
+    fn sub_id_for<T>(&self, id: NodeId, name: &'static str) -> AssemblyId {
+        AssemblyId::Nested {
+            parent: Rc::clone(&self.id),
+            ext_id: id,
+            user_name: name,
+            typename: std::any::type_name::<T>(),
+        }
+    }
 
-    fn new(id: &Rc<AssemblyId>) -> Self {
+
+    fn new(id: Rc<AssemblyId>) -> Self {
         Assembler {
-            id: Rc::clone(id),
+            id,
             local_names: Default::default(),
             data_flow: Default::default(),
             _phantom_r: PhantomData,
