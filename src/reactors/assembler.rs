@@ -60,6 +60,9 @@ impl<R> Assembler<R> where R: Reactor {
 
         let sub_reactor = S::assemble(&mut sub_assembler);
 
+        // todo compute flow graph
+        //  close reactions
+
         RunnableReactor::<S>::new(sub_reactor, id)
     }
 
@@ -69,7 +72,7 @@ impl<R> Assembler<R> where R: Reactor {
      * These 2 are trigger dependencies, they may be cyclic (but have delays)
      */
 
-    /// Record that an action triggers the given reaction
+    /// Record that an action triggers the given reaction.
     ///
     /// Validity: the action ID was created by this assembler
     pub fn action_triggers(&mut self, port: ActionId, reaction_id: R::ReactionId) {
@@ -77,7 +80,7 @@ impl<R> Assembler<R> where R: Reactor {
     }
 
 
-    /// Record that the given reaction may schedule the action for (future)? execution
+    /// Record that the given reaction may schedule the action for future execution.
     ///
     /// Validity: the action ID was created by this assembler
     pub fn reaction_schedules(&mut self, reaction_id: R::ReactionId, action: ActionId) {
@@ -90,6 +93,7 @@ impl<R> Assembler<R> where R: Reactor {
 
     /// Binds the values of the given two ports. Every value set
     /// to the upstream port will be reflected in the downstream port.
+    /// The downstream port cannot be set by a reaction thereafter.
     ///
     /// # Validity
     ///
@@ -98,15 +102,15 @@ impl<R> Assembler<R> where R: Reactor {
     ///   1.i   downstream is an input port of a direct sub-reactor
     ///   1.ii  downstream is an output port of this reactor
     ///  2. upstream is an output port of a direct sub-reactor, and either
-    ///   2.i  downstream is an input port of another sub-reactor
+    ///   2.i  downstream is an input port of another direct sub-reactor
     ///   2.ii downstream is an output port of this reactor
     ///
     /// and all the following:
     /// - downstream is not already bound to another port
-    /// - no reaction uses upstream
+    /// - no reaction uses upstream todo why though? I found that in the C++ host
     /// - no reaction affects downstream
     ///
-    pub fn bind_ports<T>(&mut self, upstream: PortId<T>, downstream: PortId<T>) {
+    pub fn bind_ports<T>(&mut self, upstream: &mut PortId<T>, downstream: &mut PortId<T>) {
         unimplemented!()
     }
 

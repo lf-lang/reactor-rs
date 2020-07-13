@@ -7,7 +7,7 @@ use crate::reactors::util::Named;
 
 /// Identifies an assembly uniquely in the tree
 /// This is just a path built from the root down.
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Hash)]
 pub enum AssemblyId {
     Root,
     Nested {
@@ -49,7 +49,7 @@ impl AssemblyId {
     }
 }
 
-#[derive(Eq, PartialEq, Clone)]
+#[derive(Eq, PartialEq, Clone, Hash)]
 pub struct GlobalId {
     assembly_id: Rc<AssemblyId>,
     name: &'static str,
