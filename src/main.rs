@@ -71,7 +71,7 @@ impl Reactor for ProduceReactor {
     }
 
     fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
-        let output_port = assembler.new_output_port::<i32>("output");
+        let output_port = assembler.new_output_port::<i32>("output")?;
 
         assembler.reaction_affects(ProduceReactions::Emit, &output_port);
 
@@ -104,7 +104,7 @@ impl Reactor for ConsumeReactor {
     }
 
     fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
-        let input_port = assembler.new_input_port::<i32>("input");
+        let input_port = assembler.new_input_port::<i32>("input")?;
 
         Ok(ConsumeReactor { input_port })
     }
@@ -134,8 +134,8 @@ impl Reactor for PortRelay {
     }
 
     fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
-        let input_port = assembler.new_input_port::<i32>("input");
-        let output_port = assembler.new_output_port::<i32>("output");
+        let input_port = assembler.new_input_port::<i32>("input")?;
+        let output_port = assembler.new_output_port::<i32>("output")?;
 
         assembler.bind_ports(&input_port, &output_port)?;
         Ok(PortRelay { input_port, output_port })

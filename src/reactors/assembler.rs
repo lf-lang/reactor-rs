@@ -41,22 +41,22 @@ impl<R> Assembler<R> where R: Reactor {
      * to be stored on the struct of the reactor.
      */
 
-    pub fn new_output_port<T: IgnoredDefault>(&mut self, name: &'static str) -> PortId<T> {
+    pub fn new_output_port<T: IgnoredDefault>(&mut self, name: &'static str) -> Result<PortId<T>, AssemblyError> {
         self.new_port(PortKind::Output, name)
     }
 
-    pub fn new_input_port<T: IgnoredDefault>(&mut self, name: &'static str) -> PortId<T> {
+    pub fn new_input_port<T: IgnoredDefault>(&mut self, name: &'static str) -> Result<PortId<T>, AssemblyError> {
         self.new_port(PortKind::Input, name)
     }
 
-    pub fn new_action(&mut self, name: &'static str, min_delay: Option<Duration>, is_logical: bool) -> ActionId {
-        ActionId::new(min_delay, self.new_id(name), is_logical)
+    pub fn new_action(&mut self, name: &'static str, min_delay: Option<Duration>, is_logical: bool) -> Result<ActionId, AssemblyError> {
+        Ok(ActionId::new(min_delay, self.new_id(name)?, is_logical))
     }
 
     /// Assembles a subreactor. After this, the ports of the subreactor
     /// may be used in some connections, see [reaction_uses], [reaction_affects].
     pub fn new_subreactor<S: Reactor>(&mut self, name: &'static str) -> Result<RunnableReactor<S>, AssemblyError> {
-        let id = self.new_id(name);
+        let id = self.new_id(name)?;
 
         let new_index = NodeIndex::new(0); // TODO
         let mut sub_assembler = Assembler::<S>::new(Rc::new(self.sub_id_for::<S>(new_index, name)));
@@ -157,8 +157,7 @@ impl<R> Assembler<R> where R: Reactor {
             }
         }
 
-        upstream.forward_to(downstream)?;
-        Ok(())
+        upstream.forward_to(downstream)
     }
 
     /// Record that the reaction depends on the value of the given port
@@ -182,22 +181,23 @@ impl<R> Assembler<R> where R: Reactor {
     pub fn make_world() -> Result<RunnableReactor<R>, AssemblyError> where R: WorldReactor {
         let mut root_assembler = Self::new(Rc::new(AssemblyId::Root));
         let r = <R as Reactor>::assemble(&mut root_assembler)?;
-        Ok(RunnableReactor::new(r, root_assembler.new_id(":root:")))
+        Ok(RunnableReactor::new(r, root_assembler.new_id(":root:")?))
     }
 }
 
 
 impl<R> Assembler<R> where R: Reactor { // this is the private impl block
 
-    fn new_id(&mut self, name: &'static str) -> GlobalId {
+    fn new_id(&mut self, name: &'static str) -> Result<GlobalId, AssemblyError> {
         if !self.local_names.insert(name) {
-            panic!("Name {} is already used in {}", name, self.id.deref()) // todo impl display
+            Err(AssemblyError::DuplicateName(name))
+        } else {
+            Ok(GlobalId::new(Rc::clone(&self.id), name))
         }
-        GlobalId::new(Rc::clone(&self.id), name)
     }
 
-    fn new_port<T: IgnoredDefault>(&mut self, kind: PortKind, name: &'static str) -> PortId<T> {
-        PortId::<T>::new(kind, self.new_id(name))
+    fn new_port<T: IgnoredDefault>(&mut self, kind: PortKind, name: &'static str) -> Result<PortId<T>, AssemblyError> {
+        Ok(PortId::<T>::new(kind, self.new_id(name)?))
     }
 
     fn sub_id_for<T>(&self, id: NodeId, name: &'static str) -> AssemblyId {
@@ -258,7 +258,8 @@ impl<R> Identified for RunnableReactor<R> where R: Reactor {
 }
 
 pub enum AssemblyError {
-    InvalidBinding(&'static str, GlobalId, GlobalId)
+    InvalidBinding(&'static str, GlobalId, GlobalId),
+    DuplicateName(&'static str),
 }
 
 impl Debug for AssemblyError {
@@ -266,6 +267,10 @@ impl Debug for AssemblyError {
         match self {
             AssemblyError::InvalidBinding(cause, upstream, downstream) => {
                 write!(f, "Invalid binding: {} {} {}", cause, upstream, downstream)
+            }
+
+            AssemblyError::DuplicateName(name) => {
+                write!(f, "Duplicate name {}", name)
             }
         }
     }

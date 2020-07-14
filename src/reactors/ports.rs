@@ -125,9 +125,25 @@ type Binding<T> = (BindStatus, Rc<PortEquivClass<T>>);
 /// equivalence class have a reference to the equivalence class,
 /// which has a unique cell to store data.
 struct PortEquivClass<T> {
-    // This the container for the value
+    /// This the container for the value
     cell: RefCell<T>,
 
+    /// This is the set of ports that are "forwarded to".
+    /// When you bind 2 ports A -> B, then the binding of B
+    /// is updated to point to the equiv class of A. The downstream
+    /// field of that equiv class is updated to contain B.
+    ///
+    /// Why?
+    /// When you have bound eg A -> B and *then* bind U -> A,
+    /// then both the equiv class of A and B (the downstream of A)
+    /// need to be updated to point to the equiv class of U
+    ///
+    /// Coincidentally, this means we can track transitive
+    /// cyclic port dependencies:
+    /// - say you have bound A -> B, then B -> C
+    /// - so all three refer to the equiv class of A, whose downstream is now {B, C}
+    /// - if you then try binding C -> A, then we can know
+    /// that C is in the downstream of A, indicating that there is a cycle.
     downstreams: RefCell<HashMap<GlobalId, Rc<RefCell<Binding<T>>>>>,
 }
 
