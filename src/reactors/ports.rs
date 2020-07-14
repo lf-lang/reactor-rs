@@ -72,7 +72,10 @@ impl<T> PortId<T> {
                 let mut self_cell = self.upstream_binding.borrow_mut();
                 let (_, my_class) = self_cell.deref_mut();
 
-                my_class.downstreams.borrow_mut().insert(HashableBinding::new(downstream));
+                my_class.downstreams.borrow_mut().insert(
+                    downstream.global_id.clone(),
+                    Rc::clone(&downstream.upstream_binding)
+                );
 
                 let new_binding = (BindStatus::PortBound, Rc::clone(&my_class));
 
@@ -112,34 +115,6 @@ enum BindStatus {
 
 type Binding<T> = (BindStatus, Rc<PortEquivClass<T>>);
 
-struct HashableBinding<T> {
-    cell: Rc<RefCell<Binding<T>>>,
-    key: GlobalId,
-}
-
-impl<T> HashableBinding<T> {
-    fn new(port: &PortId<T>) -> HashableBinding<T> {
-        HashableBinding {
-            key: port.global_id.clone(),
-            cell: Rc::clone(&port.upstream_binding),
-        }
-    }
-}
-
-impl<T> PartialEq for HashableBinding<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.key == other.key
-    }
-}
-
-impl<T> Eq for HashableBinding<T> {}
-
-impl<T> Hash for HashableBinding<T> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.key.hash(state)
-    }
-}
-
 
 /// An equivalence class is a set of ports that are
 /// bound together transitively. Then, if anyone is
@@ -153,7 +128,7 @@ struct PortEquivClass<T> {
     // This the container for the value
     cell: RefCell<T>,
 
-    downstreams: RefCell<HashSet<HashableBinding<T>>>,
+    downstreams: RefCell<HashMap<GlobalId, Rc<RefCell<Binding<T>>>>>,
 }
 
 impl<T> PortEquivClass<T> {
@@ -166,8 +141,8 @@ impl<T> PortEquivClass<T> {
 
     /// This updates all downstreams to point to the given equiv class instead of `self`
     fn set_upstream(&self, new_binding: &Rc<PortEquivClass<T>>) {
-        for hashed in &*self.downstreams.borrow() {
-            let cell: &RefCell<Binding<T>> = Rc::borrow(&hashed.cell);
+        for (_, cell_rc) in &*self.downstreams.borrow() {
+            let cell: &RefCell<Binding<T>> = Rc::borrow(cell_rc);
             let mut ref_mut = cell.borrow_mut();
             let b: Binding<T> = (ref_mut.0, Rc::clone(new_binding));
             *ref_mut.deref_mut() = b;
