@@ -59,14 +59,17 @@ impl<R> Assembler<R> where R: Reactor {
         let id = self.new_id(name)?;
 
         let new_index = NodeIndex::new(0); // TODO
-        let mut sub_assembler = Assembler::<S>::new(Rc::new(self.sub_id_for::<S>(new_index, name)));
+        let mut sub_assembler = Assembler::<S>::new(Rc::new(self.sub_id_for(new_index, name)));
 
-        let sub_reactor = S::assemble(&mut sub_assembler)?;
+        match S::assemble(&mut sub_assembler) {
+            Ok(sub_reactor) => Ok(RunnableReactor::<S>::new(sub_reactor, id)),
+            Err(sub_error) => Err(AssemblyError::InContext(id, Box::new(sub_error))),
+        }
 
         // todo compute flow graph
         //  close reactions
 
-        Ok(RunnableReactor::<S>::new(sub_reactor, id))
+
     }
 
     /*
@@ -200,12 +203,11 @@ impl<R> Assembler<R> where R: Reactor { // this is the private impl block
         Ok(PortId::<T>::new(kind, self.new_id(name)?))
     }
 
-    fn sub_id_for<T>(&self, id: NodeId, name: &'static str) -> AssemblyId {
+    fn sub_id_for(&self, id: NodeId, name: &'static str) -> AssemblyId {
         AssemblyId::Nested {
             parent: Rc::clone(&self.id),
             ext_id: id,
-            user_name: name,
-            typename: std::any::type_name::<T>(),
+            user_name: name
         }
     }
 
@@ -260,17 +262,25 @@ impl<R> Identified for RunnableReactor<R> where R: Reactor {
 pub enum AssemblyError {
     InvalidBinding(&'static str, GlobalId, GlobalId),
     DuplicateName(&'static str),
+    CyclicDependency(String),
+    InContext(GlobalId, Box<AssemblyError>)
 }
 
 impl Debug for AssemblyError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             AssemblyError::InvalidBinding(cause, upstream, downstream) => {
-                write!(f, "Invalid binding: {} {} {}", cause, upstream, downstream)
+                write!(f, "Invalid binding: {} (while binding '{}' to '{}')", cause, upstream, downstream)
             }
-
             AssemblyError::DuplicateName(name) => {
-                write!(f, "Duplicate name {}", name)
+                write!(f, "Duplicate name '{}'", name)
+            }
+            AssemblyError::CyclicDependency(msg) => {
+                write!(f, "Cyclic dependency: {}", msg)
+            }
+            AssemblyError::InContext(ctx_id, err) => {
+                write!(f, "While assembling {}: ", ctx_id)?;
+                Debug::fmt(err, f)
             }
         }
     }

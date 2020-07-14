@@ -36,19 +36,22 @@ fn main() {
 pub struct AppReactor {
     producer: RunnableReactor<ProduceReactor>,
     relay: RunnableReactor<PortRelay>,
+    relay2: RunnableReactor<PortRelay>,
     consumer: RunnableReactor<ConsumeReactor>,
 }
 
 impl WorldReactor for AppReactor {
     fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
         let consumer = assembler.new_subreactor::<ConsumeReactor>("consumer")?;
-        let relay = assembler.new_subreactor::<PortRelay>("relay")?;
+        let relay = assembler.new_subreactor::<PortRelay>("relay1")?;
+        let relay2 = assembler.new_subreactor::<PortRelay>("relay2")?;
         let producer = assembler.new_subreactor::<ProduceReactor>("producer")?;
 
         assembler.bind_ports(&producer.output_port, &relay.input_port)?;
-        assembler.bind_ports(&relay.output_port, &consumer.input_port)?;
+        assembler.bind_ports(&relay.output_port, &relay2.input_port)?;
+        assembler.bind_ports(&relay2.output_port, &consumer.input_port)?;
 
-        Ok(AppReactor { consumer, producer, relay })
+        Ok(AppReactor { consumer, producer, relay, relay2 })
     }
 }
 

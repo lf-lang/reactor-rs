@@ -19,7 +19,6 @@ pub enum AssemblyId {
 
         // this is just for debugging
         user_name: &'static str,
-        typename: &'static str,
     },
 }
 
@@ -27,9 +26,9 @@ impl Display for AssemblyId {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Root => write!(f, ""),
-            AssemblyId::Nested { typename, user_name, ext_id, parent } => {
+            AssemblyId::Nested { user_name, parent, .. } => {
                 Debug::fmt(parent, f)?;
-                write!(f, "/{}@{}[{}]", typename, user_name, ext_id.index())
+                write!(f, "/@{}", user_name)
             }
         }
     }

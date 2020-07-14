@@ -66,8 +66,8 @@ impl<T> PortId<T> {
         let (downstream_status, ref downstream_class) = *mut_downstream_cell;
 
         match downstream_status {
-            BindStatus::PortBound => Err(AssemblyError::InvalidBinding("Port {} is already bound to another port", self.global_id().clone(), downstream.global_id().clone())),
-            BindStatus::DependencyBound => Err(AssemblyError::InvalidBinding("Port {} receives values from a reaction", self.global_id().clone(), downstream.global_id().clone())),
+            #[cold] BindStatus::PortBound => Err(AssemblyError::InvalidBinding("Port {} is already bound to another port", self.global_id().clone(), downstream.global_id().clone())),
+            #[cold] BindStatus::DependencyBound => Err(AssemblyError::InvalidBinding("Port {} receives values from a reaction", self.global_id().clone(), downstream.global_id().clone())),
             BindStatus::Unbound => {
                 let mut self_cell = self.upstream_binding.borrow_mut();
                 let (_, my_class) = self_cell.deref_mut();
@@ -78,6 +78,8 @@ impl<T> PortId<T> {
                 );
 
                 let new_binding = (BindStatus::PortBound, Rc::clone(&my_class));
+
+                downstream_class.check_cycle(&self.global_id, &downstream.global_id)?;
 
                 downstream_class.set_upstream(my_class);
                 *mut_downstream_cell.deref_mut() = new_binding;
@@ -155,13 +157,21 @@ impl<T> PortEquivClass<T> {
         }
     }
 
+    fn check_cycle(&self, upstream_id: &GlobalId, downstream_id: &GlobalId) -> Result<(), AssemblyError>{
+        #[cold]
+        if (&*self.downstreams.borrow()).contains_key(upstream_id) {
+            Err(AssemblyError::CyclicDependency(format!("Port {} is already in the downstream of port {}", upstream_id, downstream_id)))
+        } else {
+            Ok(())
+        }
+    }
+
     /// This updates all downstreams to point to the given equiv class instead of `self`
     fn set_upstream(&self, new_binding: &Rc<PortEquivClass<T>>) {
         for (_, cell_rc) in &*self.downstreams.borrow() {
             let cell: &RefCell<Binding<T>> = Rc::borrow(cell_rc);
             let mut ref_mut = cell.borrow_mut();
-            let b: Binding<T> = (ref_mut.0, Rc::clone(new_binding));
-            *ref_mut.deref_mut() = b;
+            *ref_mut.deref_mut() = (ref_mut.0, Rc::clone(new_binding));
         }
     }
 }
