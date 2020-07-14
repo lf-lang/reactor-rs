@@ -1,4 +1,4 @@
-use crate::reactors::assembler::{Assembler, RunnableReactor};
+use crate::reactors::assembler::{Assembler, RunnableReactor, AssemblyError};
 use crate::reactors::framework::{Reactor, Scheduler};
 use crate::reactors::ports::PortId;
 use crate::reactors::util::{Enumerated, Named, Nothing};
@@ -8,7 +8,7 @@ use std::convert::TryInto;
 mod reactors;
 
 fn main() {
-    let mut app = Assembler::<AppReactor>::make_world();
+    let mut app = Assembler::<AppReactor>::make_world().unwrap();
 
     fn test_set(v: i32, app: &RunnableReactor<AppReactor>) {
         app.consumer.input_port.set(v);
@@ -40,15 +40,15 @@ pub struct AppReactor {
 }
 
 impl WorldReactor for AppReactor {
-    fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized {
-        let consumer = assembler.new_subreactor::<ConsumeReactor>("consumer");
-        let relay = assembler.new_subreactor::<PortRelay>("relay");
-        let producer = assembler.new_subreactor::<ProduceReactor>("producer");
+    fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
+        let consumer = assembler.new_subreactor::<ConsumeReactor>("consumer")?;
+        let relay = assembler.new_subreactor::<PortRelay>("relay")?;
+        let producer = assembler.new_subreactor::<ProduceReactor>("producer")?;
 
-        assembler.bind_ports(&producer.output_port, &relay.input_port);
-        assembler.bind_ports(&relay.output_port, &consumer.input_port);
+        assembler.bind_ports(&producer.output_port, &relay.input_port)?;
+        assembler.bind_ports(&relay.output_port, &consumer.input_port)?;
 
-        AppReactor { consumer, producer, relay }
+        Ok(AppReactor { consumer, producer, relay })
     }
 }
 
@@ -63,23 +63,26 @@ reaction_ids!(pub enum ProduceReactions { Emit });
 
 impl Reactor for ProduceReactor {
     type ReactionId = ProduceReactions;
-    type State = ();
+    type State = i32;
 
 
     fn initial_state() -> Self::State {
-        ()
+        0
     }
 
-    fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized {
+    fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
         let output_port = assembler.new_output_port::<i32>("output");
+
         assembler.reaction_affects(ProduceReactions::Emit, &output_port);
-        ProduceReactor { output_port }
+
+        Ok(ProduceReactor { output_port })
     }
 
-    fn react(reactor: &RunnableReactor<Self>, _: &mut Self::State, reaction_id: Self::ReactionId, scheduler: &mut Scheduler) where Self: Sized {
+    fn react(reactor: &RunnableReactor<Self>, state: &mut Self::State, reaction_id: Self::ReactionId, scheduler: &mut Scheduler) where Self: Sized {
         match reaction_id {
             ProduceReactions::Emit => {
-                scheduler.set_port(&reactor.output_port, scheduler.get_port(&reactor.output_port) + 1)
+                *state += 1;
+                scheduler.set_port(&reactor.output_port, *state)
             }
         }
     }
@@ -100,10 +103,10 @@ impl Reactor for ConsumeReactor {
         ()
     }
 
-    fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized {
+    fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
         let input_port = assembler.new_input_port::<i32>("input");
 
-        ConsumeReactor { input_port }
+        Ok(ConsumeReactor { input_port })
     }
 
     fn react(reactor: &RunnableReactor<Self>, _: &mut Self::State, reaction_id: Self::ReactionId, scheduler: &mut Scheduler) where Self: Sized {
@@ -115,6 +118,8 @@ impl Reactor for ConsumeReactor {
     }
 }
 
+// Just binds its input to its output
+// This is useless, but it tests the binding logic
 pub struct PortRelay {
     input_port: PortId<i32>,
     output_port: PortId<i32>,
@@ -128,12 +133,12 @@ impl Reactor for PortRelay {
         ()
     }
 
-    fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized {
+    fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
         let input_port = assembler.new_input_port::<i32>("input");
         let output_port = assembler.new_output_port::<i32>("output");
 
-        assembler.bind_ports(&input_port, &output_port);
-        PortRelay { input_port, output_port }
+        assembler.bind_ports(&input_port, &output_port)?;
+        Ok(PortRelay { input_port, output_port })
     }
 
     fn react(_: &RunnableReactor<Self>, _: &mut Self::State, _: Self::ReactionId, _: &mut Scheduler) where Self: Sized {

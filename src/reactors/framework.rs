@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::reactors::action::ActionId;
-use crate::reactors::assembler::{Assembler, RunnableReactor};
+use crate::reactors::assembler::{Assembler, RunnableReactor, AssemblyError};
 use crate::reactors::util::{Enumerated, Named};
 use crate::reactors::ports::PortId;
 use std::hash::Hash;
@@ -37,7 +37,7 @@ pub trait Reactor {
     /// This will create subcomponents and link them using the [Assembler].
     ///
     /// The returned instance is wrapped into a [RunnableReactor] for execution.
-    fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized;
+    fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized;
 
     /// Execute a reaction of this reactor.
     fn react(

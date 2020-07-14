@@ -11,6 +11,7 @@ use std::rc::Rc;
 use crate::reactors::id::{GlobalId, Identified};
 use crate::reactors::ports::BindStatus::{PortBound, Unbound};
 use std::collections::hash_map::RandomState;
+use crate::reactors::assembler::AssemblyError;
 
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -58,15 +59,15 @@ impl<T> PortId<T> {
         *class_cell.cell.borrow_mut().deref_mut() = new_value;
     }
 
-    pub(in super) fn forward_to(&self, downstream: &PortId<T>) -> Result<(), String> {
+    pub(in super) fn forward_to(&self, downstream: &PortId<T>) -> Result<(), AssemblyError> {
         // let binding_borrow: &RefCell<Binding<T>> = Rc::borrow(&downstream.upstream_binding);
 
         let mut mut_downstream_cell = (&downstream.upstream_binding).borrow_mut();
         let (downstream_status, ref downstream_class) = *mut_downstream_cell;
 
         match downstream_status {
-            BindStatus::PortBound => Err(format!("Port {} is already bound to another port", downstream.global_id)),
-            BindStatus::DependencyBound => Err(format!("Port {} receives values from a reaction", downstream.global_id)),
+            BindStatus::PortBound => Err(AssemblyError::InvalidBinding("Port {} is already bound to another port", self.global_id().clone(), downstream.global_id().clone())),
+            BindStatus::DependencyBound => Err(AssemblyError::InvalidBinding("Port {} receives values from a reaction", self.global_id().clone(), downstream.global_id().clone())),
             BindStatus::Unbound => {
                 let mut self_cell = self.upstream_binding.borrow_mut();
                 let (_, my_class) = self_cell.deref_mut();

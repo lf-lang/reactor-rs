@@ -16,6 +16,7 @@ use crate::reactors::id::{AssemblyId, GlobalId, Identified};
 use crate::reactors::ports::{PortId, PortKind, IgnoredDefault};
 use crate::reactors::util::{Named, Enumerated};
 use crate::reactors::world::WorldReactor;
+use std::fmt::{Debug, Formatter};
 
 /// Assembles a reactor.
 pub struct Assembler<R: Reactor> {
@@ -40,7 +41,7 @@ impl<R> Assembler<R> where R: Reactor {
      * to be stored on the struct of the reactor.
      */
 
-    pub fn new_output_port<T : IgnoredDefault>(&mut self, name: &'static str) -> PortId<T> {
+    pub fn new_output_port<T: IgnoredDefault>(&mut self, name: &'static str) -> PortId<T> {
         self.new_port(PortKind::Output, name)
     }
 
@@ -54,18 +55,18 @@ impl<R> Assembler<R> where R: Reactor {
 
     /// Assembles a subreactor. After this, the ports of the subreactor
     /// may be used in some connections, see [reaction_uses], [reaction_affects].
-    pub fn new_subreactor<S: Reactor>(&mut self, name: &'static str) -> RunnableReactor<S> {
+    pub fn new_subreactor<S: Reactor>(&mut self, name: &'static str) -> Result<RunnableReactor<S>, AssemblyError> {
         let id = self.new_id(name);
 
         let new_index = NodeIndex::new(0); // TODO
         let mut sub_assembler = Assembler::<S>::new(Rc::new(self.sub_id_for::<S>(new_index, name)));
 
-        let sub_reactor = S::assemble(&mut sub_assembler);
+        let sub_reactor = S::assemble(&mut sub_assembler)?;
 
         // todo compute flow graph
         //  close reactions
 
-        RunnableReactor::<S>::new(sub_reactor, id)
+        Ok(RunnableReactor::<S>::new(sub_reactor, id))
     }
 
     /*
@@ -112,9 +113,52 @@ impl<R> Assembler<R> where R: Reactor {
     /// - no reaction uses upstream todo why though? I found that in the C++ host
     /// - no reaction affects downstream
     ///
-    pub fn bind_ports<T>(&mut self, upstream: &PortId<T>, downstream: &PortId<T>) {
-        // TODO
-        upstream.forward_to(downstream);
+    pub fn bind_ports<T>(&mut self, upstream: &PortId<T>, downstream: &PortId<T>) -> Result<(), AssemblyError> {
+        let invalid = |cause: &'static str| -> AssemblyError {
+            AssemblyError::InvalidBinding(cause, upstream.global_id().clone(), downstream.global_id().clone())
+        };
+
+        match upstream.kind() {
+            PortKind::Input => {
+                // 1.
+                if !upstream.is_in_reactor(&self.id) {
+                    return Err(invalid("Upstream port must be an input port of this reactor"));
+                }
+                match downstream.kind() {
+                    PortKind::Input => {
+                        if !upstream.is_in_direct_subreactor_of(&self.id) {
+                            return Err(invalid("1.i. Downstream port should be declared in a direct sub-reactor"));
+                        }
+                    }
+                    PortKind::Output => {
+                        if !upstream.is_in_reactor(&self.id) {
+                            return Err(invalid("1.ii. Downstream port should be declared in this reactor"));
+                        }
+                    }
+                }
+            }
+            PortKind::Output => {
+                // 2.
+                if !upstream.is_in_direct_subreactor_of(&self.id) {
+                    return Err(invalid("Upstream port must be an input port of this reactor"));
+                }
+                match downstream.kind() {
+                    PortKind::Input => {
+                        if !upstream.is_in_direct_subreactor_of(&self.id) || downstream.global_id() == upstream.global_id() {
+                            return Err(invalid("2.i. Downstream port should be declared in a different direct sub-reactor"));
+                        }
+                    }
+                    PortKind::Output => {
+                        if !upstream.is_in_reactor(&self.id) {
+                            return Err(invalid("2.ii. Downstream port should be declared in this reactor"));
+                        }
+                    }
+                }
+            }
+        }
+
+        upstream.forward_to(downstream)?;
+        Ok(())
     }
 
     /// Record that the reaction depends on the value of the given port
@@ -135,10 +179,10 @@ impl<R> Assembler<R> where R: Reactor {
         // TODO
     }
 
-    pub fn make_world() -> RunnableReactor<R> where R: WorldReactor {
+    pub fn make_world() -> Result<RunnableReactor<R>, AssemblyError> where R: WorldReactor {
         let mut root_assembler = Self::new(Rc::new(AssemblyId::Root));
-        let r = <R as Reactor>::assemble(&mut root_assembler);
-        RunnableReactor::new(r, root_assembler.new_id(":root:"))
+        let r = <R as Reactor>::assemble(&mut root_assembler)?;
+        Ok(RunnableReactor::new(r, root_assembler.new_id(":root:")))
     }
 }
 
@@ -152,7 +196,7 @@ impl<R> Assembler<R> where R: Reactor { // this is the private impl block
         GlobalId::new(Rc::clone(&self.id), name)
     }
 
-    fn new_port<T : IgnoredDefault>(&mut self, kind: PortKind, name: &'static str) -> PortId<T> {
+    fn new_port<T: IgnoredDefault>(&mut self, kind: PortKind, name: &'static str) -> PortId<T> {
         PortId::<T>::new(kind, self.new_id(name))
     }
 
@@ -210,5 +254,19 @@ impl<R> Deref for RunnableReactor<R> where R: Reactor {
 impl<R> Identified for RunnableReactor<R> where R: Reactor {
     fn global_id(&self) -> &GlobalId {
         &self.global_id
+    }
+}
+
+pub enum AssemblyError {
+    InvalidBinding(&'static str, GlobalId, GlobalId)
+}
+
+impl Debug for AssemblyError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            AssemblyError::InvalidBinding(cause, upstream, downstream) => {
+                write!(f, "Invalid binding: {} {} {}", cause, upstream, downstream)
+            }
+        }
     }
 }

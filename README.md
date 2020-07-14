@@ -2,6 +2,13 @@
 
 #### Status
 
+* I made a first prototype which I scrapped because it became
+too messy. But it helped figure out the basic API and core classes.
+
+* To get an overview: 8ce8381
+  * This presents the core classes before I fleshed it out
+* Example of building a reactor
+
 * Core model classes like Action, Reaction, etc, are workable.
 You'll notice that they're super stripped-down and not so convenient
 to work with (eg a reactor doesn't know its parent reactor). This

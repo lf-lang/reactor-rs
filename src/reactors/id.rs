@@ -4,6 +4,7 @@ use std::rc::Rc;
 
 use crate::reactors::flowgraph::NodeId;
 use crate::reactors::util::Named;
+use std::ops::Deref;
 
 /// Identifies an assembly uniquely in the tree
 /// This is just a path built from the root down.
@@ -83,16 +84,16 @@ impl Display for GlobalId {
 pub trait Identified {
     fn global_id(&self) -> &GlobalId;
 
-    fn is_in_direct_subreactor_of(&self, reactor_id: AssemblyId) -> bool {
+    fn is_in_direct_subreactor_of(&self, reactor_id: &impl Deref<Target=AssemblyId>) -> bool {
         let my_assembly: &AssemblyId = self.global_id().assembly_id.borrow();
 
-        my_assembly.parent().map_or(false, |it| *it == reactor_id)
+        my_assembly.parent().map_or(false, |it| it == reactor_id.deref())
     }
 
-    fn is_in_reactor(&self, reactor_id: AssemblyId) -> bool {
+    fn is_in_reactor(&self, reactor_id: &impl Deref<Target=AssemblyId>) -> bool {
         let my_assembly: &AssemblyId = self.global_id().assembly_id.borrow();
 
-        *my_assembly == reactor_id
+        my_assembly == reactor_id.deref()
     }
 }
 

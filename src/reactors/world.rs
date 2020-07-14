@@ -1,4 +1,4 @@
-use crate::reactors::assembler::{Assembler, RunnableReactor};
+use crate::reactors::assembler::{Assembler, RunnableReactor, AssemblyError};
 use crate::reactors::framework::{Reactor, Scheduler};
 use crate::reactors::util::Nothing;
 
@@ -6,7 +6,7 @@ use crate::reactors::util::Nothing;
 /// or output ports, only sub-reactors and connections between
 /// them. TODO this is not checked anywhere
 pub trait WorldReactor {
-    fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized;
+    fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized;
 }
 
 impl<T> Reactor for T where T: WorldReactor {
@@ -17,7 +17,7 @@ impl<T> Reactor for T where T: WorldReactor {
         ()
     }
 
-    fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized {
+    fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
         Self::assemble(assembler)
     }
 
