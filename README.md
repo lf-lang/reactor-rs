@@ -7,35 +7,28 @@ too messy. But it helped figure out the basic API and core classes.
 
 * To get an overview: 8ce8381
   * This presents the core classes before I fleshed it out
-* Example of building a reactor
 
-* Core model classes like Action, Reaction, etc, are workable.
-You'll notice that they're super stripped-down and not so convenient
-to work with (eg a reactor doesn't know its parent reactor). This
-is to make the layout simple for now, because it's already pretty
-complicated to track who references whom. 
-   
-   In safe Rust it's complicated to build recursive/self-referential 
-data structures that are mutable. Smart pointers in smart pointers in smart pointers...
+* Basically:
+  * the trait Reactor describes how the reactor behaves, including
+    * What are its reactions (represented by IDs)
+    * What are its subcomponents and how are they connected
+    * What is its internal state
+  * Reactor creation is actually done by another object, the Assembler.
+  This is because it's hard to make self-referential/cyclical data structures
+  in safe rust. So this object manages the linking logic, and outputs
+  a data structure which stores the links (RunnableReactor)
+  * Internal state is managed separately from the Reactor 
+  instance itself. The problem is, the internal state is mutable,
+  even though the reactor structure is not
+  * The assembler is not totally implemented yet
 
+* Example of building a reactor:
+  * insert link to main.rs
 
-* The assembler is still in a larval stage, to be useful it should
-  1. compute the topology graph, taking reaction priority into account.
-  This is used by the scheduler to schedule instantaneous reactions to SET
-  2. (later) Validate during construction (this needs more structure
-  than currently)
-  3. also it needs tests
-
-   This is what I should focus on right now, before item 1 is fixed there
-   is no way to write the scheduler.
-
-
-I also don't know if the trick of sharing the RefCell for 
-output & input ports can stay. The issue I see is thread-safety.
-We could be setting the value while another reaction is 
-executing concurrently -> BorrowMutError
-
-
+* Current issues/ WIP:
+  * Finish implementing the assembler (before this, it's impossible to write the scheduler)
+  * Thread safety: nothing is thread-safe for now. The use of RefCell
+  a bit everywhere makes eg ports not Send/Sync.
 
 #### Interesting links
 
@@ -55,6 +48,6 @@ executing concurrently -> BorrowMutError
    Basically it's idiomatic to avoid linking nodes directly, but rather to rely on global IDs for nodes/edges. That way nodes don't need to own their neighbors. More explanations: https://featherweightmusings.blogspot.com/2015/04/graphs-in-rust.html
 
 * Pinning: https://doc.rust-lang.org/core/pin/index.html
-  * This will be necessary to ensure we refer to always the same objects
+  * This may be necessary to ensure we refer to always the same objects
 
 * Downcasting from trait object: https://users.rust-lang.org/t/downcast-generic-struct-instance-with-trait-object/44254/8
