@@ -12,11 +12,8 @@ use std::ops::Deref;
 pub enum AssemblyId {
     Root,
     Nested {
-        // This is the node id used in the parent
-        ext_id: GraphId,
         // the id of the parent
         parent: Rc<AssemblyId>,
-
         // this is just for debugging
         user_name: &'static str,
     },

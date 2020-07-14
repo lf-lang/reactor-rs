@@ -1,28 +1,25 @@
 use std::borrow::BorrowMut;
 use std::cell::{RefCell, RefMut};
 use std::collections::HashSet;
-use std::env::set_current_dir;
+use std::fmt::{Debug, Display, Formatter};
+use std::iter::FromIterator;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::time::Duration;
 
-use petgraph::graph::{DiGraph, NodeIndex};
-
 use crate::reactors::action::ActionId;
+use crate::reactors::BindStatus;
 use crate::reactors::flowgraph::{FlowGraph, GraphId};
 use crate::reactors::framework::{Reactor, Scheduler};
 use crate::reactors::id::{AssemblyId, GlobalId, Identified};
-use crate::reactors::ports::{PortId, PortKind, IgnoredDefault};
-use crate::reactors::util::{Named, Enumerated};
-use crate::reactors::world::WorldReactor;
-use std::fmt::{Debug, Formatter, Display};
+use crate::reactors::ports::{IgnoredDefault, PortId, PortKind};
 use crate::reactors::reaction::ClosedReaction;
-use std::iter::FromIterator;
-use crate::reactors::BindStatus;
+use crate::reactors::util::{Enumerated, Named};
+use crate::reactors::world::WorldReactor;
 
 /// Assembles a reactor.
-pub struct Assembler<R: Reactor> {
+pub struct Assembler<'a, R: Reactor> {
     /// Path from the root of the tree to this assembly,
    /// used to give global ids to each component
     id: Rc<AssemblyId>,
@@ -30,13 +27,13 @@ pub struct Assembler<R: Reactor> {
     /// Pool of currently known names
     local_names: HashSet<&'static str>,
 
-    data_flow: FlowGraph,
+    global: &'a mut GlobalAssembler,
 
     _phantom_r: PhantomData<R>,
 }
 
 
-impl<R> Assembler<R> where R: Reactor {
+impl<'a, R> Assembler<'a, R> where R: Reactor {
     // this is the public impl block
 
     /*
@@ -62,12 +59,10 @@ impl<R> Assembler<R> where R: Reactor {
     pub fn new_subreactor<S: Reactor>(&mut self, name: &'static str) -> Result<RunnableReactor<S>, AssemblyError> {
         let id = self.new_id(name)?;
 
-        let new_index = NodeIndex::new(0); // TODO
-        let mut sub_assembler = Assembler::<S>::new(Rc::new(self.sub_id_for(new_index, name)));
-
+        let mut sub_assembler = Assembler::<S>::new(self.global, Rc::new(self.sub_id_for(name)));
 
         let globals = sub_assembler.make_reaction_global_ids()?;
-        sub_assembler.data_flow.add_reactions(globals);
+        sub_assembler.global.flow_graph().add_reactions(globals);
 
         match S::assemble(&mut sub_assembler) {
             #[cold] Err(sub_error) => Err(AssemblyError::InContext(id, Box::new(sub_error))),
@@ -75,9 +70,6 @@ impl<R> Assembler<R> where R: Reactor {
                 Ok(RunnableReactor::<S>::new(sub_reactor, id))
             }
         }
-
-        // todo compute flow graph
-        //  close reactions
     }
 
     /*
@@ -155,7 +147,7 @@ impl<R> Assembler<R> where R: Reactor {
             }
         }
 
-        self.data_flow.add_port_dependency(upstream, downstream)?;
+        self.global.flow_graph().add_port_dependency(upstream, downstream)?;
         upstream.forward_to(downstream)
     }
 
@@ -179,7 +171,7 @@ impl<R> Assembler<R> where R: Reactor {
             return Err(invalid("Reaction can only use output ports of sub-reactors"));
         }
 
-        self.data_flow.add_data_dependency(react_global_id, port, DependencyKind::Use)
+        self.global.flow_graph().add_data_dependency(react_global_id, port, DependencyKind::Use)
     }
 
 
@@ -207,18 +199,12 @@ impl<R> Assembler<R> where R: Reactor {
             return Err(invalid("Port is already bound"));
         }
 
-        self.data_flow.add_data_dependency(react_global_id, port, DependencyKind::Affects)
-    }
-
-    pub fn make_world() -> Result<RunnableReactor<R>, AssemblyError> where R: WorldReactor {
-        let mut root_assembler = Self::new(Rc::new(AssemblyId::Root));
-        let r = <R as Reactor>::assemble(&mut root_assembler)?;
-        Ok(RunnableReactor::new(r, root_assembler.new_id(":root:")?))
+        self.global.flow_graph().add_data_dependency(react_global_id, port, DependencyKind::Affects)
     }
 }
 
 
-impl<R> Assembler<R> where R: Reactor { // this is the private impl block
+impl<'a, R> Assembler<'a, R> where R: Reactor { // this is the private impl block
 
     fn new_id(&mut self, name: &'static str) -> Result<GlobalId, AssemblyError> {
         if !self.local_names.insert(name) {
@@ -238,10 +224,9 @@ impl<R> Assembler<R> where R: Reactor { // this is the private impl block
         Ok(PortId::<T>::new(kind, self.new_id(name)?))
     }
 
-    fn sub_id_for(&self, id: GraphId, name: &'static str) -> AssemblyId {
+    fn sub_id_for(&self, name: &'static str) -> AssemblyId {
         AssemblyId::Nested {
             parent: Rc::clone(&self.id),
-            ext_id: id,
             user_name: name,
         }
     }
@@ -257,13 +242,21 @@ impl<R> Assembler<R> where R: Reactor { // this is the private impl block
     }
 
 
-    fn new(id: Rc<AssemblyId>) -> Self {
+    pub(in super) fn new(world: &'a mut GlobalAssembler, id: Rc<AssemblyId>) -> Self {
         Assembler {
             id,
             local_names: Default::default(),
-            data_flow: Default::default(),
+            global: world,
             _phantom_r: PhantomData,
         }
+    }
+
+
+    pub fn make_world() -> Result<RunnableReactor<R>, AssemblyError> where R: WorldReactor {
+        let mut world = GlobalAssembler::new();
+        let mut root_assembler = Assembler::new(&mut world, Rc::new(AssemblyId::Root));
+        let r = <R as Reactor>::assemble(&mut root_assembler)?;
+        Ok(RunnableReactor::new(r, root_assembler.new_id(":root:")?))
     }
 }
 
@@ -346,3 +339,23 @@ impl Debug for AssemblyError {
         }
     }
 }
+
+
+pub(in super) struct GlobalAssembler {
+    data_flow: FlowGraph
+}
+
+
+impl GlobalAssembler {
+    pub fn flow_graph(&mut self) -> &mut FlowGraph {
+        &mut self.data_flow
+    }
+
+    pub fn new() -> Self {
+        GlobalAssembler {
+            data_flow: FlowGraph::default()
+        }
+    }
+}
+
+

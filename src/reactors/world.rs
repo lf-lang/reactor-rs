@@ -1,4 +1,4 @@
-use crate::reactors::assembler::{Assembler, RunnableReactor, AssemblyError};
+use crate::reactors::assembler::{Assembler, AssemblyError, RunnableReactor};
 use crate::reactors::framework::{Reactor, Scheduler};
 use crate::reactors::util::Nothing;
 
