@@ -5,7 +5,7 @@ use std::collections::{HashMap, HashSet};
 use std::collections::hash_set::IntoIter;
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
-use std::ops::DerefMut;
+use std::ops::{DerefMut, Deref};
 use std::rc::Rc;
 
 use crate::reactors::id::{GlobalId, Identified};
@@ -27,8 +27,35 @@ pub struct PortId<T> {
 }
 
 impl<T> PortId<T> {
-    fn kind(&self) -> PortKind {
+    pub fn kind(&self) -> PortKind {
         self.kind
+    }
+
+    pub(in crate) fn get(&self) -> T where T: Copy {
+        let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
+        let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
+        let binding: &Binding<T> = cell_ref.deref();
+
+        let (_, class) = binding;
+
+        let class_cell: &PortEquivClass<T> = Rc::borrow(class);
+
+        // Here's it's copied
+        let value = *(&class_cell.cell.borrow()).deref();
+
+        value
+    }
+
+    pub(in crate) fn set(&self, new_value: T) {
+        let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
+        let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
+        let binding: &Binding<T> = cell_ref.deref();
+
+        let (_, class) = binding;
+
+        let class_cell: &PortEquivClass<T> = Rc::borrow(class);
+
+        *class_cell.cell.borrow_mut().deref_mut() = new_value;
     }
 
     pub(in super) fn forward_to(&self, downstream: &PortId<T>) -> Result<(), String> {
@@ -57,12 +84,12 @@ impl<T> PortId<T> {
     }
 
 
-    pub(in super) fn new(kind: PortKind, global_id: GlobalId, default: T) -> Self {
+    pub(in super) fn new(kind: PortKind, global_id: GlobalId) -> Self where T: IgnoredDefault {
         PortId::<T> {
             kind,
             global_id,
             _phantom_t: PhantomData,
-            upstream_binding: Rc::new(RefCell::new((Unbound, Rc::new(PortEquivClass::<T>::new(default))))),
+            upstream_binding: Rc::new(RefCell::new((Unbound, Rc::new(PortEquivClass::<T>::new(IgnoredDefault::ignored_default()))))),
         }
     }
 }
@@ -144,5 +171,16 @@ impl<T> PortEquivClass<T> {
             let b: Binding<T> = (ref_mut.0, Rc::clone(new_binding));
             *ref_mut.deref_mut() = b;
         }
+    }
+}
+
+/// Ports need an initial value, which is not observed by anyone.
+pub trait IgnoredDefault {
+    fn ignored_default() -> Self;
+}
+
+impl<T> IgnoredDefault for T where T: Default {
+    fn ignored_default() -> Self {
+        Default::default()
     }
 }

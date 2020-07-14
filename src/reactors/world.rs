@@ -22,6 +22,6 @@ impl<T> Reactor for T where T: WorldReactor {
     }
 
     fn react(_: &RunnableReactor<Self>, _: &mut Self::State, _: Self::ReactionId, _: &mut Scheduler) where Self: Sized {
-        panic!("Reactor declares no reaction")
+        unreachable!("Reactor declares no reaction")
     }
 }

@@ -1,7 +1,7 @@
 use crate::reactors::assembler::{Assembler, RunnableReactor};
 use crate::reactors::framework::{Reactor, Scheduler};
 use crate::reactors::ports::PortId;
-use crate::reactors::util::{Enumerated, Named};
+use crate::reactors::util::{Enumerated, Named, Nothing};
 use crate::reactors::world::WorldReactor;
 use std::convert::TryInto;
 
@@ -10,6 +10,18 @@ mod reactors;
 fn main() {
     let mut app = Assembler::<AppReactor>::make_world();
 
+    fn test_set(v: i32, app: &RunnableReactor<AppReactor>) {
+        app.consumer.input_port.set(v);
+
+        assert_eq!(v, app.relay.input_port.get());
+        assert_eq!(v, app.relay.output_port.get());
+        assert_eq!(v, app.consumer.input_port.get());
+
+    }
+
+    test_set(32, &app);
+    test_set(4, &app);
+    println!("Ok!")
 
     //
     // let state_box= world.description;
@@ -23,17 +35,20 @@ fn main() {
 // toplevel reactor containing the others
 pub struct AppReactor {
     producer: RunnableReactor<ProduceReactor>,
+    relay: RunnableReactor<PortRelay>,
     consumer: RunnableReactor<ConsumeReactor>,
 }
 
 impl WorldReactor for AppReactor {
     fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized {
         let consumer = assembler.new_subreactor::<ConsumeReactor>("consumer");
+        let relay = assembler.new_subreactor::<PortRelay>("relay");
         let producer = assembler.new_subreactor::<ProduceReactor>("producer");
 
-        assembler.bind_ports(&producer.output_port, &consumer.input_port);
+        assembler.bind_ports(&producer.output_port, &relay.input_port);
+        assembler.bind_ports(&relay.output_port, &consumer.input_port);
 
-        AppReactor { consumer, producer }
+        AppReactor { consumer, producer, relay }
     }
 }
 
@@ -56,7 +71,7 @@ impl Reactor for ProduceReactor {
     }
 
     fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized {
-        let output_port = assembler.new_output_port::<i32>("output", 0);
+        let output_port = assembler.new_output_port::<i32>("output");
         assembler.reaction_affects(ProduceReactions::Emit, &output_port);
         ProduceReactor { output_port }
     }
@@ -86,7 +101,7 @@ impl Reactor for ConsumeReactor {
     }
 
     fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized {
-        let input_port = assembler.new_input_port("input", 0);
+        let input_port = assembler.new_input_port::<i32>("input");
 
         ConsumeReactor { input_port }
     }
@@ -97,5 +112,31 @@ impl Reactor for ConsumeReactor {
                 print!("{}", scheduler.get_port(&reactor.input_port))
             }
         }
+    }
+}
+
+pub struct PortRelay {
+    input_port: PortId<i32>,
+    output_port: PortId<i32>,
+}
+
+impl Reactor for PortRelay {
+    type ReactionId = Nothing;
+    type State = ();
+
+    fn initial_state() -> Self::State where Self: Sized {
+        ()
+    }
+
+    fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized {
+        let input_port = assembler.new_input_port::<i32>("input");
+        let output_port = assembler.new_output_port::<i32>("output");
+
+        assembler.bind_ports(&input_port, &output_port);
+        PortRelay { input_port, output_port }
+    }
+
+    fn react(_: &RunnableReactor<Self>, _: &mut Self::State, _: Self::ReactionId, _: &mut Scheduler) where Self: Sized {
+        unreachable!("Reactor declares no reaction")
     }
 }
