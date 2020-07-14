@@ -155,6 +155,7 @@ impl<R> Assembler<R> where R: Reactor {
             }
         }
 
+        self.data_flow.add_port_dependency(upstream, downstream)?;
         upstream.forward_to(downstream)
     }
 

@@ -42,9 +42,19 @@ impl FlowGraph {
         }
     }
 
+    pub fn add_port_dependency<T>(&mut self, upstream: &PortId<T>, downstream: &PortId<T>) -> Result<(), AssemblyError> {
+
+        let up_id = self.get_node(upstream.global_id());
+        let down_id = self.get_node(downstream.global_id());
+
+        self.graph.add_edge(up_id, down_id, EdgeWeight::Dataflow);
+
+        Ok(())
+    }
+
     pub fn add_data_dependency<T>(&mut self, reaction: GlobalId, data: &PortId<T>, kind: DependencyKind) -> Result<(), AssemblyError> {
         assert!(self.graph_ids.contains_key(&reaction));
-        // todo MM looks like we have to add ports too
+        // todo MM looks like we have to add ports too?
         // assert!(self.graph_ids.contains_key(data.global_id()));
 
         let rid = self.get_node(&reaction);
