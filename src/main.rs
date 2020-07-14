@@ -12,7 +12,7 @@ fn main() {
     let mut app = Assembler::<AppReactor>::make_world().unwrap();
 
     fn test_set(v: i32, app: &RunnableReactor<AppReactor>) {
-        app.consumer.input_port.set(v);
+        app.producer.output_port.set(v);
 
         assert_eq!(v, app.relay.input_port.get());
         assert_eq!(v, app.relay.output_port.get());

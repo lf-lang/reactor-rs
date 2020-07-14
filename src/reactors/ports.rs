@@ -12,6 +12,7 @@ use crate::reactors::id::{GlobalId, Identified};
 use crate::reactors::ports::BindStatus::{PortBound, Unbound};
 use std::collections::hash_map::RandomState;
 use crate::reactors::assembler::AssemblyError;
+use std::iter::FromIterator;
 
 
 /// The nature of a port (input or output)
@@ -60,6 +61,8 @@ impl<T> PortId<T> {
     }
 
     pub(in crate) fn set(&self, new_value: T) {
+        assert!(self.bind_status() == Unbound, "Cannot set a bound port ({})", self.global_id());
+
         let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
         let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
         let binding: &Binding<T> = cell_ref.deref();
@@ -72,9 +75,17 @@ impl<T> PortId<T> {
     }
 
     pub (in super) fn bind_status(&self) -> BindStatus {
-        let binding = Rc::borrow(&self.upstream_binding);
+        let binding: &RefCell<Binding<T>> = Rc::borrow(&self.upstream_binding);
         let (status, _) = *binding.borrow();
         status
+    }
+
+    pub (in super) fn downstream_ports(&self) -> HashSet<GlobalId> {
+        let binding: &RefCell<Binding<T>> = Rc::borrow(&self.upstream_binding);
+        let (_, class) = &*binding.borrow();
+        let c: &PortEquivClass<T> = Rc::borrow(class);
+        let map = &*c.downstreams.borrow();
+        HashSet::from_iter(map.keys().map(Clone::clone))
     }
 
     pub(in super) fn forward_to(&self, downstream: &PortId<T>) -> Result<(), AssemblyError> {

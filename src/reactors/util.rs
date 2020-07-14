@@ -31,6 +31,7 @@ impl Clone for Nothing {
         unreachable!("No instance of Nothing type")
     }
 }
+
 impl Copy for Nothing {}
 
 impl Eq for Nothing {}

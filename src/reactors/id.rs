@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
-use crate::reactors::flowgraph::NodeId;
+use crate::reactors::flowgraph::GraphId;
 use crate::reactors::util::Named;
 use std::ops::Deref;
 
@@ -13,7 +13,7 @@ pub enum AssemblyId {
     Root,
     Nested {
         // This is the node id used in the parent
-        ext_id: NodeId,
+        ext_id: GraphId,
         // the id of the parent
         parent: Rc<AssemblyId>,
 

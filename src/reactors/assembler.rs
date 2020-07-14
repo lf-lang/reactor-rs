@@ -10,13 +10,15 @@ use std::time::Duration;
 use petgraph::graph::{DiGraph, NodeIndex};
 
 use crate::reactors::action::ActionId;
-use crate::reactors::flowgraph::{FlowGraph, NodeId};
+use crate::reactors::flowgraph::{FlowGraph, GraphId};
 use crate::reactors::framework::{Reactor, Scheduler};
 use crate::reactors::id::{AssemblyId, GlobalId, Identified};
 use crate::reactors::ports::{PortId, PortKind, IgnoredDefault};
 use crate::reactors::util::{Named, Enumerated};
 use crate::reactors::world::WorldReactor;
 use std::fmt::{Debug, Formatter};
+use crate::reactors::reaction::ClosedReaction;
+use std::iter::FromIterator;
 
 /// Assembles a reactor.
 pub struct Assembler<R: Reactor> {
@@ -62,15 +64,19 @@ impl<R> Assembler<R> where R: Reactor {
         let new_index = NodeIndex::new(0); // TODO
         let mut sub_assembler = Assembler::<S>::new(Rc::new(self.sub_id_for(new_index, name)));
 
+
+        let globals = sub_assembler.make_reaction_global_ids()?;
+        sub_assembler.data_flow.add_reactions(globals);
+
         match S::assemble(&mut sub_assembler) {
-            Ok(sub_reactor) => Ok(RunnableReactor::<S>::new(sub_reactor, id)),
-            Err(sub_error) => Err(AssemblyError::InContext(id, Box::new(sub_error))),
+            #[cold] Err(sub_error) => Err(AssemblyError::InContext(id, Box::new(sub_error))),
+            Ok(sub_reactor) => {
+                Ok(RunnableReactor::<S>::new(sub_reactor, id))
+            }
         }
 
         // todo compute flow graph
         //  close reactions
-
-
     }
 
     /*
@@ -176,8 +182,9 @@ impl<R> Assembler<R> where R: Reactor {
     ///  1. the port is an input port of this reactor
     ///  2. the port is an output port of a direct sub-reactor
     ///
-    pub fn reaction_uses<T>(&mut self, reaction_id: R::ReactionId, port: &PortId<T>) {
-        // TODO
+    pub fn reaction_uses<T>(&mut self, reaction_id: R::ReactionId, port: &PortId<T>) -> Result<(), AssemblyError> {
+        // TODO validity
+        self.data_flow.add_data_dependency(self.existing_id(reaction_id), port, true)
     }
 
 
@@ -191,8 +198,9 @@ impl<R> Assembler<R> where R: Reactor {
     ///
     /// And
     /// - the port is not bound to an upstream port
-    pub fn reaction_affects<T>(&mut self, reaction_id: R::ReactionId, port: &PortId<T>) {
-        // TODO
+    pub fn reaction_affects<T>(&mut self, reaction_id: R::ReactionId, port: &PortId<T>) -> Result<(), AssemblyError> {
+        // TODO validity
+        self.data_flow.add_data_dependency(self.existing_id(reaction_id), port, false)
     }
 
     pub fn make_world() -> Result<RunnableReactor<R>, AssemblyError> where R: WorldReactor {
@@ -213,16 +221,32 @@ impl<R> Assembler<R> where R: Reactor { // this is the private impl block
         }
     }
 
+    fn existing_id(&self, reaction_id: R::ReactionId) -> GlobalId {
+        let name = reaction_id.name();
+        assert!(self.local_names.contains(name), "Should have contained name {}", name);
+        GlobalId::new(Rc::clone(&self.id), name)
+    }
+
     fn new_port<T: IgnoredDefault>(&mut self, kind: PortKind, name: &'static str) -> Result<PortId<T>, AssemblyError> {
         Ok(PortId::<T>::new(kind, self.new_id(name)?))
     }
 
-    fn sub_id_for(&self, id: NodeId, name: &'static str) -> AssemblyId {
+    fn sub_id_for(&self, id: GraphId, name: &'static str) -> AssemblyId {
         AssemblyId::Nested {
             parent: Rc::clone(&self.id),
             ext_id: id,
-            user_name: name
+            user_name: name,
         }
+    }
+
+    fn make_reaction_global_ids(&mut self) -> Result<Vec<GlobalId>, AssemblyError> {
+        let ids: Vec<R::ReactionId> = R::ReactionId::list();
+        let mut globals: Vec<GlobalId> = Vec::with_capacity(ids.len());
+
+        for id in ids {
+            globals.push(self.new_id(id.name())?)
+        }
+        Ok(globals)
     }
 
 
@@ -277,7 +301,7 @@ pub enum AssemblyError {
     InvalidBinding(&'static str, GlobalId, GlobalId),
     DuplicateName(&'static str),
     CyclicDependency(String),
-    InContext(GlobalId, Box<AssemblyError>)
+    InContext(GlobalId, Box<AssemblyError>),
 }
 
 impl Debug for AssemblyError {
