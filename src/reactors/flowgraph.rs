@@ -27,7 +27,7 @@ use crate::reactors::{AssemblyError, DependencyKind};
 pub type GraphId = NodeIndex<u32>;
 
 pub(in super) struct FlowGraph {
-    graph: DiGraph<GlobalId, EdgeWeight>,
+    graph: DiGraph<GlobalId, ()>,
     graph_ids: HashMap<GlobalId, GraphId>,
 }
 
@@ -47,7 +47,7 @@ impl FlowGraph {
         let up_id = self.get_node(upstream.global_id());
         let down_id = self.get_node(downstream.global_id());
 
-        self.graph.add_edge(up_id, down_id, EdgeWeight::Dataflow);
+        self.graph.add_edge(up_id, down_id, ());
 
         Ok(())
     }
@@ -61,8 +61,8 @@ impl FlowGraph {
         let pid = self.get_node(data.global_id());
 
         match kind {
-            DependencyKind::Use => self.graph.add_edge(rid, pid, EdgeWeight::Dataflow),
-            DependencyKind::Affects => self.graph.add_edge(pid, rid, EdgeWeight::Dataflow),
+            DependencyKind::Use => self.graph.add_edge(rid, pid, ()),
+            DependencyKind::Affects => self.graph.add_edge(pid, rid, ()),
         };
 
         Ok(())
@@ -76,16 +76,11 @@ impl FlowGraph {
 
         // Add priority links between reactions
         for (a, b) in ids.iter().zip(ids.iter().skip(1)) {
-            self.graph.add_edge(*a, *b, EdgeWeight::Dataflow);
+            self.graph.add_edge(*a, *b, ());
         }
     }
 }
 
-
-pub enum EdgeWeight {
-    Dataflow,
-    Trigger { delay: Duration },
-}
 
 // the flow graph is transparent to reactors (they're all flattened)
 enum FlowGraphElement {

@@ -13,7 +13,6 @@ use crate::reactors::ports::BindStatus::{PortBound, Unbound};
 use std::collections::hash_map::RandomState;
 use crate::reactors::assembler::AssemblyError;
 use std::iter::FromIterator;
-use test::NamePadding::PadOnRight;
 
 
 /// The nature of a port (input or output)

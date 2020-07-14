@@ -331,7 +331,7 @@ impl Debug for AssemblyError {
                 write!(f, "Invalid binding: {} (while binding '{}' to '{}')", cause, upstream, downstream)
             }
             AssemblyError::InvalidDependency(cause, reaction, kind, downstream) => {
-                write!(f, "Invalid dependency: {} (for dependency '{}' {} '{}')", cause, upstream, kind, downstream)
+                write!(f, "Invalid dependency: {} (for dependency '{}' {} '{}')", cause, reaction, kind, downstream)
             }
             AssemblyError::DuplicateName(name) => {
                 write!(f, "Duplicate name '{}'", name)
