@@ -11,7 +11,7 @@ use crate::reactors::framework::Reactor;
 use crate::reactors::id::{GlobalId, Identified};
 use crate::reactors::ports::PortId;
 use crate::reactors::reaction::ClosedReaction;
-use crate::reactors::AssemblyError;
+use crate::reactors::{AssemblyError, DependencyKind};
 
 /*
     TODO like with ClosedReaction, we must erase the external
@@ -42,7 +42,7 @@ impl FlowGraph {
         }
     }
 
-    pub fn add_data_dependency<T>(&mut self, reaction: GlobalId, data: &PortId<T>, is_usage: bool) -> Result<(), AssemblyError> {
+    pub fn add_data_dependency<T>(&mut self, reaction: GlobalId, data: &PortId<T>, kind: DependencyKind) -> Result<(), AssemblyError> {
         assert!(self.graph_ids.contains_key(&reaction));
         // todo MM looks like we have to add ports too
         // assert!(self.graph_ids.contains_key(data.global_id()));
@@ -50,11 +50,10 @@ impl FlowGraph {
         let rid = self.get_node(&reaction);
         let pid = self.get_node(data.global_id());
 
-        if is_usage {
-            self.graph.add_edge(rid, pid, EdgeWeight::Dataflow);
-        } else {
-            self.graph.add_edge(pid, rid, EdgeWeight::Dataflow);
-        }
+        match kind {
+            DependencyKind::Use => self.graph.add_edge(rid, pid, EdgeWeight::Dataflow),
+            DependencyKind::Affects => self.graph.add_edge(pid, rid, EdgeWeight::Dataflow),
+        };
 
         Ok(())
     }

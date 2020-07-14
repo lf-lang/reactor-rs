@@ -16,9 +16,10 @@ use crate::reactors::id::{AssemblyId, GlobalId, Identified};
 use crate::reactors::ports::{PortId, PortKind, IgnoredDefault};
 use crate::reactors::util::{Named, Enumerated};
 use crate::reactors::world::WorldReactor;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Formatter, Display};
 use crate::reactors::reaction::ClosedReaction;
 use std::iter::FromIterator;
+use crate::reactors::BindStatus;
 
 /// Assembles a reactor.
 pub struct Assembler<R: Reactor> {
@@ -134,39 +135,22 @@ impl<R> Assembler<R> where R: Reactor {
 
         match upstream.kind() {
             PortKind::Input => {
-                // 1.
                 if !upstream.is_in_reactor(&self.id) {
-                    return Err(invalid("Upstream port must be an input port of this reactor"));
-                }
-                match downstream.kind() {
-                    PortKind::Input => {
-                        if !upstream.is_in_direct_subreactor_of(&self.id) {
-                            return Err(invalid("1.i. Downstream port should be declared in a direct sub-reactor"));
-                        }
-                    }
-                    PortKind::Output => {
-                        if !upstream.is_in_reactor(&self.id) {
-                            return Err(invalid("1.ii. Downstream port should be declared in this reactor"));
-                        }
-                    }
+                    return Err(invalid("1. Upstream port must be an input port of this reactor"));
+                } else if downstream.is_input() && !upstream.is_in_direct_subreactor_of(&self.id) {
+                    return Err(invalid("1.i. Downstream port should be declared in a direct sub-reactor"));
+                } else if downstream.is_output() && !upstream.is_in_reactor(&self.id) {
+                    return Err(invalid("1.ii. Downstream port should be declared in this reactor"));
                 }
             }
             PortKind::Output => {
-                // 2.
                 if !upstream.is_in_direct_subreactor_of(&self.id) {
-                    return Err(invalid("Upstream port must be an input port of this reactor"));
-                }
-                match downstream.kind() {
-                    PortKind::Input => {
-                        if !upstream.is_in_direct_subreactor_of(&self.id) || downstream.global_id() == upstream.global_id() {
-                            return Err(invalid("2.i. Downstream port should be declared in a different direct sub-reactor"));
-                        }
-                    }
-                    PortKind::Output => {
-                        if !upstream.is_in_reactor(&self.id) {
-                            return Err(invalid("2.ii. Downstream port should be declared in this reactor"));
-                        }
-                    }
+                    return Err(invalid("2. Upstream port must be an input port of this reactor"));
+                } else if downstream.is_input()
+                    && (!upstream.is_in_direct_subreactor_of(&self.id) || downstream.global_id() == upstream.global_id()) {
+                    return Err(invalid("2.i. Downstream port should be declared in a different direct sub-reactor"));
+                } else if downstream.is_output() && !upstream.is_in_reactor(&self.id) {
+                    return Err(invalid("2.ii. Downstream port should be declared in this reactor"));
                 }
             }
         }
@@ -183,8 +167,18 @@ impl<R> Assembler<R> where R: Reactor {
     ///  2. the port is an output port of a direct sub-reactor
     ///
     pub fn reaction_uses<T>(&mut self, reaction_id: R::ReactionId, port: &PortId<T>) -> Result<(), AssemblyError> {
-        // TODO validity
-        self.data_flow.add_data_dependency(self.existing_id(reaction_id), port, true)
+        let react_global_id = self.existing_id(reaction_id);
+        let invalid = |cause: &'static str| -> AssemblyError {
+            AssemblyError::InvalidDependency(cause, react_global_id.clone(), DependencyKind::Use, port.global_id().clone())
+        };
+
+        if port.is_input() && !port.is_in_reactor(&self.id) {
+            return Err(invalid("Reaction can only use input ports of this reactor"));
+        } else if port.is_output() && !port.is_in_direct_subreactor_of(&self.id) {
+            return Err(invalid("Reaction can only use output ports of sub-reactors"));
+        }
+
+        self.data_flow.add_data_dependency(react_global_id, port, DependencyKind::Use)
     }
 
 
@@ -199,8 +193,20 @@ impl<R> Assembler<R> where R: Reactor {
     /// And
     /// - the port is not bound to an upstream port
     pub fn reaction_affects<T>(&mut self, reaction_id: R::ReactionId, port: &PortId<T>) -> Result<(), AssemblyError> {
-        // TODO validity
-        self.data_flow.add_data_dependency(self.existing_id(reaction_id), port, false)
+        let react_global_id = self.existing_id(reaction_id);
+        let invalid = |cause: &'static str| -> AssemblyError {
+            AssemblyError::InvalidDependency(cause, react_global_id.clone(), DependencyKind::Use, port.global_id().clone())
+        };
+
+        if port.is_output() && !port.is_in_reactor(&self.id) {
+            return Err(invalid("Reaction can only affect output ports of this reactor"));
+        } else if port.is_input() && !port.is_in_direct_subreactor_of(&self.id) {
+            return Err(invalid("Reaction can only affect input ports of sub-reactors"));
+        } else if port.bind_status() != BindStatus::Unbound {
+            return Err(invalid("Port is already bound"));
+        }
+
+        self.data_flow.add_data_dependency(react_global_id, port, DependencyKind::Affects)
     }
 
     pub fn make_world() -> Result<RunnableReactor<R>, AssemblyError> where R: WorldReactor {
@@ -299,9 +305,22 @@ impl<R> Identified for RunnableReactor<R> where R: Reactor {
 
 pub enum AssemblyError {
     InvalidBinding(&'static str, GlobalId, GlobalId),
+    InvalidDependency(&'static str, GlobalId, DependencyKind, GlobalId),
     DuplicateName(&'static str),
     CyclicDependency(String),
     InContext(GlobalId, Box<AssemblyError>),
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum DependencyKind { Use, Affects }
+
+impl Display for DependencyKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DependencyKind::Use => write!(f, "uses"),
+            DependencyKind::Affects => write!(f, "affects"),
+        }
+    }
 }
 
 impl Debug for AssemblyError {
@@ -309,6 +328,9 @@ impl Debug for AssemblyError {
         match self {
             AssemblyError::InvalidBinding(cause, upstream, downstream) => {
                 write!(f, "Invalid binding: {} (while binding '{}' to '{}')", cause, upstream, downstream)
+            }
+            AssemblyError::InvalidDependency(cause, reaction, kind, downstream) => {
+                write!(f, "Invalid dependency: {} (for dependency '{}' {} '{}')", cause, upstream, kind, downstream)
             }
             AssemblyError::DuplicateName(name) => {
                 write!(f, "Duplicate name '{}'", name)

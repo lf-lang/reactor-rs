@@ -13,6 +13,7 @@ use crate::reactors::ports::BindStatus::{PortBound, Unbound};
 use std::collections::hash_map::RandomState;
 use crate::reactors::assembler::AssemblyError;
 use std::iter::FromIterator;
+use test::NamePadding::PadOnRight;
 
 
 /// The nature of a port (input or output)
@@ -45,6 +46,14 @@ impl<T> PortId<T> {
         self.kind
     }
 
+    pub fn is_output(&self) -> bool {
+        self.kind == PortKind::Output
+    }
+
+    pub fn is_input(&self) -> bool {
+        self.kind == PortKind::Input
+    }
+
     pub(in crate) fn get(&self) -> T where T: Copy {
         let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
         let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
@@ -74,13 +83,13 @@ impl<T> PortId<T> {
         *class_cell.cell.borrow_mut().deref_mut() = new_value;
     }
 
-    pub (in super) fn bind_status(&self) -> BindStatus {
+    pub(in super) fn bind_status(&self) -> BindStatus {
         let binding: &RefCell<Binding<T>> = Rc::borrow(&self.upstream_binding);
         let (status, _) = *binding.borrow();
         status
     }
 
-    pub (in super) fn downstream_ports(&self) -> HashSet<GlobalId> {
+    pub(in super) fn downstream_ports(&self) -> HashSet<GlobalId> {
         let binding: &RefCell<Binding<T>> = Rc::borrow(&self.upstream_binding);
         let (_, class) = &*binding.borrow();
         let c: &PortEquivClass<T> = Rc::borrow(class);
@@ -89,20 +98,19 @@ impl<T> PortId<T> {
     }
 
     pub(in super) fn forward_to(&self, downstream: &PortId<T>) -> Result<(), AssemblyError> {
-
         let mut mut_downstream_cell = (&downstream.upstream_binding).borrow_mut();
         let (downstream_status, ref downstream_class) = *mut_downstream_cell;
 
         match downstream_status {
             #[cold] BindStatus::PortBound => Err(AssemblyError::InvalidBinding("Port {} is already bound to another port", self.global_id().clone(), downstream.global_id().clone())),
-            #[cold] BindStatus::DependencyBound => Err(AssemblyError::InvalidBinding("Port {} receives values from a reaction", self.global_id().clone(), downstream.global_id().clone())),
+            // #[cold] BindStatus::DependencyBound => Err(AssemblyError::InvalidBinding("Port {} receives values from a reaction", self.global_id().clone(), downstream.global_id().clone())),
             BindStatus::Unbound => {
                 let mut self_cell = self.upstream_binding.borrow_mut();
                 let (_, my_class) = self_cell.deref_mut();
 
                 my_class.downstreams.borrow_mut().insert(
                     downstream.global_id.clone(),
-                    Rc::clone(&downstream.upstream_binding)
+                    Rc::clone(&downstream.upstream_binding),
                 );
 
                 let new_binding = (BindStatus::PortBound, Rc::clone(&my_class));
@@ -136,10 +144,10 @@ impl<T> Identified for PortId<T> {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
-pub (in super) enum BindStatus {
+pub(in super) enum BindStatus {
     Unbound,
     PortBound,
-    DependencyBound,
+    // DependencyBound,
 }
 
 
@@ -185,7 +193,7 @@ impl<T> PortEquivClass<T> {
         }
     }
 
-    fn check_cycle(&self, upstream_id: &GlobalId, downstream_id: &GlobalId) -> Result<(), AssemblyError>{
+    fn check_cycle(&self, upstream_id: &GlobalId, downstream_id: &GlobalId) -> Result<(), AssemblyError> {
         #[cold]
         if (&*self.downstreams.borrow()).contains_key(upstream_id) {
             Err(AssemblyError::CyclicDependency(format!("Port {} is already in the downstream of port {}", upstream_id, downstream_id)))
