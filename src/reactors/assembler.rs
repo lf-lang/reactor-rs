@@ -14,6 +14,8 @@ use crate::reactors::flowgraph::{FlowGraph, NodeId};
 use crate::reactors::framework::{Reactor, Scheduler};
 use crate::reactors::id::{AssemblyId, GlobalId, Identified};
 use crate::reactors::ports::{PortId, PortKind};
+use crate::reactors::util::{Named, Enumerated};
+use crate::reactors::world::WorldReactor;
 
 /// Assembles a reactor.
 pub struct Assembler<R: Reactor> {
@@ -76,7 +78,7 @@ impl<R> Assembler<R> where R: Reactor {
     ///
     /// Validity: the action ID was created by this assembler
     pub fn action_triggers(&mut self, port: ActionId, reaction_id: R::ReactionId) {
-        unimplemented!()
+        // TODO
     }
 
 
@@ -84,7 +86,7 @@ impl<R> Assembler<R> where R: Reactor {
     ///
     /// Validity: the action ID was created by this assembler
     pub fn reaction_schedules(&mut self, reaction_id: R::ReactionId, action: ActionId) {
-        unimplemented!()
+        // TODO
     }
 
     /*
@@ -110,8 +112,9 @@ impl<R> Assembler<R> where R: Reactor {
     /// - no reaction uses upstream todo why though? I found that in the C++ host
     /// - no reaction affects downstream
     ///
-    pub fn bind_ports<T>(&mut self, upstream: &mut PortId<T>, downstream: &mut PortId<T>) {
-        unimplemented!()
+    pub fn bind_ports<T>(&mut self, upstream: &PortId<T>, downstream: &PortId<T>) {
+        // TODO
+        upstream.forward_to(downstream);
     }
 
     /// Record that the reaction depends on the value of the given port
@@ -119,8 +122,8 @@ impl<R> Assembler<R> where R: Reactor {
     /// Validity: either
     ///  1. the port is an input port of this reactor
     ///  2. the port is an output port of a direct sub-reactor
-    pub fn reaction_uses<T>(&mut self, reaction_id: R::ReactionId, port: PortId<T>) {
-        unimplemented!()
+    pub fn reaction_uses<T>(&mut self, reaction_id: R::ReactionId, port: &PortId<T>) {
+        // TODO
     }
 
 
@@ -128,12 +131,14 @@ impl<R> Assembler<R> where R: Reactor {
     ///
     ///  1. the port is an output port of this reactor
     ///  2. the port is an input port of a direct sub-reactor
-    pub fn reaction_affects<T>(&mut self, reaction_id: R::ReactionId, port: PortId<T>) {
-        unimplemented!()
+    pub fn reaction_affects<T>(&mut self, reaction_id: R::ReactionId, port: &PortId<T>) {
+        // TODO
     }
 
-    pub fn root() -> Self {
-        Self::new(Rc::new(AssemblyId::Root))
+    pub fn make_world() -> RunnableReactor<R> where R: WorldReactor {
+        let mut root_assembler = Self::new(Rc::new(AssemblyId::Root));
+        let r = <R as Reactor>::assemble(&mut root_assembler);
+        RunnableReactor::new(r, root_assembler.new_id(":root:"))
     }
 }
 

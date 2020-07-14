@@ -10,7 +10,6 @@ use std::rc::Rc;
 
 use crate::reactors::id::{GlobalId, Identified};
 use crate::reactors::ports::BindStatus::{PortBound, Unbound};
-use crate::reactors::util::borrow_mut;
 use std::collections::hash_map::RandomState;
 
 

@@ -30,19 +30,19 @@ use crate::reactors::id::{GlobalId, Identified};
 /// no known size.
 ///
 pub(super) struct ClosedReaction {
-    body: RefCell<Box<dyn FnMut(&mut dyn Scheduler)>>,
+    body: RefCell<Box<dyn FnMut(&mut Scheduler)>>,
     global_id: GlobalId,
 }
 
 impl ClosedReaction {
-    pub(in super) fn fire(&self, scheduler: &mut dyn Scheduler) {
+    pub(in super) fn fire(&self, scheduler: &mut Scheduler) {
         let mut cell = &mut *self.body.borrow_mut(); // note: may panic
         (cell)(scheduler)
     }
 
     /// Produce a closure for the reaction.
     pub(in super) fn new<R: Reactor>(reactor: &Rc<RunnableReactor<R>>,
-                                     reaction_id: R::ReactionId) -> impl FnMut(&mut dyn Scheduler) + Sized {
+                                     reaction_id: R::ReactionId) -> impl FnMut(&mut Scheduler) + Sized {
         let reactor_ref: Rc<RunnableReactor<R>> = Rc::clone(reactor);
         let mut state_ref: Rc<RefCell<R::State>> = reactor.state();
 

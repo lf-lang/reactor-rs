@@ -1,8 +1,16 @@
+use crate::reactors::assembler::{Assembler, RunnableReactor};
+use crate::reactors::framework::{Reactor, Scheduler};
+use crate::reactors::ports::PortId;
+use crate::reactors::util::{Enumerated, Named};
+use crate::reactors::world::WorldReactor;
+use std::convert::TryInto;
+
 mod reactors;
 
 fn main() {
-    // let mut world =
-    //     Assembler::<WorldReactor>::root().assemble_subreactor::<AppReactor>();
+    let mut app = Assembler::<AppReactor>::make_world();
+
+
     //
     // let state_box= world.description;
     // let AppReactor { consumer, producer, .. } = state_box;
@@ -12,133 +20,82 @@ fn main() {
     // consumer.description.react_print.fire(&consumer.description, &mut consumer.state);
 }
 
-//
-// pub struct ProduceReactor {
-//     output_port: OutputPortId<i32>
-// }
-//
-//
-// #[derive(Ord, PartialOrd, Eq, PartialEq, Debug)]
-// enum ProduceReactions {
-//     Emit
-// }
-//
-// impl Enumerated for ProduceReactions {
-//     fn list() -> Vec<Self> {
-//         vec![Self::Emit]
-//     }
-// }
-//
-// impl ReactionId<ProduceReactor> for ProduceReactions {}
-//
-//
-// impl Reactor for ProduceReactor {
-//     type ReactionId = ProduceReactions;
-//     type State = ();
-//
-//
-//     fn initial_state() -> Self::State {
-//         ()
-//     }
-//
-//     fn react(_: &mut Self::State, reaction_id: Self::ReactionId, scheduler: &dyn Scheduler) {
-//         match reaction_id {
-//             Self::ReactionId::Emit => {}
-//         }
-//     }
-// }
+// toplevel reactor containing the others
+pub struct AppReactor {
+    producer: RunnableReactor<ProduceReactor>,
+    consumer: RunnableReactor<ConsumeReactor>,
+}
+
+impl WorldReactor for AppReactor {
+    fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized {
+        let consumer = assembler.new_subreactor::<ConsumeReactor>("consumer");
+        let producer = assembler.new_subreactor::<ProduceReactor>("producer");
+
+        assembler.bind_ports(&producer.output_port, &consumer.input_port);
+
+        AppReactor { consumer, producer }
+    }
+}
 
 
-//
-// // toplevel reactor containing the others todo hide as implementation detail
-// pub struct WorldReactor;
-//
-// impl Reactor for WorldReactor {
-//     type State = ();
-//
-//     fn new<'a>(_: &mut Assembler<'a, Self>) -> (Self, ()) where Self: 'a {
-//         (WorldReactor, ())
-//     }
-// }
+pub struct ProduceReactor {
+    output_port: PortId<i32>
+}
 
-//
-// // Links the other two reactors
-// pub struct AppReactor<'a> {
-//     producer: Linked<RunnableReactor<'a, ProduceReactor<'a>>>,
-//     consumer: Linked<RunnableReactor<'a, ConsumeReactor<'a>>>,
-//     _phantom_a: PhantomData<&'a ()>,
-// }
-//
-// impl<'b> Reactor for AppReactor<'b> {
-//     type State = ();
-//
-//     fn new<'a>(assembler: &mut Assembler<'a, Self>) -> (Self, ()) where 'b : 'a {
-//         let producer = assembler.assemble_subreactor::<ProduceReactor>();
-//         let consumer = assembler.assemble_subreactor::<ConsumeReactor>();
-//
-//         assembler.connect(&producer.description.out_value, &consumer.description.in_value);
-//
-//         (AppReactor { producer, consumer, _phantom_a: PhantomData }, ())
-//     }
-// }
 
-//
-// #[derive(Debug)]
-// pub struct ProduceReactor<'a> {
-//     /// This is the ouput port, that should be borrowed
-//     // output: RefCell<i32>,
-//     // output_borrower: Rc<RefCell<i32>>,
-//
-//     pub out_value: Linked<OutPort<i32>>,
-//
-//     pub react_incr: Linked<Reaction<'a, Self>>,
-//     _phantom_a: PhantomData<&'a ()>,
-//
-// }
-//
-// impl<'b> Reactor for ProduceReactor<'b> {
-//     type State = ();
-//
-//     fn new<'a>(assembler: &mut Assembler<'a, Self>) -> (Self, ()) where 'b : 'a {
-//         let out_value = OutPort::new(assembler, "value", 0);
-//         let react_incr = Reaction::new(
-//             assembler,
-//             "incr",
-//             |r: &ProduceReactor, _| *r.out_value.get_mut() += 2,
-//         );
-//
-//         link_reaction!((&react_incr) with (assembler)
-//             (uses)
-//             (affects &out_value)
-//         );
-//         (ProduceReactor { out_value, react_incr, _phantom_a: PhantomData }, ())
-//     }
-// }
-//
-// #[derive(Debug)]
-// pub struct ConsumeReactor<'a> {
-//     pub in_value: Linked<InPort<i32>>,
-//     pub react_print: Linked<Reaction<'a, Self>>,
-//     _phantom_a: PhantomData<&'a ()>,
-// }
-//
-// impl<'b> Reactor for ConsumeReactor<'b> {
-//     type State = ();
-//
-//     fn new<'a>(assembler: &mut Assembler<'a, Self>) -> (Self, ()) where 'b : 'a {
-//         let in_value = InPort::new(assembler, "value");
-//         let react_print = Reaction::new(
-//             assembler,
-//             "print_input",
-//             |r: &ConsumeReactor, _| println!("Value is {}", port_value!(*r.in_value)),
-//         );
-//
-//
-//         link_reaction!((&react_print) with (assembler)
-//             (uses &in_value)
-//             (affects)
-//         );
-//
-//         (ConsumeReactor { in_value, react_print, _phantom_a: PhantomData }, ())
-//     }
-// }
+reaction_ids!(pub enum ProduceReactions { Emit });
+
+
+impl Reactor for ProduceReactor {
+    type ReactionId = ProduceReactions;
+    type State = ();
+
+
+    fn initial_state() -> Self::State {
+        ()
+    }
+
+    fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized {
+        let output_port = assembler.new_output_port::<i32>("output", 0);
+        assembler.reaction_affects(ProduceReactions::Emit, &output_port);
+        ProduceReactor { output_port }
+    }
+
+    fn react(reactor: &RunnableReactor<Self>, _: &mut Self::State, reaction_id: Self::ReactionId, scheduler: &mut Scheduler) where Self: Sized {
+        match reaction_id {
+            ProduceReactions::Emit => {
+                scheduler.set_port(&reactor.output_port, scheduler.get_port(&reactor.output_port) + 1)
+            }
+        }
+    }
+}
+
+
+pub struct ConsumeReactor {
+    input_port: PortId<i32>
+}
+
+reaction_ids!(pub enum ConsumeReactions { Print });
+
+impl Reactor for ConsumeReactor {
+    type ReactionId = ConsumeReactions;
+    type State = ();
+
+    fn initial_state() -> Self::State where Self: Sized {
+        ()
+    }
+
+    fn assemble(assembler: &mut Assembler<Self>) -> Self where Self: Sized {
+        let input_port = assembler.new_input_port("input", 0);
+
+        ConsumeReactor { input_port }
+    }
+
+    fn react(reactor: &RunnableReactor<Self>, _: &mut Self::State, reaction_id: Self::ReactionId, scheduler: &mut Scheduler) where Self: Sized {
+        match reaction_id {
+            ConsumeReactions::Print => {
+                print!("{}", scheduler.get_port(&reactor.input_port))
+            }
+        }
+    }
+}
