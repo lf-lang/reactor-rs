@@ -1,3 +1,7 @@
+//! Main framework traits (will be moved out as they're implemented)
+//!
+//! [`Reactor`]: trait.Reactor.html
+
 use std::time::Duration;
 
 use crate::reactors::action::ActionId;
@@ -13,24 +17,54 @@ use std::hash::Hash;
 /// are created by the assembler and should be stored in
 /// instances. They're immutable.
 ///
-/// Mutable state variables are split into a [State] associated
-/// type, that is managed by the framework.
+/// Mutable state variables are split into a [State](Reactor::State)
+/// variable, that is managed by the framework.
 pub trait Reactor {
+
     /// Enumerates the reactions available for this reactor.
-    /// This is used as input to the [react] function.
+    /// This is used as input to the [`react`](Self::react) method.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Use this macro to derive Named + Enumerated on an enum
+    /// reaction_ids!(pub enum MyReactions { Emit, Receive })
+    ///
+    /// impl Reactor for MyReactor {
+    ///
+    ///     type ReactionId = MyReactions;
+    ///
+    ///     // Handle each reaction in react
+    ///     fn react(...) {
+    ///         match reaction_id {
+    ///             MyReactions::Emit =>    { ... },
+    ///             MyReactions::Receive => { ... },
+    ///         }
+    ///     }
+    /// }
+    ///
+    /// ```
     type ReactionId: Ord + Eq + Hash + Enumerated + Named + Sized + Copy;
 
     /// The type for the internal state of the reactor.
     ///
     /// The self instance should not contain the internal state variables.
-    /// It couldn't use it anyway, since the [react] method take a `self`
-    /// argument as an immutable reference.
+    /// It couldn't use it anyway, since the [`react`](Self::react) method
+    /// take a `self` argument as an immutable reference.
     ///
-    /// Use `()` for a stateless reactor.
+    /// Override [`initial_state`](Self::initial_state) to provide the initial
+    /// value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// type State = ();  // For a stateless reactor
+    /// type State = i32; // A single state variable
+    /// ```
+    ///
     type State: Sized;
 
-    /// Produce the initial state. This is passed by reference
-    /// to the [react] function.
+    /// Produce the initial state.
     fn initial_state() -> Self::State where Self: Sized;
 
     /// Initializes the structure of this reactor.
@@ -40,14 +74,18 @@ pub trait Reactor {
     fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized;
 
     /// Execute a reaction of this reactor.
+    ///
+    /// # Parameters
+    ///
+    /// - reactor: The assembled reactor
+    /// - state: A mutable reference to the internal reactor state
+    /// - reaction_id: ID of the reaction to execute
+    /// - scheduler: Scheduler instance, that can make the reaction affect the event queue
+    ///
     fn react(
-        // This is the assembled reactor. It's immutable in this method
         reactor: &RunnableReactor<Self>,
-        // A mutable reference to the internal reactor state
         state: &mut Self::State,
-        // ID of the reaction to execute
         reaction_id: Self::ReactionId,
-        // Scheduler instance, that can make the reaction affect the event queue
         scheduler: &mut Scheduler,
     ) where Self: Sized; // todo this could return a Result
 }

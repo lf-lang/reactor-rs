@@ -54,7 +54,8 @@ impl<R> Assembler<R> where R: Reactor {
     }
 
     /// Assembles a subreactor. After this, the ports of the subreactor
-    /// may be used in some connections, see [reaction_uses], [reaction_affects].
+    /// may be used in some connections, see [`reaction_uses`](Self::reaction_uses),
+    /// [`reaction_affects`](Self::reaction_affects).
     pub fn new_subreactor<S: Reactor>(&mut self, name: &'static str) -> Result<RunnableReactor<S>, AssemblyError> {
         let id = self.new_id(name)?;
 
@@ -80,7 +81,9 @@ impl<R> Assembler<R> where R: Reactor {
 
     /// Record that an action triggers the given reaction.
     ///
-    /// Validity: the action ID was created by this assembler
+    /// # Validity
+    ///
+    /// - the action ID was created by this assembler
     pub fn action_triggers(&mut self, port: ActionId, reaction_id: R::ReactionId) {
         // TODO
     }
@@ -88,7 +91,9 @@ impl<R> Assembler<R> where R: Reactor {
 
     /// Record that the given reaction may schedule the action for future execution.
     ///
-    /// Validity: the action ID was created by this assembler
+    /// # Validity
+    ///
+    /// - the action ID was created by this assembler
     pub fn reaction_schedules(&mut self, reaction_id: R::ReactionId, action: ActionId) {
         // TODO
     }
@@ -165,9 +170,12 @@ impl<R> Assembler<R> where R: Reactor {
 
     /// Record that the reaction depends on the value of the given port
     ///
-    /// Validity: either
+    /// # Validity
+    ///
+    /// Either
     ///  1. the port is an input port of this reactor
     ///  2. the port is an output port of a direct sub-reactor
+    ///
     pub fn reaction_uses<T>(&mut self, reaction_id: R::ReactionId, port: &PortId<T>) {
         // TODO
     }
@@ -175,8 +183,14 @@ impl<R> Assembler<R> where R: Reactor {
 
     /// Record that the given reaction may set the value of the port
     ///
+    /// # Validity
+    ///
+    /// Either
     ///  1. the port is an output port of this reactor
     ///  2. the port is an input port of a direct sub-reactor
+    ///
+    /// And
+    /// - the port is not bound to an upstream port
     pub fn reaction_affects<T>(&mut self, reaction_id: R::ReactionId, port: &PortId<T>) {
         // TODO
     }

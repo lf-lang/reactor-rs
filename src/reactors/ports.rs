@@ -14,11 +14,23 @@ use std::collections::hash_map::RandomState;
 use crate::reactors::assembler::AssemblyError;
 
 
+/// The nature of a port (input or output)
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum PortKind { Input, Output }
 
 
-// fixme thread safety
+/// Represents a port, which carries values of type `T`.
+/// Ports reify the data inputs and outputs of a reactor.
+///
+/// They may be bound to another port, in which case the
+/// upstream port forwards all values to the output port
+/// (logically instantaneously). A port may have only one
+/// upstream binding.
+///
+/// Output ports may also be explicitly [set](crate::reactors::Scheduler::set_port)
+/// within a reaction, in which case they may not have an
+/// upstream port binding.
+///
 pub struct PortId<T> {
     kind: PortKind,
     global_id: GlobalId,
@@ -59,8 +71,13 @@ impl<T> PortId<T> {
         *class_cell.cell.borrow_mut().deref_mut() = new_value;
     }
 
+    pub (in super) fn bind_status(&self) -> BindStatus {
+        let binding = Rc::borrow(&self.upstream_binding);
+        let (status, _) = *binding.borrow();
+        status
+    }
+
     pub(in super) fn forward_to(&self, downstream: &PortId<T>) -> Result<(), AssemblyError> {
-        // let binding_borrow: &RefCell<Binding<T>> = Rc::borrow(&downstream.upstream_binding);
 
         let mut mut_downstream_cell = (&downstream.upstream_binding).borrow_mut();
         let (downstream_status, ref downstream_class) = *mut_downstream_cell;
@@ -108,7 +125,7 @@ impl<T> Identified for PortId<T> {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash)]
-enum BindStatus {
+pub (in super) enum BindStatus {
     Unbound,
     PortBound,
     DependencyBound,

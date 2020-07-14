@@ -1,14 +1,26 @@
-pub mod world;
+mod world;
 mod reaction;
-pub mod action;
-pub mod ports;
-pub mod assembler;
-pub mod framework;
+mod action;
+mod ports;
+#[doc(inline)]
+mod assembler;
+#[doc(inline)]
+mod framework;
 mod flowgraph;
-pub mod util;
+mod util;
 mod id;
 
-
+#[doc(inline)]
+pub use self::assembler::*;
+#[doc(inline)]
+pub use self::framework::*;
+#[doc(inline)]
+pub use self::ports::*;
+#[doc(inline)]
+pub use self::action::*;
+pub use self::util::*;
+#[doc(inline)]
+pub use self::world::*;
 
 // helper for the macro below
 #[macro_export]
@@ -38,7 +50,8 @@ macro_rules! reaction_ids_helper {
 /// reaction_ids!(pub enum AppReactions { Receive, Emit })
 /// ```
 ///
-/// defines that enum and derives [Named] and [Enumerated].
+/// defines that enum and derives [Named](crate::reactors::util::Named)
+/// and [Enumerated](crate::reactors::util::Enumerated).
 #[macro_export]
 macro_rules! reaction_ids {
     ($viz:vis enum $typename:ident { $($id:ident),+ }) => {

@@ -1,9 +1,10 @@
-use crate::reactors::assembler::{Assembler, RunnableReactor, AssemblyError};
-use crate::reactors::framework::{Reactor, Scheduler};
-use crate::reactors::ports::PortId;
-use crate::reactors::util::{Enumerated, Named, Nothing};
-use crate::reactors::world::WorldReactor;
 use std::convert::TryInto;
+
+use crate::reactors::{Assembler, AssemblyError, RunnableReactor};
+use crate::reactors::{Reactor, Scheduler};
+use crate::reactors::{Enumerated, Named, Nothing};
+use crate::reactors::PortId;
+use crate::reactors::WorldReactor;
 
 mod reactors;
 
