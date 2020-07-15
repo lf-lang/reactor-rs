@@ -84,12 +84,12 @@ impl FlowGraph {
         };
 
         let mut reactions_by_port_id: HashMap<PortId, Vec<Rc<ClosedReaction>>> = <_>::default();
+        let mut action_triggers_reaction: HashMap<ActionId, Vec<Rc<ClosedReaction>>> = <_>::default();
 
         let mut reaction_uses_port: HashMap<ReactionId, Vec<PortId>> = <_>::default();
         let mut reaction_affects_port: HashMap<ReactionId, Vec<PortId>> = <_>::default();
 
         let mut reaction_schedules_action: HashMap<ReactionId, Vec<ActionId>> = <_>::default();
-        let mut action_triggers_reaction: HashMap<ActionId, Vec<ReactionId>> = <_>::default();
 
         // not the best algorithm but whatever, this is only done on startup anyway (and we can improve later)
         for idx in &sorted {
@@ -110,12 +110,13 @@ impl FlowGraph {
                     reactions_by_port_id.insert(port.clone(), port_descendants);
                 }
                 Some(ActionElt(action_id)) => {
-                    let mut is_triggered = Vec::<ReactionId>::new();
+                    let mut is_triggered = Vec::<Rc<ClosedReaction>>::new();
 
                     for antidep in self.graph.neighbors_directed(*idx, Direction::Outgoing) {
                         match self.graph.node_weight(antidep).unwrap() {
                             ReactionElt(reaction_id) => {
-                                is_triggered.push(reaction_id.clone());
+                                let reaction = self.closed_reactions.get(reaction_id).unwrap();
+                                is_triggered.push(reaction.clone());
                             }
                             _ => {}
                         }
@@ -205,15 +206,44 @@ pub(in super) struct Schedulable {
     reaction_uses_port: HashMap<ReactionId, Vec<PortId>>,
     reaction_affects_port: HashMap<ReactionId, Vec<PortId>>,
     reaction_schedules_action: HashMap<ReactionId, Vec<ActionId>>,
-    action_triggers_reaction: HashMap<ActionId, Vec<ReactionId>>,
+
+    action_triggers_reaction: HashMap<ActionId, Vec<Rc<ClosedReaction>>>,
 }
 
-const EMPTY_VEC: [Rc<ClosedReaction>; 0] = [];
+
+macro_rules! empty_vec {
+    ($name:ident : $t:ty) => {
+        const $name: [$t ; 0 ] = [];
+    };
+}
+
+empty_vec!(NO_REACTIONS : Rc<ClosedReaction>);
+empty_vec!(NO_PORTS : PortId);
+empty_vec!(NO_ACTIONS : ActionId);
 
 impl Schedulable {
     pub fn get_downstream_reactions(&self, port_id: &PortId) -> &[Rc<ClosedReaction>] {
-        self.reactions_by_port_id.get(port_id).map_or_else(|| &EMPTY_VEC[..],
-                                                           |it| it.as_slice())
+        self.reactions_by_port_id.get(port_id)
+            .map_or_else(|| &NO_REACTIONS[..], |it| it.as_slice())
+    }
+    pub fn get_triggered_reactions(&self, action_id: &ActionId) -> &[Rc<ClosedReaction>] {
+        self.action_triggers_reaction.get(action_id)
+            .map_or_else(|| &NO_REACTIONS[..], |it| it.as_slice())
+    }
+
+    pub fn get_allowed_reads(&self, reaction_id: &ReactionId) -> &[PortId] {
+        self.reaction_uses_port.get(reaction_id)
+            .map_or_else(|| &NO_PORTS[..], |it| it.as_slice())
+    }
+
+    pub fn get_allowed_writes(&self, reaction_id: &ReactionId) -> &[PortId] {
+        self.reaction_affects_port.get(reaction_id)
+            .map_or_else(|| &NO_PORTS[..], |it| it.as_slice())
+    }
+
+    pub fn get_allowed_schedules(&self, reaction_id: &ReactionId) -> &[ActionId] {
+        self.reaction_schedules_action.get(reaction_id)
+            .map_or_else(|| &NO_ACTIONS[..], |it| it.as_slice())
     }
 }
 

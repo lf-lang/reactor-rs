@@ -14,8 +14,16 @@ impl ActionId {
         ActionId {
             min_delay: min_delay.unwrap_or(Duration::new(0, 0)),
             global_id: id,
-            is_logical
+            is_logical,
         }
+    }
+
+    pub fn min_delay(&self) -> Duration {
+        self.min_delay
+    }
+
+    pub fn is_logical(&self) -> bool {
+        self.is_logical
     }
 }
 

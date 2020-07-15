@@ -11,7 +11,6 @@ pub use self::scheduler::*;
 pub use self::util::*;
 #[doc(inline)]
 pub use self::world::*;
-use crate::reactors::ReactionCtx;
 
 mod scheduler;
 mod world;

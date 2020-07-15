@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
@@ -8,14 +9,15 @@ use priority_queue::PriorityQueue;
 
 use crate::reactors::{ActionId, GlobalAssembler, Port, Reactor, RunnableWorld, WorldReactor};
 use crate::reactors::flowgraph::Schedulable;
-use crate::reactors::id::{GlobalId, Identified, PortId};
+use crate::reactors::id::{GlobalId, Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
-use std::borrow::Borrow;
+
+type MicroStep = u32;
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 struct LogicalTime {
     instant: Instant,
-    microstep: u32,
+    microstep: MicroStep,
 }
 
 impl Default for LogicalTime {
@@ -26,7 +28,8 @@ impl Default for LogicalTime {
 
 #[derive(Eq, PartialEq, Hash)]
 enum Event {
-    ReactionExecute { at: LogicalTime, reaction: ClosedReaction }
+    ReactionExecute { at: LogicalTime, reaction: Rc<ClosedReaction> },
+    ReactionSchedule { min_at: LogicalTime, reaction: Rc<ClosedReaction> },
 }
 
 /// Schedules actions during the execution of a reaction.
@@ -38,27 +41,65 @@ pub struct Scheduler {
     schedulable: Schedulable,
 
     cur_logical_time: LogicalTime,
+    micro_step: MicroStep,
     queue: PriorityQueue<Event, Reverse<LogicalTime>>,
 }
 
 impl Scheduler {
-    fn new(schedulable: Schedulable) -> Scheduler {
+    pub(in super) fn new(schedulable: Schedulable) -> Scheduler {
         Scheduler {
             schedulable,
             cur_logical_time: <_>::default(),
+            micro_step: 0,
             queue: PriorityQueue::new(),
         }
     }
 
-    fn enqueue_port(&mut self, port_id: &PortId) {
-        let downstream = self.schedulable.get_downstream_reactions(port_id);
-        // todo
+    fn launch(&mut self) {
+        while !self.queue.is_empty() {
+            self.step()
+        }
     }
 
-    fn new_ctx(&mut self, time: LogicalTime, reaction: Rc<ClosedReaction>) -> ReactionCtx {
+    fn step(&mut self) {
+        if let Some((event, Reverse(time))) = self.queue.pop() {
+            self.cur_logical_time = time;
+            let reaction = match event {
+                Event::ReactionExecute { at, reaction } => reaction,
+                Event::ReactionSchedule { min_at, reaction } => reaction
+            };
+
+            let mut ctx = self.new_ctx(reaction.clone());
+            reaction.fire(&mut ctx)
+        }
+    }
+
+    fn enqueue_port(&mut self, port_id: &PortId) {
+        for reaction in self.schedulable.get_downstream_reactions(port_id) {
+            let evt = Event::ReactionExecute { at: self.cur_logical_time, reaction: Rc::clone(reaction) };
+            self.queue.push(evt, Reverse(self.cur_logical_time));
+        }
+    }
+
+    fn enqueue_action(&mut self, action_id: &ActionId, additional_delay: Option<Duration>) {
+        let min_delay = action_id.min_delay() + additional_delay.unwrap_or(Duration::from_secs(0));
+
+        self.micro_step += 1;
+        let eta = LogicalTime {
+            instant: self.cur_logical_time.instant + min_delay,
+            microstep: self.micro_step,
+        };
+
+        for reaction in self.schedulable.get_triggered_reactions(action_id) {
+            let evt = Event::ReactionSchedule { min_at: eta, reaction: Rc::clone(reaction) };
+            self.queue.push(evt, Reverse(eta));
+        }
+    }
+
+    fn new_ctx(&mut self, reaction: Rc<ClosedReaction>) -> ReactionCtx {
         ReactionCtx {
             scheduler: self,
-            time,
+            reaction_id: ReactionId(reaction.global_id().clone()),
             reaction,
         }
     }
@@ -70,8 +111,8 @@ impl Scheduler {
 ///
 pub struct ReactionCtx<'a> {
     scheduler: &'a mut Scheduler,
-    time: LogicalTime,
-    reaction: Rc<ClosedReaction>
+    reaction: Rc<ClosedReaction>,
+    reaction_id: ReactionId,
 }
 
 impl<'a> ReactionCtx<'a> {
@@ -80,6 +121,11 @@ impl<'a> ReactionCtx<'a> {
     /// Panics if the reaction being executed hasn't declared
     /// a dependency on the given port.
     pub fn get_port<T>(&self, port: &Port<T>) -> T where Self: Sized, T: Copy {
+        assert!(self.scheduler.schedulable.get_allowed_reads(&self.reaction_id).contains(port.port_id()),
+                "Forbidden read on port {} by reaction {}. Declare the dependency explicitly during assembly",
+                port.global_id(), self.reaction_id.global_id()
+        );
+
         port.get()
     }
 
@@ -92,13 +138,27 @@ impl<'a> ReactionCtx<'a> {
     /// Panics if the reaction being executed hasn't declared
     /// a dependency on the given port.
     ///
-    pub fn set_port<T>(&mut self, port: &Port<T>, value: T) where Self: Sized, T: Copy {}
+    pub fn set_port<T>(&mut self, port: &Port<T>, value: T) where Self: Sized, T: Copy {
+        assert!(self.scheduler.schedulable.get_allowed_writes(&self.reaction_id).contains(port.port_id()),
+                "Forbidden read on port {} by reaction {}. Declare the dependency explicitly during assembly",
+                port.global_id(), self.reaction_id.global_id()
+        );
+
+        port.set(value);
+
+        self.scheduler.enqueue_port(port.port_id());
+    }
 
     /// Schedule an action to run after its own implicit time delay,
     /// plus an optional additional time delay. These delays are in
     /// logical time.
     ///
-    pub fn schedule_action(&mut self, action: ActionId, additional_delay: Option<Duration>) {
-        unimplemented!()
+    pub fn schedule_action(&mut self, action: &ActionId, additional_delay: Option<Duration>) {
+        assert!(self.scheduler.schedulable.get_allowed_schedules(&self.reaction_id).contains(action),
+                "Forbidden schedule call on action {} by reaction {}. Declare the dependency explicitly during assembly",
+                action.global_id(), self.reaction_id.global_id()
+        );
+
+        self.scheduler.enqueue_action(action, additional_delay)
     }
 }
