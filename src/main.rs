@@ -1,35 +1,23 @@
 use std::rc::Rc;
 
 use crate::reactors::*;
-use crate::reactors::ReactionCtx;
 use std::time::Duration;
 use std::borrow::Borrow;
 
+mod reactors;
 
-#[test]
-fn test_port_flow() {
+fn main() {
     let (app, mut scheduler) = crate::reactors::make_world::<AppReactor>().unwrap();
 
     scheduler.launch(&app.producer.emit_action);
 
-    fn test_set(v: i32, app: &RunnableReactor<AppReactor>) {
-        app.producer.output_port.set(v);
-
-        assert_eq!(v, app.relay.input_port.get());
-        assert_eq!(v, app.relay.output_port.get());
-        assert_eq!(v, app.consumer.input_port.get());
-
-    }
-
-    test_set(32, &app);
-    test_set(4, &app);
 }
 
 // toplevel reactor containing the others
 struct AppReactor {
     producer: Rc<RunnableReactor<ProduceReactor>>,
-    relay:    Rc<RunnableReactor<PortRelay>>,
-    relay2:   Rc<RunnableReactor<PortRelay>>,
+    relay: Rc<RunnableReactor<PortRelay>>,
+    relay2: Rc<RunnableReactor<PortRelay>>,
     consumer: Rc<RunnableReactor<ConsumeReactor>>,
 }
 
@@ -71,6 +59,7 @@ impl Reactor for ProduceReactor {
         let output_port = assembler.new_output_port::<i32>("output")?;
 
         assembler.action_triggers(&emit_action, ProduceReactions::Emit)?;
+        assembler.reaction_schedules(ProduceReactions::Emit, &emit_action)?;
         assembler.reaction_affects(ProduceReactions::Emit, &output_port)?;
 
         Ok(ProduceReactor { output_port, emit_action })
@@ -80,6 +69,7 @@ impl Reactor for ProduceReactor {
         match reaction_id {
             ProduceReactions::Emit => {
                 *state += 1;
+                // println!("Emitting {}", *state);
                 ctx.set_port(&reactor.output_port, *state)
             }
         }
@@ -110,7 +100,7 @@ impl Reactor for ConsumeReactor {
     fn react(reactor: &RunnableReactor<Self>, _: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx) where Self: Sized {
         match reaction_id {
             ConsumeReactions::Print => {
-                print!("{}", ctx.get_port(&reactor.input_port))
+                print!("Received {}", ctx.get_port(&reactor.input_port))
             }
         }
     }

@@ -5,6 +5,8 @@ use crate::reactors::{Reactor, Scheduler, ReactionCtx};
 use crate::reactors::assembler::RunnableReactor;
 use crate::reactors::id::{GlobalId, Identified, ReactionId};
 use std::hash::{Hash, Hasher};
+use std::borrow::Borrow;
+use std::ops::DerefMut;
 
 /// Reaction that is directly executable with a scheduler, instead
 /// of with other data.
@@ -47,13 +49,12 @@ impl ClosedReaction {
                                                global_id: GlobalId,
                                                reaction_id: R::ReactionId) -> ClosedReaction {
         let reactor_ref: Rc<RunnableReactor<R>> = Rc::clone(reactor);
-        let mut state_ref = reactor_ref.state();
+        let mut state_ref: Rc<RefCell<_>> = reactor_ref.state();
 
         let closure = move |scheduler: &mut ReactionCtx| {
-            match Rc::get_mut(&mut state_ref) {
-                None => panic!("State of {:?} is already mutably borrowed", *reactor_ref.global_id()),
-                Some(state_mut) => R::react(reactor_ref.as_ref(), state_mut.get_mut(), reaction_id, scheduler)
-            }
+            let state: &RefCell<_> = Rc::borrow(&state_ref);
+            let mut state_mut = state.borrow_mut();
+            R::react(reactor_ref.as_ref(), state_mut.deref_mut(), reaction_id, scheduler)
         };
 
 
@@ -83,6 +84,4 @@ impl PartialEq for ClosedReaction {
     }
 }
 
-impl Eq for ClosedReaction {
-
-}
+impl Eq for ClosedReaction {}

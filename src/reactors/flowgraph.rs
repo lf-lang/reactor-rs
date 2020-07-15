@@ -2,7 +2,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use petgraph::Direction;
+use petgraph::{Direction, Graph};
 use petgraph::graph::{DiGraph, NodeIndex};
 
 use crate::reactors::{AssemblyError, DependencyKind, ReactionCtx, Port};
@@ -13,6 +13,8 @@ use crate::reactors::id::{GlobalId, Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
 use crate::reactors::flowgraph::TriggerGraphElement::ActionElt;
 use petgraph::Direction::{Incoming, Outgoing};
+use std::fmt::{Debug, Display, Formatter};
+use petgraph::visit::EdgeRef;
 
 pub type GraphId = NodeIndex<u32>;
 
@@ -49,8 +51,8 @@ impl<V: Clone + Identified> GraphWrapper<V> {
         let pid = self.get_node(&to);
 
         match kind {
-            DependencyKind::Use => self.graph.add_edge(rid, pid, ()),
-            DependencyKind::Affects => self.graph.add_edge(pid, rid, ()),
+            DependencyKind::Affects => self.graph.add_edge(rid, pid, ()),
+            DependencyKind::Use => self.graph.add_edge(pid, rid, ()),
         };
 
         Ok(())
@@ -131,6 +133,7 @@ impl FlowGraph {
     }
 
     pub(in super) fn consume_to_schedulable(mut self) -> Result<Schedulable, AssemblyError> {
+        println!("{}", &self.triggers);
 
         // berk berk berk
 
@@ -166,8 +169,8 @@ impl FlowGraph {
                     let mut uses = Vec::<PortId>::new();
                     let mut affects = Vec::<PortId>::new();
 
-                    self.acc_port_dependencies(idx, &mut affects, Direction::Outgoing);
-                    self.acc_port_dependencies(idx, &mut uses, Direction::Incoming);
+                    self.acc_port_dependencies(idx, &mut affects, Direction::Incoming);
+                    self.acc_port_dependencies(idx, &mut uses, Direction::Outgoing);
 
                     reaction_affects_port.insert(reaction_id.clone(), affects);
                     reaction_uses_port.insert(reaction_id.clone(), uses);
@@ -324,3 +327,29 @@ impl Schedulable {
     }
 }
 
+
+impl<V> Display for GraphWrapper<V> where V: Debug + Identified + Clone {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "digraph G {{")?;
+        for v in self.graph.node_indices() {
+            let w = self.graph.node_weight(v).unwrap();
+
+            let mut escaped = format!("{:?}", w);
+            escaped.replace("\"", "\\\"");
+
+            write!(f, "node {} [ label = \"{}\" ]; ", v.index(), escaped)?;
+        }
+
+
+        for edge in self.graph.edge_references() {
+            let src = edge.source();
+            let dst = edge.target();
+
+            write!(f, "{} -> {}; ", src.index(), dst.index())?;
+        }
+
+        write!(f, "}}")?;
+
+        Ok(())
+    }
+}

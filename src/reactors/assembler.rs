@@ -89,7 +89,7 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
     pub fn action_triggers(&mut self, action: &ActionId, reaction_id: R::ReactionId) -> Result<(), AssemblyError> {
         // TODO
         let rid = ReactionId(self.existing_id(reaction_id));
-        self.global.data_flow.add_trigger_dependency(rid, action, DependencyKind::Affects)
+        self.global.data_flow.add_trigger_dependency(rid, action, DependencyKind::Use)
     }
 
 
@@ -101,7 +101,7 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
     pub fn reaction_schedules(&mut self, reaction_id: R::ReactionId, action: &ActionId) -> Result<(), AssemblyError> {
         // TODO
         let rid = ReactionId(self.existing_id(reaction_id));
-        self.global.data_flow.add_trigger_dependency(rid, action, DependencyKind::Use)
+        self.global.data_flow.add_trigger_dependency(rid, action, DependencyKind::Affects)
     }
 
     /*

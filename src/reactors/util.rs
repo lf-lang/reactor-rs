@@ -1,5 +1,8 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
+use std::fmt::{Display, Formatter};
+use petgraph::Graph;
+use petgraph::visit::EdgeRef;
 
 /// A type whose instances have statically known names
 pub trait Named {
