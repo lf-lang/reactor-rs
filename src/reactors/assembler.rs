@@ -6,7 +6,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Duration;
 
-use crate::reactors::{IgnoredDefault, PortId, PortKind};
+use crate::reactors::{IgnoredDefault, PortId, PortKind, Schedulable};
 use crate::reactors::action::ActionId;
 use crate::reactors::BindStatus;
 use crate::reactors::flowgraph::FlowGraph;
@@ -248,7 +248,7 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static { // this is the private
         for typed_id in R::ReactionId::list() {
             let global_id = self.existing_id(typed_id);
             let closed = ClosedReaction::new(runnable_r, global_id.clone(), typed_id);
-            self.global.reactions.insert(global_id, Rc::new(closed));
+            self.global.flow_graph().register_reaction(closed);
         }
     }
 
@@ -349,7 +349,6 @@ impl Debug for AssemblyError {
 /// Global state of the assembly, shared by sub-assemblers
 pub(in super) struct GlobalAssembler {
     data_flow: FlowGraph,
-    reactions: HashMap<GlobalId, Rc<ClosedReaction>>,
 }
 
 
@@ -361,7 +360,6 @@ impl GlobalAssembler {
     pub fn new() -> Self {
         GlobalAssembler {
             data_flow: Default::default(),
-            reactions: Default::default(),
         }
     }
 }
@@ -374,18 +372,13 @@ pub fn make_world<R>() -> Result<RunnableWorld<R>, AssemblyError> where R: World
     let r = <R as Reactor>::assemble(&mut root_assembler)?;
     let toplevel_reactor = RunnableReactor::<R>::new(r, root_assembler.new_id(":root:")?);
 
-    let GlobalAssembler { mut data_flow, reactions } = world;
-    let reactions_by_port_id = data_flow.reactions_by_port_set(reactions)?;
+    let schedulable = Schedulable::new(world.data_flow.reactions_by_port_set()?);
 
-    Ok(RunnableWorld { reactions_by_port_id, toplevel_reactor })
+    Ok(RunnableWorld { schedulable, toplevel_reactor })
 }
 
-
 pub struct RunnableWorld<T: WorldReactor> {
-    /// Maps port ids to a list of reactions that must be scheduled
-    /// each time the port is set in a reaction.
-    reactions_by_port_id: HashMap<GlobalId, Vec<Rc<ClosedReaction>>>,
-
+    schedulable: Schedulable,
     toplevel_reactor: RunnableReactor<T>,
 }
 

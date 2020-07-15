@@ -16,6 +16,8 @@ pub type GraphId = NodeIndex<u32>;
 pub(in super) struct FlowGraph {
     graph: DiGraph<FlowGraphElement, ()>,
     graph_ids: HashMap<GlobalId, GraphId>,
+
+    closed_reactions: HashMap<GlobalId, Rc<ClosedReaction>>,
 }
 
 impl FlowGraph {
@@ -67,12 +69,13 @@ impl FlowGraph {
         }
     }
 
+    pub fn register_reaction(&mut self, reaction: ClosedReaction) {
+        self.closed_reactions.insert(reaction.global_id().clone(), Rc::new(reaction));
+    }
+
     /// Note that since this only cares about ports that are in
     /// the graph, the result excludes dangling ports
-    pub fn reactions_by_port_set(
-        &mut self,
-        reaction_by_id: HashMap<GlobalId, Rc<ClosedReaction>>,
-    ) -> Result<HashMap<GlobalId, Vec<Rc<ClosedReaction>>>, AssemblyError> {
+    pub fn reactions_by_port_set(&mut self) -> Result<HashMap<GlobalId, Vec<Rc<ClosedReaction>>>, AssemblyError> {
         let sorted: Vec<GraphId> = match petgraph::algo::toposort(&self.graph, None) {
             Ok(sorted) => sorted,
             Err(cycle) => {
@@ -92,7 +95,7 @@ impl FlowGraph {
                 for follower in sorted[port_idx.index()..].iter() {
                     if let Reaction(id) = self.graph.node_weight(*follower).unwrap() {
                         if petgraph::algo::has_path_connecting(&self.graph, *port_idx, *follower, None) {
-                            let reaction = reaction_by_id.get(id).unwrap();
+                            let reaction = self.closed_reactions.get(id).unwrap();
                             port_descendants.push(Rc::clone(reaction));
                         }
                     }
@@ -129,6 +132,7 @@ impl Default for FlowGraph {
         FlowGraph {
             graph: <_>::default(),
             graph_ids: <_>::default(),
+            closed_reactions: <_>::default(),
         }
     }
 }

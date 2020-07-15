@@ -29,9 +29,16 @@ use crate::reactors::id::{GlobalId, Identified};
 /// Note that the function is boxed otherwise this struct has
 /// no known size.
 ///
+#[derive(Eq)]
 pub(in super) struct ClosedReaction {
     body: RefCell<Box<dyn FnMut(&mut Scheduler)>>,
     global_id: GlobalId,
+}
+
+impl PartialEq for ClosedReaction {
+    fn eq(&self, other: &Self) -> bool {
+        self.global_id == other.global_id
+    }
 }
 
 impl ClosedReaction {

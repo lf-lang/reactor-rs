@@ -64,7 +64,7 @@ impl Reactor for ProduceReactor {
     fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
         let output_port = assembler.new_output_port::<i32>("output")?;
 
-        assembler.reaction_affects(ProduceReactions::Emit, &output_port);
+        assembler.reaction_affects(ProduceReactions::Emit, &output_port)?;
 
         Ok(ProduceReactor { output_port })
     }
