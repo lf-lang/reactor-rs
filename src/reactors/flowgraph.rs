@@ -8,47 +8,45 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use crate::reactors::{AssemblyError, DependencyKind, ReactionCtx, Port};
 use crate::reactors::action::ActionId;
 use crate::reactors::AssemblyError::CyclicDependency;
-use crate::reactors::flowgraph::FlowGraphElement::{ActionElt, PortElt, ReactionElt};
+use crate::reactors::flowgraph::FlowGraphElement::{PortElt, ReactionElt};
 use crate::reactors::id::{GlobalId, Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
+use crate::reactors::flowgraph::TriggerGraphElement::ActionElt;
+use petgraph::Direction::{Incoming, Outgoing};
 
 pub type GraphId = NodeIndex<u32>;
 
-pub(in super) struct FlowGraph {
-    graph: DiGraph<FlowGraphElement, ()>,
-    graph_ids: HashMap<GlobalId, GraphId>,
 
-    closed_reactions: HashMap<ReactionId, Rc<ClosedReaction>>,
+struct GraphWrapper<V: Identified + Clone> {
+    graph: DiGraph<V, ()>,
+    graph_ids: HashMap<GlobalId, GraphId>,
 }
 
-impl FlowGraph {
-    fn get_node(&mut self, elt: FlowGraphElement) -> GraphId {
+impl<V: Clone + Identified> Default for GraphWrapper<V> {
+    fn default() -> Self {
+        Self {
+            graph: Default::default(),
+            graph_ids: Default::default(),
+        }
+    }
+}
+
+impl<V: Clone + Identified> GraphWrapper<V> {
+    fn get_node(&mut self, elt: &V) -> GraphId {
         let id = elt.global_id().clone();
         if let Some(gid) = self.graph_ids.get(&id) {
             gid.clone()
         } else {
-            let gid: GraphId = self.graph.add_node(elt);
+            let gid: GraphId = self.graph.add_node(elt.clone());
             self.graph_ids.insert(id, gid);
             gid
         }
     }
 
-    pub fn add_port_dependency<T>(&mut self, upstream: &Port<T>, downstream: &Port<T>) -> Result<(), AssemblyError> {
-        let up_id = self.get_node(PortElt(upstream.port_id().clone()));
-        let down_id = self.get_node(PortElt(downstream.port_id().clone()));
 
-        self.graph.add_edge(up_id, down_id, ());
-
-        Ok(())
-    }
-
-    pub fn add_data_dependency<T>(&mut self, reaction: ReactionId, data: &Port<T>, kind: DependencyKind) -> Result<(), AssemblyError> {
-        assert!(self.graph_ids.contains_key(&reaction.global_id()));
-        // todo MM do we have to add ports too?
-        // assert!(self.graph_ids.contains_key(data.global_id()));
-
-        let rid = self.get_node(ReactionElt(reaction));
-        let pid = self.get_node(PortElt(data.port_id().clone()));
+    pub fn add_dependency(&mut self, from: V, to: V, kind: DependencyKind) -> Result<(), AssemblyError> {
+        let rid = self.get_node(&from);
+        let pid = self.get_node(&to);
 
         match kind {
             DependencyKind::Use => self.graph.add_edge(rid, pid, ()),
@@ -58,15 +56,73 @@ impl FlowGraph {
         Ok(())
     }
 
+    pub fn toposorted(&self) -> Result<Vec<GraphId>, AssemblyError> {
+        match petgraph::algo::toposort(&self.graph, None) {
+            Err(cycle) => {
+                let id = self.graph.node_weight(cycle.node_id()).unwrap().global_id();
+                Err(CyclicDependency(format!("Dependency cycle containing {}", id)))
+            }
+            Ok(vec) => Ok(vec),
+        }
+    }
+
+    pub fn iter_neighbors<'a>(&'a self, elt: &V, direction: Direction) -> impl Iterator<Item=V> + 'a {
+        let gid = self.graph_ids.get(elt.global_id()).unwrap();
+        self.graph.neighbors_directed(*gid, direction).map(move |gid| self.to_elt(gid))
+    }
+
+    pub fn iter_nodes<'a>(&'a self) -> impl Iterator<Item=V> + 'a {
+        self.graph.node_indices().map(move |gid| self.to_elt(gid))
+    }
+
+    fn to_elt(&self, gid: GraphId) -> V {
+        self.graph.node_weight(gid).unwrap().clone()
+    }
+}
+
+pub(in super) struct FlowGraph {
+    dataflow: GraphWrapper<FlowGraphElement>,
+    triggers: GraphWrapper<TriggerGraphElement>,
+
+    closed_reactions: HashMap<ReactionId, Rc<ClosedReaction>>,
+}
+
+impl FlowGraph {
+    pub fn add_port_dependency<T>(&mut self, upstream: &Port<T>, downstream: &Port<T>) -> Result<(), AssemblyError> {
+        let up_id = self.dataflow.get_node(&FlowGraphElement::PortElt(upstream.port_id().clone()));
+        let down_id = self.dataflow.get_node(&FlowGraphElement::PortElt(downstream.port_id().clone()));
+
+        self.dataflow.graph.add_edge(up_id, down_id, ());
+
+        Ok(())
+    }
+
+    pub fn add_data_dependency<T>(&mut self, reaction: ReactionId, data: &Port<T>, kind: DependencyKind) -> Result<(), AssemblyError> {
+        self.dataflow.add_dependency(
+            FlowGraphElement::ReactionElt(reaction),
+            FlowGraphElement::PortElt(data.port_id().clone()),
+            kind,
+        )
+    }
+
+    pub fn add_trigger_dependency(&mut self, reaction: ReactionId, action: &ActionId, kind: DependencyKind) -> Result<(), AssemblyError> {
+        self.triggers.add_dependency(
+            TriggerGraphElement::ReactionElt(reaction),
+            TriggerGraphElement::ActionElt(action.clone()),
+            kind,
+        )
+    }
+
+
     pub fn add_reactions(&mut self, reactions: Vec<ReactionId>) {
-        let mut ids = Vec::<GraphId>::with_capacity(reactions.len());
+        let mut ids = Vec::<FlowGraphElement>::with_capacity(reactions.len());
         for r in reactions {
-            ids.push(self.get_node(ReactionElt(r)));
+            ids.push(ReactionElt(r));
         }
 
         // Add priority links between reactions
         for (a, b) in ids.iter().zip(ids.iter().skip(1)) {
-            self.graph.add_edge(*a, *b, ());
+            self.dataflow.add_dependency(a.clone(), b.clone(), DependencyKind::Use);
         }
     }
 
@@ -75,13 +131,8 @@ impl FlowGraph {
     }
 
     pub(in super) fn consume_to_schedulable(mut self) -> Result<Schedulable, AssemblyError> {
-        let sorted: Vec<GraphId> = match petgraph::algo::toposort(&self.graph, None) {
-            Ok(sorted) => sorted,
-            Err(cycle) => {
-                let id = self.graph.node_weight(cycle.node_id()).unwrap().global_id();
-                return Err(CyclicDependency(format!("Dependency cycle containing {}", id)));
-            }
-        };
+
+        // berk berk berk
 
         let mut reactions_by_port_id: HashMap<PortId, Vec<Rc<ClosedReaction>>> = <_>::default();
         let mut action_triggers_reaction: HashMap<ActionId, Vec<Rc<ClosedReaction>>> = <_>::default();
@@ -91,17 +142,19 @@ impl FlowGraph {
 
         let mut reaction_schedules_action: HashMap<ReactionId, Vec<ActionId>> = <_>::default();
 
+
+        let sorted: Vec<GraphId> = self.dataflow.toposorted()?;
         // not the best algorithm but whatever, this is only done on startup anyway (and we can improve later)
         for idx in &sorted {
-            let weight = self.graph.node_weight(*idx);
+            let weight = self.dataflow.graph.node_weight(*idx);
             match weight {
                 Some(PortElt(port)) => {
                     let mut port_descendants = Vec::<Rc<ClosedReaction>>::new();
 
                     for follower in sorted[idx.index()..].iter() {
-                        if let ReactionElt(id) = self.graph.node_weight(*follower).unwrap() {
-                            if petgraph::algo::has_path_connecting(&self.graph, *idx, *follower, None) {
-                                let reaction = self.closed_reactions.get(id).unwrap();
+                        if let ReactionElt(id) = self.dataflow.graph.node_weight(*follower).unwrap() {
+                            if petgraph::algo::has_path_connecting(&self.dataflow.graph, *idx, *follower, None) {
+                                let reaction = self.closed_reactions.get(&id).unwrap();
                                 port_descendants.push(Rc::clone(reaction));
                             }
                         }
@@ -109,55 +162,55 @@ impl FlowGraph {
 
                     reactions_by_port_id.insert(port.clone(), port_descendants);
                 }
-                Some(ActionElt(action_id)) => {
-                    let mut is_triggered = Vec::<Rc<ClosedReaction>>::new();
-
-                    for antidep in self.graph.neighbors_directed(*idx, Direction::Outgoing) {
-                        match self.graph.node_weight(antidep).unwrap() {
-                            ReactionElt(reaction_id) => {
-                                let reaction = self.closed_reactions.get(reaction_id).unwrap();
-                                is_triggered.push(reaction.clone());
-                            }
-                            _ => {}
-                        }
-                    }
-
-                    action_triggers_reaction.insert(action_id.clone(), is_triggered);
-                }
                 Some(ReactionElt(reaction_id)) => {
                     let mut uses = Vec::<PortId>::new();
                     let mut affects = Vec::<PortId>::new();
 
-                    let mut schedules = Vec::<ActionId>::new();
-
-                    for antidep in self.graph.neighbors_directed(*idx, Direction::Outgoing) {
-                        match self.graph.node_weight(antidep).unwrap() {
-                            PortElt(port_id) => {
-                                affects.push(port_id.clone());
-                            }
-                            ActionElt(action_id) => {
-                                schedules.push(action_id.clone());
-                            }
-                            _ => {}
-                        }
-                    }
-
-                    for dep in self.graph.neighbors_directed(*idx, Direction::Incoming) {
-                        match self.graph.node_weight(dep).unwrap() {
-                            PortElt(port_id) => {
-                                uses.push(port_id.clone());
-                            }
-                            _ => {}
-                        }
-                    }
+                    self.acc_port_dependencies(idx, &mut affects, Direction::Outgoing);
+                    self.acc_port_dependencies(idx, &mut uses, Direction::Incoming);
 
                     reaction_affects_port.insert(reaction_id.clone(), affects);
                     reaction_uses_port.insert(reaction_id.clone(), uses);
-                    reaction_schedules_action.insert(reaction_id.clone(), schedules);
                 }
                 _ => {}
             }
         };
+
+        for weight in self.triggers.iter_nodes() {
+            match &weight {
+                TriggerGraphElement::ActionElt(action_id) => {
+                    let is_triggered =
+                        self.triggers.iter_neighbors(&weight, Incoming)
+                            .filter_map(
+                                |antidep|
+                                    match &antidep {
+                                        TriggerGraphElement::ReactionElt(reaction_id) => {
+                                            Some(self.closed_reactions.get(reaction_id).unwrap().clone())
+                                        }
+                                        _ => None
+                                    }
+                            ).collect::<Vec<_>>();
+
+                    action_triggers_reaction.insert(action_id.clone(), is_triggered);
+                }
+
+                TriggerGraphElement::ReactionElt(reaction_id) => {
+                    let schedules =
+                        self.triggers.iter_neighbors(&weight, Outgoing)
+                            .filter_map(
+                                |dep|
+                                    match &dep {
+                                        TriggerGraphElement::ActionElt(action_id) => {
+                                            Some(action_id.clone())
+                                        }
+                                        _ => None
+                                    }
+                            ).collect::<Vec<_>>();
+
+                    reaction_schedules_action.insert(reaction_id.clone(), schedules);
+                }
+            }
+        }
 
         Ok(Schedulable {
             reactions_by_port_id,
@@ -167,6 +220,17 @@ impl FlowGraph {
             action_triggers_reaction,
         })
     }
+
+    fn acc_port_dependencies(&self, idx: &NodeIndex, output: &mut Vec<PortId>, direction: Direction) {
+        for antidep in self.dataflow.graph.neighbors_directed(*idx, direction) {
+            match self.dataflow.graph.node_weight(antidep).unwrap() {
+                FlowGraphElement::PortElt(port_id) => {
+                    output.push(port_id.clone());
+                }
+                _ => {}
+            }
+        }
+    }
 }
 
 // the flow graph is transparent to reactors (they're all flattened)
@@ -174,7 +238,6 @@ impl FlowGraph {
 enum FlowGraphElement {
     ReactionElt(ReactionId),
     PortElt(PortId),
-    ActionElt(ActionId),
 }
 
 impl Identified for FlowGraphElement {
@@ -182,7 +245,21 @@ impl Identified for FlowGraphElement {
         match self {
             FlowGraphElement::PortElt(id) => id.global_id(),
             FlowGraphElement::ReactionElt(id) => id.global_id(),
-            FlowGraphElement::ActionElt(a) => a.global_id(),
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+enum TriggerGraphElement {
+    ReactionElt(ReactionId),
+    ActionElt(ActionId),
+}
+
+impl Identified for TriggerGraphElement {
+    fn global_id(&self) -> &GlobalId {
+        match self {
+            TriggerGraphElement::ReactionElt(id) => id.global_id(),
+            TriggerGraphElement::ActionElt(a) => a.global_id(),
         }
     }
 }
@@ -190,8 +267,8 @@ impl Identified for FlowGraphElement {
 impl Default for FlowGraph {
     fn default() -> Self {
         FlowGraph {
-            graph: <_>::default(),
-            graph_ids: <_>::default(),
+            dataflow: <_>::default(),
+            triggers: <_>::default(),
             closed_reactions: <_>::default(),
         }
     }

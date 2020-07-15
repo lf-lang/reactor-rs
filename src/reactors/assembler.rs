@@ -86,8 +86,10 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
     /// # Validity
     ///
     /// - the action ID was created by this assembler
-    pub fn action_triggers(&mut self, port: ActionId, reaction_id: R::ReactionId) {
+    pub fn action_triggers(&mut self, action: &ActionId, reaction_id: R::ReactionId) -> Result<(), AssemblyError> {
         // TODO
+        let rid = ReactionId(self.existing_id(reaction_id));
+        self.global.data_flow.add_trigger_dependency(rid, action, DependencyKind::Affects)
     }
 
 
@@ -96,8 +98,10 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
     /// # Validity
     ///
     /// - the action ID was created by this assembler
-    pub fn reaction_schedules(&mut self, reaction_id: R::ReactionId, action: ActionId) {
+    pub fn reaction_schedules(&mut self, reaction_id: R::ReactionId, action: &ActionId) -> Result<(), AssemblyError> {
         // TODO
+        let rid = ReactionId(self.existing_id(reaction_id));
+        self.global.data_flow.add_trigger_dependency(rid, action, DependencyKind::Use)
     }
 
     /*
@@ -366,7 +370,7 @@ impl GlobalAssembler {
 
 
 /// Build a toplevel reactor
-pub fn make_world<R>() -> Result<RunnableWorld<R>, AssemblyError> where R: WorldReactor + 'static {
+pub fn make_world<R>() -> Result<(RunnableReactor<R>, Scheduler), AssemblyError> where R: WorldReactor + 'static {
     let mut world = GlobalAssembler::new();
     let mut root_assembler = Assembler::<R>::new(&mut world, Rc::new(AssemblyId::Root));
     let r = <R as Reactor>::assemble(&mut root_assembler)?;
@@ -374,20 +378,5 @@ pub fn make_world<R>() -> Result<RunnableWorld<R>, AssemblyError> where R: World
 
     let scheduler = Scheduler::new(world.data_flow.consume_to_schedulable()?);
 
-    Ok(RunnableWorld { scheduler, toplevel_reactor })
-}
-
-pub struct RunnableWorld<T: WorldReactor> {
-    scheduler: Scheduler,
-    toplevel_reactor: RunnableReactor<T>,
-}
-
-
-// makes it so, that we can use the members of R on a RunnableReactor<R>
-impl<R> Deref for RunnableWorld<R> where R: WorldReactor {
-    type Target = R;
-
-    fn deref(&self) -> &Self::Target {
-        &self.toplevel_reactor
-    }
+    Ok((toplevel_reactor, scheduler))
 }

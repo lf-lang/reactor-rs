@@ -2,14 +2,17 @@ use std::rc::Rc;
 
 use crate::reactors::*;
 use crate::reactors::ReactionCtx;
-
+use std::time::Duration;
+use std::borrow::Borrow;
 
 
 #[test]
 fn test_port_flow() {
-    let mut app = crate::reactors::make_world::<AppReactor>().unwrap();
+    let (app, mut scheduler) = crate::reactors::make_world::<AppReactor>().unwrap();
 
-    fn test_set(v: i32, app: &RunnableWorld<AppReactor>) {
+    scheduler.launch(&app.producer.emit_action);
+
+    fn test_set(v: i32, app: &RunnableReactor<AppReactor>) {
         app.producer.output_port.set(v);
 
         assert_eq!(v, app.relay.input_port.get());
@@ -32,10 +35,10 @@ struct AppReactor {
 
 impl WorldReactor for AppReactor {
     fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
-        let consumer = assembler.new_subreactor::<ConsumeReactor>("consumer")?;
+        let producer = assembler.new_subreactor::<ProduceReactor>("producer")?;
         let relay = assembler.new_subreactor::<PortRelay>("relay1")?;
         let relay2 = assembler.new_subreactor::<PortRelay>("relay2")?;
-        let producer = assembler.new_subreactor::<ProduceReactor>("producer")?;
+        let consumer = assembler.new_subreactor::<ConsumeReactor>("consumer")?;
 
         assembler.bind_ports(&producer.output_port, &relay.input_port)?;
         assembler.bind_ports(&relay.output_port, &relay2.input_port)?;
@@ -47,7 +50,8 @@ impl WorldReactor for AppReactor {
 
 
 struct ProduceReactor {
-    output_port: Port<i32>
+    output_port: Port<i32>,
+    emit_action: ActionId,
 }
 
 
@@ -63,11 +67,13 @@ impl Reactor for ProduceReactor {
     }
 
     fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
+        let emit_action = assembler.new_action("emit", Some(Duration::from_secs(1)), true)?;
         let output_port = assembler.new_output_port::<i32>("output")?;
 
+        assembler.action_triggers(&emit_action, ProduceReactions::Emit)?;
         assembler.reaction_affects(ProduceReactions::Emit, &output_port)?;
 
-        Ok(ProduceReactor { output_port })
+        Ok(ProduceReactor { output_port, emit_action })
     }
 
     fn react(reactor: &RunnableReactor<Self>, state: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx) where Self: Sized {
@@ -82,7 +88,7 @@ impl Reactor for ProduceReactor {
 
 
 struct ConsumeReactor {
-    input_port: Port<i32>
+    input_port: Port<i32>,
 }
 
 reaction_ids!(enum ConsumeReactions { Print });

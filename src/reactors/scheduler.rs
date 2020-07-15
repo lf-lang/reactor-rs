@@ -7,7 +7,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use priority_queue::PriorityQueue;
 
-use crate::reactors::{ActionId, GlobalAssembler, Port, Reactor, RunnableWorld, WorldReactor};
+use crate::reactors::{ActionId, GlobalAssembler, Port, Reactor, WorldReactor};
 use crate::reactors::flowgraph::Schedulable;
 use crate::reactors::id::{GlobalId, Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
@@ -55,7 +55,8 @@ impl Scheduler {
         }
     }
 
-    fn launch(&mut self) {
+    pub fn launch(&mut self, startup_action: &ActionId) {
+        self.enqueue_action(startup_action, None);
         while !self.queue.is_empty() {
             self.step()
         }
