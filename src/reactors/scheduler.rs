@@ -64,14 +64,23 @@ impl Scheduler {
 
     fn step(&mut self) {
         if let Some((event, Reverse(time))) = self.queue.pop() {
-            self.cur_logical_time = time;
-            let reaction = match event {
-                Event::ReactionExecute { at, reaction } => reaction,
-                Event::ReactionSchedule { min_at, reaction } => reaction
+            let (reaction) = match event {
+                Event::ReactionExecute { reaction, .. } => reaction,
+                Event::ReactionSchedule { reaction, .. } => reaction
             };
+
+            self.catch_up_physical_time(time);
+            self.cur_logical_time = time;
 
             let mut ctx = self.new_ctx(reaction.clone());
             reaction.fire(&mut ctx)
+        }
+    }
+
+    fn catch_up_physical_time(&mut self, up_to_time: LogicalTime) {
+        let now = Instant::now();
+        if now < up_to_time.instant {
+            std::thread::sleep(up_to_time.instant - now);
         }
     }
 
