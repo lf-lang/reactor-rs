@@ -32,11 +32,7 @@ enum Event {
     ReactionSchedule { min_at: LogicalTime, reaction: Rc<ClosedReaction> },
 }
 
-/// Schedules actions during the execution of a reaction.
-///
-/// A scheduler must know which reaction is currently executing,
-/// and to which reactor it belongs, in order to validate its
-/// input.
+/// Directs execution of the whole reactor graph.
 pub struct Scheduler {
     schedulable: Schedulable,
 
@@ -46,6 +42,8 @@ pub struct Scheduler {
 }
 
 impl Scheduler {
+    // todo logging
+
     pub(in super) fn new(schedulable: Schedulable) -> Scheduler {
         Scheduler {
             schedulable,
@@ -72,7 +70,7 @@ impl Scheduler {
             self.catch_up_physical_time(time);
             self.cur_logical_time = time;
 
-            let mut ctx = self.new_ctx(reaction.clone());
+            let mut ctx = self.new_ctx(&reaction);
             reaction.fire(&mut ctx)
         }
     }
@@ -85,6 +83,7 @@ impl Scheduler {
     }
 
     fn enqueue_port(&mut self, port_id: &PortId) {
+        // todo possibly, reactions must be scheduled at most once per logical time step?
         for reaction in self.schedulable.get_downstream_reactions(port_id) {
             let evt = Event::ReactionExecute { at: self.cur_logical_time, reaction: Rc::clone(reaction) };
             self.queue.push(evt, Reverse(self.cur_logical_time));
@@ -106,11 +105,10 @@ impl Scheduler {
         }
     }
 
-    fn new_ctx(&mut self, reaction: Rc<ClosedReaction>) -> ReactionCtx {
+    fn new_ctx(&mut self, reaction: &Rc<ClosedReaction>) -> ReactionCtx {
         ReactionCtx {
             scheduler: self,
-            reaction_id: ReactionId(reaction.global_id().clone()),
-            reaction,
+            reaction_id: ReactionId((*reaction).global_id().clone()),
         }
     }
 }
@@ -121,15 +119,18 @@ impl Scheduler {
 ///
 pub struct ReactionCtx<'a> {
     scheduler: &'a mut Scheduler,
-    reaction: Rc<ClosedReaction>,
     reaction_id: ReactionId,
 }
 
 impl<'a> ReactionCtx<'a> {
-    /// Get the value of a port.
+
+    /// Get the value of a port at this time.
     ///
-    /// Panics if the reaction being executed hasn't declared
-    /// a dependency on the given port.
+    /// # Panics
+    ///
+    /// If the reaction being executed has not declared its
+    /// dependency on the given port ([reaction_uses](super::Assembler::reaction_uses)).
+    ///
     pub fn get_port<T>(&self, port: &Port<T>) -> T where Self: Sized, T: Copy {
         assert!(self.scheduler.schedulable.get_allowed_reads(&self.reaction_id).contains(port.port_id()),
                 "Forbidden read on port {} by reaction {}. Declare the dependency explicitly during assembly",
@@ -145,8 +146,10 @@ impl<'a> ReactionCtx<'a> {
     /// reactions that should execute on the same logical
     /// step.
     ///
-    /// Panics if the reaction being executed hasn't declared
-    /// a dependency on the given port.
+    /// # Panics
+    ///
+    /// If the reaction being executed has not declared its
+    /// dependency on the given port ([reaction_affects](super::Assembler::reaction_affects)).
     ///
     pub fn set_port<T>(&mut self, port: &Port<T>, value: T) where Self: Sized, T: Copy {
         assert!(self.scheduler.schedulable.get_allowed_writes(&self.reaction_id).contains(port.port_id()),
@@ -163,6 +166,10 @@ impl<'a> ReactionCtx<'a> {
     /// plus an optional additional time delay. These delays are in
     /// logical time.
     ///
+    /// # Panics
+    ///
+    /// If the reaction being executed has not declared its
+    /// dependency on the given action ([reaction_schedules](super::Assembler::reaction_schedules)).
     pub fn schedule_action(&mut self, action: &ActionId, additional_delay: Option<Duration>) {
         assert!(self.scheduler.schedulable.get_allowed_schedules(&self.reaction_id).contains(action),
                 "Forbidden schedule call on action {} by reaction {}. Declare the dependency explicitly during assembly",

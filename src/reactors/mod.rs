@@ -81,9 +81,9 @@ pub trait Reactor {
     fn initial_state() -> Self::State where Self: Sized;
 
     /// Initializes the structure of this reactor.
-    /// This will create subcomponents and link them using the [Assembler].
+    /// This should create subcomponents and link them using the [Assembler].
     ///
-    /// The returned instance is wrapped into a [RunnableReactor] for execution.
+    /// TODO would be nice if this "constructor" could take additional parameters
     fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized;
 
     /// Execute a reaction of this reactor.

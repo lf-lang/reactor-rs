@@ -35,12 +35,11 @@ impl<V: Clone + Identified> Default for GraphWrapper<V> {
 
 impl<V: Clone + Identified> GraphWrapper<V> {
     fn get_node(&mut self, elt: &V) -> GraphId {
-        let id = elt.global_id().clone();
-        if let Some(gid) = self.graph_ids.get(&id) {
+        if let Some(gid) = self.graph_ids.get(elt.global_id()) {
             gid.clone()
         } else {
             let gid: GraphId = self.graph.add_node(elt.clone());
-            self.graph_ids.insert(id, gid);
+            self.graph_ids.insert(elt.global_id().clone(), gid);
             gid
         }
     }
@@ -132,7 +131,7 @@ impl FlowGraph {
         self.closed_reactions.insert(ReactionId(reaction.global_id().clone()), Rc::new(reaction));
     }
 
-    pub(in super) fn consume_to_schedulable(mut self) -> Result<Schedulable, AssemblyError> {
+    pub(in super) fn consume_to_schedulable(self) -> Result<Schedulable, AssemblyError> {
 
         // berk berk berk
 
@@ -150,7 +149,7 @@ impl FlowGraph {
         for idx in &sorted {
             let weight = self.dataflow.graph.node_weight(*idx);
             match weight {
-                Some(PortElt(port)) => {
+                Some(PortElt(port_id)) => {
                     let mut port_descendants = Vec::<Rc<ClosedReaction>>::new();
 
                     for follower in sorted[idx.index()..].iter() {
@@ -162,7 +161,7 @@ impl FlowGraph {
                         }
                     };
 
-                    reactions_by_port_id.insert(port.clone(), port_descendants);
+                    reactions_by_port_id.insert(port_id.clone(), port_descendants);
                 }
                 Some(ReactionElt(reaction_id)) => {
                     let mut uses = Vec::<PortId>::new();

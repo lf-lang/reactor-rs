@@ -24,7 +24,7 @@ pub enum PortKind { Input, Output }
 /// (logically instantaneously). A port may have only one
 /// upstream binding.
 ///
-/// Output ports may also be explicitly [set](crate::reactors::Scheduler::set_port)
+/// Output ports may also be explicitly [set](super::ReactionCtx::set_port)
 /// within a reaction, in which case they may not have an
 /// upstream port binding.
 ///
