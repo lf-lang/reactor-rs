@@ -70,7 +70,8 @@ impl Reactor for ProduceReactor {
             ProduceReactions::Emit => {
                 *state += 1;
                 // println!("Emitting {}", *state);
-                ctx.set_port(&reactor.output_port, *state)
+                ctx.set_port(&reactor.output_port, *state);
+                ctx.schedule_action(&reactor.emit_action, None)
             }
         }
     }
@@ -94,13 +95,15 @@ impl Reactor for ConsumeReactor {
     fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
         let input_port = assembler.new_input_port::<i32>("input")?;
 
+        assembler.reaction_uses(Self::ReactionId::Print, &input_port)?;
+
         Ok(ConsumeReactor { input_port })
     }
 
     fn react(reactor: &RunnableReactor<Self>, _: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx) where Self: Sized {
         match reaction_id {
             ConsumeReactions::Print => {
-                print!("Received {}", ctx.get_port(&reactor.input_port))
+                println!("Received {}", ctx.get_port(&reactor.input_port))
             }
         }
     }

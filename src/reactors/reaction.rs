@@ -7,6 +7,7 @@ use crate::reactors::id::{GlobalId, Identified, ReactionId};
 use std::hash::{Hash, Hasher};
 use std::borrow::Borrow;
 use std::ops::DerefMut;
+use std::fmt::{Debug, Formatter};
 
 /// Reaction that is directly executable with a scheduler, instead
 /// of with other data.
@@ -35,6 +36,12 @@ use std::ops::DerefMut;
 pub(in super) struct ClosedReaction {
     body: RefCell<Box<dyn FnMut(&mut ReactionCtx)>>,
     global_id: GlobalId,
+}
+
+impl Debug for ClosedReaction {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ClosedReaction {{ {} }}", self.global_id)
+    }
 }
 
 

@@ -133,7 +133,6 @@ impl FlowGraph {
     }
 
     pub(in super) fn consume_to_schedulable(mut self) -> Result<Schedulable, AssemblyError> {
-        println!("{}", &self.triggers);
 
         // berk berk berk
 
@@ -169,8 +168,8 @@ impl FlowGraph {
                     let mut uses = Vec::<PortId>::new();
                     let mut affects = Vec::<PortId>::new();
 
-                    self.acc_port_dependencies(idx, &mut affects, Direction::Incoming);
-                    self.acc_port_dependencies(idx, &mut uses, Direction::Outgoing);
+                    self.acc_port_dependencies(idx, &mut affects, Direction::Outgoing);
+                    self.acc_port_dependencies(idx, &mut uses, Direction::Incoming);
 
                     reaction_affects_port.insert(reaction_id.clone(), affects);
                     reaction_uses_port.insert(reaction_id.clone(), uses);
@@ -277,7 +276,7 @@ impl Default for FlowGraph {
     }
 }
 
-
+#[derive(Debug)]
 pub(in super) struct Schedulable {
     /// Maps port ids to a list of reactions that must be scheduled
     /// each time the port is set in a reaction.
@@ -330,7 +329,9 @@ impl Schedulable {
 
 impl<V> Display for GraphWrapper<V> where V: Debug + Identified + Clone {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "digraph G {{")?;
+        // This outputs DOT format
+        // Vizualize at eg http://webgraphviz.com/
+        write!(f, "digraph {{")?;
         for v in self.graph.node_indices() {
             let w = self.graph.node_weight(v).unwrap();
 
