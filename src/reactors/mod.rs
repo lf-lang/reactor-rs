@@ -11,6 +11,7 @@ pub use self::scheduler::*;
 pub use self::util::*;
 #[doc(inline)]
 pub use self::world::*;
+use crate::reactors::ReactionCtx;
 
 mod scheduler;
 mod world;
@@ -99,7 +100,7 @@ pub trait Reactor {
         reactor: &RunnableReactor<Self>,
         state: &mut Self::State,
         reaction_id: Self::ReactionId,
-        scheduler: &mut Scheduler,
+        scheduler: &mut ReactionCtx,
     ) where Self: Sized; // todo this could return a Result
 }
 

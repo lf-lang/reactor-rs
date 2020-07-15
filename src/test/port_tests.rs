@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use crate::reactors::*;
+use crate::reactors::ReactionCtx;
 
 
 
@@ -69,11 +70,11 @@ impl Reactor for ProduceReactor {
         Ok(ProduceReactor { output_port })
     }
 
-    fn react(reactor: &RunnableReactor<Self>, state: &mut Self::State, reaction_id: Self::ReactionId, scheduler: &mut Scheduler) where Self: Sized {
+    fn react(reactor: &RunnableReactor<Self>, state: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx) where Self: Sized {
         match reaction_id {
             ProduceReactions::Emit => {
                 *state += 1;
-                scheduler.set_port(&reactor.output_port, *state)
+                ctx.set_port(&reactor.output_port, *state)
             }
         }
     }
@@ -100,10 +101,10 @@ impl Reactor for ConsumeReactor {
         Ok(ConsumeReactor { input_port })
     }
 
-    fn react(reactor: &RunnableReactor<Self>, _: &mut Self::State, reaction_id: Self::ReactionId, scheduler: &mut Scheduler) where Self: Sized {
+    fn react(reactor: &RunnableReactor<Self>, _: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx) where Self: Sized {
         match reaction_id {
             ConsumeReactions::Print => {
-                print!("{}", scheduler.get_port(&reactor.input_port))
+                print!("{}", ctx.get_port(&reactor.input_port))
             }
         }
     }
@@ -132,7 +133,7 @@ impl Reactor for PortRelay {
         Ok(PortRelay { input_port, output_port })
     }
 
-    fn react(_: &RunnableReactor<Self>, _: &mut Self::State, _: Self::ReactionId, _: &mut Scheduler) where Self: Sized {
+    fn react(_: &RunnableReactor<Self>, _: &mut Self::State, _: Self::ReactionId, _: &mut ReactionCtx) where Self: Sized {
         unreachable!("Reactor declares no reaction")
     }
 }

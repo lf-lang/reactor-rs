@@ -1,3 +1,4 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -43,7 +44,7 @@ impl FlowGraph {
 
     pub fn add_data_dependency<T>(&mut self, reaction: GlobalId, data: &PortId<T>, kind: DependencyKind) -> Result<(), AssemblyError> {
         assert!(self.graph_ids.contains_key(&reaction));
-        // todo MM looks like we have to add ports too?
+        // todo MM do we have to add ports too?
         // assert!(self.graph_ids.contains_key(data.global_id()));
 
         let rid = self.get_node(Reaction(reaction));
@@ -88,7 +89,6 @@ impl FlowGraph {
 
         // not the best algorithm but whatever, this is only done on startup anyway (and we can improve later)
         for port_idx in &sorted {
-            // todo unconnected ports will throw on unwrap -> add them when creating
             if let Some(Port(port)) = self.graph.node_weight(*port_idx) {
                 let mut port_descendants = Vec::<Rc<ClosedReaction>>::new();
 
@@ -106,6 +106,12 @@ impl FlowGraph {
         };
 
         Ok(result)
+    }
+
+
+    pub(in super) fn consume_to_schedulable(mut self) -> Result<Schedulable, AssemblyError> {
+        let map = self.reactions_by_port_set()?;
+        Ok(Schedulable::new(map))
     }
 }
 
@@ -136,3 +142,25 @@ impl Default for FlowGraph {
         }
     }
 }
+
+
+pub(in super) struct Schedulable {
+    /// Maps port ids to a list of reactions that must be scheduled
+    /// each time the port is set in a reaction.
+    reactions_by_port_id: HashMap<GlobalId, Vec<Rc<ClosedReaction>>>,
+}
+
+const EMPTY_VEC: [Rc<ClosedReaction> ; 0 ] = [];
+
+impl Schedulable {
+    pub fn new(reactions_by_port_id: HashMap<GlobalId, Vec<Rc<ClosedReaction>>>) -> Schedulable {
+        Schedulable { reactions_by_port_id }
+    }
+
+
+    pub fn get_downstream_reactions(&self, port_id: &GlobalId) -> &[Rc<ClosedReaction>] {
+        self.reactions_by_port_id.get(port_id).map_or_else(|| &EMPTY_VEC[..],
+                                                           |it| it.as_slice())
+    }
+}
+

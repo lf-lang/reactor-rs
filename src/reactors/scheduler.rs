@@ -1,42 +1,29 @@
+use std::cmp::Reverse;
 use std::collections::HashMap;
+use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
-use std::time::Duration;
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use priority_queue::PriorityQueue;
 
 use crate::reactors::{ActionId, GlobalAssembler, PortId, Reactor, RunnableWorld, WorldReactor};
-use crate::reactors::flowgraph::FlowGraph;
+use crate::reactors::flowgraph::Schedulable;
 use crate::reactors::id::GlobalId;
 use crate::reactors::reaction::ClosedReaction;
-use std::cmp::Reverse;
 
-pub struct Schedulable {
-    /// Maps port ids to a list of reactions that must be scheduled
-    /// each time the port is set in a reaction.
-    reactions_by_port_id: HashMap<GlobalId, Vec<Rc<ClosedReaction>>>,
-
-}
-
-
-impl Schedulable {
-    pub(in super) fn new(reactions_by_port_id: HashMap<GlobalId, Vec<Rc<ClosedReaction>>>) -> Schedulable {
-        Schedulable { reactions_by_port_id }
-    }
-}
-
-
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 struct LogicalTime {
-    instant: Duration,
+    instant: Instant,
     microstep: u32,
 }
 
 impl Default for LogicalTime {
     fn default() -> Self {
-        Self { instant: Duration::from_secs(0), microstep: 0 }
+        Self { instant: Instant::now(), microstep: 0 }
     }
 }
 
-#[derive(Eq, Hash)]
+#[derive(Eq, PartialEq, Hash)]
 enum Event {
     ReactionExecute { at: LogicalTime, reaction: ClosedReaction }
 }
@@ -60,6 +47,17 @@ impl Scheduler {
             cur_logical_time: <_>::default(),
             queue: PriorityQueue::new(),
         }
+    }
+}
+
+pub struct ReactionCtx<'a> {
+    scheduler: &'a mut Scheduler,
+    reaction: Rc<ClosedReaction>,
+}
+
+impl<'a> ReactionCtx<'a> {
+    pub(in super) fn new(scheduler: &'a mut Scheduler, reaction: Rc<ClosedReaction>) -> Self {
+        Self { scheduler, reaction }
     }
 
     /// Get the value of a port.

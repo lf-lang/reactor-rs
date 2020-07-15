@@ -6,10 +6,10 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Duration;
 
-use crate::reactors::{IgnoredDefault, PortId, PortKind, Schedulable};
+use crate::reactors::{IgnoredDefault, PortId, PortKind};
 use crate::reactors::action::ActionId;
 use crate::reactors::BindStatus;
-use crate::reactors::flowgraph::FlowGraph;
+use crate::reactors::flowgraph::{FlowGraph, Schedulable};
 use crate::reactors::id::{AssemblyId, GlobalId, Identified};
 use crate::reactors::reaction::ClosedReaction;
 use crate::reactors::Reactor;
@@ -372,7 +372,7 @@ pub fn make_world<R>() -> Result<RunnableWorld<R>, AssemblyError> where R: World
     let r = <R as Reactor>::assemble(&mut root_assembler)?;
     let toplevel_reactor = RunnableReactor::<R>::new(r, root_assembler.new_id(":root:")?);
 
-    let schedulable = Schedulable::new(world.data_flow.reactions_by_port_set()?);
+    let schedulable = world.data_flow.consume_to_schedulable()?;
 
     Ok(RunnableWorld { schedulable, toplevel_reactor })
 }

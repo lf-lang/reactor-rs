@@ -1,10 +1,10 @@
-use crate::reactors::{Assembler, AssemblyError, RunnableReactor, GlobalAssembler};
-use crate::reactors::{Reactor, Scheduler};
-use crate::reactors::util::Nothing;
-use crate::reactors::reaction::ClosedReaction;
-use std::rc::Rc;
-use crate::reactors::id::GlobalId;
 use std::collections::HashMap;
+use std::rc::Rc;
+
+use crate::reactors::{Assembler, AssemblyError, GlobalAssembler, ReactionCtx, Reactor, RunnableReactor};
+use crate::reactors::id::GlobalId;
+use crate::reactors::reaction::ClosedReaction;
+use crate::reactors::util::Nothing;
 
 /// A top-level reactor. Such a reactor may only declare
 /// sub-reactors and connections between them. TODO this is not checked anywhere
@@ -24,7 +24,7 @@ impl<T> Reactor for T where T: WorldReactor {
         Self::assemble(assembler)
     }
 
-    fn react(_: &RunnableReactor<Self>, _: &mut Self::State, _: Self::ReactionId, _: &mut Scheduler) where Self: Sized {
+    fn react(_: &RunnableReactor<Self>, _: &mut Self::State, _: Self::ReactionId, _: &mut ReactionCtx) where Self: Sized {
         unreachable!("Reactor declares no reaction")
     }
 }
