@@ -1,6 +1,6 @@
 use std::borrow::BorrowMut;
 use std::cell::{RefCell, RefMut};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::FromIterator;
 use std::marker::PhantomData;
@@ -33,7 +33,7 @@ pub struct Assembler<'a, R: Reactor> {
 }
 
 
-impl<'a, R> Assembler<'a, R> where R: Reactor {
+impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
     // this is the public impl block
 
     /*
@@ -56,18 +56,23 @@ impl<'a, R> Assembler<'a, R> where R: Reactor {
     /// Assembles a subreactor. After this, the ports of the subreactor
     /// may be used in some connections, see [`reaction_uses`](Self::reaction_uses),
     /// [`reaction_affects`](Self::reaction_affects).
-    pub fn new_subreactor<S: Reactor>(&mut self, name: &'static str) -> Result<RunnableReactor<S>, AssemblyError> {
+    pub fn new_subreactor<S: Reactor + 'static>(&mut self, name: &'static str) -> Result<Rc<RunnableReactor<S>>, AssemblyError> {
         let id = self.new_id(name)?;
 
         let mut sub_assembler = Assembler::<S>::new(self.global, Rc::new(self.sub_id_for(name)));
 
-        let globals = sub_assembler.make_reaction_global_ids()?;
-        sub_assembler.global.flow_graph().add_reactions(globals);
+        let reactions = sub_assembler.make_reaction_global_ids()?;
+        sub_assembler.global.flow_graph().add_reactions(reactions);
 
         match S::assemble(&mut sub_assembler) {
             #[cold] Err(sub_error) => Err(AssemblyError::InContext(id, Box::new(sub_error))),
             Ok(sub_reactor) => {
-                Ok(RunnableReactor::<S>::new(sub_reactor, id))
+                let reactor = RunnableReactor::<S>::new(sub_reactor, id);
+                let rc = Rc::new(reactor);
+
+                sub_assembler.register_closed_reactions(&rc);
+
+                Ok(rc)
             }
         }
     }
@@ -204,7 +209,7 @@ impl<'a, R> Assembler<'a, R> where R: Reactor {
 }
 
 
-impl<'a, R> Assembler<'a, R> where R: Reactor { // this is the private impl block
+impl<'a, R> Assembler<'a, R> where R: Reactor + 'static { // this is the private impl block
 
     fn new_id(&mut self, name: &'static str) -> Result<GlobalId, AssemblyError> {
         if !self.local_names.insert(name) {
@@ -241,6 +246,13 @@ impl<'a, R> Assembler<'a, R> where R: Reactor { // this is the private impl bloc
         Ok(globals)
     }
 
+    fn register_closed_reactions(&mut self, runnable_r: &Rc<RunnableReactor<R>>) {
+        for typed_id in R::ReactionId::list() {
+            let global_id = self.existing_id(typed_id);
+            let closed = ClosedReaction::new(runnable_r, global_id.clone(), typed_id);
+            self.global.reactions.insert(global_id, Rc::new(closed));
+        }
+    }
 
     pub(in super) fn new(world: &'a mut GlobalAssembler, id: Rc<AssemblyId>) -> Self {
         Assembler {
@@ -249,14 +261,6 @@ impl<'a, R> Assembler<'a, R> where R: Reactor { // this is the private impl bloc
             global: world,
             _phantom_r: PhantomData,
         }
-    }
-
-
-    pub fn make_world() -> Result<RunnableReactor<R>, AssemblyError> where R: WorldReactor {
-        let mut world = GlobalAssembler::new();
-        let mut root_assembler = Assembler::new(&mut world, Rc::new(AssemblyId::Root));
-        let r = <R as Reactor>::assemble(&mut root_assembler)?;
-        Ok(RunnableReactor::new(r, root_assembler.new_id(":root:")?))
     }
 }
 
@@ -340,9 +344,10 @@ impl Debug for AssemblyError {
     }
 }
 
-
+/// Global state of the assembly, shared by sub-assemblers
 pub(in super) struct GlobalAssembler {
-    data_flow: FlowGraph
+    data_flow: FlowGraph,
+    reactions: HashMap<GlobalId, Rc<ClosedReaction>>,
 }
 
 
@@ -353,9 +358,41 @@ impl GlobalAssembler {
 
     pub fn new() -> Self {
         GlobalAssembler {
-            data_flow: FlowGraph::default()
+            data_flow: Default::default(),
+            reactions: Default::default(),
         }
     }
 }
 
 
+/// Build a toplevel reactor
+pub fn make_world<R>() -> Result<RunnableWorld<R>, AssemblyError> where R: WorldReactor + 'static {
+    let mut world = GlobalAssembler::new();
+    let mut root_assembler = Assembler::<R>::new(&mut world, Rc::new(AssemblyId::Root));
+    let r = <R as Reactor>::assemble(&mut root_assembler)?;
+    let toplevel_reactor = RunnableReactor::<R>::new(r, root_assembler.new_id(":root:")?);
+
+    let GlobalAssembler { mut data_flow, reactions } = world;
+    let reactions_by_port_id = data_flow.reactions_by_port_set(reactions)?;
+
+    Ok(RunnableWorld { reactions_by_port_id, toplevel_reactor })
+}
+
+
+pub struct RunnableWorld<T: WorldReactor> {
+    /// Maps port ids to a list of reactions that must be scheduled
+    /// each time the port is set in a reaction.
+    reactions_by_port_id: HashMap<GlobalId, Vec<Rc<ClosedReaction>>>,
+
+    toplevel_reactor: RunnableReactor<T>,
+}
+
+
+// makes it so, that we can use the members of R on a RunnableReactor<R>
+impl<R> Deref for RunnableWorld<R> where R: WorldReactor {
+    type Target = R;
+
+    fn deref(&self) -> &Self::Target {
+        &self.toplevel_reactor
+    }
+}

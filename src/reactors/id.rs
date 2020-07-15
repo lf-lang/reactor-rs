@@ -46,6 +46,7 @@ impl AssemblyId {
     }
 }
 
+// TODO make that more lightweight (should be Copy)
 #[derive(Eq, PartialEq, Clone, Hash)]
 pub struct GlobalId {
     assembly_id: Rc<AssemblyId>,

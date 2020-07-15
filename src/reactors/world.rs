@@ -1,10 +1,13 @@
 use crate::reactors::assembler::{Assembler, AssemblyError, RunnableReactor};
 use crate::reactors::framework::{Reactor, Scheduler};
 use crate::reactors::util::Nothing;
+use std::collections::HashMap;
+use crate::reactors::id::GlobalId;
+use crate::reactors::reaction::ClosedReaction;
+use crate::reactors::flowgraph::FlowGraph;
 
-/// A top-level reactor. Such a reactor may not declare input
-/// or output ports, only sub-reactors and connections between
-/// them. TODO this is not checked anywhere
+/// A top-level reactor. Such a reactor may only declare
+/// sub-reactors and connections between them. TODO this is not checked anywhere
 pub trait WorldReactor {
     fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized;
 }
@@ -25,3 +28,4 @@ impl<T> Reactor for T where T: WorldReactor {
         unreachable!("Reactor declares no reaction")
     }
 }
+

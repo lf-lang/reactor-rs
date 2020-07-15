@@ -62,7 +62,7 @@ pub trait Reactor {
     /// type State = i32; // A single state variable
     /// ```
     ///
-    type State: Sized;
+    type State: Sized + 'static;
 
     /// Produce the initial state.
     fn initial_state() -> Self::State where Self: Sized;

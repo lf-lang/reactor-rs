@@ -1,17 +1,18 @@
 use std::convert::TryInto;
 
-use crate::reactors::{Assembler, AssemblyError, RunnableReactor};
+use crate::reactors::{Assembler, AssemblyError, RunnableReactor, RunnableWorld};
 use crate::reactors::{Reactor, Scheduler};
 use crate::reactors::{Enumerated, Named, Nothing};
 use crate::reactors::PortId;
 use crate::reactors::WorldReactor;
+use std::rc::Rc;
 
 mod reactors;
 
 fn main() {
-    let mut app = Assembler::<AppReactor>::make_world().unwrap();
+    let mut app = crate::reactors::make_world::<AppReactor>().unwrap();
 
-    fn test_set(v: i32, app: &RunnableReactor<AppReactor>) {
+    fn test_set(v: i32, app: &RunnableWorld<AppReactor>) {
         app.producer.output_port.set(v);
 
         assert_eq!(v, app.relay.input_port.get());
@@ -35,10 +36,10 @@ fn main() {
 
 // toplevel reactor containing the others
 pub struct AppReactor {
-    producer: RunnableReactor<ProduceReactor>,
-    relay: RunnableReactor<PortRelay>,
-    relay2: RunnableReactor<PortRelay>,
-    consumer: RunnableReactor<ConsumeReactor>,
+    producer: Rc<RunnableReactor<ProduceReactor>>,
+    relay:    Rc<RunnableReactor<PortRelay>>,
+    relay2:   Rc<RunnableReactor<PortRelay>>,
+    consumer: Rc<RunnableReactor<ConsumeReactor>>,
 }
 
 impl WorldReactor for AppReactor {

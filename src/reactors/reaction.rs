@@ -29,7 +29,7 @@ use crate::reactors::id::{GlobalId, Identified};
 /// Note that the function is boxed otherwise this struct has
 /// no known size.
 ///
-pub(super) struct ClosedReaction {
+pub(in super) struct ClosedReaction {
     body: RefCell<Box<dyn FnMut(&mut Scheduler)>>,
     global_id: GlobalId,
 }
@@ -41,16 +41,23 @@ impl ClosedReaction {
     }
 
     /// Produce a closure for the reaction.
-    pub(in super) fn new<R: Reactor>(reactor: &Rc<RunnableReactor<R>>,
-                                     reaction_id: R::ReactionId) -> impl FnMut(&mut Scheduler) + Sized {
+    pub(in super) fn new<R: Reactor + 'static>(reactor: &Rc<RunnableReactor<R>>,
+                                               global_id: GlobalId,
+                                               reaction_id: R::ReactionId) -> ClosedReaction {
         let reactor_ref: Rc<RunnableReactor<R>> = Rc::clone(reactor);
-        let mut state_ref: Rc<RefCell<R::State>> = reactor.state();
+        let mut state_ref = reactor_ref.state();
 
-        move |scheduler| {
+        let closure = move |scheduler: &mut Scheduler| {
             match Rc::get_mut(&mut state_ref) {
                 None => panic!("State of {:?} is already mutably borrowed", *reactor_ref.global_id()),
                 Some(state_mut) => R::react(reactor_ref.as_ref(), state_mut.get_mut(), reaction_id, scheduler)
             }
+        };
+
+
+        ClosedReaction {
+            body: RefCell::new(Box::new(closure)),
+            global_id,
         }
     }
 }
