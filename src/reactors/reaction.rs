@@ -1,8 +1,8 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use crate::reactors::{Reactor, Scheduler};
 use crate::reactors::assembler::RunnableReactor;
-use crate::reactors::framework::{Reactor, Scheduler};
 use crate::reactors::id::{GlobalId, Identified};
 
 /// Reaction that is directly executable with a scheduler, instead

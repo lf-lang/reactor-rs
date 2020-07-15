@@ -1,32 +1,15 @@
-use std::any::Any;
 use std::collections::HashMap;
-use std::time::Duration;
+use std::rc::Rc;
 
-use petgraph::algo::Cycle;
-use petgraph::graph::{DefaultIx, DiGraph, NodeIndex};
-use petgraph::visit::GetAdjacencyMatrix;
+use petgraph::graph::{DiGraph, NodeIndex};
 
-use crate::reactors::{Assembler, AssemblyError, DependencyKind};
+use crate::reactors::{AssemblyError, DependencyKind};
 use crate::reactors::action::ActionId;
-use crate::reactors::assembler::RunnableReactor;
 use crate::reactors::AssemblyError::CyclicDependency;
 use crate::reactors::flowgraph::FlowGraphElement::{Port, Reaction};
-use crate::reactors::framework::Reactor;
 use crate::reactors::id::{GlobalId, Identified};
 use crate::reactors::ports::PortId;
 use crate::reactors::reaction::ClosedReaction;
-use std::rc::Rc;
-
-/*
-    TODO like with ClosedReaction, we must erase the external
-    generic param on ports.
-
-    Pre-binding everything while the type information is available could be possible
-    (the previous prototype did that). But we lose some possibilities
-    w.r.t. error handling.
-
- */
-
 
 pub type GraphId = NodeIndex<u32>;
 

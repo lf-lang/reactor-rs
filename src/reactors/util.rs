@@ -1,9 +1,5 @@
-use std::cell::{RefCell, RefMut};
-use std::rc::Rc;
-use std::borrow::Borrow;
-use std::ops::DerefMut;
-use std::hash::{Hash, Hasher};
 use std::cmp::Ordering;
+use std::hash::{Hash, Hasher};
 
 /// A type whose instances have statically known names
 pub trait Named {

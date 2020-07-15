@@ -1,10 +1,9 @@
 use std::borrow::Borrow;
 use std::fmt::{Debug, Display, Formatter};
+use std::ops::Deref;
 use std::rc::Rc;
 
-use crate::reactors::flowgraph::GraphId;
 use crate::reactors::util::Named;
-use std::ops::Deref;
 
 /// Identifies an assembly uniquely in the tree
 /// This is just a path built from the root down.

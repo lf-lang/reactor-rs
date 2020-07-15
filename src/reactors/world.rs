@@ -1,10 +1,6 @@
-use crate::reactors::assembler::{Assembler, AssemblyError, RunnableReactor};
-use crate::reactors::framework::{Reactor, Scheduler};
+use crate::reactors::{Assembler, AssemblyError, RunnableReactor};
+use crate::reactors::{Reactor, Scheduler};
 use crate::reactors::util::Nothing;
-use std::collections::HashMap;
-use crate::reactors::id::GlobalId;
-use crate::reactors::reaction::ClosedReaction;
-use crate::reactors::flowgraph::FlowGraph;
 
 /// A top-level reactor. Such a reactor may only declare
 /// sub-reactors and connections between them. TODO this is not checked anywhere

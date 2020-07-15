@@ -1,22 +1,20 @@
-use std::borrow::BorrowMut;
-use std::cell::{RefCell, RefMut};
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
-use std::iter::FromIterator;
 use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
+use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Duration;
 
+use crate::reactors::{IgnoredDefault, PortId, PortKind};
 use crate::reactors::action::ActionId;
 use crate::reactors::BindStatus;
-use crate::reactors::flowgraph::{FlowGraph, GraphId};
-use crate::reactors::framework::{Reactor, Scheduler};
+use crate::reactors::flowgraph::FlowGraph;
 use crate::reactors::id::{AssemblyId, GlobalId, Identified};
-use crate::reactors::ports::{IgnoredDefault, PortId, PortKind};
 use crate::reactors::reaction::ClosedReaction;
+use crate::reactors::Reactor;
 use crate::reactors::util::{Enumerated, Named};
-use crate::reactors::world::WorldReactor;
+use crate::reactors::WorldReactor;
 
 /// Assembles a reactor.
 pub struct Assembler<'a, R: Reactor> {
@@ -301,6 +299,8 @@ impl<R> Identified for RunnableReactor<R> where R: Reactor {
     }
 }
 
+/// Assembly-time error. Caused by invalid structure of reactors,
+/// eg cyclic dependencies.
 pub enum AssemblyError {
     InvalidBinding(&'static str, GlobalId, GlobalId),
     InvalidDependency(&'static str, GlobalId, DependencyKind, GlobalId),
@@ -309,6 +309,8 @@ pub enum AssemblyError {
     InContext(GlobalId, Box<AssemblyError>),
 }
 
+/// The direction of a dependency. Forward dependencies "use"
+/// data, backwards dependencies "affect" data.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum DependencyKind { Use, Affects }
 

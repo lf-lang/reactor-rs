@@ -1,19 +1,15 @@
-use std::any::{Any, TypeId};
 use std::borrow::Borrow;
 use std::cell::{Ref, RefCell};
 use std::collections::{HashMap, HashSet};
-use std::collections::hash_set::IntoIter;
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
+use std::iter::FromIterator;
 use std::marker::PhantomData;
-use std::ops::{DerefMut, Deref};
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-use crate::reactors::id::{GlobalId, Identified};
-use crate::reactors::ports::BindStatus::{PortBound, Unbound};
-use std::collections::hash_map::RandomState;
 use crate::reactors::assembler::AssemblyError;
-use std::iter::FromIterator;
-
+use crate::reactors::id::{GlobalId, Identified};
+use crate::reactors::ports::BindStatus::Unbound;
 
 /// The nature of a port (input or output)
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]

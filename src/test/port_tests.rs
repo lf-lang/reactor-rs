@@ -1,15 +1,11 @@
-use std::convert::TryInto;
-
-use crate::reactors::{Assembler, AssemblyError, RunnableReactor, RunnableWorld};
-use crate::reactors::{Reactor, Scheduler};
-use crate::reactors::{Enumerated, Named, Nothing};
-use crate::reactors::PortId;
-use crate::reactors::WorldReactor;
 use std::rc::Rc;
 
-mod reactors;
+use crate::reactors::*;
 
-fn main() {
+
+
+#[test]
+fn test_port_flow() {
     let mut app = crate::reactors::make_world::<AppReactor>().unwrap();
 
     fn test_set(v: i32, app: &RunnableWorld<AppReactor>) {
@@ -23,19 +19,10 @@ fn main() {
 
     test_set(32, &app);
     test_set(4, &app);
-    println!("Ok!")
-
-    //
-    // let state_box= world.description;
-    // let AppReactor { consumer, producer, .. } = state_box;
-    //
-    // consumer.description.react_print.fire(&consumer.description, &mut consumer.state);
-    // producer.description.react_incr.fire(&producer.description, &mut producer.state);
-    // consumer.description.react_print.fire(&consumer.description, &mut consumer.state);
 }
 
 // toplevel reactor containing the others
-pub struct AppReactor {
+struct AppReactor {
     producer: Rc<RunnableReactor<ProduceReactor>>,
     relay:    Rc<RunnableReactor<PortRelay>>,
     relay2:   Rc<RunnableReactor<PortRelay>>,
@@ -58,18 +45,17 @@ impl WorldReactor for AppReactor {
 }
 
 
-pub struct ProduceReactor {
+struct ProduceReactor {
     output_port: PortId<i32>
 }
 
 
-reaction_ids!(pub enum ProduceReactions { Emit });
+reaction_ids!(enum ProduceReactions { Emit });
 
 
 impl Reactor for ProduceReactor {
     type ReactionId = ProduceReactions;
     type State = i32;
-
 
     fn initial_state() -> Self::State {
         0
@@ -94,11 +80,11 @@ impl Reactor for ProduceReactor {
 }
 
 
-pub struct ConsumeReactor {
+struct ConsumeReactor {
     input_port: PortId<i32>
 }
 
-reaction_ids!(pub enum ConsumeReactions { Print });
+reaction_ids!(enum ConsumeReactions { Print });
 
 impl Reactor for ConsumeReactor {
     type ReactionId = ConsumeReactions;
@@ -125,7 +111,7 @@ impl Reactor for ConsumeReactor {
 
 // Just binds its input to its output
 // This is useless, but it tests the binding logic
-pub struct PortRelay {
+struct PortRelay {
     input_port: PortId<i32>,
     output_port: PortId<i32>,
 }
