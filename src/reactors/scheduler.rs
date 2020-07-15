@@ -48,8 +48,15 @@ impl Scheduler {
             queue: PriorityQueue::new(),
         }
     }
+
+    fn enqueue()
+
+
 }
 
+/// This is the context in which a reaction executes. Its API
+/// allows mutating the event queue of the scheduler.
+///
 pub struct ReactionCtx<'a> {
     scheduler: &'a mut Scheduler,
     reaction: Rc<ClosedReaction>,
@@ -64,8 +71,8 @@ impl<'a> ReactionCtx<'a> {
     ///
     /// Panics if the reaction being executed hasn't declared
     /// a dependency on the given port.
-    pub fn get_port<T>(&self, port: &PortId<T>) -> T where Self: Sized {
-        unimplemented!()
+    pub fn get_port<T>(&self, port: &PortId<T>) -> T where Self: Sized, T: Copy {
+        port.get()
     }
 
     /// Sets the value of the given output port. The change
@@ -77,8 +84,8 @@ impl<'a> ReactionCtx<'a> {
     /// Panics if the reaction being executed hasn't declared
     /// a dependency on the given port.
     ///
-    pub fn set_port<T>(&mut self, port: &PortId<T>, value: T) where Self: Sized {
-        unimplemented!()
+    pub fn set_port<T>(&mut self, port: &PortId<T>, value: T) where Self: Sized, T: Copy {
+
     }
 
     /// Schedule an action to run after its own implicit time delay,

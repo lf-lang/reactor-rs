@@ -39,11 +39,11 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
      * to be stored on the struct of the reactor.
      */
 
-    pub fn new_output_port<T: IgnoredDefault>(&mut self, name: &'static str) -> Result<PortId<T>, AssemblyError> {
+    pub fn new_output_port<T: IgnoredDefault + Copy>(&mut self, name: &'static str) -> Result<PortId<T>, AssemblyError> {
         self.new_port(PortKind::Output, name)
     }
 
-    pub fn new_input_port<T: IgnoredDefault>(&mut self, name: &'static str) -> Result<PortId<T>, AssemblyError> {
+    pub fn new_input_port<T: IgnoredDefault + Copy>(&mut self, name: &'static str) -> Result<PortId<T>, AssemblyError> {
         self.new_port(PortKind::Input, name)
     }
 
@@ -223,7 +223,7 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static { // this is the private
         GlobalId::new(Rc::clone(&self.id), name)
     }
 
-    fn new_port<T: IgnoredDefault>(&mut self, kind: PortKind, name: &'static str) -> Result<PortId<T>, AssemblyError> {
+    fn new_port<T: IgnoredDefault + Copy>(&mut self, kind: PortKind, name: &'static str) -> Result<PortId<T>, AssemblyError> {
         Ok(PortId::<T>::new(kind, self.new_id(name)?))
     }
 
