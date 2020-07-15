@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use crate::reactors::{Reactor, Scheduler, ReactionCtx};
 use crate::reactors::assembler::RunnableReactor;
-use crate::reactors::id::{GlobalId, Identified};
+use crate::reactors::id::{GlobalId, Identified, ReactionId};
 use std::hash::{Hash, Hasher};
 
 /// Reaction that is directly executable with a scheduler, instead

@@ -8,7 +8,7 @@ use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 use crate::reactors::assembler::AssemblyError;
-use crate::reactors::id::{GlobalId, Identified};
+use crate::reactors::id::{GlobalId, Identified, PortId};
 use crate::reactors::ports::BindStatus::Unbound;
 
 /// The nature of a port (input or output)
@@ -28,15 +28,15 @@ pub enum PortKind { Input, Output }
 /// within a reaction, in which case they may not have an
 /// upstream port binding.
 ///
-pub struct PortId<T> {
+pub struct Port<T> {
     kind: PortKind,
-    global_id: GlobalId,
+    id: PortId,
     _phantom_t: PhantomData<T>,
 
     upstream_binding: Rc<RefCell<Binding<T>>>,
 }
 
-impl<T> PortId<T> {
+impl<T> Port<T> {
     pub fn kind(&self) -> PortKind {
         self.kind
     }
@@ -78,13 +78,17 @@ impl<T> PortId<T> {
         *class_cell.cell.borrow_mut().deref_mut() = new_value;
     }
 
+    pub(in super) fn port_id(&self) -> &PortId {
+        &self.id
+    }
+
     pub(in super) fn bind_status(&self) -> BindStatus {
         let binding: &RefCell<Binding<T>> = Rc::borrow(&self.upstream_binding);
         let (status, _) = *binding.borrow();
         status
     }
 
-    pub(in super) fn downstream_ports(&self) -> HashSet<GlobalId> {
+    pub(in super) fn downstream_ports(&self) -> HashSet<PortId> {
         let binding: &RefCell<Binding<T>> = Rc::borrow(&self.upstream_binding);
         let (_, class) = &*binding.borrow();
         let c: &PortEquivClass<T> = Rc::borrow(class);
@@ -92,7 +96,7 @@ impl<T> PortId<T> {
         HashSet::from_iter(map.keys().map(Clone::clone))
     }
 
-    pub(in super) fn forward_to(&self, downstream: &PortId<T>) -> Result<(), AssemblyError> {
+    pub(in super) fn forward_to(&self, downstream: &Port<T>) -> Result<(), AssemblyError> {
         let mut mut_downstream_cell = (&downstream.upstream_binding).borrow_mut();
         let (downstream_status, ref downstream_class) = *mut_downstream_cell;
 
@@ -104,13 +108,13 @@ impl<T> PortId<T> {
                 let (_, my_class) = self_cell.deref_mut();
 
                 my_class.downstreams.borrow_mut().insert(
-                    downstream.global_id.clone(),
+                    downstream.id.clone(),
                     Rc::clone(&downstream.upstream_binding),
                 );
 
                 let new_binding = (BindStatus::PortBound, Rc::clone(&my_class));
 
-                downstream_class.check_cycle(&self.global_id, &downstream.global_id)?;
+                downstream_class.check_cycle(&self.id, &downstream.id)?;
 
                 downstream_class.set_upstream(my_class);
                 *mut_downstream_cell.deref_mut() = new_binding;
@@ -122,9 +126,9 @@ impl<T> PortId<T> {
 
 
     pub(in super) fn new(kind: PortKind, global_id: GlobalId) -> Self where T: IgnoredDefault {
-        PortId::<T> {
+        Port::<T> {
             kind,
-            global_id,
+            id: PortId(global_id),
             _phantom_t: PhantomData,
             upstream_binding: Rc::new(RefCell::new((Unbound, Rc::new(PortEquivClass::<T>::new(IgnoredDefault::ignored_default()))))),
         }
@@ -132,9 +136,9 @@ impl<T> PortId<T> {
 }
 
 
-impl<T> Identified for PortId<T> {
+impl<T> Identified for Port<T> {
     fn global_id(&self) -> &GlobalId {
-        &self.global_id
+        &self.id.global_id()
     }
 }
 
@@ -177,7 +181,7 @@ struct PortEquivClass<T> {
     /// - so all three refer to the equiv class of A, whose downstream is now {B, C}
     /// - if you then try binding C -> A, then we can know
     /// that C is in the downstream of A, indicating that there is a cycle.
-    downstreams: RefCell<HashMap<GlobalId, Rc<RefCell<Binding<T>>>>>,
+    downstreams: RefCell<HashMap<PortId, Rc<RefCell<Binding<T>>>>>,
 }
 
 impl<T> PortEquivClass<T> {
@@ -188,7 +192,7 @@ impl<T> PortEquivClass<T> {
         }
     }
 
-    fn check_cycle(&self, upstream_id: &GlobalId, downstream_id: &GlobalId) -> Result<(), AssemblyError> {
+    fn check_cycle(&self, upstream_id: &PortId, downstream_id: &PortId) -> Result<(), AssemblyError> {
         #[cold]
         if (&*self.downstreams.borrow()).contains_key(upstream_id) {
             Err(AssemblyError::CyclicDependency(format!("Port {} is already in the downstream of port {}", upstream_id, downstream_id)))

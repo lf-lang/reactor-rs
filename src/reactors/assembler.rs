@@ -6,11 +6,11 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Duration;
 
-use crate::reactors::{IgnoredDefault, PortId, PortKind};
+use crate::reactors::{IgnoredDefault, Port, PortKind};
 use crate::reactors::action::ActionId;
 use crate::reactors::BindStatus;
 use crate::reactors::flowgraph::{FlowGraph, Schedulable};
-use crate::reactors::id::{AssemblyId, GlobalId, Identified};
+use crate::reactors::id::{AssemblyId, GlobalId, Identified, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
 use crate::reactors::Reactor;
 use crate::reactors::util::{Enumerated, Named};
@@ -39,11 +39,11 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
      * to be stored on the struct of the reactor.
      */
 
-    pub fn new_output_port<T: IgnoredDefault + Copy>(&mut self, name: &'static str) -> Result<PortId<T>, AssemblyError> {
+    pub fn new_output_port<T: IgnoredDefault + Copy>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
         self.new_port(PortKind::Output, name)
     }
 
-    pub fn new_input_port<T: IgnoredDefault + Copy>(&mut self, name: &'static str) -> Result<PortId<T>, AssemblyError> {
+    pub fn new_input_port<T: IgnoredDefault + Copy>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
         self.new_port(PortKind::Input, name)
     }
 
@@ -123,7 +123,7 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
     /// - no reaction uses upstream todo why though? I found that in the C++ host
     /// - no reaction affects downstream
     ///
-    pub fn bind_ports<T>(&mut self, upstream: &PortId<T>, downstream: &PortId<T>) -> Result<(), AssemblyError> {
+    pub fn bind_ports<T>(&mut self, upstream: &Port<T>, downstream: &Port<T>) -> Result<(), AssemblyError> {
         let invalid = |cause: &'static str| -> AssemblyError {
             AssemblyError::InvalidBinding(cause, upstream.global_id().clone(), downstream.global_id().clone())
         };
@@ -162,7 +162,7 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
     ///  1. the port is an input port of this reactor
     ///  2. the port is an output port of a direct sub-reactor
     ///
-    pub fn reaction_uses<T>(&mut self, reaction_id: R::ReactionId, port: &PortId<T>) -> Result<(), AssemblyError> {
+    pub fn reaction_uses<T>(&mut self, reaction_id: R::ReactionId, port: &Port<T>) -> Result<(), AssemblyError> {
         let react_global_id = self.existing_id(reaction_id);
         let invalid = |cause: &'static str| -> AssemblyError {
             AssemblyError::InvalidDependency(cause, react_global_id.clone(), DependencyKind::Use, port.global_id().clone())
@@ -174,7 +174,7 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
             return Err(invalid("Reaction can only use output ports of sub-reactors"));
         }
 
-        self.global.flow_graph().add_data_dependency(react_global_id, port, DependencyKind::Use)
+        self.global.flow_graph().add_data_dependency(ReactionId(react_global_id), port, DependencyKind::Use)
     }
 
 
@@ -188,7 +188,7 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
     ///
     /// And
     /// - the port is not bound to an upstream port
-    pub fn reaction_affects<T>(&mut self, reaction_id: R::ReactionId, port: &PortId<T>) -> Result<(), AssemblyError> {
+    pub fn reaction_affects<T>(&mut self, reaction_id: R::ReactionId, port: &Port<T>) -> Result<(), AssemblyError> {
         let react_global_id = self.existing_id(reaction_id);
         let invalid = |cause: &'static str| -> AssemblyError {
             AssemblyError::InvalidDependency(cause, react_global_id.clone(), DependencyKind::Use, port.global_id().clone())
@@ -202,7 +202,7 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
             return Err(invalid("Port is already bound"));
         }
 
-        self.global.flow_graph().add_data_dependency(react_global_id, port, DependencyKind::Affects)
+        self.global.flow_graph().add_data_dependency(ReactionId(react_global_id), port, DependencyKind::Affects)
     }
 }
 
@@ -223,8 +223,8 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static { // this is the private
         GlobalId::new(Rc::clone(&self.id), name)
     }
 
-    fn new_port<T: IgnoredDefault + Copy>(&mut self, kind: PortKind, name: &'static str) -> Result<PortId<T>, AssemblyError> {
-        Ok(PortId::<T>::new(kind, self.new_id(name)?))
+    fn new_port<T: IgnoredDefault + Copy>(&mut self, kind: PortKind, name: &'static str) -> Result<Port<T>, AssemblyError> {
+        Ok(Port::<T>::new(kind, self.new_id(name)?))
     }
 
     fn sub_id_for(&self, name: &'static str) -> AssemblyId {
@@ -234,12 +234,12 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static { // this is the private
         }
     }
 
-    fn make_reaction_global_ids(&mut self) -> Result<Vec<GlobalId>, AssemblyError> {
+    fn make_reaction_global_ids(&mut self) -> Result<Vec<ReactionId>, AssemblyError> {
         let ids: Vec<R::ReactionId> = R::ReactionId::list();
-        let mut globals: Vec<GlobalId> = Vec::with_capacity(ids.len());
+        let mut globals: Vec<ReactionId> = Vec::with_capacity(ids.len());
 
         for id in ids {
-            globals.push(self.new_id(id.name())?)
+            globals.push(ReactionId(self.new_id(id.name())?))
         }
         Ok(globals)
     }

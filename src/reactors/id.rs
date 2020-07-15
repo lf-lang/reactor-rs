@@ -99,3 +99,32 @@ impl<T> Named for T where T: Identified {
     }
 }
 
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub struct ReactionId(pub GlobalId);
+
+#[derive(Debug, Eq, PartialEq, Clone, Hash)]
+pub struct PortId(pub GlobalId);
+
+impl Display for PortId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+impl Display for ReactionId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+impl Identified for ReactionId {
+    fn global_id(&self) -> &GlobalId {
+        &self.0
+    }
+}
+
+impl Identified for PortId {
+    fn global_id(&self) -> &GlobalId {
+        &self.0
+    }
+}

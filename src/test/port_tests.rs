@@ -47,7 +47,7 @@ impl WorldReactor for AppReactor {
 
 
 struct ProduceReactor {
-    output_port: PortId<i32>
+    output_port: Port<i32>
 }
 
 
@@ -82,7 +82,7 @@ impl Reactor for ProduceReactor {
 
 
 struct ConsumeReactor {
-    input_port: PortId<i32>
+    input_port: Port<i32>
 }
 
 reaction_ids!(enum ConsumeReactions { Print });
@@ -113,8 +113,8 @@ impl Reactor for ConsumeReactor {
 // Just binds its input to its output
 // This is useless, but it tests the binding logic
 struct PortRelay {
-    input_port: PortId<i32>,
-    output_port: PortId<i32>,
+    input_port: Port<i32>,
+    output_port: Port<i32>,
 }
 
 impl Reactor for PortRelay {

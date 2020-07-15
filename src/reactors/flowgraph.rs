@@ -2,14 +2,14 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use petgraph::Direction;
 use petgraph::graph::{DiGraph, NodeIndex};
 
-use crate::reactors::{AssemblyError, DependencyKind};
+use crate::reactors::{AssemblyError, DependencyKind, ReactionCtx, Port};
 use crate::reactors::action::ActionId;
 use crate::reactors::AssemblyError::CyclicDependency;
-use crate::reactors::flowgraph::FlowGraphElement::{Port, Reaction};
-use crate::reactors::id::{GlobalId, Identified};
-use crate::reactors::ports::PortId;
+use crate::reactors::flowgraph::FlowGraphElement::{ActionElt, PortElt, ReactionElt};
+use crate::reactors::id::{GlobalId, Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
 
 pub type GraphId = NodeIndex<u32>;
@@ -18,7 +18,7 @@ pub(in super) struct FlowGraph {
     graph: DiGraph<FlowGraphElement, ()>,
     graph_ids: HashMap<GlobalId, GraphId>,
 
-    closed_reactions: HashMap<GlobalId, Rc<ClosedReaction>>,
+    closed_reactions: HashMap<ReactionId, Rc<ClosedReaction>>,
 }
 
 impl FlowGraph {
@@ -33,22 +33,22 @@ impl FlowGraph {
         }
     }
 
-    pub fn add_port_dependency<T>(&mut self, upstream: &PortId<T>, downstream: &PortId<T>) -> Result<(), AssemblyError> {
-        let up_id = self.get_node(Port(upstream.global_id().clone()));
-        let down_id = self.get_node(Port(downstream.global_id().clone()));
+    pub fn add_port_dependency<T>(&mut self, upstream: &Port<T>, downstream: &Port<T>) -> Result<(), AssemblyError> {
+        let up_id = self.get_node(PortElt(upstream.port_id().clone()));
+        let down_id = self.get_node(PortElt(downstream.port_id().clone()));
 
         self.graph.add_edge(up_id, down_id, ());
 
         Ok(())
     }
 
-    pub fn add_data_dependency<T>(&mut self, reaction: GlobalId, data: &PortId<T>, kind: DependencyKind) -> Result<(), AssemblyError> {
-        assert!(self.graph_ids.contains_key(&reaction));
+    pub fn add_data_dependency<T>(&mut self, reaction: ReactionId, data: &Port<T>, kind: DependencyKind) -> Result<(), AssemblyError> {
+        assert!(self.graph_ids.contains_key(&reaction.global_id()));
         // todo MM do we have to add ports too?
         // assert!(self.graph_ids.contains_key(data.global_id()));
 
-        let rid = self.get_node(Reaction(reaction));
-        let pid = self.get_node(Port(data.global_id().clone()));
+        let rid = self.get_node(ReactionElt(reaction));
+        let pid = self.get_node(PortElt(data.port_id().clone()));
 
         match kind {
             DependencyKind::Use => self.graph.add_edge(rid, pid, ()),
@@ -58,10 +58,10 @@ impl FlowGraph {
         Ok(())
     }
 
-    pub fn add_reactions(&mut self, reactions: Vec<GlobalId>) {
+    pub fn add_reactions(&mut self, reactions: Vec<ReactionId>) {
         let mut ids = Vec::<GraphId>::with_capacity(reactions.len());
         for r in reactions {
-            ids.push(self.get_node(Reaction(r)));
+            ids.push(self.get_node(ReactionElt(r)));
         }
 
         // Add priority links between reactions
@@ -71,12 +71,10 @@ impl FlowGraph {
     }
 
     pub fn register_reaction(&mut self, reaction: ClosedReaction) {
-        self.closed_reactions.insert(reaction.global_id().clone(), Rc::new(reaction));
+        self.closed_reactions.insert(ReactionId(reaction.global_id().clone()), Rc::new(reaction));
     }
 
-    /// Note that since this only cares about ports that are in
-    /// the graph, the result excludes dangling ports
-    pub fn reactions_by_port_set(&mut self) -> Result<HashMap<GlobalId, Vec<Rc<ClosedReaction>>>, AssemblyError> {
+    pub(in super) fn consume_to_schedulable(mut self) -> Result<Schedulable, AssemblyError> {
         let sorted: Vec<GraphId> = match petgraph::algo::toposort(&self.graph, None) {
             Ok(sorted) => sorted,
             Err(cycle) => {
@@ -85,50 +83,105 @@ impl FlowGraph {
             }
         };
 
-        let mut result: HashMap<GlobalId, Vec<Rc<ClosedReaction>>> = <_>::default();
+        let mut reactions_by_port_id: HashMap<PortId, Vec<Rc<ClosedReaction>>> = <_>::default();
+
+        let mut reaction_uses_port: HashMap<ReactionId, Vec<PortId>> = <_>::default();
+        let mut reaction_affects_port: HashMap<ReactionId, Vec<PortId>> = <_>::default();
+
+        let mut reaction_schedules_action: HashMap<ReactionId, Vec<ActionId>> = <_>::default();
+        let mut action_triggers_reaction: HashMap<ActionId, Vec<ReactionId>> = <_>::default();
 
         // not the best algorithm but whatever, this is only done on startup anyway (and we can improve later)
-        for port_idx in &sorted {
-            if let Some(Port(port)) = self.graph.node_weight(*port_idx) {
-                let mut port_descendants = Vec::<Rc<ClosedReaction>>::new();
+        for idx in &sorted {
+            let weight = self.graph.node_weight(*idx);
+            match weight {
+                Some(PortElt(port)) => {
+                    let mut port_descendants = Vec::<Rc<ClosedReaction>>::new();
 
-                for follower in sorted[port_idx.index()..].iter() {
-                    if let Reaction(id) = self.graph.node_weight(*follower).unwrap() {
-                        if petgraph::algo::has_path_connecting(&self.graph, *port_idx, *follower, None) {
-                            let reaction = self.closed_reactions.get(id).unwrap();
-                            port_descendants.push(Rc::clone(reaction));
+                    for follower in sorted[idx.index()..].iter() {
+                        if let ReactionElt(id) = self.graph.node_weight(*follower).unwrap() {
+                            if petgraph::algo::has_path_connecting(&self.graph, *idx, *follower, None) {
+                                let reaction = self.closed_reactions.get(id).unwrap();
+                                port_descendants.push(Rc::clone(reaction));
+                            }
+                        }
+                    };
+
+                    reactions_by_port_id.insert(port.clone(), port_descendants);
+                }
+                Some(ActionElt(action_id)) => {
+                    let mut is_triggered = Vec::<ReactionId>::new();
+
+                    for antidep in self.graph.neighbors_directed(*idx, Direction::Outgoing) {
+                        match self.graph.node_weight(antidep).unwrap() {
+                            ReactionElt(reaction_id) => {
+                                is_triggered.push(reaction_id.clone());
+                            }
+                            _ => {}
                         }
                     }
-                };
 
-                result.insert(port.clone(), port_descendants);
+                    action_triggers_reaction.insert(action_id.clone(), is_triggered);
+                }
+                Some(ReactionElt(reaction_id)) => {
+                    let mut uses = Vec::<PortId>::new();
+                    let mut affects = Vec::<PortId>::new();
+
+                    let mut schedules = Vec::<ActionId>::new();
+
+                    for antidep in self.graph.neighbors_directed(*idx, Direction::Outgoing) {
+                        match self.graph.node_weight(antidep).unwrap() {
+                            PortElt(port_id) => {
+                                affects.push(port_id.clone());
+                            }
+                            ActionElt(action_id) => {
+                                schedules.push(action_id.clone());
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    for dep in self.graph.neighbors_directed(*idx, Direction::Incoming) {
+                        match self.graph.node_weight(dep).unwrap() {
+                            PortElt(port_id) => {
+                                uses.push(port_id.clone());
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    reaction_affects_port.insert(reaction_id.clone(), affects);
+                    reaction_uses_port.insert(reaction_id.clone(), uses);
+                    reaction_schedules_action.insert(reaction_id.clone(), schedules);
+                }
+                _ => {}
             }
         };
 
-        Ok(result)
-    }
-
-
-    pub(in super) fn consume_to_schedulable(mut self) -> Result<Schedulable, AssemblyError> {
-        let map = self.reactions_by_port_set()?;
-        Ok(Schedulable::new(map))
+        Ok(Schedulable {
+            reactions_by_port_id,
+            reaction_schedules_action,
+            reaction_uses_port,
+            reaction_affects_port,
+            action_triggers_reaction,
+        })
     }
 }
 
-
 // the flow graph is transparent to reactors (they're all flattened)
+#[derive(Debug, Eq, PartialEq, Clone)]
 enum FlowGraphElement {
-    Reaction(GlobalId),
-    Port(GlobalId),
-    Action(ActionId),
+    ReactionElt(ReactionId),
+    PortElt(PortId),
+    ActionElt(ActionId),
 }
 
 impl Identified for FlowGraphElement {
     fn global_id(&self) -> &GlobalId {
         match self {
-            FlowGraphElement::Reaction(id) => id,
-            FlowGraphElement::Port(id) => id,
-            FlowGraphElement::Action(a) => a.global_id(),
+            FlowGraphElement::PortElt(id) => id.global_id(),
+            FlowGraphElement::ReactionElt(id) => id.global_id(),
+            FlowGraphElement::ActionElt(a) => a.global_id(),
         }
     }
 }
@@ -147,18 +200,18 @@ impl Default for FlowGraph {
 pub(in super) struct Schedulable {
     /// Maps port ids to a list of reactions that must be scheduled
     /// each time the port is set in a reaction.
-    reactions_by_port_id: HashMap<GlobalId, Vec<Rc<ClosedReaction>>>,
+    reactions_by_port_id: HashMap<PortId, Vec<Rc<ClosedReaction>>>,
+
+    reaction_uses_port: HashMap<ReactionId, Vec<PortId>>,
+    reaction_affects_port: HashMap<ReactionId, Vec<PortId>>,
+    reaction_schedules_action: HashMap<ReactionId, Vec<ActionId>>,
+    action_triggers_reaction: HashMap<ActionId, Vec<ReactionId>>,
 }
 
-const EMPTY_VEC: [Rc<ClosedReaction> ; 0 ] = [];
+const EMPTY_VEC: [Rc<ClosedReaction>; 0] = [];
 
 impl Schedulable {
-    pub fn new(reactions_by_port_id: HashMap<GlobalId, Vec<Rc<ClosedReaction>>>) -> Schedulable {
-        Schedulable { reactions_by_port_id }
-    }
-
-
-    pub fn get_downstream_reactions(&self, port_id: &GlobalId) -> &[Rc<ClosedReaction>] {
+    pub fn get_downstream_reactions(&self, port_id: &PortId) -> &[Rc<ClosedReaction>] {
         self.reactions_by_port_id.get(port_id).map_or_else(|| &EMPTY_VEC[..],
                                                            |it| it.as_slice())
     }

@@ -1,15 +1,16 @@
 use std::cmp::Reverse;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use priority_queue::PriorityQueue;
 
-use crate::reactors::{ActionId, GlobalAssembler, PortId, Reactor, RunnableWorld, WorldReactor};
+use crate::reactors::{ActionId, GlobalAssembler, Port, Reactor, RunnableWorld, WorldReactor};
 use crate::reactors::flowgraph::Schedulable;
-use crate::reactors::id::GlobalId;
+use crate::reactors::id::{GlobalId, Identified, PortId};
 use crate::reactors::reaction::ClosedReaction;
+use std::borrow::Borrow;
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 struct LogicalTime {
@@ -49,29 +50,36 @@ impl Scheduler {
         }
     }
 
-    fn enqueue()
+    fn enqueue_port(&mut self, port_id: &PortId) {
+        let downstream = self.schedulable.get_downstream_reactions(port_id);
+        // todo
+    }
 
-
+    fn new_ctx(&mut self, time: LogicalTime, reaction: Rc<ClosedReaction>) -> ReactionCtx {
+        ReactionCtx {
+            scheduler: self,
+            time,
+            reaction,
+        }
+    }
 }
+
 
 /// This is the context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
 ///
 pub struct ReactionCtx<'a> {
     scheduler: &'a mut Scheduler,
-    reaction: Rc<ClosedReaction>,
+    time: LogicalTime,
+    reaction: Rc<ClosedReaction>
 }
 
 impl<'a> ReactionCtx<'a> {
-    pub(in super) fn new(scheduler: &'a mut Scheduler, reaction: Rc<ClosedReaction>) -> Self {
-        Self { scheduler, reaction }
-    }
-
     /// Get the value of a port.
     ///
     /// Panics if the reaction being executed hasn't declared
     /// a dependency on the given port.
-    pub fn get_port<T>(&self, port: &PortId<T>) -> T where Self: Sized, T: Copy {
+    pub fn get_port<T>(&self, port: &Port<T>) -> T where Self: Sized, T: Copy {
         port.get()
     }
 
@@ -84,9 +92,7 @@ impl<'a> ReactionCtx<'a> {
     /// Panics if the reaction being executed hasn't declared
     /// a dependency on the given port.
     ///
-    pub fn set_port<T>(&mut self, port: &PortId<T>, value: T) where Self: Sized, T: Copy {
-
-    }
+    pub fn set_port<T>(&mut self, port: &Port<T>, value: T) where Self: Sized, T: Copy {}
 
     /// Schedule an action to run after its own implicit time delay,
     /// plus an optional additional time delay. These delays are in

@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use crate::reactors::id::{GlobalId, Identified};
 
+#[derive(Eq, Hash, Clone, PartialEq, Debug)]
 pub struct ActionId {
     min_delay: Duration,
     is_logical: bool,
