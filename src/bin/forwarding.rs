@@ -1,12 +1,30 @@
-use std::rc::Rc;
+//! A simple example:
+//!
+//! Producer -> Relay -> Consumer
+//!
+//! The producer schedules an "increment and send" reaction
+//! every second. The consumer handles the new value and prints
+//! it to the screen.
+//!
+//! ```shell
+//! $ cargo run --bin example-forwarding
+//! Received 1
+//! Received 2
+//! ...
+//! ```
 
-use crate::reactors::*;
-use std::time::Duration;
+
+#[macro_use]
+extern crate rust_reactors;
+
 use std::borrow::Borrow;
+use std::rc::Rc;
+use std::time::Duration;
 
+use rust_reactors::reactors::*;
 
 pub fn main() {
-    let (app, mut scheduler) = crate::reactors::make_world::<AppReactor>().unwrap();
+    let (app, mut scheduler) = make_world::<AppReactor>().unwrap();
 
     scheduler.launch(&app.producer.emit_action);
 }

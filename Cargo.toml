@@ -10,7 +10,7 @@ edition = "2018"
 priority-queue = "1.0.0"
 petgraph = "0.5.1"
 
-[features]
 
-default = []
-examples = []
+[[bin]]
+name = "example-forwarding"
+path = "src/bin/forwarding.rs"

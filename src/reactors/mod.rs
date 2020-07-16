@@ -17,7 +17,6 @@ mod world;
 mod reaction;
 mod action;
 mod ports;
-#[doc(inline)]
 mod assembler;
 mod flowgraph;
 mod util;
