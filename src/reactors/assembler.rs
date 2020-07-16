@@ -16,6 +16,33 @@ use crate::reactors::Reactor;
 use crate::reactors::util::{Enumerated, Named};
 use crate::reactors::WorldReactor;
 
+/// Base assembler trait.
+pub trait AssemblerBase<'a, R: Reactor> {
+    /// Binds the values of the given two ports. Every value set
+    /// to the upstream port will be reflected in the downstream port.
+    /// The downstream port cannot be set by a reaction thereafter.
+    ///
+    /// # Validity
+    ///
+    /// Either
+    ///  1. upstream is an input port of this reactor, and either
+    ///   1.i   downstream is an input port of a direct sub-reactor
+    ///   1.ii  downstream is an output port of this reactor
+    ///  2. upstream is an output port of a direct sub-reactor, and either
+    ///   2.i  downstream is an input port of another direct sub-reactor
+    ///   2.ii downstream is an output port of this reactor
+    ///
+    /// and all the following:
+    /// - downstream is not already bound to another port
+    /// - no reaction uses upstream todo why though? I found that in the C++ host
+    /// - no reaction affects downstream
+    ///
+    fn bind_ports<T>(&mut self, upstream: &Port<T>, downstream: &Port<T>) -> Result<(), AssemblyError>;
+
+    /// Assembles a subreactor.
+    fn new_subreactor<S: Reactor + 'static>(&mut self, name: &'static str) -> Result<Rc<RunnableReactor<S>>, AssemblyError>;
+}
+
 /// Assembles a reactor.
 pub struct Assembler<'a, R: Reactor> {
     /// Path from the root of the tree to this assembly,
@@ -51,30 +78,6 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
         Ok(ActionId::new(min_delay, self.new_id(name)?, is_logical))
     }
 
-    /// Assembles a subreactor. After this, the ports of the subreactor
-    /// may be used in some connections, see [`reaction_uses`](Self::reaction_uses),
-    /// [`reaction_affects`](Self::reaction_affects).
-    pub fn new_subreactor<S: Reactor + 'static>(&mut self, name: &'static str) -> Result<Rc<RunnableReactor<S>>, AssemblyError> {
-        let id = self.new_id(name)?;
-
-        let mut sub_assembler = Assembler::<S>::new(self.global, Rc::new(self.sub_id_for(name)));
-
-        let reactions = sub_assembler.make_reaction_global_ids()?;
-        sub_assembler.global.flow_graph().add_reactions(reactions);
-
-        match S::assemble(&mut sub_assembler) {
-            #[cold] Err(sub_error) => Err(AssemblyError::InContext(id, Box::new(sub_error))),
-            Ok(sub_reactor) => {
-                let reactor = RunnableReactor::<S>::new(sub_reactor, id);
-                let rc = Rc::new(reactor);
-
-                sub_assembler.register_closed_reactions(&rc);
-
-                Ok(rc)
-            }
-        }
-    }
-
     /*
      * These methods record dependencies between components.
      *
@@ -108,55 +111,6 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
      * The remaining ones are data-flow dependencies, i.e. relevant for the priority graph, which is a DAG
      */
 
-    /// Binds the values of the given two ports. Every value set
-    /// to the upstream port will be reflected in the downstream port.
-    /// The downstream port cannot be set by a reaction thereafter.
-    ///
-    /// # Validity
-    ///
-    /// Either
-    ///  1. upstream is an input port of this reactor, and either
-    ///   1.i   downstream is an input port of a direct sub-reactor
-    ///   1.ii  downstream is an output port of this reactor
-    ///  2. upstream is an output port of a direct sub-reactor, and either
-    ///   2.i  downstream is an input port of another direct sub-reactor
-    ///   2.ii downstream is an output port of this reactor
-    ///
-    /// and all the following:
-    /// - downstream is not already bound to another port
-    /// - no reaction uses upstream todo why though? I found that in the C++ host
-    /// - no reaction affects downstream
-    ///
-    pub fn bind_ports<T>(&mut self, upstream: &Port<T>, downstream: &Port<T>) -> Result<(), AssemblyError> {
-        let invalid = |cause: &'static str| -> AssemblyError {
-            AssemblyError::InvalidBinding(cause, upstream.global_id().clone(), downstream.global_id().clone())
-        };
-
-        match upstream.kind() {
-            PortKind::Input => {
-                if !upstream.is_in_reactor(&self.id) {
-                    return Err(invalid("1. Upstream port must be an input port of this reactor"));
-                } else if downstream.is_input() && !upstream.is_in_direct_subreactor_of(&self.id) {
-                    return Err(invalid("1.i. Downstream port should be declared in a direct sub-reactor"));
-                } else if downstream.is_output() && !upstream.is_in_reactor(&self.id) {
-                    return Err(invalid("1.ii. Downstream port should be declared in this reactor"));
-                }
-            }
-            PortKind::Output => {
-                if !upstream.is_in_direct_subreactor_of(&self.id) {
-                    return Err(invalid("2. Upstream port must be an input port of this reactor"));
-                } else if downstream.is_input()
-                    && (!upstream.is_in_direct_subreactor_of(&self.id) || downstream.global_id() == upstream.global_id()) {
-                    return Err(invalid("2.i. Downstream port should be declared in a different direct sub-reactor"));
-                } else if downstream.is_output() && !upstream.is_in_reactor(&self.id) {
-                    return Err(invalid("2.ii. Downstream port should be declared in this reactor"));
-                }
-            }
-        }
-
-        self.global.flow_graph().add_port_dependency(upstream, downstream)?;
-        upstream.forward_to(downstream)
-    }
 
     /// Record that the reaction depends on the value of the given port
     ///
@@ -207,6 +161,63 @@ impl<'a, R> Assembler<'a, R> where R: Reactor + 'static {
         }
 
         self.global.flow_graph().add_data_dependency(ReactionId(react_global_id), port, DependencyKind::Affects)
+    }
+}
+
+impl<'a, R> AssemblerBase<'a, R> for Assembler<'a, R> where R: Reactor + 'static {
+    fn bind_ports<T>(&mut self, upstream: &Port<T>, downstream: &Port<T>) -> Result<(), AssemblyError> {
+        let invalid = |cause: &'static str| -> AssemblyError {
+            AssemblyError::InvalidBinding(String::from(cause), upstream.global_id().clone(), downstream.global_id().clone())
+        };
+
+        match upstream.kind() {
+            PortKind::Input => {
+                if !upstream.is_in_reactor(&self.id) {
+                    return Err(invalid("1. Upstream port must be an input port of this reactor"));
+                } else if downstream.is_input() && !upstream.is_in_direct_subreactor_of(&self.id) {
+                    return Err(invalid("1.i. Downstream port should be declared in a direct sub-reactor"));
+                } else if downstream.is_output() && !upstream.is_in_reactor(&self.id) {
+                    return Err(invalid("1.ii. Downstream port should be declared in this reactor"));
+                }
+            }
+            PortKind::Output => {
+                if !upstream.is_in_direct_subreactor_of(&self.id) {
+                    return Err(invalid("2. Upstream port must be an input port of this reactor"));
+                } else if downstream.is_input()
+                    && (!upstream.is_in_direct_subreactor_of(&self.id) || downstream.global_id() == upstream.global_id()) {
+                    return Err(invalid("2.i. Downstream port should be declared in a different direct sub-reactor"));
+                } else if downstream.is_output() && !upstream.is_in_reactor(&self.id) {
+                    return Err(invalid("2.ii. Downstream port should be declared in this reactor"));
+                }
+            }
+        }
+
+        upstream.forward_to(downstream)?;
+        self.global.flow_graph().add_port_dependency(upstream, downstream)
+    }
+
+    /// Assembles a subreactor. After this, the ports of the subreactor
+    /// may be used in some connections, see [`reaction_uses`](Self::reaction_uses),
+    /// [`reaction_affects`](Self::reaction_affects).
+    fn new_subreactor<S: Reactor + 'static>(&mut self, name: &'static str) -> Result<Rc<RunnableReactor<S>>, AssemblyError> {
+        let id = self.new_id(name)?;
+
+        let mut sub_assembler = Assembler::<S>::new(self.global, Rc::new(self.sub_id_for(name)));
+
+        let reactions = sub_assembler.make_reaction_global_ids()?;
+        sub_assembler.global.flow_graph().add_reactions(reactions);
+
+        match S::assemble(&mut sub_assembler) {
+            #[cold] Err(sub_error) => Err(AssemblyError::InContext(id, Box::new(sub_error))),
+            Ok(sub_reactor) => {
+                let reactor = RunnableReactor::<S>::new(sub_reactor, id);
+                let rc = Rc::new(reactor);
+
+                sub_assembler.register_closed_reactions(&rc);
+
+                Ok(rc)
+            }
+        }
     }
 }
 
@@ -303,15 +314,6 @@ impl<R> Identified for RunnableReactor<R> where R: Reactor {
     }
 }
 
-/// Assembly-time error. Caused by invalid structure of reactors,
-/// eg cyclic dependencies.
-pub enum AssemblyError {
-    InvalidBinding(&'static str, GlobalId, GlobalId),
-    InvalidDependency(&'static str, GlobalId, DependencyKind, GlobalId),
-    DuplicateName(&'static str),
-    CyclicDependency(String),
-    InContext(GlobalId, Box<AssemblyError>),
-}
 
 /// The direction of a dependency. Forward dependencies "use"
 /// data, backwards dependencies "affect" data.
@@ -325,6 +327,17 @@ impl Display for DependencyKind {
             DependencyKind::Affects => write!(f, "affects"),
         }
     }
+}
+
+
+/// Assembly-time error. Caused by invalid structure of reactors,
+/// eg cyclic dependencies.
+pub enum AssemblyError {
+    InvalidBinding(String, GlobalId, GlobalId),
+    InvalidDependency(&'static str, GlobalId, DependencyKind, GlobalId),
+    DuplicateName(&'static str),
+    CyclicDependency(String),
+    InContext(GlobalId, Box<AssemblyError>),
 }
 
 impl Debug for AssemblyError {

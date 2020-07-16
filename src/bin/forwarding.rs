@@ -37,7 +37,7 @@ struct AppReactor {
 }
 
 impl WorldReactor for AppReactor {
-    fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized {
+    fn assemble_world<'a>(assembler: &mut impl AssemblerBase<'a, Self>) -> Result<Self, AssemblyError> where Self: Sized {
         let producer = assembler.new_subreactor::<ProduceReactor>("producer")?;
         let relay = assembler.new_subreactor::<PortRelay>("relay1")?;
         let consumer = assembler.new_subreactor::<ConsumeReactor>("consumer")?;

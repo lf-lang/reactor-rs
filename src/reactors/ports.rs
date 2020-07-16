@@ -101,7 +101,9 @@ impl<T> Port<T> {
         let (downstream_status, ref downstream_class) = *mut_downstream_cell;
 
         match downstream_status {
-            #[cold] BindStatus::PortBound => Err(AssemblyError::InvalidBinding("Port {} is already bound to another port", self.global_id().clone(), downstream.global_id().clone())),
+            #[cold] BindStatus::PortBound => Err(AssemblyError::InvalidBinding(String::from("Downstream is already bound to another port"),
+                                                                               self.global_id().clone(),
+                                                                               downstream.global_id().clone())),
             // #[cold] BindStatus::DependencyBound => Err(AssemblyError::InvalidBinding("Port {} receives values from a reaction", self.global_id().clone(), downstream.global_id().clone())),
             BindStatus::Unbound => {
                 let mut self_cell = self.upstream_binding.borrow_mut();

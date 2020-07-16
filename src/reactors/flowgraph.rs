@@ -1,20 +1,20 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
+use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
 use petgraph::{Direction, Graph};
+use petgraph::Direction::{Incoming, Outgoing};
 use petgraph::graph::{DiGraph, NodeIndex};
+use petgraph::visit::EdgeRef;
 
-use crate::reactors::{AssemblyError, DependencyKind, ReactionCtx, Port};
+use crate::reactors::{AssemblyError, DependencyKind, Port, ReactionCtx};
 use crate::reactors::action::ActionId;
 use crate::reactors::AssemblyError::CyclicDependency;
 use crate::reactors::flowgraph::FlowGraphElement::{PortElt, ReactionElt};
+use crate::reactors::flowgraph::TriggerGraphElement::ActionElt;
 use crate::reactors::id::{GlobalId, Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
-use crate::reactors::flowgraph::TriggerGraphElement::ActionElt;
-use petgraph::Direction::{Incoming, Outgoing};
-use std::fmt::{Debug, Display, Formatter};
-use petgraph::visit::EdgeRef;
 
 pub type GraphId = NodeIndex<u32>;
 
@@ -89,13 +89,24 @@ pub(in super) struct FlowGraph {
 }
 
 impl FlowGraph {
+    /// Record that downstream is bound to upstream.
+    ///
+    /// # Validity
+    ///
+    /// - no reaction affects downstream
+    ///
     pub fn add_port_dependency<T>(&mut self, upstream: &Port<T>, downstream: &Port<T>) -> Result<(), AssemblyError> {
         let up_id = self.dataflow.get_node(&FlowGraphElement::PortElt(upstream.port_id().clone()));
         let down_id = self.dataflow.get_node(&FlowGraphElement::PortElt(downstream.port_id().clone()));
 
-        self.dataflow.graph.add_edge(up_id, down_id, ());
-
-        Ok(())
+        if let Some(_) = self.dataflow.graph.neighbors_directed(down_id, Direction::Incoming).next() {
+            Err(AssemblyError::InvalidBinding(format!("Downstream port is affected by a reaction or another port"),
+                                              upstream.global_id().clone(),
+                                              downstream.global_id().clone()))
+        } else {
+            self.dataflow.graph.add_edge(up_id, down_id, ());
+            Ok(())
+        }
     }
 
     pub fn add_data_dependency<T>(&mut self, reaction: ReactionId, data: &Port<T>, kind: DependencyKind) -> Result<(), AssemblyError> {
