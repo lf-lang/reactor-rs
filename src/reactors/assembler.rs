@@ -166,6 +166,7 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor {
 }
 
 impl<'a, 'g, R> AssemblerBase<'a, 'g, R> for Assembler<'a, 'g, R> where R: Reactor {
+
     fn bind_ports<T>(&mut self, upstream: &Port<T>, downstream: &Port<T>) -> Result<(), AssemblyError> {
         let invalid = |cause: &'static str| -> AssemblyError {
             AssemblyError::InvalidBinding(String::from(cause), upstream.global_id().clone(), downstream.global_id().clone())

@@ -1,5 +1,5 @@
 use std::borrow::Borrow;
-use std::cell::{Ref, RefCell};
+use std::cell::{Cell, Ref, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::iter::FromIterator;
@@ -49,34 +49,6 @@ impl<T> Port<T> {
         self.kind == PortKind::Input
     }
 
-    pub(in crate) fn get(&self) -> T where T: Copy {
-        let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
-        let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
-        let binding: &Binding<T> = cell_ref.deref();
-
-        let (_, class) = binding;
-
-        let class_cell: &PortEquivClass<T> = Rc::borrow(class);
-
-        // Here's it's copied
-        let value = *(&class_cell.cell.borrow()).deref();
-
-        value
-    }
-
-    pub(in crate) fn set(&self, new_value: T) {
-        assert!(self.bind_status() == Unbound, "Cannot set a bound port ({})", self.global_id());
-
-        let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
-        let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
-        let binding: &Binding<T> = cell_ref.deref();
-
-        let (_, class) = binding;
-
-        let class_cell: &PortEquivClass<T> = Rc::borrow(class);
-
-        *class_cell.cell.borrow_mut().deref_mut() = new_value;
-    }
 
     pub(in super) fn port_id(&self) -> &PortId {
         &self.id
@@ -95,6 +67,7 @@ impl<T> Port<T> {
         let map = &*c.downstreams.borrow();
         HashSet::from_iter(map.keys().map(Clone::clone))
     }
+
 
     pub(in super) fn forward_to(&self, downstream: &Port<T>) -> Result<(), AssemblyError> {
         let mut mut_downstream_cell = (&downstream.upstream_binding).borrow_mut();
@@ -125,14 +98,41 @@ impl<T> Port<T> {
             }
         }
     }
+}
 
+impl<T> Port<T> where T: Copy {
+    pub(in crate) fn get(&self) -> T {
+        let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
+        let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
+        let binding: &Binding<T> = cell_ref.deref();
+
+        let (_, class) = binding;
+
+        let class_cell: &PortEquivClass<T> = Rc::borrow(class);
+
+        class_cell.cell.get()
+    }
+
+    pub(in crate) fn set(&self, new_value: T) {
+        assert!(self.bind_status() == Unbound, "Cannot set a bound port ({})", self.global_id());
+
+        let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
+        let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
+        let binding: &Binding<T> = cell_ref.deref();
+
+        let (_, class) = binding;
+
+        let class_cell: &PortEquivClass<T> = Rc::borrow(class);
+
+        class_cell.cell.set(new_value)
+    }
 
     pub(in super) fn new(kind: PortKind, global_id: GlobalId) -> Self where T: IgnoredDefault {
         Port::<T> {
             kind,
             id: PortId(global_id),
             _phantom_t: PhantomData,
-            upstream_binding: Rc::new(RefCell::new((Unbound, Rc::new(PortEquivClass::<T>::new(IgnoredDefault::ignored_default()))))),
+            upstream_binding: Rc::new(RefCell::new((Unbound, Rc::new(PortEquivClass::<T>::new())))),
         }
     }
 }
@@ -165,7 +165,7 @@ type Binding<T> = (BindStatus, Rc<PortEquivClass<T>>);
 /// which has a unique cell to store data.
 struct PortEquivClass<T> {
     /// This the container for the value
-    cell: RefCell<T>,
+    cell: Cell<T>,
 
     /// This is the set of ports that are "forwarded to".
     /// When you bind 2 ports A -> B, then the binding of B
@@ -187,9 +187,9 @@ struct PortEquivClass<T> {
 }
 
 impl<T> PortEquivClass<T> {
-    fn new(initial: T) -> Self {
+    fn new() -> Self where T: IgnoredDefault {
         PortEquivClass {
-            cell: RefCell::new(initial),
+            cell: Cell::new(T::ignored_default()),
             downstreams: Default::default(),
         }
     }
