@@ -1,13 +1,13 @@
+use std::borrow::Borrow;
 use std::cell::RefCell;
+use std::fmt::{Debug, Formatter};
+use std::hash::{Hash, Hasher};
+use std::ops::DerefMut;
 use std::rc::Rc;
 
-use crate::reactors::{Reactor, Scheduler, ReactionCtx};
+use crate::reactors::{ReactionCtx, Reactor, Scheduler};
 use crate::reactors::assembler::RunnableReactor;
 use crate::reactors::id::{GlobalId, Identified, ReactionId};
-use std::hash::{Hash, Hasher};
-use std::borrow::Borrow;
-use std::ops::DerefMut;
-use std::fmt::{Debug, Formatter};
 
 /// Reaction that is directly executable with a scheduler, instead
 /// of with other data.
@@ -33,30 +33,32 @@ use std::fmt::{Debug, Formatter};
 /// Note that the function is boxed otherwise this struct has
 /// no known size.
 ///
-pub(in super) struct ClosedReaction {
-    body: RefCell<Box<dyn FnMut(&mut ReactionCtx)>>,
+pub(in super) struct ClosedReaction<'r> {
+    body: RefCell<Box<dyn FnMut(&mut ReactionCtx) + 'r>>,
     global_id: GlobalId,
 }
 
-impl Debug for ClosedReaction {
+impl Debug for ClosedReaction<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "ClosedReaction {{ {} }}", self.global_id)
     }
 }
 
 
-impl ClosedReaction {
+impl<'g> ClosedReaction<'g> {
     pub(in super) fn fire(&self, ctx: &mut ReactionCtx) {
         let mut cell = &mut *self.body.borrow_mut(); // note: may panic
         (cell)(ctx)
     }
 
     /// Produce a closure for the reaction.
-    pub(in super) fn new<R: Reactor + 'static>(reactor: &Rc<RunnableReactor<R>>,
-                                               global_id: GlobalId,
-                                               reaction_id: R::ReactionId) -> ClosedReaction {
-        let reactor_ref: Rc<RunnableReactor<R>> = Rc::clone(reactor);
-        let mut state_ref: Rc<RefCell<_>> = reactor_ref.state();
+    pub(in super) fn new<'r : 'g, R: Reactor + 'r>(reactor: &Rc<RunnableReactor<'r, R>>,
+                                                   state_ref: &Rc<RefCell<R::State>>,
+                                                   global_id: GlobalId,
+                                                   reaction_id: R::ReactionId) -> Self {
+
+        let reactor_ref: Rc<RunnableReactor<'r, R>> = Rc::clone(reactor);
+        let mut state_ref: Rc<RefCell<_>> = Rc::clone(state_ref);
 
         let closure = move |scheduler: &mut ReactionCtx| {
             let state: &RefCell<_> = Rc::borrow(&state_ref);
@@ -73,22 +75,22 @@ impl ClosedReaction {
 }
 
 
-impl Identified for ClosedReaction {
+impl Identified for ClosedReaction<'_> {
     fn global_id(&self) -> &GlobalId {
         &self.global_id
     }
 }
 
-impl Hash for ClosedReaction {
+impl Hash for ClosedReaction<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.global_id.hash(state)
     }
 }
 
-impl PartialEq for ClosedReaction {
+impl PartialEq for ClosedReaction<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.global_id == other.global_id
     }
 }
 
-impl Eq for ClosedReaction {}
+impl Eq for ClosedReaction<'_> {}

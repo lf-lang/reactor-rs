@@ -81,14 +81,14 @@ impl<V: Clone + Identified> GraphWrapper<V> {
     }
 }
 
-pub(in super) struct FlowGraph {
+pub(in super) struct FlowGraph<'g> {
     dataflow: GraphWrapper<FlowGraphElement>,
     triggers: GraphWrapper<TriggerGraphElement>,
 
-    closed_reactions: HashMap<ReactionId, Rc<ClosedReaction>>,
+    closed_reactions: HashMap<ReactionId, Rc<ClosedReaction<'g>>>,
 }
 
-impl FlowGraph {
+impl<'g> FlowGraph<'g> {
     /// Record that downstream is bound to upstream.
     ///
     /// # Validity
@@ -138,11 +138,11 @@ impl FlowGraph {
         }
     }
 
-    pub fn register_reaction(&mut self, reaction: ClosedReaction) {
+    pub fn register_reaction(&mut self, reaction: ClosedReaction<'g>) {
         self.closed_reactions.insert(ReactionId(reaction.global_id().clone()), Rc::new(reaction));
     }
 
-    pub(in super) fn consume_to_schedulable(self) -> Result<Schedulable, AssemblyError> {
+    pub(in super) fn consume_to_schedulable(self) -> Result<Schedulable<'g>, AssemblyError> {
 
         // berk berk berk
 
@@ -276,7 +276,7 @@ impl Identified for TriggerGraphElement {
     }
 }
 
-impl Default for FlowGraph {
+impl Default for FlowGraph<'_> {
     fn default() -> Self {
         FlowGraph {
             dataflow: <_>::default(),
@@ -287,16 +287,16 @@ impl Default for FlowGraph {
 }
 
 #[derive(Debug)]
-pub(in super) struct Schedulable {
+pub(in super) struct Schedulable<'g> {
     /// Maps port ids to a list of reactions that must be scheduled
     /// each time the port is set in a reaction.
-    reactions_by_port_id: HashMap<PortId, Vec<Rc<ClosedReaction>>>,
+    reactions_by_port_id: HashMap<PortId, Vec<Rc<ClosedReaction<'g>>>>,
 
     reaction_uses_port: HashMap<ReactionId, Vec<PortId>>,
     reaction_affects_port: HashMap<ReactionId, Vec<PortId>>,
     reaction_schedules_action: HashMap<ReactionId, Vec<ActionId>>,
 
-    action_triggers_reaction: HashMap<ActionId, Vec<Rc<ClosedReaction>>>,
+    action_triggers_reaction: HashMap<ActionId, Vec<Rc<ClosedReaction<'g>>>>,
 }
 
 
@@ -306,18 +306,19 @@ macro_rules! empty_vec {
     };
 }
 
-empty_vec!(NO_REACTIONS : Rc<ClosedReaction>);
 empty_vec!(NO_PORTS : PortId);
 empty_vec!(NO_ACTIONS : ActionId);
 
-impl Schedulable {
-    pub fn get_downstream_reactions(&self, port_id: &PortId) -> &[Rc<ClosedReaction>] {
+impl<'g> Schedulable<'g> {
+    empty_vec!(NO_REACTIONS : Rc<ClosedReaction<'g>>);
+
+    pub fn get_downstream_reactions(&self, port_id: &PortId) -> &[Rc<ClosedReaction<'g>>] {
         self.reactions_by_port_id.get(port_id)
-            .map_or_else(|| &NO_REACTIONS[..], |it| it.as_slice())
+            .map_or_else(|| &Self::NO_REACTIONS[..], |it| it.as_slice())
     }
-    pub fn get_triggered_reactions(&self, action_id: &ActionId) -> &[Rc<ClosedReaction>] {
+    pub fn get_triggered_reactions(&self, action_id: &ActionId) -> &[Rc<ClosedReaction<'g>>] {
         self.action_triggers_reaction.get(action_id)
-            .map_or_else(|| &NO_REACTIONS[..], |it| it.as_slice())
+            .map_or_else(|| &Self::NO_REACTIONS[..], |it| it.as_slice())
     }
 
     pub fn get_allowed_reads(&self, reaction_id: &ReactionId) -> &[PortId] {

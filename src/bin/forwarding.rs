@@ -30,14 +30,14 @@ pub fn main() {
 }
 
 // toplevel reactor containing the others
-struct AppReactor {
-    producer: Rc<RunnableReactor<ProduceReactor>>,
-    relay: Rc<RunnableReactor<PortRelay>>,
-    consumer: Rc<RunnableReactor<ConsumeReactor>>,
+struct AppReactor<'g> {
+    producer: Rc<RunnableReactor<'g, ProduceReactor>>,
+    relay: Rc<RunnableReactor<'g, PortRelay>>,
+    consumer: Rc<RunnableReactor<'g, ConsumeReactor>>,
 }
 
-impl WorldReactor for AppReactor {
-    fn assemble_world<'a>(assembler: &mut impl AssemblerBase<'a, Self>) -> Result<Self, AssemblyError> where Self: Sized {
+impl<'g> WorldReactor for AppReactor<'g> {
+    fn assemble_world<'a, 'gp>(assembler: &mut impl AssemblerBase<'a, 'gp, Self>) -> Result<Self, AssemblyError> where Self: Sized {
         let producer = assembler.new_subreactor::<ProduceReactor>("producer")?;
         let relay = assembler.new_subreactor::<PortRelay>("relay1")?;
         let consumer = assembler.new_subreactor::<ConsumeReactor>("consumer")?;

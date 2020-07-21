@@ -27,24 +27,24 @@ impl Default for LogicalTime {
 }
 
 #[derive(Eq, PartialEq, Hash)]
-enum Event {
-    ReactionExecute { at: LogicalTime, reaction: Rc<ClosedReaction> },
-    ReactionSchedule { min_at: LogicalTime, reaction: Rc<ClosedReaction> },
+enum Event<'g> {
+    ReactionExecute { at: LogicalTime, reaction: Rc<ClosedReaction<'g>> },
+    ReactionSchedule { min_at: LogicalTime, reaction: Rc<ClosedReaction<'g>> },
 }
 
 /// Directs execution of the whole reactor graph.
-pub struct Scheduler {
-    schedulable: Schedulable,
+pub struct Scheduler<'g> {
+    schedulable: Schedulable<'g>,
 
     cur_logical_time: LogicalTime,
     micro_step: MicroStep,
-    queue: PriorityQueue<Event, Reverse<LogicalTime>>,
+    queue: PriorityQueue<Event<'g>, Reverse<LogicalTime>>,
 }
 
-impl Scheduler {
+impl<'g> Scheduler<'g> {
     // todo logging
 
-    pub(in super) fn new(schedulable: Schedulable) -> Scheduler {
+    pub(in super) fn new(schedulable: Schedulable<'g>) -> Self {
         Scheduler {
             schedulable,
             cur_logical_time: <_>::default(),
@@ -70,7 +70,10 @@ impl Scheduler {
             self.catch_up_physical_time(time);
             self.cur_logical_time = time;
 
-            let mut ctx = self.new_ctx(&reaction);
+            let mut ctx = ReactionCtx {
+                scheduler: self,
+                reaction_id: ReactionId((*reaction).global_id().clone()),
+            };
             reaction.fire(&mut ctx)
         }
     }
@@ -104,26 +107,18 @@ impl Scheduler {
             self.queue.push(evt, Reverse(eta));
         }
     }
-
-    fn new_ctx(&mut self, reaction: &Rc<ClosedReaction>) -> ReactionCtx {
-        ReactionCtx {
-            scheduler: self,
-            reaction_id: ReactionId((*reaction).global_id().clone()),
-        }
-    }
 }
 
 
 /// This is the context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
 ///
-pub struct ReactionCtx<'a> {
-    scheduler: &'a mut Scheduler,
+pub struct ReactionCtx<'a, 'g> {
+    scheduler: &'a mut Scheduler<'g>,
     reaction_id: ReactionId,
 }
 
-impl<'a> ReactionCtx<'a> {
-
+impl<'a, 'g> ReactionCtx<'a, 'g> {
     /// Get the value of a port at this time.
     ///
     /// # Panics

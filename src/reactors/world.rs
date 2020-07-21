@@ -11,10 +11,10 @@ use crate::reactors::util::Nothing;
 pub trait WorldReactor {
     /// Assemble the structure of this reactor. The parameter
     /// does not allow all operations of
-    fn assemble_world<'a>(assembler: &mut impl AssemblerBase<'a, Self>) -> Result<Self, AssemblyError> where Self: Sized + 'static;
+    fn assemble_world<'a, 'g>(assembler: &mut impl AssemblerBase<'a, 'g, Self>) -> Result<Self, AssemblyError> where Self: Sized;
 }
 
-impl<T> Reactor for T where T: WorldReactor + 'static {
+impl<T> Reactor for T where T: WorldReactor {
     type ReactionId = Nothing;
     type State = ();
 
