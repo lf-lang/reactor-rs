@@ -83,7 +83,7 @@ pub trait Reactor {
     /// This should create subcomponents and link them using the [Assembler].
     ///
     /// TODO would be nice if this "constructor" could take additional parameters
-    fn assemble(assembler: &mut Assembler<Self>) -> Result<Self, AssemblyError> where Self: Sized;
+    fn assemble<'g>(assembler: &mut Assembler<'_, 'g, Self>) -> Result<Self, AssemblyError> where Self: Sized;
 
     /// Execute a reaction of this reactor.
     ///
@@ -94,12 +94,12 @@ pub trait Reactor {
     /// - reaction_id: ID of the reaction to execute
     /// - scheduler: Scheduler instance, that can make the reaction affect the event queue
     ///
-    fn react(
-        reactor: &RunnableReactor<Self>,
+    fn react<'g>(
+        reactor: &RunnableReactor<'g, Self>,
         state: &mut Self::State,
         reaction_id: Self::ReactionId,
-        scheduler: &mut ReactionCtx,
-    ) where Self: Sized; // todo this could return a Result
+        ctx: &mut ReactionCtx<'_, 'g>,
+    ) where Self: Sized + 'g; // todo this could return a Result
 }
 
 
@@ -135,7 +135,7 @@ macro_rules! reaction_ids_helper {
 /// and [Enumerated](crate::reactors::util::Enumerated).
 #[macro_export]
 macro_rules! reaction_ids {
-        ($viz:vis enum $typename:ident { $($id:ident),+ }) => {
+        ($viz:vis enum $typename:ident { $($id:ident),+$(,)? }) => {
 
             #[derive(Ord, PartialOrd, Eq, PartialEq, Debug, Hash, Copy, Clone)]
             $viz enum $typename {

@@ -14,3 +14,7 @@ petgraph = "0.5.1"
 [[bin]]
 name = "example-forwarding"
 path = "src/bin/forwarding.rs"
+
+[[bin]]
+name = "example-data-sharing"
+path = "src/bin/data_sharing.rs"

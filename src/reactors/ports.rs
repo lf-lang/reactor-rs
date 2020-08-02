@@ -10,6 +10,7 @@ use std::rc::Rc;
 use crate::reactors::assembler::AssemblyError;
 use crate::reactors::id::{GlobalId, Identified, PortId};
 use crate::reactors::ports::BindStatus::Unbound;
+use std::mem::MaybeUninit;
 
 /// The nature of a port (input or output)
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -37,6 +38,15 @@ pub struct Port<T> {
 }
 
 impl<T> Port<T> {
+    pub(in super) fn new(kind: PortKind, global_id: GlobalId) -> Self {
+        Port::<T> {
+            kind,
+            id: PortId(global_id),
+            _phantom_t: PhantomData,
+            upstream_binding: Rc::new(RefCell::new((Unbound, Rc::new(PortEquivClass::<T>::new())))),
+        }
+    }
+
     pub fn kind(&self) -> PortKind {
         self.kind
     }
@@ -100,8 +110,8 @@ impl<T> Port<T> {
     }
 }
 
-impl<T> Port<T> where T: Copy {
-    pub(in crate) fn get(&self) -> T {
+impl<T> Port<T> where T: Clone {
+    pub(in crate) fn get(&self) -> T where T: Copy {
         let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
         let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
         let binding: &Binding<T> = cell_ref.deref();
@@ -110,10 +120,11 @@ impl<T> Port<T> where T: Copy {
 
         let class_cell: &PortEquivClass<T> = Rc::borrow(class);
 
-        class_cell.cell.get()
+        let v = class_cell.cell.get();
+        unsafe { v.assume_init() }.clone()
     }
 
-    pub(in crate) fn set(&self, new_value: T) {
+    pub(in crate) fn set(&self, new_value: T) where T: Copy {
         assert!(self.bind_status() == Unbound, "Cannot set a bound port ({})", self.global_id());
 
         let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
@@ -124,16 +135,10 @@ impl<T> Port<T> where T: Copy {
 
         let class_cell: &PortEquivClass<T> = Rc::borrow(class);
 
-        class_cell.cell.set(new_value)
-    }
-
-    pub(in super) fn new(kind: PortKind, global_id: GlobalId) -> Self where T: IgnoredDefault {
-        Port::<T> {
-            kind,
-            id: PortId(global_id),
-            _phantom_t: PhantomData,
-            upstream_binding: Rc::new(RefCell::new((Unbound, Rc::new(PortEquivClass::<T>::new())))),
-        }
+        // TODO this creates a ManuallyDrop
+        let prev = class_cell.cell.get();
+        unsafe { std::mem::drop(prev.assume_init()); }
+        class_cell.cell.set(MaybeUninit::new(new_value))
     }
 }
 
@@ -165,7 +170,7 @@ type Binding<T> = (BindStatus, Rc<PortEquivClass<T>>);
 /// which has a unique cell to store data.
 struct PortEquivClass<T> {
     /// This the container for the value
-    cell: Cell<T>,
+    cell: Cell<MaybeUninit<T>>,
 
     /// This is the set of ports that are "forwarded to".
     /// When you bind 2 ports A -> B, then the binding of B
@@ -187,9 +192,9 @@ struct PortEquivClass<T> {
 }
 
 impl<T> PortEquivClass<T> {
-    fn new() -> Self where T: IgnoredDefault {
+    fn new() -> Self {
         PortEquivClass {
-            cell: Cell::new(T::ignored_default()),
+            cell: Cell::new(MaybeUninit::uninit()),
             downstreams: Default::default(),
         }
     }
@@ -210,16 +215,5 @@ impl<T> PortEquivClass<T> {
             let mut ref_mut = cell.borrow_mut();
             *ref_mut.deref_mut() = (ref_mut.0, Rc::clone(new_binding));
         }
-    }
-}
-
-/// Ports need an initial value, which is not observed by anyone.
-pub trait IgnoredDefault {
-    fn ignored_default() -> Self;
-}
-
-impl<T> IgnoredDefault for T where T: Default {
-    fn ignored_default() -> Self {
-        Default::default()
     }
 }

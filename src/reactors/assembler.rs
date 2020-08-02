@@ -6,7 +6,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::time::Duration;
 
-use crate::reactors::{IgnoredDefault, Port, PortKind, Scheduler};
+use crate::reactors::{Port, PortKind, Scheduler};
 use crate::reactors::action::ActionId;
 use crate::reactors::BindStatus;
 use crate::reactors::flowgraph::{FlowGraph, Schedulable};
@@ -67,11 +67,11 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor {
      * to be stored on the struct of the reactor.
      */
 
-    pub fn new_output_port<T: IgnoredDefault + Copy>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
+    pub fn new_output_port<T: Clone>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
         self.new_port(PortKind::Output, name)
     }
 
-    pub fn new_input_port<T: IgnoredDefault + Copy>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
+    pub fn new_input_port<T: Clone>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
         self.new_port(PortKind::Input, name)
     }
 
@@ -166,7 +166,6 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor {
 }
 
 impl<'a, 'g, R> AssemblerBase<'a, 'g, R> for Assembler<'a, 'g, R> where R: Reactor {
-
     fn bind_ports<T>(&mut self, upstream: &Port<T>, downstream: &Port<T>) -> Result<(), AssemblyError> {
         let invalid = |cause: &'static str| -> AssemblyError {
             AssemblyError::InvalidBinding(String::from(cause), upstream.global_id().clone(), downstream.global_id().clone())
@@ -242,7 +241,7 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor { // this is the private i
         GlobalId::new(Rc::clone(&self.id), name)
     }
 
-    fn new_port<T: IgnoredDefault + Copy>(&mut self, kind: PortKind, name: &'static str) -> Result<Port<T>, AssemblyError> {
+    fn new_port<T: Clone>(&mut self, kind: PortKind, name: &'static str) -> Result<Port<T>, AssemblyError> {
         Ok(Port::<T>::new(kind, self.new_id(name)?))
     }
 
@@ -389,10 +388,10 @@ impl<'g> GlobalAssembler<'g> {
 
 
 /// Build a toplevel reactor
-pub fn make_world<'g, R>() -> Result<(RunnableReactor<'g, R>, Scheduler<'g>), AssemblyError> where R: WorldReactor + 'g {
+pub fn make_world<'g, R>() -> Result<(RunnableReactor<'g, R>, Scheduler<'g>), AssemblyError> where R: WorldReactor<'g> + 'g {
     let mut world = GlobalAssembler::new();
     let mut root_assembler = Assembler::<R>::new(&mut world, Rc::new(AssemblyId::Root));
-    let r = <R as Reactor>::assemble(&mut root_assembler)?;
+    let r = R::assemble_world(&mut root_assembler)?;
     let state = Rc::new(RefCell::new(R::initial_state()));
     let toplevel_reactor = RunnableReactor::<R>::new(r, root_assembler.new_id(":root:")?, &state);
 

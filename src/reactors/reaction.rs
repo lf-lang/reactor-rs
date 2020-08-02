@@ -33,8 +33,8 @@ use crate::reactors::id::{GlobalId, Identified, ReactionId};
 /// Note that the function is boxed otherwise this struct has
 /// no known size.
 ///
-pub(in super) struct ClosedReaction<'r> {
-    body: RefCell<Box<dyn FnMut(&mut ReactionCtx) + 'r>>,
+pub(in super) struct ClosedReaction<'g> {
+    body: RefCell<Box<dyn FnMut(&mut ReactionCtx<'_, 'g>) + 'g>>,
     global_id: GlobalId,
 }
 
@@ -46,7 +46,7 @@ impl Debug for ClosedReaction<'_> {
 
 
 impl<'g> ClosedReaction<'g> {
-    pub(in super) fn fire(&self, ctx: &mut ReactionCtx) {
+    pub(in super) fn fire(&self, ctx: &mut ReactionCtx<'_, 'g>) {
         let mut cell = &mut *self.body.borrow_mut(); // note: may panic
         (cell)(ctx)
     }
@@ -56,14 +56,13 @@ impl<'g> ClosedReaction<'g> {
                                                    state_ref: &Rc<RefCell<R::State>>,
                                                    global_id: GlobalId,
                                                    reaction_id: R::ReactionId) -> Self {
+        let reactor_ref: Rc<RunnableReactor<R>> = Rc::clone(reactor);
+        let state_ref: Rc<RefCell<_>> = Rc::clone(state_ref);
 
-        let reactor_ref: Rc<RunnableReactor<'r, R>> = Rc::clone(reactor);
-        let mut state_ref: Rc<RefCell<_>> = Rc::clone(state_ref);
-
-        let closure = move |scheduler: &mut ReactionCtx| {
+        let closure = move |ctx: &mut ReactionCtx<'_, 'g>| {
             let state: &RefCell<_> = Rc::borrow(&state_ref);
             let mut state_mut = state.borrow_mut();
-            R::react(reactor_ref.as_ref(), state_mut.deref_mut(), reaction_id, scheduler)
+            R::react(reactor_ref.as_ref(), state_mut.deref_mut(), reaction_id, ctx)
         };
 
 
