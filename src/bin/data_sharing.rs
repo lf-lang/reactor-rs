@@ -35,7 +35,7 @@ pub fn main() {
 // toplevel reactor containing the others
 struct AppReactor<'g> {
     producer: Rc<RunnableReactor<'g, OwnerReactor<'g>>>,
-    consumer: Rc<RunnableReactor<'g, ConsumeReactor<'g>>>,
+    consumer: Rc<RunnableReactor<'g, ConsumeReactor>>,
 }
 
 impl<'g> WorldReactor<'g> for AppReactor<'g> {
@@ -50,10 +50,10 @@ impl<'g> WorldReactor<'g> for AppReactor<'g> {
 }
 
 
-type PV<'r> = &'r [u8];
+type PV = [u8; 256];
 
 struct OwnerReactor<'r> {
-    output_port: Port<PV<'r>>,
+    output_port: Port<PV>,
     emit_action: ActionId,
     phantom: PhantomData<&'r ()>,
 }
@@ -69,10 +69,10 @@ struct MyState {
 impl<'r> Reactor for OwnerReactor<'r> {
     type ReactionId = ProduceReactions;
 
-    type State = MyState;
+    type State = ();
 
     fn initial_state() -> Self::State {
-        MyState { arr: [0; 256], len: 0 }
+        ()
     }
 
     fn assemble<'g>(assembler: &mut Assembler<'_, 'g, Self>) -> Result<Self, AssemblyError> where Self: Sized {
@@ -89,22 +89,24 @@ impl<'r> Reactor for OwnerReactor<'r> {
     fn react<'g>(reactor: &RunnableReactor<'g, Self>, state: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx<'_, 'g>) where Self: Sized + 'g {
         match reaction_id {
             ProduceReactions::Emit => {
-                // println!("Emitting {}", *state);
-                ctx.set_port(&reactor.output_port, &state.arr[0..state.len]);
-                ctx.schedule_action(&reactor.emit_action, None)
+                println!("Emitting {}", 3);
+                let mut mut_port = ctx.get_port_mut(&reactor.output_port);
+                mut_port[0] = 3;
+                println!("Set");
+                ctx.schedule_action(&reactor.emit_action, Some(Duration::from_secs(1)))
             }
         }
     }
 }
 
 
-struct ConsumeReactor<'r> {
-    input_port: Port<PV<'r>>,
+struct ConsumeReactor {
+    input_port: Port<PV>,
 }
 
 reaction_ids!(enum ConsumeReactions { Print });
 
-impl<'r> Reactor for ConsumeReactor<'r> {
+impl<'r> Reactor for ConsumeReactor {
     type ReactionId = ConsumeReactions;
     type State = ();
 

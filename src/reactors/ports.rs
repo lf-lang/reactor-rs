@@ -258,6 +258,16 @@ impl<'b, T: 'b> Deref for MaybeUninitRefMut<'b, T> {
 
 impl<'b, T: 'b> DerefMut for MaybeUninitRefMut<'b, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unimplemented!()
+        let (_, class) = self.cell_ref.deref();
+
+        let class_cell: &PortEquivClass<T> = Rc::borrow(class);
+
+        let refmut = class_cell.cell.as_ptr();
+
+        unsafe {
+            refmut.as_mut() // unsafe ptr op, used to force the lifetime
+                .unwrap()
+                .get_mut()  // unstable + unsafe
+        }
     }
 }

@@ -11,7 +11,8 @@ use crate::reactors::{ActionId, GlobalAssembler, Port, Reactor, WorldReactor};
 use crate::reactors::flowgraph::Schedulable;
 use crate::reactors::id::{GlobalId, Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
-use std::ops::DerefMut;
+use std::ops::{DerefMut, Deref};
+use std::marker::PhantomData;
 
 type MicroStep = u32;
 
@@ -157,10 +158,10 @@ impl<'a, 'g> ReactionCtx<'a, 'g> {
         self.scheduler.enqueue_port(port.port_id());
     }
 
-    pub fn get_port_mut<'p, T>(&mut self, port: &'p Port<T>) -> impl DerefMut<Target=T> +'p where Self: Sized {
+    pub fn get_port_mut<'p, T>(&mut self, port: &'p Port<T>) -> impl DerefMut<Target=T> + 'p
+        where Self: Sized {
         self.assert_has_write_access(port);
-
-
+        self.scheduler.enqueue_port(port.port_id()); // FIXME we don't know if this will actually be set
         port.get_mut()
     }
 
