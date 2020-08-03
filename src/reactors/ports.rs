@@ -1,5 +1,8 @@
+#![feature(maybe_uninit_ref)]
+
+
 use std::borrow::Borrow;
-use std::cell::{Cell, Ref, RefCell};
+use std::cell::{Cell, Ref, RefCell, RefMut};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::iter::FromIterator;
@@ -110,8 +113,17 @@ impl<T> Port<T> {
     }
 }
 
-impl<T> Port<T> where T: Clone {
-    pub(in crate) fn get(&self) -> T where T: Copy {
+impl<T> Port<T> {
+    pub(in crate) fn get_mut<'a>(&'a self) -> impl DerefMut<Target=T> + 'a {
+        let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
+        let cell_ref: Ref<Binding<T>> = cell.borrow();
+
+        MaybeUninitRefMut {
+            cell_ref: cell_ref
+        }
+    }
+
+    pub(in crate) fn copy_get(&self) -> T where T: Copy {
         let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
         let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
         let binding: &Binding<T> = cell_ref.deref();
@@ -120,11 +132,11 @@ impl<T> Port<T> where T: Clone {
 
         let class_cell: &PortEquivClass<T> = Rc::borrow(class);
 
-        let v = class_cell.cell.get();
-        unsafe { v.assume_init() }.clone()
+        let v = class_cell.cell.borrow().clone();
+        unsafe { v.assume_init() }
     }
 
-    pub(in crate) fn set(&self, new_value: T) where T: Copy {
+    pub(in crate) fn set(&self, new_value: T) {
         assert!(self.bind_status() == Unbound, "Cannot set a bound port ({})", self.global_id());
 
         let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
@@ -136,9 +148,11 @@ impl<T> Port<T> where T: Clone {
         let class_cell: &PortEquivClass<T> = Rc::borrow(class);
 
         // TODO this creates a ManuallyDrop
-        let prev = class_cell.cell.get();
-        unsafe { std::mem::drop(prev.assume_init()); }
-        class_cell.cell.set(MaybeUninit::new(new_value))
+        // let prev = class_cell.cell.get();
+        // unsafe { std::mem::drop(prev.assume_init()); }
+        // class_cell.cell.set(MaybeUninit::new(new_value))
+
+        class_cell.cell.replace(MaybeUninit::new(new_value));
     }
 }
 
@@ -170,7 +184,7 @@ type Binding<T> = (BindStatus, Rc<PortEquivClass<T>>);
 /// which has a unique cell to store data.
 struct PortEquivClass<T> {
     /// This the container for the value
-    cell: Cell<MaybeUninit<T>>,
+    cell: RefCell<MaybeUninit<T>>,
 
     /// This is the set of ports that are "forwarded to".
     /// When you bind 2 ports A -> B, then the binding of B
@@ -194,7 +208,7 @@ struct PortEquivClass<T> {
 impl<T> PortEquivClass<T> {
     fn new() -> Self {
         PortEquivClass {
-            cell: Cell::new(MaybeUninit::uninit()),
+            cell: RefCell::new(MaybeUninit::uninit()),
             downstreams: Default::default(),
         }
     }
@@ -215,5 +229,35 @@ impl<T> PortEquivClass<T> {
             let mut ref_mut = cell.borrow_mut();
             *ref_mut.deref_mut() = (ref_mut.0, Rc::clone(new_binding));
         }
+    }
+}
+
+
+struct MaybeUninitRefMut<'b, T: 'b> {
+    cell_ref: Ref<'b, Binding<T>>,
+    // refmut: RefMut<'b, MaybeUninit<T>>,
+}
+
+impl<'b, T: 'b> Deref for MaybeUninitRefMut<'b, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        let (_, class) = self.cell_ref.deref();
+
+        let class_cell: &PortEquivClass<T> = Rc::borrow(class);
+
+        let refmut = class_cell.cell.as_ptr();
+
+        unsafe {
+            refmut.as_ref() // unsafe ptr op, used to force the lifetime
+                .unwrap()
+                .get_ref()  // unstable + unsafe
+        }
+    }
+}
+
+impl<'b, T: 'b> DerefMut for MaybeUninitRefMut<'b, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unimplemented!()
     }
 }

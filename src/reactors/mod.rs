@@ -1,3 +1,6 @@
+#![feature(maybe_uninit_ref)]
+
+
 use std::hash::Hash;
 
 #[doc(inline)]

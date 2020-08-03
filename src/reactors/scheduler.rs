@@ -11,6 +11,7 @@ use crate::reactors::{ActionId, GlobalAssembler, Port, Reactor, WorldReactor};
 use crate::reactors::flowgraph::Schedulable;
 use crate::reactors::id::{GlobalId, Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
+use std::ops::DerefMut;
 
 type MicroStep = u32;
 
@@ -132,7 +133,7 @@ impl<'a, 'g> ReactionCtx<'a, 'g> {
                 port.global_id(), self.reaction_id.global_id()
         );
 
-        port.get()
+        port.copy_get()
     }
 
     /// Sets the value of the given output port. The change
@@ -141,20 +142,34 @@ impl<'a, 'g> ReactionCtx<'a, 'g> {
     /// reactions that should execute on the same logical
     /// step.
     ///
+    /// TODO would be possible to get a mutable ref to the port internal value instead
+    ///
     /// # Panics
     ///
     /// If the reaction being executed has not declared its
     /// dependency on the given port ([reaction_affects](super::Assembler::reaction_affects)).
     ///
     pub fn set_port<T>(&mut self, port: &Port<T>, value: T) where Self: Sized, T: Copy {
-        assert!(self.scheduler.schedulable.get_allowed_writes(&self.reaction_id).contains(port.port_id()),
-                "Forbidden read on port {} by reaction {}. Declare the dependency explicitly during assembly",
-                port.global_id(), self.reaction_id.global_id()
-        );
+        self.assert_has_write_access(port);
 
         port.set(value);
 
         self.scheduler.enqueue_port(port.port_id());
+    }
+
+    pub fn get_port_mut<'p, T>(&mut self, port: &'p Port<T>) -> impl DerefMut<Target=T> +'p where Self: Sized {
+        self.assert_has_write_access(port);
+
+
+        port.get_mut()
+    }
+
+
+    fn assert_has_write_access<T>(&mut self, port: &Port<T>) {
+        assert!(self.scheduler.schedulable.get_allowed_writes(&self.reaction_id).contains(port.port_id()),
+                "Forbidden read on port {} by reaction {}. Declare the dependency explicitly during assembly",
+                port.global_id(), self.reaction_id.global_id()
+        );
     }
 
     /// Schedule an action to run after its own implicit time delay,
