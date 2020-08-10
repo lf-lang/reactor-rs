@@ -91,7 +91,7 @@ impl<'r> Reactor for OwnerReactor<'r> {
             ProduceReactions::Emit => {
                 println!("Emitting {}", 3);
                 let mut mut_port = ctx.get_port_mut(&reactor.output_port);
-                mut_port[0] = 3;
+                mut_port[0] = 3; // this is actually memory corruption, the reactor cell has not been initialized
                 println!("Set");
                 ctx.schedule_action(&reactor.emit_action, Some(Duration::from_secs(1)))
             }
