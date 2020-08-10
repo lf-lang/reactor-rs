@@ -67,12 +67,12 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor {
      * to be stored on the struct of the reactor.
      */
 
-    pub fn new_output_port<T: Clone>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
-        self.new_port(PortKind::Output, name)
+    pub fn new_output_port<T: Clone + IgnoredDefault>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
+        self.new_port(PortKind::Output, name, T::ignored_default())
     }
 
-    pub fn new_input_port<T: Clone>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
-        self.new_port(PortKind::Input, name)
+    pub fn new_input_port<T: Clone + IgnoredDefault>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
+        self.new_port(PortKind::Input, name, T::ignored_default())
     }
 
     pub fn new_action(&mut self, name: &'static str, min_delay: Option<Duration>, is_logical: bool) -> Result<ActionId, AssemblyError> {
@@ -241,8 +241,8 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor { // this is the private i
         GlobalId::new(Rc::clone(&self.id), name)
     }
 
-    fn new_port<T: Clone>(&mut self, kind: PortKind, name: &'static str) -> Result<Port<T>, AssemblyError> {
-        Ok(Port::<T>::new(kind, self.new_id(name)?))
+    fn new_port<T: Clone>(&mut self, kind: PortKind, name: &'static str, initial:T) -> Result<Port<T>, AssemblyError> {
+        Ok(Port::<T>::new(kind, self.new_id(name)?, initial))
     }
 
     fn sub_id_for(&self, name: &'static str) -> AssemblyId {
@@ -398,4 +398,15 @@ pub fn make_world<'g, R>() -> Result<(RunnableReactor<'g, R>, Scheduler<'g>), As
     let scheduler = Scheduler::new(world.data_flow.consume_to_schedulable()?);
 
     Ok((toplevel_reactor, scheduler))
+}
+
+
+pub trait IgnoredDefault {
+    fn ignored_default() -> Self;
+}
+
+impl<T> IgnoredDefault for T where T: Default {
+    fn ignored_default() -> Self {
+        T::default()
+    }
 }

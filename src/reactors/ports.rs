@@ -41,12 +41,12 @@ pub struct Port<T> {
 }
 
 impl<T> Port<T> {
-    pub(in super) fn new(kind: PortKind, global_id: GlobalId) -> Self {
+    pub(in super) fn new(kind: PortKind, global_id: GlobalId, initial: T) -> Self {
         Port::<T> {
             kind,
             id: PortId(global_id),
             _phantom_t: PhantomData,
-            upstream_binding: Rc::new(RefCell::new((Unbound, Rc::new(PortEquivClass::<T>::new())))),
+            upstream_binding: Rc::new(RefCell::new((Unbound, Rc::new(PortEquivClass::<T>::new(initial))))),
         }
     }
 
@@ -114,12 +114,14 @@ impl<T> Port<T> {
 }
 
 impl<T> Port<T> {
-    pub(in crate) fn get_mut<'a>(&'a self) -> impl DerefMut<Target=T> + 'a {
+    pub(in crate) fn get_mut(&self) -> PortValueRefMut<T> {
         let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
         let cell_ref: Ref<Binding<T>> = cell.borrow();
 
-        MaybeUninitRefMut {
-            cell_ref: cell_ref
+        let (_, class) = cell_ref.deref();
+
+        PortValueRefMut {
+            equiv: Rc::clone(class),
         }
     }
 
@@ -132,8 +134,8 @@ impl<T> Port<T> {
 
         let class_cell: &PortEquivClass<T> = Rc::borrow(class);
 
-        let v = class_cell.cell.borrow().clone();
-        unsafe { v.assume_init() }
+        let cell_borrow: Ref<T> = class_cell.cell.borrow();
+        T::clone(cell_borrow.deref())
     }
 
     pub(in crate) fn set(&self, new_value: T) {
@@ -152,7 +154,7 @@ impl<T> Port<T> {
         // unsafe { std::mem::drop(prev.assume_init()); }
         // class_cell.cell.set(MaybeUninit::new(new_value))
 
-        class_cell.cell.replace(MaybeUninit::new(new_value));
+        class_cell.cell.replace(new_value);
     }
 }
 
@@ -184,7 +186,7 @@ type Binding<T> = (BindStatus, Rc<PortEquivClass<T>>);
 /// which has a unique cell to store data.
 struct PortEquivClass<T> {
     /// This the container for the value
-    cell: RefCell<MaybeUninit<T>>,
+    cell: RefCell<T>,
 
     /// This is the set of ports that are "forwarded to".
     /// When you bind 2 ports A -> B, then the binding of B
@@ -206,9 +208,9 @@ struct PortEquivClass<T> {
 }
 
 impl<T> PortEquivClass<T> {
-    fn new() -> Self {
+    fn new(initial: T) -> Self {
         PortEquivClass {
-            cell: RefCell::new(MaybeUninit::uninit()),
+            cell: RefCell::new(initial),
             downstreams: Default::default(),
         }
     }
@@ -233,41 +235,18 @@ impl<T> PortEquivClass<T> {
 }
 
 
-struct MaybeUninitRefMut<'b, T: 'b> {
-    cell_ref: Ref<'b, Binding<T>>,
-    // refmut: RefMut<'b, MaybeUninit<T>>,
+pub struct PortValueRefMut<T> {
+    equiv: Rc<PortEquivClass<T>>
 }
 
-impl<'b, T: 'b> Deref for MaybeUninitRefMut<'b, T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        let (_, class) = self.cell_ref.deref();
-
-        let class_cell: &PortEquivClass<T> = Rc::borrow(class);
-
-        let refmut = class_cell.cell.as_ptr();
-
-        unsafe {
-            refmut.as_ref() // unsafe ptr op, used to force the lifetime
-                .unwrap()
-                .get_ref()  // unstable + unsafe
-        }
+impl<T> PortValueRefMut<T> {
+    pub fn get_ref(&self) -> Ref<T> {
+        let cell = &self.equiv.cell;
+        return cell.borrow();
     }
-}
 
-impl<'b, T: 'b> DerefMut for MaybeUninitRefMut<'b, T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        let (_, class) = self.cell_ref.deref();
-
-        let class_cell: &PortEquivClass<T> = Rc::borrow(class);
-
-        let refmut = class_cell.cell.as_ptr();
-
-        unsafe {
-            refmut.as_mut() // unsafe ptr op, used to force the lifetime
-                .unwrap()
-                .get_mut()  // unstable + unsafe
-        }
+    pub fn get_ref_mut(&mut self) -> RefMut<T> {
+        let cell = &self.equiv.cell;
+        return cell.borrow_mut();
     }
 }

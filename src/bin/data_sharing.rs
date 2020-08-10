@@ -50,7 +50,14 @@ impl<'g> WorldReactor<'g> for AppReactor<'g> {
 }
 
 
-type PV = [u8; 256];
+#[derive(Clone, Copy)]
+struct PV([u8; 256]);
+
+impl IgnoredDefault for PV {
+    fn ignored_default() -> Self {
+        PV([0; 256])
+    }
+}
 
 struct OwnerReactor<'r> {
     output_port: Port<PV>,
@@ -90,8 +97,9 @@ impl<'r> Reactor for OwnerReactor<'r> {
         match reaction_id {
             ProduceReactions::Emit => {
                 println!("Emitting {}", 3);
-                let mut mut_port = ctx.get_port_mut(&reactor.output_port);
-                mut_port[0] = 3; // this is actually memory corruption, the reactor cell has not been initialized
+                let mut port_mut = ctx.get_port_mut(&reactor.output_port);
+                let mut mut_port = port_mut.get_ref_mut();
+                mut_port.0[0] = 3;
                 println!("Set");
                 ctx.schedule_action(&reactor.emit_action, Some(Duration::from_secs(1)))
             }
@@ -125,7 +133,7 @@ impl<'r> Reactor for ConsumeReactor {
     fn react<'g>(reactor: &RunnableReactor<'g, Self>, _: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx<'_, 'g>) where Self: Sized + 'g {
         match reaction_id {
             ConsumeReactions::Print => {
-                println!("Received slice of len {}", ctx.get_port(&reactor.input_port).len())
+                println!("Received slice of len {}", ctx.get_port(&reactor.input_port).0.len())
             }
         }
     }

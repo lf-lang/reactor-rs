@@ -7,7 +7,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use priority_queue::PriorityQueue;
 
-use crate::reactors::{ActionId, GlobalAssembler, Port, Reactor, WorldReactor};
+use crate::reactors::{ActionId, GlobalAssembler, Port, Reactor, WorldReactor, PortValueRefMut};
 use crate::reactors::flowgraph::Schedulable;
 use crate::reactors::id::{GlobalId, Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
@@ -158,7 +158,7 @@ impl<'a, 'g> ReactionCtx<'a, 'g> {
         self.scheduler.enqueue_port(port.port_id());
     }
 
-    pub fn get_port_mut<'p, T>(&mut self, port: &'p Port<T>) -> impl DerefMut<Target=T> + 'p
+    pub fn get_port_mut<T>(&mut self, port: &Port<T>) -> PortValueRefMut<T>
         where Self: Sized {
         self.assert_has_write_access(port);
         self.scheduler.enqueue_port(port.port_id()); // FIXME we don't know if this will actually be set
