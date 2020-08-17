@@ -13,15 +13,11 @@
 #[macro_use]
 extern crate rust_reactors;
 
-use std::borrow::Borrow;
+use std::marker::PhantomData;
 use std::rc::Rc;
 use std::time::Duration;
 
 use rust_reactors::reactors::*;
-use std::num::Wrapping;
-use std::marker::PhantomData;
-use std::mem::MaybeUninit;
-use std::cell::RefCell;
 
 pub fn main() {
     let (app, mut scheduler) = make_world::<AppReactor>().unwrap();
@@ -63,11 +59,11 @@ struct OwnerReactor<'r> {
 
 
 reaction_ids!(enum ProduceReactions { Emit, });
-
-struct MyState {
-    arr: [u8; 256],
-    len: usize,
-}
+//
+// struct MyState {
+//     arr: [u8; 256],
+//     len: usize,
+// }
 
 impl<'r> Reactor for OwnerReactor<'r> {
     type ReactionId = ProduceReactions;
@@ -94,7 +90,7 @@ impl<'r> Reactor for OwnerReactor<'r> {
             ProduceReactions::Emit => {
                 println!("Emitting {}", 3);
                 ctx.with_port_mut(&reactor.output_port,
-                                  |ctx, mut outmut| outmut.0[0] = 3);
+                                  |_, mut outmut| outmut.0[0] = 3);
                 println!("Set");
                 ctx.schedule_action(&reactor.emit_action, Some(Duration::from_secs(1)))
             }
