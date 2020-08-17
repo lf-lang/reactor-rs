@@ -7,12 +7,14 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use priority_queue::PriorityQueue;
 
-use crate::reactors::{ActionId, GlobalAssembler, Port, Reactor, WorldReactor, PortValueRefMut};
+use crate::reactors::{ActionId, GlobalAssembler, Port, Reactor, WorldReactor};
 use crate::reactors::flowgraph::Schedulable;
 use crate::reactors::id::{GlobalId, Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
 use std::ops::{DerefMut, Deref};
 use std::marker::PhantomData;
+use std::cell::{Ref, RefMut};
+use std::cell::RefCell;
 
 type MicroStep = u32;
 
@@ -113,7 +115,8 @@ impl<'g> Scheduler<'g> {
 
 
 /// This is the context in which a reaction executes. Its API
-/// allows mutating the event queue of the scheduler.
+/// allows mutating the event queue of the scheduler. Only the
+/// interactions declared at assembly time are allowed.
 ///
 pub struct ReactionCtx<'a, 'g> {
     scheduler: &'a mut Scheduler<'g>,
@@ -129,10 +132,7 @@ impl<'a, 'g> ReactionCtx<'a, 'g> {
     /// dependency on the given port ([reaction_uses](super::Assembler::reaction_uses)).
     ///
     pub fn get_port<T>(&self, port: &Port<T>) -> T where Self: Sized, T: Copy {
-        assert!(self.scheduler.schedulable.get_allowed_reads(&self.reaction_id).contains(port.port_id()),
-                "Forbidden read on port {} by reaction {}. Declare the dependency explicitly during assembly",
-                port.global_id(), self.reaction_id.global_id()
-        );
+        self.assert_has_read_access(port);
 
         port.copy_get()
     }
@@ -142,8 +142,6 @@ impl<'a, 'g> ReactionCtx<'a, 'g> {
     /// propagates immediately. This may hence schedule more
     /// reactions that should execute on the same logical
     /// step.
-    ///
-    /// TODO would be possible to get a mutable ref to the port internal value instead
     ///
     /// # Panics
     ///
@@ -158,13 +156,59 @@ impl<'a, 'g> ReactionCtx<'a, 'g> {
         self.scheduler.enqueue_port(port.port_id());
     }
 
-    pub fn get_port_mut<T>(&mut self, port: &Port<T>) -> PortValueRefMut<T>
-        where Self: Sized {
+    /// Executes an action that uses an immutable reference to
+    /// the internal value of a port.
+    /// TODO the enqueue_port actions should be wrapped around the ref.
+    ///  That way we can enqueue only if it was set.
+    ///  Then describes these effects
+    ///
+    /// If the type of the port implements [std::Copy], you can instead use [set_port].
+    ///
+    /// # Panics
+    ///
+    /// If the reaction being executed has not declared its
+    /// dependency on the given port ([reaction_affects](super::Assembler::reaction_affects)).
+    ///
+    ///
+    pub fn with_port_mut<T, A>(&mut self, port: &Port<T>, action: A)
+        where A: FnOnce(&mut ReactionCtx<'a, 'g>, RefMut<T>) {
         self.assert_has_write_access(port);
-        self.scheduler.enqueue_port(port.port_id()); // FIXME we don't know if this will actually be set
-        port.get_mut()
+        let rcell = port.get_mut();
+        let refmut = rcell.borrow_mut();
+        self.scheduler.enqueue_port(port.port_id());
+
+        action.call_once((self, refmut));
     }
 
+
+    /// Executes an action that uses a mutable reference to
+    /// the internal value of a port. If the type of the port
+    /// implements [std::Copy], you can instead use [get_port].
+    ///
+    /// # Panics
+    ///
+    /// If the reaction being executed has not declared its
+    /// dependency on the given port ([reaction_affects](super::Assembler::reaction_uses)).
+    ///
+    /// If the port was already borrowed mutably in this context.
+    ///
+    pub fn with_port_ref<T, A>(&mut self, port: &Port<T>, action: A)
+        where A: FnOnce(&mut ReactionCtx<'a, 'g>, Ref<T>) {
+        self.assert_has_read_access(port);
+        let rc = port.get_mut();
+        let rcell = rc.deref();
+        let r: Ref<T> = rcell.borrow();
+
+        action.call_once((self, r));
+    }
+
+
+    fn assert_has_read_access<T>(&self, port: &Port<T>) {
+        assert!(self.scheduler.schedulable.get_allowed_reads(&self.reaction_id).contains(port.port_id()),
+                "Forbidden read on port {} by reaction {}. Declare the dependency explicitly during assembly",
+                port.global_id(), self.reaction_id.global_id()
+        );
+    }
 
     fn assert_has_write_access<T>(&mut self, port: &Port<T>) {
         assert!(self.scheduler.schedulable.get_allowed_writes(&self.reaction_id).contains(port.port_id()),

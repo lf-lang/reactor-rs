@@ -67,11 +67,11 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor {
      * to be stored on the struct of the reactor.
      */
 
-    pub fn new_output_port<T: Clone + IgnoredDefault>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
+    pub fn new_output_port<T: IgnoredDefault>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
         self.new_port(PortKind::Output, name, T::ignored_default())
     }
 
-    pub fn new_input_port<T: Clone + IgnoredDefault>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
+    pub fn new_input_port<T: IgnoredDefault>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
         self.new_port(PortKind::Input, name, T::ignored_default())
     }
 
@@ -241,7 +241,7 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor { // this is the private i
         GlobalId::new(Rc::clone(&self.id), name)
     }
 
-    fn new_port<T: Clone>(&mut self, kind: PortKind, name: &'static str, initial:T) -> Result<Port<T>, AssemblyError> {
+    fn new_port<T>(&mut self, kind: PortKind, name: &'static str, initial: T) -> Result<Port<T>, AssemblyError> {
         Ok(Port::<T>::new(kind, self.new_id(name)?, initial))
     }
 
@@ -401,6 +401,7 @@ pub fn make_world<'g, R>() -> Result<(RunnableReactor<'g, R>, Scheduler<'g>), As
 }
 
 
+/// A default for a port value, that is actually never observed
 pub trait IgnoredDefault {
     fn ignored_default() -> Self;
 }

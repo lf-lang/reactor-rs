@@ -7,7 +7,7 @@
 //! it to the screen.
 //!
 //! ```shell
-//! $ cargo run --bin example-forwarding
+//! $ cargo +nightly run --bin example-forwarding
 //! Received 1
 //! Received 2
 //! ...

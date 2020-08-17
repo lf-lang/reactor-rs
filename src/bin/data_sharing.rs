@@ -1,13 +1,9 @@
-//! A simple example:
+//! Example of passing data by reference through a port.
 //!
-//! Producer -> Relay -> Consumer
-//!
-//! The producer schedules an "increment and send" reaction
-//! every second. The consumer handles the new value and prints
-//! it to the screen.
+//! Producer -> Relay
 //!
 //! ```shell
-//! $ cargo run --bin example-forwarding
+//! $ cargo +nightly run  --bin example-data-sharing
 //! Received 1
 //! Received 2
 //! ...
@@ -25,6 +21,7 @@ use rust_reactors::reactors::*;
 use std::num::Wrapping;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
+use std::cell::RefCell;
 
 pub fn main() {
     let (app, mut scheduler) = make_world::<AppReactor>().unwrap();
@@ -50,7 +47,6 @@ impl<'g> WorldReactor<'g> for AppReactor<'g> {
 }
 
 
-#[derive(Clone, Copy)]
 struct PV([u8; 256]);
 
 impl IgnoredDefault for PV {
@@ -97,16 +93,14 @@ impl<'r> Reactor for OwnerReactor<'r> {
         match reaction_id {
             ProduceReactions::Emit => {
                 println!("Emitting {}", 3);
-                let mut port_mut = ctx.get_port_mut(&reactor.output_port);
-                let mut mut_port = port_mut.get_ref_mut();
-                mut_port.0[0] = 3;
+                ctx.with_port_mut(&reactor.output_port,
+                                  |ctx, mut outmut| outmut.0[0] = 3);
                 println!("Set");
                 ctx.schedule_action(&reactor.emit_action, Some(Duration::from_secs(1)))
             }
         }
     }
 }
-
 
 struct ConsumeReactor {
     input_port: Port<PV>,
@@ -133,7 +127,9 @@ impl<'r> Reactor for ConsumeReactor {
     fn react<'g>(reactor: &RunnableReactor<'g, Self>, _: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx<'_, 'g>) where Self: Sized + 'g {
         match reaction_id {
             ConsumeReactions::Print => {
-                println!("Received slice of len {}", ctx.get_port(&reactor.input_port).0.len())
+                ctx.with_port_ref(&reactor.input_port, |_, v| {
+                    println!("Received slice of len {}", v.0.len())
+                })
             }
         }
     }

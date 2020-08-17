@@ -114,15 +114,13 @@ impl<T> Port<T> {
 }
 
 impl<T> Port<T> {
-    pub(in crate) fn get_mut(&self) -> PortValueRefMut<T> {
+    pub(in crate) fn get_mut(&self) -> Rc<RefCell<T>> {
         let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
         let cell_ref: Ref<Binding<T>> = cell.borrow();
 
         let (_, class) = cell_ref.deref();
 
-        PortValueRefMut {
-            equiv: Rc::clone(class),
-        }
+        Rc::clone(&class.deref().cell)
     }
 
     pub(in crate) fn copy_get(&self) -> T where T: Copy {
@@ -134,7 +132,8 @@ impl<T> Port<T> {
 
         let class_cell: &PortEquivClass<T> = Rc::borrow(class);
 
-        let cell_borrow: Ref<T> = class_cell.cell.borrow();
+        let rc = Rc::clone(&class_cell.cell);
+        let cell_borrow: Ref<T> = rc.deref().borrow();
         T::clone(cell_borrow.deref())
     }
 
@@ -186,7 +185,7 @@ type Binding<T> = (BindStatus, Rc<PortEquivClass<T>>);
 /// which has a unique cell to store data.
 struct PortEquivClass<T> {
     /// This the container for the value
-    cell: RefCell<T>,
+    cell: Rc<RefCell<T>>,
 
     /// This is the set of ports that are "forwarded to".
     /// When you bind 2 ports A -> B, then the binding of B
@@ -210,7 +209,7 @@ struct PortEquivClass<T> {
 impl<T> PortEquivClass<T> {
     fn new(initial: T) -> Self {
         PortEquivClass {
-            cell: RefCell::new(initial),
+            cell: Rc::new(RefCell::new(initial)),
             downstreams: Default::default(),
         }
     }
@@ -231,22 +230,5 @@ impl<T> PortEquivClass<T> {
             let mut ref_mut = cell.borrow_mut();
             *ref_mut.deref_mut() = (ref_mut.0, Rc::clone(new_binding));
         }
-    }
-}
-
-
-pub struct PortValueRefMut<T> {
-    equiv: Rc<PortEquivClass<T>>
-}
-
-impl<T> PortValueRefMut<T> {
-    pub fn get_ref(&self) -> Ref<T> {
-        let cell = &self.equiv.cell;
-        return cell.borrow();
-    }
-
-    pub fn get_ref_mut(&mut self) -> RefMut<T> {
-        let cell = &self.equiv.cell;
-        return cell.borrow_mut();
     }
 }
