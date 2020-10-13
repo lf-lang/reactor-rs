@@ -36,8 +36,8 @@ struct AppReactor<'g> {
     consumer: Rc<RunnableReactor<'g, ConsumeReactor>>,
 }
 
-impl<'g> WorldReactor for AppReactor<'g> {
-    fn assemble_world<'a, 'gp>(assembler: &mut impl AssemblerBase<'a, 'gp, Self>) -> Result<Self, AssemblyError> where Self: Sized {
+impl<'g> WorldReactor<'g> for AppReactor<'g> {
+    fn assemble_world<'a>(assembler: &mut impl AssemblerBase<'a, 'g, Self>) -> Result<Self, AssemblyError> where Self: Sized {
         let producer = assembler.new_subreactor::<ProduceReactor>("producer")?;
         let relay = assembler.new_subreactor::<PortRelay>("relay1")?;
         let consumer = assembler.new_subreactor::<ConsumeReactor>("consumer")?;
@@ -78,7 +78,7 @@ impl Reactor for ProduceReactor {
         Ok(ProduceReactor { output_port, emit_action })
     }
 
-    fn react(reactor: &RunnableReactor<Self>, state: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx) where Self: Sized {
+    fn react<'g>(reactor: &RunnableReactor<'g, Self>, state: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx<'_, 'g>) where Self: Sized + 'g {
         match reaction_id {
             ProduceReactions::Emit => {
                 *state += 1;
@@ -113,7 +113,7 @@ impl Reactor for ConsumeReactor {
         Ok(ConsumeReactor { input_port })
     }
 
-    fn react(reactor: &RunnableReactor<Self>, _: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx) where Self: Sized {
+    fn react<'g>(reactor: &RunnableReactor<'g, Self>, _: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx<'_, 'g>) where Self: Sized + 'g {
         match reaction_id {
             ConsumeReactions::Print => {
                 println!("Received {}", ctx.get_port(&reactor.input_port))
@@ -145,7 +145,7 @@ impl Reactor for PortRelay {
         Ok(PortRelay { input_port, output_port })
     }
 
-    fn react(_: &RunnableReactor<Self>, _: &mut Self::State, _: Self::ReactionId, _: &mut ReactionCtx) where Self: Sized {
+    fn react<'g>(_: &RunnableReactor<'g, Self>, _: &mut Self::State, _: Self::ReactionId, _: &mut ReactionCtx<'_, 'g>) where Self: Sized + 'g {
         unreachable!("Reactor declares no reaction")
     }
 }

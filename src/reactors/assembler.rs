@@ -67,14 +67,31 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor {
      * to be stored on the struct of the reactor.
      */
 
+
+    /// Create a new output port for values of type T.
+    ///
+    /// # Validity
+    ///
+    /// - the name is distinct from other component names in this reactor
     pub fn new_output_port<T: IgnoredDefault>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
         self.new_port(PortKind::Output, name, T::ignored_default())
     }
 
+    /// Create a new input port for values of type T.
+    ///
+    /// # Validity
+    ///
+    /// - the name is distinct from other component names in this reactor
     pub fn new_input_port<T: IgnoredDefault>(&mut self, name: &'static str) -> Result<Port<T>, AssemblyError> {
         self.new_port(PortKind::Input, name, T::ignored_default())
     }
 
+    /// Create a new action. The min_delay parameter may be left
+    /// blank for zero.
+    ///
+    /// # Validity
+    ///
+    /// - the name is distinct from other component names in this reactor
     pub fn new_action(&mut self, name: &'static str, min_delay: Option<Duration>, is_logical: bool) -> Result<ActionId, AssemblyError> {
         Ok(ActionId::new(min_delay, self.new_id(name)?, is_logical))
     }
