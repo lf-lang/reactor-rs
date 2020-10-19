@@ -1,20 +1,16 @@
-use std::borrow::Borrow;
 use std::cmp::Reverse;
-use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::Debug;
 use std::rc::Rc;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
 
 use priority_queue::PriorityQueue;
 
-use crate::reactors::{ActionId, GlobalAssembler, Port, Reactor, WorldReactor};
+use crate::reactors::{ActionId, Port};
 use crate::reactors::flowgraph::Schedulable;
-use crate::reactors::id::{GlobalId, Identified, PortId, ReactionId};
+use crate::reactors::id::{Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
-use std::ops::{DerefMut, Deref};
-use std::marker::PhantomData;
+use std::ops::Deref;
 use std::cell::{Ref, RefMut};
-use std::cell::RefCell;
 
 type MicroStep = u32;
 
@@ -66,7 +62,7 @@ impl<'g> Scheduler<'g> {
 
     fn step(&mut self) {
         if let Some((event, Reverse(time))) = self.queue.pop() {
-            let (reaction) = match event {
+            let reaction = match event {
                 Event::ReactionExecute { reaction, .. } => reaction,
                 Event::ReactionSchedule { reaction, .. } => reaction
             };
@@ -162,7 +158,7 @@ impl<'a, 'g> ReactionCtx<'a, 'g> {
     ///  That way we can enqueue only if it was set.
     ///  Then describes these effects
     ///
-    /// If the type of the port implements [std::Copy], you can instead use [set_port].
+    /// If the type of the port implements [Copy], you can instead use [Self::set_port].
     ///
     /// # Panics
     ///
@@ -183,7 +179,7 @@ impl<'a, 'g> ReactionCtx<'a, 'g> {
 
     /// Executes an action that uses a mutable reference to
     /// the internal value of a port. If the type of the port
-    /// implements [std::Copy], you can instead use [get_port].
+    /// implements [Copy], you can instead use [Self::get_port].
     ///
     /// # Panics
     ///

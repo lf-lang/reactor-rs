@@ -1,5 +1,5 @@
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fmt::{Debug, Display, Formatter};
 use std::marker::PhantomData;
 use std::ops::Deref;
@@ -9,7 +9,7 @@ use std::time::Duration;
 use crate::reactors::{Port, PortKind, Scheduler};
 use crate::reactors::action::ActionId;
 use crate::reactors::BindStatus;
-use crate::reactors::flowgraph::{FlowGraph, Schedulable};
+use crate::reactors::flowgraph::FlowGraph;
 use crate::reactors::id::{AssemblyId, GlobalId, Identified, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
 use crate::reactors::Reactor;
@@ -110,7 +110,7 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor {
     pub fn action_triggers(&mut self, action: &ActionId, reaction_id: R::ReactionId) -> Result<(), AssemblyError> {
         // TODO
         let rid = ReactionId(self.existing_id(reaction_id));
-        self.global.data_flow.add_trigger_dependency(rid, action, DependencyKind::Use)
+        self.global.data_flow.add_trigger_dependency(rid, action, DependencyKind::Uses)
     }
 
 
@@ -141,7 +141,7 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor {
     pub fn reaction_uses<T>(&mut self, reaction_id: R::ReactionId, port: &Port<T>) -> Result<(), AssemblyError> {
         let react_global_id = self.existing_id(reaction_id);
         let invalid = |cause: &'static str| -> AssemblyError {
-            AssemblyError::InvalidDependency(cause, react_global_id.clone(), DependencyKind::Use, port.global_id().clone())
+            AssemblyError::InvalidDependency(cause, react_global_id.clone(), DependencyKind::Uses, port.global_id().clone())
         };
 
         if port.is_input() && !port.is_in_reactor(&self.id) {
@@ -150,7 +150,7 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor {
             return Err(invalid("Reaction can only use output ports of sub-reactors"));
         }
 
-        self.global.data_flow.add_data_dependency(ReactionId(react_global_id), port, DependencyKind::Use)
+        self.global.data_flow.add_data_dependency(ReactionId(react_global_id), port, DependencyKind::Uses)
     }
 
 
@@ -167,7 +167,7 @@ impl<'a, 'g, R> Assembler<'a, 'g, R> where R: Reactor {
     pub fn reaction_affects<T>(&mut self, reaction_id: R::ReactionId, port: &Port<T>) -> Result<(), AssemblyError> {
         let react_global_id = self.existing_id(reaction_id);
         let invalid = |cause: &'static str| -> AssemblyError {
-            AssemblyError::InvalidDependency(cause, react_global_id.clone(), DependencyKind::Use, port.global_id().clone())
+            AssemblyError::InvalidDependency(cause, react_global_id.clone(), DependencyKind::Uses, port.global_id().clone())
         };
 
         if port.is_output() && !port.is_in_reactor(&self.id) {
@@ -224,7 +224,7 @@ impl<'a, 'g, R> AssemblerBase<'a, 'g, R> for Assembler<'a, 'g, R> where R: React
         let mut sub_assembler = Assembler::<S>::new(self.global, Rc::new(self.sub_id_for(name)));
 
         let reactions = sub_assembler.make_reaction_global_ids()?;
-        sub_assembler.global.data_flow.add_reactions(reactions);
+        sub_assembler.global.data_flow.add_reactions(reactions)?;
 
         match S::assemble(&mut sub_assembler) {
             #[cold] Err(sub_error) => Err(AssemblyError::InContext(id, Box::new(sub_error))),
@@ -306,6 +306,7 @@ pub struct RunnableReactor<'r, R: Reactor + 'r> {
     me: R,
     global_id: GlobalId,
     // needs to be refcell for transparent mutability
+    // The state is unused but actually closed into the ClosedReactions
     state: Rc<RefCell<R::State>>,
     phantom: PhantomData<&'r R>,
 }
@@ -344,12 +345,12 @@ impl<'r, R> Identified for RunnableReactor<'r, R> where R: Reactor + 'r {
 /// The direction of a dependency. Forward dependencies "use"
 /// data, backwards dependencies "affect" data.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum DependencyKind { Use, Affects }
+pub enum DependencyKind { Uses, Affects }
 
 impl Display for DependencyKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            DependencyKind::Use => write!(f, "uses"),
+            DependencyKind::Uses => write!(f, "uses"),
             DependencyKind::Affects => write!(f, "affects"),
         }
     }

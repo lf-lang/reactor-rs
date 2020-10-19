@@ -78,7 +78,9 @@ impl Display for GlobalId {
     }
 }
 
+/// A component of a reactor. Its global ID is used to record its dependencies
 pub trait Identified {
+    /// The ID of the component. Global unicity is enforced by the [Assembler]
     fn global_id(&self) -> &GlobalId;
 
     fn is_in_direct_subreactor_of(&self, reactor_id: &impl Deref<Target=AssemblyId>) -> bool {

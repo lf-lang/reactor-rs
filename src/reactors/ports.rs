@@ -2,7 +2,7 @@
 
 
 use std::borrow::Borrow;
-use std::cell::{Cell, Ref, RefCell, RefMut};
+use std::cell::{Ref, RefCell};
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 use std::iter::FromIterator;
@@ -13,7 +13,6 @@ use std::rc::Rc;
 use crate::reactors::assembler::AssemblyError;
 use crate::reactors::id::{GlobalId, Identified, PortId};
 use crate::reactors::ports::BindStatus::Unbound;
-use std::mem::MaybeUninit;
 
 /// The nature of a port (input or output)
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -215,7 +214,6 @@ impl<T> PortEquivClass<T> {
     }
 
     fn check_cycle(&self, upstream_id: &PortId, downstream_id: &PortId) -> Result<(), AssemblyError> {
-        #[cold]
         if (&*self.downstreams.borrow()).contains_key(upstream_id) {
             Err(AssemblyError::CyclicDependency(format!("Port {} is already in the downstream of port {}", upstream_id, downstream_id)))
         } else {

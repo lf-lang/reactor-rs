@@ -1,9 +1,4 @@
-use std::collections::HashMap;
-use std::rc::Rc;
-
-use crate::reactors::{Assembler, AssemblerBase, AssemblyError, GlobalAssembler, ReactionCtx, Reactor, RunnableReactor};
-use crate::reactors::id::GlobalId;
-use crate::reactors::reaction::ClosedReaction;
+use crate::reactors::{Assembler, AssemblerBase, AssemblyError, ReactionCtx, Reactor, RunnableReactor};
 use crate::reactors::util::Nothing;
 
 /// A top-level reactor. Such a reactor may only declare

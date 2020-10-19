@@ -131,8 +131,8 @@ macro_rules! reaction_ids_helper {
 /// reaction_ids!(pub enum AppReactions { Receive, Emit })
 /// ```
 ///
-/// defines that enum and derives [Named](crate::reactors::util::Named)
-/// and [Enumerated](crate::reactors::util::Enumerated).
+/// defines that enum and derives [Named](Named)
+/// and [Enumerated](Enumerated).
 #[macro_export]
 macro_rules! reaction_ids {
         ($viz:vis enum $typename:ident { $($id:ident),+$(,)? }) => {

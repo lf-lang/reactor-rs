@@ -5,9 +5,9 @@ use std::hash::{Hash, Hasher};
 use std::ops::DerefMut;
 use std::rc::Rc;
 
-use crate::reactors::{ReactionCtx, Reactor, Scheduler};
+use crate::reactors::{ReactionCtx, Reactor};
 use crate::reactors::assembler::RunnableReactor;
-use crate::reactors::id::{GlobalId, Identified, ReactionId};
+use crate::reactors::id::{GlobalId, Identified};
 
 /// Reaction that is directly executable with a scheduler, instead
 /// of with other data.
@@ -47,7 +47,7 @@ impl Debug for ClosedReaction<'_> {
 
 impl<'g> ClosedReaction<'g> {
     pub(in super) fn fire(&self, ctx: &mut ReactionCtx<'_, 'g>) {
-        let mut cell = &mut *self.body.borrow_mut(); // note: may panic
+        let cell = &mut *self.body.borrow_mut(); // note: may panic
         (cell)(ctx)
     }
 

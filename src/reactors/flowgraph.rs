@@ -1,18 +1,16 @@
-use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::rc::Rc;
 
-use petgraph::{Direction, Graph};
+use petgraph::Direction;
 use petgraph::Direction::{Incoming, Outgoing};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 
-use crate::reactors::{AssemblyError, DependencyKind, Port, ReactionCtx};
+use crate::reactors::{AssemblyError, DependencyKind, Port};
 use crate::reactors::action::ActionId;
 use crate::reactors::AssemblyError::CyclicDependency;
 use crate::reactors::flowgraph::FlowGraphElement::{PortElt, ReactionElt};
-use crate::reactors::flowgraph::TriggerGraphElement::ActionElt;
 use crate::reactors::id::{GlobalId, Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
 
@@ -51,7 +49,7 @@ impl<V: Clone + Identified> GraphWrapper<V> {
 
         match kind {
             DependencyKind::Affects => self.graph.add_edge(rid, pid, ()),
-            DependencyKind::Use => self.graph.add_edge(pid, rid, ()),
+            DependencyKind::Uses => self.graph.add_edge(pid, rid, ()),
         };
 
         Ok(())
@@ -126,7 +124,7 @@ impl<'g> FlowGraph<'g> {
     }
 
 
-    pub fn add_reactions(&mut self, reactions: Vec<ReactionId>) {
+    pub fn add_reactions(&mut self, reactions: Vec<ReactionId>) -> Result<(), AssemblyError> {
         let mut ids = Vec::<FlowGraphElement>::with_capacity(reactions.len());
         for r in reactions {
             ids.push(ReactionElt(r));
@@ -134,8 +132,9 @@ impl<'g> FlowGraph<'g> {
 
         // Add priority links between reactions
         for (a, b) in ids.iter().zip(ids.iter().skip(1)) {
-            self.dataflow.add_dependency(a.clone(), b.clone(), DependencyKind::Use);
+            self.dataflow.add_dependency(a.clone(), b.clone(), DependencyKind::Uses)?;
         }
+        Ok(())
     }
 
     pub fn register_reaction(&mut self, reaction: ClosedReaction<'g>) {
@@ -346,8 +345,7 @@ impl<V> Display for GraphWrapper<V> where V: Debug + Identified + Clone {
         for v in self.graph.node_indices() {
             let w = self.graph.node_weight(v).unwrap();
 
-            let mut escaped = format!("{:?}", w);
-            escaped.replace("\"", "\\\"");
+            let escaped = format!("{:?}", w).replace("\"", "\\\"");
 
             write!(f, "node {} [ label = \"{}\" ]; ", v.index(), escaped)?;
         }
