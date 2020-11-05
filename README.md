@@ -1,5 +1,12 @@
 # Rust reactors prototype
 
+## Setup
+
+* Needs Rust nightly toolchain:
+```shell script
+rustup install nightly
+```
+
 ## Status
 
 There's a really basic scheduler now:
