@@ -96,9 +96,16 @@ impl<'g> Scheduler<'g> {
     fn enqueue_action(&mut self, action_id: &ActionId, additional_delay: Option<Duration>) {
         let min_delay = action_id.min_delay() + additional_delay.unwrap_or(Duration::from_secs(0));
 
+        let mut instant = self.cur_logical_time.instant + min_delay;
+        if !action_id.is_logical() {
+            // physical actions are adjusted to physical time if needed
+            instant = Instant::max(instant, Instant::now());
+        }
+
+        // note that the microstep is global, doesn't really matter though
         self.micro_step += 1;
         let eta = LogicalTime {
-            instant: self.cur_logical_time.instant + min_delay,
+            instant,
             microstep: self.micro_step,
         };
 
@@ -221,12 +228,12 @@ impl<'a, 'g> ReactionCtx<'a, 'g> {
     ///
     /// If the reaction being executed has not declared its
     /// dependency on the given action ([reaction_schedules](super::Assembler::reaction_schedules)).
-    pub fn schedule_action(&mut self, action: &ActionId, additional_delay: Option<Duration>) {
+    pub fn schedule_action(&mut self, action: &ActionId, offset: Option<Duration>) {
         assert!(self.scheduler.schedulable.get_allowed_schedules(&self.reaction_id).contains(action),
                 "Forbidden schedule call on action {} by reaction {}. Declare the dependency explicitly during assembly",
                 action.global_id(), self.reaction_id.global_id()
         );
 
-        self.scheduler.enqueue_action(action, additional_delay)
+        self.scheduler.enqueue_action(action, offset)
     }
 }
