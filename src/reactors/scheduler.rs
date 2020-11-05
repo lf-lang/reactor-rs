@@ -1,5 +1,7 @@
+use std::cell::{Ref, RefMut};
 use std::cmp::Reverse;
 use std::fmt::Debug;
+use std::ops::Deref;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
@@ -9,8 +11,6 @@ use crate::reactors::{ActionId, Port};
 use crate::reactors::flowgraph::Schedulable;
 use crate::reactors::id::{Identified, PortId, ReactionId};
 use crate::reactors::reaction::ClosedReaction;
-use std::ops::Deref;
-use std::cell::{Ref, RefMut};
 
 type MicroStep = u32;
 
