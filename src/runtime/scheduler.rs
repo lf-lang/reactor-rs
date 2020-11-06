@@ -6,6 +6,7 @@ use std::rc::Rc;
 use std::time::{Duration, Instant};
 
 use priority_queue::PriorityQueue;
+use crate::runtime::ports::{Port, InputPort, OutputPort};
 
 type MicroStep = u128;
 
@@ -23,8 +24,8 @@ impl Default for LogicalTime {
 
 #[derive(Eq, PartialEq, Hash)]
 enum Event {
-    ReactionExecute { at: LogicalTime, reaction: Rc<ReactionInvoker> },
-    ReactionSchedule { min_at: LogicalTime, reaction: Rc<ReactionInvoker> },
+    ReactionExecute { at: LogicalTime, reaction: ReactionInvoker },
+    ReactionSchedule { min_at: LogicalTime, reaction: ReactionInvoker },
 }
 
 /// Directs execution of the whole reactor graph.
@@ -124,8 +125,8 @@ impl<'a> Ctx<'a> {
     /// If the reaction being executed has not declared its
     /// dependency on the given port ([reaction_uses](super::Assembler::reaction_uses)).
     ///
-    pub fn get<T>(&self, port: &InPort<T>) -> T where Self: Sized, T: Copy {
-        Rc::deref(&port.cell).cell.get()
+    pub fn get<T>(&self, port: &InputPort<T>) -> Option<T> {
+        port.get()
     }
 
     /// Sets the value of the given output port. The change
@@ -139,8 +140,8 @@ impl<'a> Ctx<'a> {
     /// If the reaction being executed has not declared its
     /// dependency on the given port ([reaction_affects](super::Assembler::reaction_affects)).
     ///
-    pub fn set<T>(&mut self, port: OutPort<T>, value: T) where Self: Sized, T: Copy {
-        Rc::deref(&port.cell).cell.set(value);
+    pub fn set<T>(&mut self, mut port: &mut OutputPort<T>, value: T) {
+        port.set(value);
         self.scheduler.enqueue_port(&port.cell);
     }
 
@@ -161,18 +162,17 @@ impl<'a> Ctx<'a> {
 pub struct Action {
     delay: Duration,
     logical: bool,
-    downstream: Vec<Rc<ReactionInvoker>>,
+    downstream: Vec<ReactionInvoker>,
 }
 
 impl Action {
     pub(in super) fn new(
         min_delay: Option<Duration>,
-        is_logical: bool,
-        downstream: Vec<Rc<ReactionInvoker>>) -> Self {
+        is_logical: bool) -> Self {
         Action {
             delay: min_delay.unwrap_or(Duration::new(0, 0)),
             logical: is_logical,
-            downstream,
+            downstream: Vec::new(),
         }
     }
 }
@@ -186,7 +186,7 @@ pub trait ReactorWrapper {
     fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId);
 }
 
-struct ReactionInvoker {
+pub(in super) struct ReactionInvoker {
     body: Box<dyn FnMut(&mut Ctx)>,
     id: i32,
 }
@@ -203,64 +203,3 @@ impl ReactionInvoker {
         ReactionInvoker { body, id }
     }
 }
-
-
-// ports
-
-pub struct PortCell<T> {
-    cell: Cell<T>,
-    downstream: Vec<Rc<ReactionInvoker>>,
-}
-
-//todo those derive(Clone) should be removed
-// clone should not be accessible to reaction implementations
-
-#[derive(Clone)]
-pub struct InPort<T> {
-    cell: Rc<PortCell<T>>
-}
-
-#[derive(Clone)]
-pub struct OutPort<T> {
-    cell: Rc<PortCell<T>>,
-}
-
-trait Port<T> {
-    fn cell(&mut self) -> &mut Rc<PortCell<T>>;
-}
-
-impl<T> Port<T> for InPort<T> {
-    fn cell(&mut self) -> &mut Rc<PortCell<T>> {
-        &mut self.cell
-    }
-}
-
-impl<T> Port<T> for OutPort<T> {
-    fn cell(&mut self) -> &mut Rc<PortCell<T>> {
-        &mut self.cell
-    }
-}
-
-/// Make the downstream port accept values from the upstream port
-/// For this to work this function must be called in reverse topological
-/// order between bound ports
-/// Eg
-/// a.out -> b.in
-/// b.in -> b.out
-/// b.out -> c.in
-/// b.out -> d.in
-///
-/// Must be translated as
-///
-/// bind(b.out, d.in)
-/// bind(b.out, c.in)
-/// bind(b.in, b.out)
-/// bind(a.out, b.in)
-///
-/// Also the edges must be that of a transitive reduction of
-/// the graph, as the down port is destroyed.
-fn bind<T>(up: &mut impl Port<T>, mut down: impl Port<T>) {
-    up.cell().downstream.append(&mut down.cell().downstream);
-    *down.cell() = Rc::clone(up.cell());
-}
-

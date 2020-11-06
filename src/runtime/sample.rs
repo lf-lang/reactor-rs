@@ -7,6 +7,7 @@ use petgraph::stable_graph::edge_index;
 use std::rc::Rc;
 
 use crate::runtime::*;
+use crate::runtime::ports::{OutputPort, InputPort};
 
 fn main() {}
 // this is a manual translation of https://github.com/icyphy/lingua-franca/blob/master/example/ReflexGame/ReflexGameMinimal.lf
@@ -32,9 +33,11 @@ main reactor ReflexGame {
  */
 fn assemble() {
     let mut p = RandomSource {};
-    let qq = GetUserInputWrapper {
+    let mut qq = GetUserInputWrapper {
         _impl: GetUserInput { prompt_time: Instant::now() },
-        response: Action::new(None, false)
+        response: Action::new(None, false),
+        prompt: InputPort::<bool>::new(),
+        another: OutputPort::<bool>::new()
     };
     let mut chan1 = bool::default();
     let mut chan2 = bool::default();
@@ -55,7 +58,7 @@ impl RandomSource { // reaction block
     ///      srand(time(0));
     ///      schedule(prompt, random_time());
     ///  =}
-    fn react_startup(ctx: &mut Ctx, prompt: &Action) {
+    fn react_startup(ctx: &mut Ctx<'_>, prompt: &Action) {
         // seed random gen
         ctx.schedule(prompt, Some(RandomSource::random_delay()));
     }
@@ -65,7 +68,7 @@ impl RandomSource { // reaction block
     ///     fflush(stdout);
     ///     SET(out, true);
     /// =}
-    fn react_emit(ctx: &mut Ctx, out: OutPort<bool>) {
+    fn react_emit(ctx: &mut Ctx<'_>, out: OutputPort<bool>) {
         println!("Hit Return!");
         ctx.set_port(out, true);
     }
@@ -73,7 +76,7 @@ impl RandomSource { // reaction block
     /// reaction(another) -> prompt {=
     ///     schedule(prompt, random_time());
     /// =}
-    fn react_schedule(ctx: &mut Ctx, out: OutPort<bool>) {
+    fn react_schedule(ctx: &mut Ctx<'_>, out: OutputPort<bool>) {
         println!("Hit Return!");
         ctx.set_port(out, true);
     }
@@ -87,7 +90,7 @@ struct GetUserInput {
 
 // user impl
 impl GetUserInput {
-    fn read_input_loop(ctx: &mut Ctx, response: &Action) {
+    fn read_input_loop(ctx: &mut Ctx<'_>, response: &Action) {
         let mut buf = String::new();
         loop {
             match stdin().read_line(&mut buf) {
@@ -104,7 +107,7 @@ impl GetUserInput {
     ///     pthread_create(&thread_id, NULL, &read_input, response);
     /// =}
     ///
-    fn react_startup(&mut self, ctx: &mut Ctx, response: &Action) {
+    fn react_startup(&mut self, ctx: &mut Ctx<'_>, response: &Action) {
         unimplemented!()
     }
 
@@ -118,7 +121,7 @@ impl GetUserInput {
     ///        }
     ///        SET(another, true);
     /// =}
-    fn react_handle_line<'a>(&mut self, ctx: &mut Ctx, another: &OutPort<bool>) {
+    fn react_handle_line(&mut self, ctx: &mut Ctx<'_>, another: &OutputPort<bool>) {
         if self.prompt_time == Instant::from_secs(0) {
             println!("You cheated!");
         } else {
@@ -132,7 +135,7 @@ impl GetUserInput {
     // reaction(prompt) {=
     // self->prompt_time = get_physical_time();
     // =}
-    fn react_prompt(&mut self, ctx: &mut Ctx) {
+    fn react_prompt(&mut self, ctx: &mut Ctx<'_>, prompt: &InputPort<bool>) {
         self.prompt_time = ctx.get_physical_time()
     }
 }
@@ -152,8 +155,8 @@ impl GetUserInput {
 struct GetUserInputWrapper {
     _impl: GetUserInput,
     response: Action,
-    prompt: Action,
-    another: OutPort<bool>,
+    prompt: InputPort<bool>,
+    another: OutputPort<bool>,
 }
 
 #[derive(Copy, Clone)]
@@ -176,7 +179,7 @@ impl ReactorWrapper for GetUserInputWrapper {
                 self._impl.react_handle_line(ctx, &self.another)
             }
             GetUserInputReactions::Prompt => {
-                self._impl.react_prompt(ctx)
+                self._impl.react_prompt(ctx, &self.prompt)
             }
         }
     }
