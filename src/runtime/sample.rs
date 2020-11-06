@@ -38,7 +38,7 @@ fn assemble() {
 
     // --- p = new RandomSource();
 
-    let mut pcell = Rc::new(RefCell::new(RandomSourceWrapper::assemble(())));
+    let mut pcell = Rc::new(RefCell::new(RandomSourceReactionState::assemble(())));
 
     let p_schedule = Rc::new(ReactionInvoker::new(rid, pcell.clone(), RandomSourceReactions::Schedule));
     rid += 1;
@@ -51,25 +51,13 @@ fn assemble() {
     }
 
     // --- end
+
     // --- g = new GetUserInput();
-
-    let mut gcell = Rc::new(RefCell::new(GetUserInputWrapper::assemble(())));
-
-    let g_hline = Rc::new(ReactionInvoker::new(rid, gcell.clone(), GetUserInputReactions::HandleLine));
-    rid += 1;
-    let g_emit = Rc::new(ReactionInvoker::new(rid, gcell.clone(), GetUserInputReactions::Prompt));
-    rid += 1;
-
-    {
-        let mut gmut = gcell.borrow_mut();
-        gmut.prompt.set_downstream(vec![g_emit.clone()]);
-    }
-
-    // --- end
+    let mut gcell = GetUserInputAssembler::assemble(&mut rid, ());
 
     {
         let mut p = pcell.borrow_mut();
-        let mut g = gcell.borrow_mut();
+        let mut g = gcell._rstate.borrow_mut();
 
         // --- p.out -> g.prompt;
         ports::bind(&mut p.out, &mut g.prompt);
@@ -123,7 +111,7 @@ impl RandomSource { // reaction block
     output out:bool;
     logical action prompt(2 secs);
  */
-struct RandomSourceWrapper {
+struct RandomSourceReactionState {
     _impl: RandomSource,
     prompt: Action,
     another: InputPort<bool>,
@@ -136,13 +124,13 @@ enum RandomSourceReactions {
     Emit,
 }
 
-impl ReactorWrapper for RandomSourceWrapper {
+impl ReactionState for RandomSourceReactionState {
     type ReactionId = RandomSourceReactions;
     type Wrapped = RandomSource;
     type Params = ();
 
     fn assemble(_: Self::Params) -> Self {
-        RandomSourceWrapper {
+        RandomSourceReactionState {
             _impl: RandomSource,
             prompt: Action::new(None, true),
             another: InputPort::<bool>::new(),
@@ -238,7 +226,7 @@ impl GetUserInput {
     output another:bool;
  */
 
-struct GetUserInputWrapper {
+struct GetUserInputReactionState {
     _impl: GetUserInput,
     response: Action,
     prompt: InputPort<bool>,
@@ -251,13 +239,13 @@ enum GetUserInputReactions {
     Prompt,
 }
 
-impl ReactorWrapper for GetUserInputWrapper {
+impl ReactionState for GetUserInputReactionState {
     type ReactionId = GetUserInputReactions;
     type Wrapped = GetUserInput;
     type Params = ();
 
     fn assemble(_: Self::Params) -> Self {
-        GetUserInputWrapper {
+        GetUserInputReactionState {
             _impl: GetUserInput { prompt_time: None },
             response: Action::new(None, false),
             prompt: InputPort::<bool>::new(),
@@ -277,6 +265,44 @@ impl ReactorWrapper for GetUserInputWrapper {
             GetUserInputReactions::Prompt => {
                 self._impl.react_prompt(ctx, &self.prompt)
             }
+        }
+    }
+}
+
+macro_rules! new_reaction {
+    ($rid:ident, $_rstate:ident, $name:ident) => {{
+        let r = Rc::new(ReactionInvoker::new(*$rid, $_rstate.clone(), <Self::RState as ReactionState>::ReactionId::$name));
+        *$rid += 1;
+        r
+    }};
+}
+
+struct GetUserInputAssembler {
+    _rstate: Rc<RefCell</*{{*/GetUserInputReactionState/*}}*/>>,
+    /*{{*/react_handle_line/*}}*/: Rc<ReactionInvoker>,
+    /*{{*/react_prompt/*}}*/: Rc<ReactionInvoker>,
+}
+
+impl AssemblyWrapper for /*{{*/GetUserInputAssembler/*}}*/ {
+    type RState = /*{{*/GetUserInputReactionState/*}}*/;
+
+    fn assemble(rid: &mut i32, args: <Self::RState as ReactionState>::Params) -> Self {
+        let mut _rstate = Rc::new(RefCell::new(Self::RState::assemble(args)));
+
+        let /*{{*/react_handle_line /*}}*/ = new_reaction!(rid, _rstate, /*{{*/HandleLine/*}}*/);
+        let /*{{*/react_prompt /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Prompt/*}}*/);
+
+        { // declare local dependencies
+            let mut statemut = _rstate.borrow_mut();
+
+            statemut./*{{*/prompt/*}}*/.set_downstream(vec![/*{{*/react_prompt/*}}*/.clone()]);
+            // todo gmut.response.set_downstream(vec![handle_line.clone()]);
+        }
+
+        Self {
+            _rstate,
+            /*{{*/react_handle_line/*}}*/,
+            /*{{*/react_prompt/*}}*/,
         }
     }
 }

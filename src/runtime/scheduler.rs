@@ -196,7 +196,7 @@ impl Action {
 }
 
 
-pub trait ReactorWrapper {
+pub trait ReactionState {
     type ReactionId: Copy;
     type Wrapped;
     type Params;
@@ -204,6 +204,11 @@ pub trait ReactorWrapper {
     fn assemble(args: Self::Params) -> Self;
     fn start(&mut self, ctx: &mut Ctx);
     fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId);
+}
+
+pub trait AssemblyWrapper {
+    type RState: ReactionState;
+    fn assemble(rid: &mut i32, args: <Self::RState as ReactionState>::Params) -> Self;
 }
 
 pub struct ReactionInvoker {
@@ -216,9 +221,9 @@ impl ReactionInvoker {
         (self.body)(ctx)
     }
 
-    pub(in super) fn new<T: ReactorWrapper + 'static>(id: i32,
-                                                      reactor: Rc<RefCell<T>>,
-                                                      rid: T::ReactionId) -> ReactionInvoker {
+    pub(in super) fn new<T: ReactionState + 'static>(id: i32,
+                                                     reactor: Rc<RefCell<T>>,
+                                                     rid: T::ReactionId) -> ReactionInvoker {
         let body = move |ctx: &mut Ctx<'_>| {
             let mut ref_mut = reactor.deref().borrow_mut();
             let r1: &mut T = &mut *ref_mut;
