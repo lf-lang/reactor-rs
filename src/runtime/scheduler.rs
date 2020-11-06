@@ -7,11 +7,13 @@ use std::time::{Duration, Instant};
 
 use priority_queue::PriorityQueue;
 use crate::runtime::ports::{Port, InputPort, OutputPort};
+use std::hash::{Hash, Hasher};
+use std::cell::RefCell;
 
 type MicroStep = u128;
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
-struct LogicalTime {
+pub struct LogicalTime {
     instant: Instant,
     microstep: MicroStep,
 }
@@ -22,10 +24,16 @@ impl Default for LogicalTime {
     }
 }
 
+impl LogicalTime {
+    pub fn to_instant(&self) -> Instant {
+        self.instant
+    }
+}
+
 #[derive(Eq, PartialEq, Hash)]
 enum Event {
-    ReactionExecute { at: LogicalTime, reaction: ReactionInvoker },
-    ReactionSchedule { min_at: LogicalTime, reaction: ReactionInvoker },
+    ReactionExecute { at: LogicalTime, reaction: Rc<ReactionInvoker> },
+    ReactionSchedule { min_at: LogicalTime, reaction: Rc<ReactionInvoker> },
 }
 
 /// Directs execution of the whole reactor graph.
@@ -65,6 +73,7 @@ impl<'g> Scheduler {
 
             let mut ctx = Ctx {
                 scheduler: self,
+                cur_logical_time: time
             };
             reaction.fire(&mut ctx)
         }
@@ -77,10 +86,10 @@ impl<'g> Scheduler {
         }
     }
 
-    fn enqueue_port<T>(&mut self, port_id: &Rc<PortCell<T>>) {
+    fn enqueue_port(&mut self, downstream: Ref<Vec<Rc<ReactionInvoker>>>) {
         // todo possibly, reactions must be scheduled at most once per logical time step?
-        for reaction in port_id.downstream {
-            let evt = Event::ReactionExecute { at: self.cur_logical_time, reaction: Rc::clone(&reaction) };
+        for reaction in downstream.iter() {
+            let evt = Event::ReactionExecute { at: self.cur_logical_time, reaction: reaction.clone() };
             self.queue.push(evt, Reverse(self.cur_logical_time));
         }
     }
@@ -101,8 +110,8 @@ impl<'g> Scheduler {
             microstep: self.micro_step,
         };
 
-        for reaction in action.downstream {
-            let evt = Event::ReactionSchedule { min_at: eta, reaction: Rc::clone(&reaction) };
+        for reaction in action.downstream.iter() {
+            let evt = Event::ReactionSchedule { min_at: eta, reaction: reaction.clone() };
             self.queue.push(evt, Reverse(eta));
         }
     }
@@ -115,6 +124,7 @@ impl<'g> Scheduler {
 ///
 pub struct Ctx<'a> {
     scheduler: &'a mut Scheduler,
+    cur_logical_time: LogicalTime
 }
 
 impl<'a> Ctx<'a> {
@@ -125,7 +135,7 @@ impl<'a> Ctx<'a> {
     /// If the reaction being executed has not declared its
     /// dependency on the given port ([reaction_uses](super::Assembler::reaction_uses)).
     ///
-    pub fn get<T>(&self, port: &InputPort<T>) -> Option<T> {
+    pub fn get<T: Copy>(&self, port: &InputPort<T>) -> Option<T> {
         port.get()
     }
 
@@ -141,8 +151,8 @@ impl<'a> Ctx<'a> {
     /// dependency on the given port ([reaction_affects](super::Assembler::reaction_affects)).
     ///
     pub fn set<T>(&mut self, port: &mut OutputPort<T>, value: T) {
-        port.set(value);
-        self.scheduler.enqueue_port(&port.cell);
+        let downstream = port.set(value);
+        self.scheduler.enqueue_port(downstream);
     }
 
     /// Schedule an action to run after its own implicit time delay,
@@ -156,13 +166,21 @@ impl<'a> Ctx<'a> {
     pub fn schedule(&mut self, action: &Action, offset: Option<Duration>) {
         self.scheduler.enqueue_action(action, offset)
     }
+
+    pub fn get_physical_time(&self) -> Instant {
+        Instant::now()
+    }
+
+    pub fn get_logical_time(&self) -> LogicalTime {
+        self.cur_logical_time
+    }
 }
 
 
 pub struct Action {
     delay: Duration,
     logical: bool,
-    downstream: Vec<ReactionInvoker>,
+    downstream: Vec<Rc<ReactionInvoker>>,
 }
 
 impl Action {
@@ -189,7 +207,7 @@ pub trait ReactorWrapper {
 }
 
 pub(in super) struct ReactionInvoker {
-    body: Box<dyn FnMut(&mut Ctx)>,
+    body: Box<dyn Fn(&mut Ctx)>,
     id: i32,
 }
 
@@ -198,10 +216,28 @@ impl ReactionInvoker {
         (self.body)(ctx)
     }
 
-    fn new<T: ReactorWrapper + Sized>(id: i32, mut reactor: Rc<T>, reaction: T::ReactionId) -> ReactionInvoker {
-        let body = Box::new(move |&mut ctx| {
-            reactor.react(ctx, reaction)
-        });
-        ReactionInvoker { body, id }
+    fn new<T: ReactorWrapper + 'static>(id: i32,
+                                        reactor: Rc<RefCell<T>>,
+                                        react: impl Fn(RefMut<T>, &mut Ctx) + 'static) -> ReactionInvoker {
+        let body = move |ctx: &mut Ctx<'_>| {
+            let rmut = reactor.borrow_mut();
+            react(rmut, ctx)
+        };
+        ReactionInvoker { body: Box::new(body), id }
+    }
+}
+
+
+impl PartialEq for ReactionInvoker {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl Eq for ReactionInvoker {}
+
+impl Hash for ReactionInvoker {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state)
     }
 }

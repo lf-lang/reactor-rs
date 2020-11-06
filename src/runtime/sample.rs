@@ -37,7 +37,7 @@ fn assemble() {
     let mut p = RandomSourceWrapper::assemble(());
 
     bind(&mut p.out, &mut q.prompt);
-    bind(&mut q.another, &mut q.another);
+    bind(&mut q.another, &mut p.another);
 }
 
 
@@ -46,7 +46,7 @@ struct RandomSource;
 impl RandomSource { // reaction block
 
     fn random_delay() -> Duration {
-        Instant::from_secs(0)
+        Duration::from_secs(1)
     }
 
     /// reaction(startup) -> prompt {=
@@ -67,7 +67,7 @@ impl RandomSource { // reaction block
     /// =}
     fn react_emit(&mut self, ctx: &mut Ctx<'_>, out: &mut OutputPort<bool>) {
         println!("Hit Return!");
-        ctx.set_port(out, true);
+        ctx.set(out, true);
     }
 
     /// reaction(another) -> prompt {=
@@ -129,7 +129,7 @@ impl ReactorWrapper for RandomSourceWrapper {
 
 
 struct GetUserInput {
-    prompt_time: Instant
+    prompt_time: Option<Instant>
 }
 
 
@@ -166,22 +166,24 @@ impl GetUserInput {
     ///        }
     ///        SET(another, true);
     /// =}
-    fn react_handle_line(&mut self, ctx: &mut Ctx<'_>, another: &OutputPort<bool>) {
-        if self.prompt_time == Instant::from_secs(0) {
-            println!("You cheated!");
-        } else {
-            let time = ctx.get_logical_time() - self.prompt_time;
-            println!("Response time: {} ms", time.as_millis());
-            self.prompt_time = Instant::zero();
+    fn react_handle_line(&mut self, ctx: &mut Ctx<'_>, another: &mut OutputPort<bool>) {
+        match self.prompt_time.take() {
+            None => {
+                println!("You cheated!");
+            }
+            Some(t) => {
+                let time = ctx.get_logical_time().to_instant() - t;
+                println!("Response time: {} ms", time.as_millis());
+            }
         }
-        ctx.set_port(another, true)
+        ctx.set(another, true)
     }
 
     // reaction(prompt) {=
     // self->prompt_time = get_physical_time();
     // =}
     fn react_prompt(&mut self, ctx: &mut Ctx<'_>, prompt: &InputPort<bool>) {
-        self.prompt_time = ctx.get_physical_time()
+        self.prompt_time = Some(ctx.get_physical_time())
     }
 }
 
@@ -217,7 +219,7 @@ impl ReactorWrapper for GetUserInputWrapper {
 
     fn assemble(_: Self::Params) -> Self {
         let mut r = GetUserInputWrapper {
-            _impl: GetUserInput { prompt_time: Instant::now() },
+            _impl: GetUserInput { prompt_time: None },
             response: Action::new(None, false),
             prompt: InputPort::<bool>::new(),
             another: OutputPort::<bool>::new(),
@@ -233,7 +235,7 @@ impl ReactorWrapper for GetUserInputWrapper {
     fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId) {
         match rid {
             GetUserInputReactions::HandleLine => {
-                self._impl.react_handle_line(ctx, &self.another)
+                self._impl.react_handle_line(ctx, &mut self.another)
             }
             GetUserInputReactions::Prompt => {
                 self._impl.react_prompt(ctx, &self.prompt)

@@ -1,8 +1,9 @@
 use std::rc::Rc;
-use std::cell::Cell;
+use std::cell::{Cell, Ref};
 use crate::runtime::ReactionInvoker;
 use std::marker::PhantomData;
 use std::ops::Deref;
+use std::cell::RefCell;
 
 // clients may only use InputPort and OutputPort
 // but there's a single implementation.
@@ -12,12 +13,12 @@ use std::ops::Deref;
 pub type InputPort<T> = Port<T, Input>;
 pub type OutputPort<T> = Port<T, Output>;
 
-struct Input;
-struct Output;
+pub struct Input;
+pub struct Output;
 
 #[derive(Clone)]
-pub(in super) struct Port<T, Kind> {
-    cell: Rc<PortCell<T>>,
+pub struct Port<T, Kind> {
+    cell: Rc<RefCell<PortCell<T>>>,
     _marker: PhantomData<Kind>,
 }
 
@@ -25,7 +26,7 @@ impl<T, K> Port<T, K> {
     // private
     fn new_impl() -> Port<T, K> {
         Port {
-            cell: Rc::new(PortCell::new()),
+            cell: Rc::new(RefCell::new(PortCell::new())),
             _marker: PhantomData,
         }
     }
@@ -36,8 +37,8 @@ impl<T> InputPort<T> {
         Self::new_impl()
     }
 
-    pub(in super) fn get(&self) -> Option<T> {
-        Rc::deref(&self.cell).cell.get()
+    pub(in super) fn get(&self) -> Option<T> where T : Copy {
+        self.cell.borrow().cell.get()
     }
 }
 
@@ -46,8 +47,10 @@ impl<T> OutputPort<T> {
         Self::new_impl()
     }
 
-    pub(in super) fn set(&mut self, v: T) {
-        Rc::deref(&self.cell).cell.set(Some(v));
+    pub(in super) fn set(&mut self, v: T) -> Ref<Vec<Rc<ReactionInvoker>>> {
+        (*self.cell.borrow_mut()).cell.set(Some(v));
+        Ref::map(self.cell.borrow(),
+                 |t| &t.downstream)
     }
 }
 
@@ -61,7 +64,7 @@ impl<T> PortCell<T> {
     fn new() -> PortCell<T> {
         PortCell {
             cell: Cell::new(None),
-            downstream: Vec::new(),
+            downstream: Default::default(),
         }
     }
 }
@@ -86,7 +89,9 @@ impl<T> PortCell<T> {
 /// Also the edges must be that of a transitive reduction of
 /// the graph, as the down port is destroyed.
 pub fn bind<T, U, D>(up: &mut Port<T, U>, mut down: &mut Port<T, D>) {
-    up.cell.downstream.append(&mut down.cell.downstream);
+    let mut upclass = up.cell.borrow_mut();
+    let mut downclass = up.cell.borrow_mut();
+    (&mut upclass.downstream).append(&mut downclass.downstream);
     down.cell = Rc::clone(&up.cell);
 }
 
