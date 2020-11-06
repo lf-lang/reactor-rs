@@ -140,7 +140,7 @@ impl<'a> Ctx<'a> {
     /// If the reaction being executed has not declared its
     /// dependency on the given port ([reaction_affects](super::Assembler::reaction_affects)).
     ///
-    pub fn set<T>(&mut self, mut port: &mut OutputPort<T>, value: T) {
+    pub fn set<T>(&mut self, port: &mut OutputPort<T>, value: T) {
         port.set(value);
         self.scheduler.enqueue_port(&port.cell);
     }
@@ -181,7 +181,9 @@ impl Action {
 pub trait ReactorWrapper {
     type ReactionId: Copy;
     type Wrapped;
+    type Params;
 
+    fn assemble(args: Self::Params) -> Self;
     fn start(&mut self, ctx: &mut Ctx);
     fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId);
 }
