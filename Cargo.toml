@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 priority-queue = "1.0.0"
 petgraph = "0.5.1"
-
+futures = "0.3"
 
 [[bin]]
 name = "example-forwarding"
