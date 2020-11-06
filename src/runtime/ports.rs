@@ -30,7 +30,42 @@ impl<T, K> Port<T, K> {
             _marker: PhantomData,
         }
     }
+
+
+
+    pub fn set_downstream(&mut self, mut r: Vec<Rc<ReactionInvoker>>) {
+        let mut upclass = self.cell.borrow_mut();
+        upclass.downstream = r;
+    }
 }
+
+/// Make the downstream port accept values from the upstream port
+/// For this to work this function must be called in reverse topological
+/// order between bound ports
+/// Eg
+/// a.out -> b.in
+/// b.in -> b.out
+/// b.out -> c.in
+/// b.out -> d.in
+///
+/// Must be translated as
+///
+/// bind(b.out, d.in)
+/// bind(b.out, c.in)
+/// bind(b.in, b.out)
+/// bind(a.out, b.in)
+///
+/// Also the edges must be that of a transitive reduction of
+/// the graph, as the down port is destroyed.
+pub fn bind<T, U, D>(up: &mut Port<T, U>, mut down: &mut Port<T, D>) {
+    {
+        let mut upclass = up.cell.borrow_mut();
+        let mut downclass = down.cell.borrow_mut();
+        (&mut upclass.downstream).append(&mut downclass.downstream);
+    }
+    down.cell = Rc::clone(&up.cell);
+}
+
 
 impl<T> InputPort<T> {
     pub fn new() -> Self {
@@ -68,30 +103,3 @@ impl<T> PortCell<T> {
         }
     }
 }
-
-
-/// Make the downstream port accept values from the upstream port
-/// For this to work this function must be called in reverse topological
-/// order between bound ports
-/// Eg
-/// a.out -> b.in
-/// b.in -> b.out
-/// b.out -> c.in
-/// b.out -> d.in
-///
-/// Must be translated as
-///
-/// bind(b.out, d.in)
-/// bind(b.out, c.in)
-/// bind(b.in, b.out)
-/// bind(a.out, b.in)
-///
-/// Also the edges must be that of a transitive reduction of
-/// the graph, as the down port is destroyed.
-pub fn bind<T, U, D>(up: &mut Port<T, U>, mut down: &mut Port<T, D>) {
-    let mut upclass = up.cell.borrow_mut();
-    let mut downclass = up.cell.borrow_mut();
-    (&mut upclass.downstream).append(&mut downclass.downstream);
-    down.cell = Rc::clone(&up.cell);
-}
-

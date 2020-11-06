@@ -62,7 +62,8 @@ impl<'g> ClosedReaction<'g> {
         let closure = move |ctx: &mut ReactionCtx<'_, 'g>| {
             let state: &RefCell<_> = Rc::borrow(&state_ref);
             let mut state_mut = state.borrow_mut();
-            R::react(reactor_ref.as_ref(), state_mut.deref_mut(), reaction_id, ctx)
+            let state1 = state_mut.deref_mut();
+            R::react(reactor_ref.as_ref(), state1, reaction_id, ctx)
         };
 
 

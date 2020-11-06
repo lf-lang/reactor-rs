@@ -73,7 +73,7 @@ impl<'g> Scheduler {
 
             let mut ctx = Ctx {
                 scheduler: self,
-                cur_logical_time: time
+                cur_logical_time: time,
             };
             reaction.fire(&mut ctx)
         }
@@ -124,7 +124,7 @@ impl<'g> Scheduler {
 ///
 pub struct Ctx<'a> {
     scheduler: &'a mut Scheduler,
-    cur_logical_time: LogicalTime
+    cur_logical_time: LogicalTime,
 }
 
 impl<'a> Ctx<'a> {
@@ -206,7 +206,7 @@ pub trait ReactorWrapper {
     fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId);
 }
 
-pub(in super) struct ReactionInvoker {
+pub struct ReactionInvoker {
     body: Box<dyn Fn(&mut Ctx)>,
     id: i32,
 }
@@ -216,12 +216,13 @@ impl ReactionInvoker {
         (self.body)(ctx)
     }
 
-    fn new<T: ReactorWrapper + 'static>(id: i32,
-                                        reactor: Rc<RefCell<T>>,
-                                        react: impl Fn(RefMut<T>, &mut Ctx) + 'static) -> ReactionInvoker {
+    pub(in super) fn new<T: ReactorWrapper + 'static>(id: i32,
+                                                      reactor: Rc<RefCell<T>>,
+                                                      rid: T::ReactionId) -> ReactionInvoker {
         let body = move |ctx: &mut Ctx<'_>| {
-            let rmut = reactor.borrow_mut();
-            react(rmut, ctx)
+            let mut ref_mut = reactor.deref().borrow_mut();
+            let r1: &mut T = &mut *ref_mut;
+            T::react(r1, ctx, rid)
         };
         ReactionInvoker { body: Box::new(body), id }
     }

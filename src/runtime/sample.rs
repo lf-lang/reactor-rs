@@ -7,8 +7,9 @@ use petgraph::stable_graph::edge_index;
 use std::rc::Rc;
 
 use crate::runtime::*;
-use crate::runtime::ports::{OutputPort, InputPort, bind};
+use crate::runtime::ports::{OutputPort, InputPort, Port};
 use crate::reactors::Assembler;
+use std::cell::{RefCell, RefMut};
 
 fn main() {}
 // this is a manual translation of https://github.com/icyphy/lingua-franca/blob/master/example/ReflexGame/ReflexGameMinimal.lf
@@ -33,11 +34,49 @@ main reactor ReflexGame {
 }
  */
 fn assemble() {
-    let mut q = GetUserInputWrapper::assemble(());
-    let mut p = RandomSourceWrapper::assemble(());
+    let mut rid = 0;
 
-    bind(&mut p.out, &mut q.prompt);
-    bind(&mut q.another, &mut p.another);
+    // --- p = new RandomSource();
+
+    let mut pcell = Rc::new(RefCell::new(RandomSourceWrapper::assemble(())));
+
+    let p_schedule = Rc::new(ReactionInvoker::new(rid, pcell.clone(), RandomSourceReactions::Schedule));
+    rid += 1;
+    let p_emit = Rc::new(ReactionInvoker::new(rid, pcell.clone(), RandomSourceReactions::Emit));
+    rid += 1;
+
+    {
+        let mut pmut = pcell.borrow_mut();
+        pmut.another.set_downstream(vec![p_schedule.clone()])
+    }
+
+    // --- end
+    // --- g = new GetUserInput();
+
+    let mut gcell = Rc::new(RefCell::new(GetUserInputWrapper::assemble(())));
+
+    let g_hline = Rc::new(ReactionInvoker::new(rid, gcell.clone(), GetUserInputReactions::HandleLine));
+    rid += 1;
+    let g_emit = Rc::new(ReactionInvoker::new(rid, gcell.clone(), GetUserInputReactions::Prompt));
+    rid += 1;
+
+    {
+        let mut gmut = gcell.borrow_mut();
+        gmut.prompt.set_downstream(vec![g_emit.clone()]);
+    }
+
+    // --- end
+
+    {
+        let mut p = pcell.borrow_mut();
+        let mut g = gcell.borrow_mut();
+
+        // --- p.out -> g.prompt;
+        ports::bind(&mut p.out, &mut g.prompt);
+
+        // --- g.another -> p.another;
+        ports::bind(&mut g.another, &mut p.another);
+    }
 }
 
 
@@ -218,14 +257,12 @@ impl ReactorWrapper for GetUserInputWrapper {
     type Params = ();
 
     fn assemble(_: Self::Params) -> Self {
-        let mut r = GetUserInputWrapper {
+        GetUserInputWrapper {
             _impl: GetUserInput { prompt_time: None },
             response: Action::new(None, false),
             prompt: InputPort::<bool>::new(),
             another: OutputPort::<bool>::new(),
-        };
-
-        r
+        }
     }
 
     fn start(&mut self, ctx: &mut Ctx) {
