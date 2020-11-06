@@ -184,6 +184,11 @@ pub struct Action {
 }
 
 impl Action {
+
+    pub fn set_downstream(&mut self, r: Vec<Rc<ReactionInvoker>>) {
+        self.downstream = r
+    }
+
     pub(in super) fn new(
         min_delay: Option<Duration>,
         is_logical: bool) -> Self {

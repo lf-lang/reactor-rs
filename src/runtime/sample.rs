@@ -67,6 +67,15 @@ fn main() {}
 // considered opaque (they can be bound dynamically).
 // - All structural checks need to be done before codegen
 
+
+macro_rules! new_reaction {
+    ($rid:ident, $_rstate:ident, $name:ident) => {{
+        let r = Rc::new(ReactionInvoker::new(*$rid, $_rstate.clone(), <Self::RState as ReactorDispatcher>::ReactionId::$name));
+        *$rid += 1;
+        r
+    }};
+}
+
 /*
 
 main reactor ReflexGame {
@@ -80,26 +89,13 @@ fn assemble() {
     let mut rid = 0;
 
     // --- p = new RandomSource();
-
-    let mut pcell = Rc::new(RefCell::new(RandomSourceReactionState::assemble(())));
-
-    let p_schedule = Rc::new(ReactionInvoker::new(rid, pcell.clone(), RandomSourceReactions::Schedule));
-    rid += 1;
-    let p_emit = Rc::new(ReactionInvoker::new(rid, pcell.clone(), RandomSourceReactions::Emit));
-    rid += 1;
-
-    {
-        let mut pmut = pcell.borrow_mut();
-        pmut.another.set_downstream(vec![p_schedule.clone()])
-    }
-
-    // --- end
+    let mut pcell = RandomSourceAssembler::assemble(&mut rid, ());
 
     // --- g = new GetUserInput();
     let mut gcell = GetUserInputAssembler::assemble(&mut rid, ());
 
     {
-        let mut p = pcell.borrow_mut();
+        let mut p = pcell._rstate.borrow_mut();
         let mut g = gcell._rstate.borrow_mut();
 
         // --- p.out -> g.prompt;
@@ -154,7 +150,7 @@ impl RandomSource { // reaction block
     output out:bool;
     logical action prompt(2 secs);
  */
-struct RandomSourceReactionState {
+struct RandomSourceDispatcher {
     _impl: RandomSource,
     prompt: Action,
     another: InputPort<bool>,
@@ -167,13 +163,13 @@ enum RandomSourceReactions {
     Emit,
 }
 
-impl ReactorDispatcher for RandomSourceReactionState {
+impl ReactorDispatcher for RandomSourceDispatcher {
     type ReactionId = RandomSourceReactions;
     type Wrapped = RandomSource;
     type Params = ();
 
     fn assemble(_: Self::Params) -> Self {
-        RandomSourceReactionState {
+        RandomSourceDispatcher {
             _impl: RandomSource,
             prompt: Action::new(None, true),
             another: InputPort::<bool>::new(),
@@ -197,6 +193,36 @@ impl ReactorDispatcher for RandomSourceReactionState {
     }
 }
 
+
+struct RandomSourceAssembler {
+    _rstate: Rc<RefCell</*{{*/RandomSourceDispatcher/*}}*/>>,
+    /*{{*/react_schedule/*}}*/: Rc<ReactionInvoker>,
+    /*{{*/react_emit/*}}*/: Rc<ReactionInvoker>,
+}
+
+impl ReactorAssembler for /*{{*/RandomSourceAssembler/*}}*/ {
+    type RState = /*{{*/RandomSourceDispatcher/*}}*/;
+
+    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+        let mut _rstate = Rc::new(RefCell::new(Self::RState::assemble(args)));
+
+        let /*{{*/react_schedule /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Schedule/*}}*/);
+        let /*{{*/react_emit /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Emit/*}}*/);
+
+        { // declare local dependencies
+            let mut statemut = _rstate.borrow_mut();
+
+            statemut./*{{*/another/*}}*/.set_downstream(vec![/*{{*/react_schedule/*}}*/.clone()]);
+            statemut./*{{*/prompt/*}}*/.set_downstream(vec![/*{{*/react_emit/*}}*/.clone()]);
+        }
+
+        Self {
+            _rstate,
+            /*{{*/react_schedule/*}}*/,
+            /*{{*/react_emit/*}}*/,
+        }
+    }
+}
 
 struct GetUserInput {
     prompt_time: Option<Instant>
@@ -312,14 +338,6 @@ impl ReactorDispatcher for GetUserInputReactionState {
     }
 }
 
-macro_rules! new_reaction {
-    ($rid:ident, $_rstate:ident, $name:ident) => {{
-        let r = Rc::new(ReactionInvoker::new(*$rid, $_rstate.clone(), <Self::RState as ReactionState>::ReactionId::$name));
-        *$rid += 1;
-        r
-    }};
-}
-
 struct GetUserInputAssembler {
     _rstate: Rc<RefCell</*{{*/GetUserInputReactionState/*}}*/>>,
     /*{{*/react_handle_line/*}}*/: Rc<ReactionInvoker>,
@@ -339,7 +357,7 @@ impl ReactorAssembler for /*{{*/GetUserInputAssembler/*}}*/ {
             let mut statemut = _rstate.borrow_mut();
 
             statemut./*{{*/prompt/*}}*/.set_downstream(vec![/*{{*/react_prompt/*}}*/.clone()]);
-            // todo gmut.response.set_downstream(vec![handle_line.clone()]);
+            statemut./*{{*/response/*}}*/.set_downstream(vec![/*{{*/react_handle_line/*}}*/.clone()]);
         }
 
         Self {
