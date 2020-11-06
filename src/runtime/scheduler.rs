@@ -195,20 +195,53 @@ impl Action {
     }
 }
 
-
-pub trait ReactionState {
+/// Wrapper around the user struct for safe dispatch.
+///
+/// Fields are
+/// 1. the user struct, and
+/// 2. every action and port declared by the reactor.
+///
+pub trait ReactorDispatcher {
+    /// The type of reaction IDs
     type ReactionId: Copy;
+    /// Type of the user struct
     type Wrapped;
+    /// Type of the construction parameters
     type Params;
 
+    /// Assemble the user reactor, ie produce components with
+    /// uninitialized dependencies & make state variables assume
+    /// their default values, or else, a value taken from the params.
     fn assemble(args: Self::Params) -> Self;
+
+    /// Execute the startup reaction of the reactor
     fn start(&mut self, ctx: &mut Ctx);
+
+    /// Execute a single user-written reaction.
+    /// Dispatches on the reaction id, and unpacks parameters,
+    /// which are the reactor components declared as fields of
+    /// this struct.
     fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId);
 }
 
-pub trait AssemblyWrapper {
-    type RState: ReactionState;
-    fn assemble(rid: &mut i32, args: <Self::RState as ReactionState>::Params) -> Self;
+/// Declares dependencies of every reactor component.
+///
+/// Fields are
+/// 1. a ReactorDispatcher
+/// 2. a Rc<ReactionInvoker> for every reaction declared by the reactor
+///
+pub trait ReactorAssembler {
+    /// Type of the [ReactorDispatcher]
+    type RState: ReactorDispatcher;
+
+    /// Create a new instance. The rid is a counter used to
+    /// give unique IDs to reactions. The args are passed down
+    /// to [ReactorDispatcher::assemble].
+    ///
+    /// The components of the ReactorDispatcher must be filled
+    /// in with their respective dependencies (precomputed before
+    /// codegen)
+    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self;
 }
 
 pub struct ReactionInvoker {
@@ -221,9 +254,9 @@ impl ReactionInvoker {
         (self.body)(ctx)
     }
 
-    pub(in super) fn new<T: ReactionState + 'static>(id: i32,
-                                                     reactor: Rc<RefCell<T>>,
-                                                     rid: T::ReactionId) -> ReactionInvoker {
+    pub(in super) fn new<T: ReactorDispatcher + 'static>(id: i32,
+                                                         reactor: Rc<RefCell<T>>,
+                                                         rid: T::ReactionId) -> ReactionInvoker {
         let body = move |ctx: &mut Ctx<'_>| {
             let mut ref_mut = reactor.deref().borrow_mut();
             let r1: &mut T = &mut *ref_mut;

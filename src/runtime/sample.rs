@@ -17,12 +17,55 @@ fn main() {}
 // translation strategy:
 // - reactor: struct
 //   - state variables: struct fields
-//   - reaction(t1, .., tn) u_1, .., u_n -> d_1, .. d_n
-//      fn (&mut self, &mut Ctx<'_>, ...)
 
-// one special startup reaction, for which physical action parameters
-// are passed as owned parameters
+// Reactor r -> 3 structs + 1 enum
+// - user struct (r)
+// - dispatch struct (r_dispatch)   : ReactionState
+// - assembly struct (r_assembly)   : AssemblyWrapper
+// - reaction id enum (r_reactions) : Copy
 
+// # User struct
+//
+// Contains user-written code. The form of declarations is
+// high-level. All the framework goo is hidden into the other
+// structs.
+//
+// The fields of this struct are the state variables of the
+// reactor (if there are none, the type is zero-size and can
+// be optimized out).
+//
+// ## Reactions
+//
+// reaction(t1, .., tn) u_1, .., u_n -> d_1, .. d_n
+//
+// is translated *in the user struct* to
+//
+// fn (&mut self, ctx: &mut Ctx<'_>, params*)
+//
+// where params is:
+//   - for each $p\in\{t_i\}\union\{u_i\}$, where $p$ is an input port of type $T$
+//       p: &InputPort<T>
+//   - for each $o\in\{d_i\}$, where $o$ is an output port of type $T$
+//       o: &mut OutputPort<T>
+//   - for each $a\in\{d_i\}$, where $a$ is a logical action
+//       a: &Action
+
+// ## Startup reaction
+
+// The startup reaction translated the same way as reactions,
+// except the additional params contain registered physical actions too.
+
+// # Glue code
+//
+// Each reaction gets an enum constant in a new enum.
+// See ReactorDispatcher and ReactorAssembler for the rest.
+
+
+// # Information needed by the code generator
+//
+// - Transitive closure of dependency graph, where ports are
+// considered opaque (they can be bound dynamically).
+// - All structural checks need to be done before codegen
 
 /*
 
@@ -124,7 +167,7 @@ enum RandomSourceReactions {
     Emit,
 }
 
-impl ReactionState for RandomSourceReactionState {
+impl ReactorDispatcher for RandomSourceReactionState {
     type ReactionId = RandomSourceReactions;
     type Wrapped = RandomSource;
     type Params = ();
@@ -239,7 +282,7 @@ enum GetUserInputReactions {
     Prompt,
 }
 
-impl ReactionState for GetUserInputReactionState {
+impl ReactorDispatcher for GetUserInputReactionState {
     type ReactionId = GetUserInputReactions;
     type Wrapped = GetUserInput;
     type Params = ();
@@ -283,10 +326,10 @@ struct GetUserInputAssembler {
     /*{{*/react_prompt/*}}*/: Rc<ReactionInvoker>,
 }
 
-impl AssemblyWrapper for /*{{*/GetUserInputAssembler/*}}*/ {
+impl ReactorAssembler for /*{{*/GetUserInputAssembler/*}}*/ {
     type RState = /*{{*/GetUserInputReactionState/*}}*/;
 
-    fn assemble(rid: &mut i32, args: <Self::RState as ReactionState>::Params) -> Self {
+    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Rc::new(RefCell::new(Self::RState::assemble(args)));
 
         let /*{{*/react_handle_line /*}}*/ = new_reaction!(rid, _rstate, /*{{*/HandleLine/*}}*/);
