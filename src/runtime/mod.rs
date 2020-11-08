@@ -4,6 +4,5 @@
 pub use self::scheduler::*;
 
 
-mod scheduler;
-mod sample;
-mod ports;
+pub mod scheduler;
+pub mod ports;

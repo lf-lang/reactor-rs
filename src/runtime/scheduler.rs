@@ -9,6 +9,8 @@ use priority_queue::PriorityQueue;
 use crate::runtime::ports::{Port, InputPort, OutputPort};
 use std::hash::{Hash, Hasher};
 use std::cell::RefCell;
+use std::sync::{Arc, Mutex};
+use std::sync::mpsc::{channel, Sender, Receiver};
 
 type MicroStep = u128;
 
@@ -32,8 +34,8 @@ impl LogicalTime {
 
 #[derive(Eq, PartialEq, Hash)]
 enum Event {
-    ReactionExecute { at: LogicalTime, reaction: Rc<ReactionInvoker> },
-    ReactionSchedule { min_at: LogicalTime, reaction: Rc<ReactionInvoker> },
+    ReactionExecute { at: LogicalTime, reaction: Arc<ReactionInvoker> },
+    ReactionSchedule { min_at: LogicalTime, reaction: Arc<ReactionInvoker> },
 }
 
 /// Directs execution of the whole reactor graph.
@@ -46,73 +48,84 @@ pub struct Scheduler {
 impl<'g> Scheduler {
     // todo logging
 
-    pub(in super) fn new() -> Self {
-        Scheduler {
+    pub fn new() -> Arc<Mutex<Self>> {
+        let sched = Scheduler {
             cur_logical_time: <_>::default(),
             micro_step: 0,
             queue: PriorityQueue::new(),
+        };
+        Arc::new(Mutex::new(sched))
+    }
+
+    pub fn new_ctx(sched: &Arc<Mutex<Self>>) -> Ctx {
+        let inst = sched.lock().unwrap().cur_logical_time.clone();
+        Ctx {
+            scheduler: sched.clone(),
+            cur_logical_time: inst,
         }
     }
 
-    pub fn launch(&mut self, startup_action: &Action) {
-        self.enqueue_action(startup_action, None);
-        while !self.queue.is_empty() {
-            self.step()
+    pub fn launch(sched: Arc<Mutex<Self>>) {
+        while !sched.lock().unwrap().queue.is_empty() {
+            Scheduler::step(&sched)
         }
     }
 
-    fn step(&mut self) {
-        if let Some((event, Reverse(time))) = self.queue.pop() {
+    fn step(sched: &Arc<Mutex<Self>>) {
+        if let Some((event, Reverse(time))) = sched.lock().unwrap().queue.pop() {
             let reaction = match event {
                 Event::ReactionExecute { reaction, .. } => reaction,
                 Event::ReactionSchedule { reaction, .. } => reaction
             };
 
-            self.catch_up_physical_time(time);
-            self.cur_logical_time = time;
+            Scheduler::catch_up_physical_time(time);
+            sched.lock().unwrap().cur_logical_time = time;
 
             let mut ctx = Ctx {
-                scheduler: self,
+                scheduler: sched.clone(),
                 cur_logical_time: time,
             };
             reaction.fire(&mut ctx)
         }
     }
 
-    fn catch_up_physical_time(&mut self, up_to_time: LogicalTime) {
+    fn catch_up_physical_time(up_to_time: LogicalTime) {
         let now = Instant::now();
         if now < up_to_time.instant {
             std::thread::sleep(up_to_time.instant - now);
         }
     }
 
-    fn enqueue_port(&mut self, downstream: Ref<Vec<Rc<ReactionInvoker>>>) {
+    fn enqueue_port(sched: &Arc<Mutex<Self>>, downstream: Ref<Dependencies>) {
         // todo possibly, reactions must be scheduled at most once per logical time step?
-        for reaction in downstream.iter() {
-            let evt = Event::ReactionExecute { at: self.cur_logical_time, reaction: reaction.clone() };
-            self.queue.push(evt, Reverse(self.cur_logical_time));
+        for reaction in downstream.reactions.iter() {
+            let mut scheduler = sched.lock().unwrap();
+            let time = scheduler.cur_logical_time;
+            let evt = Event::ReactionExecute { at: time, reaction: reaction.clone() };
+            scheduler.queue.push(evt, Reverse(time));
         }
     }
 
-    fn enqueue_action(&mut self, action: &Action, additional_delay: Option<Duration>) {
-        let min_delay = action.delay + additional_delay.unwrap_or(Duration::from_secs(0));
+    fn enqueue_action(sched: &Arc<Mutex<Self>>, action: &Action, additional_delay: Duration) {
+        let min_delay = action.delay + additional_delay;
+        let mut scheduler = sched.lock().unwrap();
 
-        let mut instant = self.cur_logical_time.instant + min_delay;
+        let mut instant = scheduler.cur_logical_time.instant + min_delay;
         if !action.logical {
             // physical actions are adjusted to physical time if needed
             instant = Instant::max(instant, Instant::now());
         }
 
         // note that the microstep is global, doesn't really matter though
-        self.micro_step += 1;
+        scheduler.micro_step += 1;
         let eta = LogicalTime {
             instant,
-            microstep: self.micro_step,
+            microstep: scheduler.micro_step,
         };
 
-        for reaction in action.downstream.iter() {
+        for reaction in action.downstream.reactions.iter() {
             let evt = Event::ReactionSchedule { min_at: eta, reaction: reaction.clone() };
-            self.queue.push(evt, Reverse(eta));
+            scheduler.queue.push(evt, Reverse(eta));
         }
     }
 }
@@ -122,12 +135,12 @@ impl<'g> Scheduler {
 /// allows mutating the event queue of the scheduler. Only the
 /// interactions declared at assembly time are allowed.
 ///
-pub struct Ctx<'a> {
-    scheduler: &'a mut Scheduler,
+pub struct Ctx {
+    scheduler: Arc<Mutex<Scheduler>>,
     cur_logical_time: LogicalTime,
 }
 
-impl<'a> Ctx<'a> {
+impl Ctx {
     /// Get the value of a port at this time.
     ///
     /// # Panics
@@ -152,7 +165,7 @@ impl<'a> Ctx<'a> {
     ///
     pub fn set<T>(&mut self, port: &mut OutputPort<T>, value: T) {
         let downstream = port.set(value);
-        self.scheduler.enqueue_port(downstream);
+        Scheduler::enqueue_port(&self.scheduler, downstream);
     }
 
     /// Schedule an action to run after its own implicit time delay,
@@ -163,8 +176,12 @@ impl<'a> Ctx<'a> {
     ///
     /// If the reaction being executed has not declared its
     /// dependency on the given action ([reaction_schedules](super::Assembler::reaction_schedules)).
-    pub fn schedule(&mut self, action: &Action, offset: Option<Duration>) {
-        self.scheduler.enqueue_action(action, offset)
+    pub fn schedule(&mut self, action: &Action) {
+        Scheduler::enqueue_action(&self.scheduler, action, Duration::from_secs(0))
+    }
+
+    pub fn schedule_delayed(&mut self, action: &Action, offset: Duration) {
+        Scheduler::enqueue_action(&self.scheduler, action, offset)
     }
 
     pub fn get_physical_time(&self) -> Instant {
@@ -180,22 +197,21 @@ impl<'a> Ctx<'a> {
 pub struct Action {
     delay: Duration,
     logical: bool,
-    downstream: Vec<Rc<ReactionInvoker>>,
+    downstream: Dependencies,
 }
 
 impl Action {
-
-    pub fn set_downstream(&mut self, r: Vec<Rc<ReactionInvoker>>) {
+    pub fn set_downstream(&mut self, r: Dependencies) {
         self.downstream = r
     }
 
-    pub(in super) fn new(
+    pub fn new(
         min_delay: Option<Duration>,
         is_logical: bool) -> Self {
         Action {
             delay: min_delay.unwrap_or(Duration::new(0, 0)),
             logical: is_logical,
-            downstream: Vec::new(),
+            downstream: Default::default(),
         }
     }
 }
@@ -219,9 +235,6 @@ pub trait ReactorDispatcher {
     /// their default values, or else, a value taken from the params.
     fn assemble(args: Self::Params) -> Self;
 
-    /// Execute the startup reaction of the reactor
-    fn start(&mut self, ctx: &mut Ctx);
-
     /// Execute a single user-written reaction.
     /// Dispatches on the reaction id, and unpacks parameters,
     /// which are the reactor components declared as fields of
@@ -239,6 +252,9 @@ pub trait ReactorAssembler {
     /// Type of the [ReactorDispatcher]
     type RState: ReactorDispatcher;
 
+    /// Execute the startup reaction of the reactor
+    fn start(&mut self, ctx: Ctx);
+
     /// Create a new instance. The rid is a counter used to
     /// give unique IDs to reactions. The args are passed down
     /// to [ReactorDispatcher::assemble].
@@ -246,23 +262,48 @@ pub trait ReactorAssembler {
     /// The components of the ReactorDispatcher must be filled
     /// in with their respective dependencies (precomputed before
     /// codegen)
-    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self;
+    fn assemble(rid: &mut i32,
+                args: <Self::RState as ReactorDispatcher>::Params) -> Self;
+}
+
+pub struct Dependencies {
+    reactions: Vec<Arc<ReactionInvoker>>
+}
+
+impl Default for Dependencies {
+    fn default() -> Self {
+        Self { reactions: Vec::new() }
+    }
+}
+
+impl Dependencies {
+    pub fn append(&mut self, other: &mut Dependencies) {
+        self.reactions.append(&mut other.reactions)
+    }
+}
+
+impl From<Vec<Arc<ReactionInvoker>>> for Dependencies {
+    fn from(reactions: Vec<Arc<ReactionInvoker>>) -> Self {
+        Self { reactions }
+    }
 }
 
 pub struct ReactionInvoker {
     body: Box<dyn Fn(&mut Ctx)>,
     id: i32,
 }
+unsafe impl Sync for ReactionInvoker {}
+unsafe impl Send for ReactionInvoker {}
 
 impl ReactionInvoker {
     fn fire(&self, ctx: &mut Ctx) {
         (self.body)(ctx)
     }
 
-    pub(in super) fn new<T: ReactorDispatcher + 'static>(id: i32,
-                                                         reactor: Rc<RefCell<T>>,
-                                                         rid: T::ReactionId) -> ReactionInvoker {
-        let body = move |ctx: &mut Ctx<'_>| {
+    pub fn new<T: ReactorDispatcher + 'static>(id: i32,
+                                               reactor: Rc<RefCell<T>>,
+                                               rid: T::ReactionId) -> ReactionInvoker {
+        let body = move |ctx: &mut Ctx| {
             let mut ref_mut = reactor.deref().borrow_mut();
             let r1: &mut T = &mut *ref_mut;
             T::react(r1, ctx, rid)

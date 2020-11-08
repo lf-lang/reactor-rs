@@ -1,6 +1,6 @@
 use std::rc::Rc;
 use std::cell::{Cell, Ref};
-use crate::runtime::ReactionInvoker;
+use crate::runtime::{ReactionInvoker, Dependencies};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::cell::RefCell;
@@ -33,7 +33,7 @@ impl<T, K> Port<T, K> {
 
 
 
-    pub fn set_downstream(&mut self, mut r: Vec<Rc<ReactionInvoker>>) {
+    pub fn set_downstream(&mut self, mut r: Dependencies) {
         let mut upclass = self.cell.borrow_mut();
         upclass.downstream = r;
     }
@@ -82,7 +82,7 @@ impl<T> OutputPort<T> {
         Self::new_impl()
     }
 
-    pub(in super) fn set(&mut self, v: T) -> Ref<Vec<Rc<ReactionInvoker>>> {
+    pub(in super) fn set(&mut self, v: T) -> Ref<Dependencies> {
         (*self.cell.borrow_mut()).cell.set(Some(v));
         Ref::map(self.cell.borrow(),
                  |t| &t.downstream)
@@ -92,7 +92,7 @@ impl<T> OutputPort<T> {
 
 struct PortCell<T> {
     cell: Cell<Option<T>>,
-    downstream: Vec<Rc<ReactionInvoker>>,
+    downstream: Dependencies,
 }
 
 impl<T> PortCell<T> {
