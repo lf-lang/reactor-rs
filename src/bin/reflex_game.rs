@@ -19,6 +19,7 @@ use rust_reactors::reaction_ids;
 use rust_reactors::reaction_ids_helper;
 use rust_reactors::reactors::{Enumerated, Named};
 use rust_reactors::runtime::*;
+use rust_reactors::runtime::Offset::{After, Asap};
 
 // this is a manual translation of https://github.com/icyphy/lingua-franca/blob/master/example/ReflexGame/ReflexGameMinimal.lf
 
@@ -138,7 +139,7 @@ impl RandomSource {
     ///  =}
     fn react_startup(mut ctx: PhysicalCtx, prompt: &LogicalAction) {
         // seed random gen
-        ctx.schedule_delayed(prompt, RandomSource::random_delay());
+        ctx.schedule(prompt, After(RandomSource::random_delay()));
     }
 
     /// reaction(prompt) -> out, prompt {=
@@ -155,7 +156,7 @@ impl RandomSource {
     ///     schedule(prompt, random_time());
     /// =}
     fn react_schedule(&mut self, ctx: &mut Ctx, prompt: &LogicalAction) {
-        ctx.schedule_delayed(prompt, RandomSource::random_delay());
+        ctx.schedule(prompt, After(RandomSource::random_delay()));
     }
 }
 
@@ -247,7 +248,7 @@ impl GetUserInput {
         loop {
             match stdin().read_line(&mut buf) {
                 Ok(_) => {
-                    ctx.schedule(response)
+                    ctx.schedule(response, Asap)
                 }
                 Err(_) => {}
             }

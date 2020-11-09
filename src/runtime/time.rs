@@ -4,7 +4,7 @@ use crate::runtime::{ReactionInvoker, Dependencies};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::cell::RefCell;
-use std::time::Instant;
+use std::time::{Instant, Duration};
 use std::fmt::{Display, Formatter, Debug};
 
 
@@ -36,6 +36,25 @@ impl LogicalTime {
         Self {
             instant: Instant::now(),
             microstep: 0,
+        }
+    }
+}
+
+
+
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
+pub enum Offset {
+    Asap,
+    After(Duration),
+}
+
+impl Offset {
+    const ZERO_DURATION: Duration = Duration::from_millis(0);
+
+    pub fn to_duration(&self) -> Duration {
+        match self {
+            Offset::Asap => Self::ZERO_DURATION,
+            Offset::After(d) => d.clone()
         }
     }
 }

@@ -31,8 +31,6 @@ impl<T, K> Port<T, K> {
         }
     }
 
-
-
     pub fn set_downstream(&mut self, mut r: Dependencies) {
         let mut upclass = self.cell.borrow_mut();
         upclass.downstream = r;

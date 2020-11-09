@@ -217,13 +217,8 @@ impl Ctx {
     /// Schedule an action to run after its own implicit time delay,
     /// plus an optional additional time delay. These delays are in
     /// logical time.
-    ///
-    /// # Panics
-    ///
-    /// If the reaction being executed has not declared its
-    /// dependency on the given action ([reaction_schedules](super::Assembler::reaction_schedules)).
-    pub fn schedule(&mut self, action: &LogicalAction) {
-        self.schedule_delayed(action, Duration::from_secs(0))
+    pub fn schedule(&mut self, action: &LogicalAction, offset: Offset) {
+        self.scheduler.enqueue_action(action, offset.to_duration())
     }
 
     pub fn schedule_delayed(&mut self, action: &LogicalAction, offset: Duration) {
@@ -240,30 +235,18 @@ impl Ctx {
     }
 }
 
-/// This is the context in which a reaction executes. Its API
-/// allows mutating the event queue of the scheduler. Only the
-/// interactions declared at assembly time are allowed.
-///
+/// This context allows physical actions to be scheduled.
 pub struct PhysicalCtx {
     scheduler: SchedulerRef,
     cur_logical_time: LogicalTime,
 }
 
 impl PhysicalCtx {
-    /// Schedule an action to run after its own implicit time delay,
+    /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
-    ///
-    /// # Panics
-    ///
-    /// If the reaction being executed has not declared its
-    /// dependency on the given action ([reaction_schedules](super::Assembler::reaction_schedules)).
-    pub fn schedule<T>(&mut self, action: &Action<T>) {
-        self.schedule_delayed(action, Duration::from_secs(0))
-    }
-
-    pub fn schedule_delayed<T>(&mut self, action: &Action<T>, offset: Duration) {
-        self.scheduler.enqueue_action(action, offset)
+    pub fn schedule<T>(&mut self, action: &Action<T>, offset: Offset) {
+        self.scheduler.enqueue_action(action, offset.to_duration())
     }
 
     pub fn get_physical_time(&self) -> Instant {
