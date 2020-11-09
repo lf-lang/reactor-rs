@@ -14,37 +14,8 @@ use std::sync::mpsc::{channel, Sender, Receiver};
 use crate::reactors::Named;
 use std::fmt::Formatter;
 use std::fmt::Display;
-
-type MicroStep = u128;
-
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
-pub struct LogicalTime {
-    instant: Instant,
-    microstep: MicroStep,
-}
-
-impl Display for LogicalTime {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str("LogicalTime(")?;
-        self.instant.fmt(f)?;
-        f.write_str(" + ")?;
-        <_ as Display>::fmt(&self.microstep, f)?;
-        f.write_str(")")?;
-        Ok(())
-    }
-}
-
-impl Default for LogicalTime {
-    fn default() -> Self {
-        Self { instant: Instant::now(), microstep: 0 }
-    }
-}
-
-impl LogicalTime {
-    pub fn to_instant(&self) -> Instant {
-        self.instant
-    }
-}
+use super::time::*;
+use super::{ReactionInvoker, Dependencies, Action};
 
 #[derive(Eq, PartialEq, Hash)]
 enum Event {
@@ -258,43 +229,6 @@ impl Ctx {
 }
 
 
-pub struct Action {
-    delay: Duration,
-    logical: bool,
-    downstream: Dependencies,
-    name: &'static str,
-}
-
-impl Action {
-    pub fn set_downstream(&mut self, r: Dependencies) {
-        self.downstream = r
-    }
-
-    pub fn new(
-        min_delay: Option<Duration>,
-        is_logical: bool,
-        name: &'static str) -> Self {
-        Action {
-            delay: min_delay.unwrap_or(Duration::new(0, 0)),
-            logical: is_logical,
-            downstream: Default::default(),
-            name,
-        }
-    }
-}
-
-impl Named for Action {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-}
-
-impl Display for Action {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        <_ as Display>::fmt(&self.name(), f)
-    }
-}
-
 /// Wrapper around the user struct for safe dispatch.
 ///
 /// Fields are
@@ -343,84 +277,4 @@ pub trait ReactorAssembler {
     /// codegen)
     fn assemble(rid: &mut i32,
                 args: <Self::RState as ReactorDispatcher>::Params) -> Self;
-}
-
-pub struct Dependencies {
-    reactions: Vec<Arc<ReactionInvoker>>
-}
-
-impl Default for Dependencies {
-    fn default() -> Self {
-        Self { reactions: Vec::new() }
-    }
-}
-
-impl Dependencies {
-    pub fn append(&mut self, other: &mut Dependencies) {
-        self.reactions.append(&mut other.reactions)
-    }
-}
-
-impl From<Vec<Arc<ReactionInvoker>>> for Dependencies {
-    fn from(reactions: Vec<Arc<ReactionInvoker>>) -> Self {
-        Self { reactions }
-    }
-}
-
-pub struct ReactionInvoker {
-    body: Box<dyn Fn(&mut Ctx)>,
-    id: i32,
-    name: &'static str,
-}
-
-unsafe impl Sync for ReactionInvoker {}
-
-unsafe impl Send for ReactionInvoker {}
-
-impl Named for ReactionInvoker {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-}
-
-impl Display for ReactionInvoker {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        <_ as Display>::fmt(&self.name(), f)
-    }
-}
-
-impl ReactionInvoker {
-    fn fire(&self, ctx: &mut Ctx) {
-        (self.body)(ctx)
-    }
-
-    pub fn new<T: ReactorDispatcher + 'static>(id: i32,
-                                               reactor: Rc<RefCell<T>>,
-                                               rid: T::ReactionId) -> ReactionInvoker {
-        let body = move |ctx: &mut Ctx| {
-            let mut ref_mut = reactor.deref().borrow_mut();
-            let r1: &mut T = &mut *ref_mut;
-            T::react(r1, ctx, rid)
-        };
-        ReactionInvoker {
-            body: Box::new(body),
-            id,
-            name: rid.name(),
-        }
-    }
-}
-
-
-impl PartialEq for ReactionInvoker {
-    fn eq(&self, other: &Self) -> bool {
-        self.id == other.id
-    }
-}
-
-impl Eq for ReactionInvoker {}
-
-impl Hash for ReactionInvoker {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.id.hash(state)
-    }
 }

@@ -2,23 +2,23 @@
 extern crate rust_reactors;
 
 
-use std::pin::Pin;
+use std::cell::{RefCell, RefMut};
 use std::cell::Cell;
-use std::time::{Duration, Instant};
 use std::io::stdin;
-use futures::io::Error;
-use petgraph::stable_graph::edge_index;
+use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::Arc;
-
-use rust_reactors::runtime::*;
-use rust_reactors::runtime::ports::{OutputPort, InputPort, Port};
-use std::cell::{RefCell, RefMut};
 use std::sync::mpsc::channel;
-use rust_reactors::reactors::{Named, Enumerated};
-use rust_reactors::reaction_ids_helper;
-use rust_reactors::reaction_ids;
+use std::time::{Duration, Instant};
+
+use futures::io::Error;
+use petgraph::stable_graph::edge_index;
 use rand::Rng;
+
+use rust_reactors::reaction_ids;
+use rust_reactors::reaction_ids_helper;
+use rust_reactors::reactors::{Enumerated, Named};
+use rust_reactors::runtime::*;
 
 // this is a manual translation of https://github.com/icyphy/lingua-franca/blob/master/example/ReflexGame/ReflexGameMinimal.lf
 
@@ -107,10 +107,10 @@ fn main() {
         let mut g = gcell._rstate.borrow_mut();
 
         // --- p.out -> g.prompt;
-        ports::bind(&mut p.out, &mut g.prompt);
+        bind_ports(&mut p.out, &mut g.prompt);
 
         // --- g.another -> p.another;
-        ports::bind(&mut g.another, &mut p.another);
+        bind_ports(&mut g.another, &mut p.another);
     }
 
     let mut scheduler = SyncScheduler::new();

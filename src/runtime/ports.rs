@@ -57,7 +57,7 @@ impl<T, K> Port<T, K> {
 ///
 /// Also the edges must be that of a transitive reduction of
 /// the graph, as the down port is destroyed.
-pub fn bind<T, U, D>(up: &mut Port<T, U>, mut down: &mut Port<T, D>) {
+pub fn bind_ports<T, U, D>(up: &mut Port<T, U>, mut down: &mut Port<T, D>) {
     {
         let mut upclass = up.cell.borrow_mut();
         let mut downclass = down.cell.borrow_mut();
