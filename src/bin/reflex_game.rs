@@ -243,12 +243,12 @@ struct GetUserInput {
 
 // user impl
 impl GetUserInput {
-    fn read_input_loop(ctx: &mut PhysicalCtx, response: &PhysicalAction) {
+    fn read_input_loop(mut ctx: PhysicalCtx, response: PhysicalAction) {
         let mut buf = String::new();
         loop {
             match stdin().read_line(&mut buf) {
                 Ok(_) => {
-                    ctx.schedule(response, Asap)
+                    ctx.schedule(&response, Asap)
                 }
                 Err(_) => {}
             }
@@ -261,12 +261,7 @@ impl GetUserInput {
     /// =}
     ///
     fn react_startup(ctx: PhysicalCtx, response: PhysicalAction) {
-        use std::thread;
-        thread::spawn(move || {
-            let response = response;
-            let mut ctx = ctx;
-            GetUserInput::read_input_loop(&mut ctx, &response)
-        });
+        std::thread::spawn(move || GetUserInput::read_input_loop(ctx, response));
     }
 
     // reaction(prompt) {=

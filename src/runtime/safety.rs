@@ -12,7 +12,6 @@ use crate::runtime::{Ctx, ReactorDispatcher};
 
 
 struct In;
-
 struct Out;
 
 struct Port<T, K, L> {
@@ -25,7 +24,7 @@ type OutputPort<T, L> = Port<T, Out, L>;
 impl<T, UK, UL> Port<T, UK, UL> {
     fn forward_to<DK>(&self, down: &Port<T, DK, AllowedBinding<UK, DK, UL>>)
         where UK: ComputeBind<UL, DK> {
-        TODO!()
+
     }
 }
 
@@ -64,7 +63,8 @@ impl<T> ComputeBind<Child<T>, In> for Out {
 }
 
 
-fn test<P>(u : InputPort<i32, P>, d: OutputPort<i32, P>) {
+fn test<P>(u : InputPort<i32, P>,
+           d: OutputPort<i32, P>) {
     u.forward_to(&d);
 }
 //
