@@ -5,13 +5,14 @@ use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use std::ops::Deref;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::reactors::Named;
 use crate::runtime::{Ctx, ReactorDispatcher};
 
+#[derive(Clone)]
 pub struct Dependencies {
-   pub(in super) reactions: Vec<Arc<ReactionInvoker>>
+    pub(in super) reactions: Vec<Arc<ReactionInvoker>>
 }
 
 impl Default for Dependencies {
@@ -33,14 +34,10 @@ impl From<Vec<Arc<ReactionInvoker>>> for Dependencies {
 }
 
 pub struct ReactionInvoker {
-    body: Box<dyn Fn(&mut Ctx)>,
+    body: Box<dyn Fn(&mut Ctx) + Sync + Send>,
     id: i32,
     name: &'static str,
 }
-
-unsafe impl Sync for ReactionInvoker {}
-
-unsafe impl Send for ReactionInvoker {}
 
 impl Named for ReactionInvoker {
     fn name(&self) -> &'static str {
@@ -60,16 +57,15 @@ impl ReactionInvoker {
     }
 
     pub fn new<T: ReactorDispatcher + 'static>(id: i32,
-                                               //todo should be sync
-                                               reactor: Rc<RefCell<T>>,
+                                               reactor: Arc<Mutex<T>>,
                                                rid: T::ReactionId) -> ReactionInvoker {
         let body = move |ctx: &mut Ctx| {
-            let mut ref_mut = reactor.deref().borrow_mut();
+            let mut ref_mut = reactor.lock().unwrap();
             let r1: &mut T = &mut *ref_mut;
             T::react(r1, ctx, rid)
         };
         ReactionInvoker {
-            body: Box::new(body),
+            body: Box::new(body) as Box<dyn Fn(&mut Ctx) + Sync + Send>,
             id,
             name: rid.name(),
         }

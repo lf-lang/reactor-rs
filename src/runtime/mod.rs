@@ -20,11 +20,11 @@ mod ohio;
 ///
 /// Fields are
 /// 1. the user struct, and
-/// 2. every action and port declared by the reactor.
+/// 2. every logical action and port declared by the reactor.
 ///
-pub trait ReactorDispatcher {
+pub trait ReactorDispatcher: Send + Sync {
     /// The type of reaction IDs
-    type ReactionId: Copy + Named;
+    type ReactionId: Copy + Named + Send + Sync;
     /// Type of the user struct
     type Wrapped;
     /// Type of the construction parameters
@@ -42,17 +42,19 @@ pub trait ReactorDispatcher {
     fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId);
 }
 
-/// Declares dependencies of every reactor component.
+/// Declares dependencies of every reactor component. Also
+/// initializes reaction wrappers.
 ///
 /// Fields are
-/// 1. a ReactorDispatcher
-/// 2. a Rc<ReactionInvoker> for every reaction declared by the reactor
+/// 1. an Arc<Mutex<Self::RState>>
+/// 2. an Arc<ReactionInvoker> for every reaction declared by the reactor
 ///
 pub trait ReactorAssembler {
     /// Type of the [ReactorDispatcher]
     type RState: ReactorDispatcher;
 
     /// Execute the startup reaction of the reactor
+    /// This also creates physical actions.
     fn start(&mut self, ctx: PhysicalCtx);
 
     /// Create a new instance. The rid is a counter used to

@@ -46,3 +46,28 @@ fn fun(time: LogicalTime) {
     // time.println();  // error, time was moved
     time2.println(); // ok
 }
+//
+// pub struct Input;
+//
+// pub struct Output;
+//
+// pub type InputPort<T> = Port<T, Input>;
+// pub type OutputPort<T> = Port<T, Output>;
+//
+// pub struct Port<T, Kind> {
+//     // ...
+// }
+//
+// // an impl block for behavior shared between output & input ports
+// impl<T, Kind> Port<T, Kind> {
+//     fn get(&self) -> Option<T> {
+//         // ...
+//     }
+// }
+//
+// // an impl block only for output ports
+// impl<T> OutputPort<T> {
+//     fn set(&self, _value: T) {
+//         // ...
+//     }
+// }

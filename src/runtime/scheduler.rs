@@ -59,6 +59,8 @@ pub struct SchedulerRef {
 pub struct SyncScheduler {
     state: SchedulerRef,
     receiver: Receiver<Event>,
+    // todo the priority (Reverse<LogicalTime>) should take into account relative reaction priority
+    queue: PriorityQueue<Event, Reverse<LogicalTime>>,
 }
 
 impl SyncScheduler {
@@ -67,7 +69,6 @@ impl SyncScheduler {
         let sched = SchedulerState {
             cur_logical_time: <_>::default(),
             micro_step: 0,
-            queue: PriorityQueue::new(),
         };
         let state = SchedulerRef {
             state: Arc::new(Mutex::new(sched)),
@@ -76,16 +77,19 @@ impl SyncScheduler {
         Self {
             state,
             receiver,
+            queue: PriorityQueue::new(),
         }
     }
 
-    pub fn launch_async(self) -> JoinHandle<()> {
+    pub fn launch_async(mut self) -> JoinHandle<()> {
         use std::thread;
         thread::spawn(move || {
             loop {
                 if let Ok(evt) = self.receiver.recv() {
-                    let tag = evt.eta();
-                    self.state.step(evt, tag)
+                    let eta = evt.eta();
+                    self.queue.push(evt, Reverse(eta));
+                    let (evt, Reverse(eta)) = self.queue.pop().unwrap();
+                    self.state.step(evt, eta)
                 } else {
                     // all senders have hung up
                     println!("We're done here");
@@ -111,7 +115,6 @@ impl SyncScheduler {
 pub struct SchedulerState {
     cur_logical_time: LogicalTime,
     micro_step: MicroStep,
-    queue: PriorityQueue<Event, Reverse<LogicalTime>>,
 }
 
 impl SchedulerRef {
@@ -149,7 +152,7 @@ impl SchedulerRef {
         }
     }
 
-    fn enqueue_port(&self, downstream: Ref<Dependencies>, now: LogicalTime) {
+    fn enqueue_port(&self, downstream: Dependencies, now: LogicalTime) {
         // todo possibly, reactions must be scheduled at most once per logical time step?
         for reaction in downstream.reactions.iter() {
             self.critical(|mut scheduler| {

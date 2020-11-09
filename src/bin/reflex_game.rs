@@ -7,7 +7,7 @@ use std::cell::Cell;
 use std::io::stdin;
 use std::pin::Pin;
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
 
@@ -104,8 +104,8 @@ fn main() {
     let mut gcell = GetUserInputAssembler::assemble(&mut rid, ());
 
     {
-        let mut p = pcell._rstate.borrow_mut();
-        let mut g = gcell._rstate.borrow_mut();
+        let mut p = pcell._rstate.lock().unwrap();
+        let mut g = gcell._rstate.lock().unwrap();
 
         // --- p.out -> g.prompt;
         bind_ports(&mut p.out, &mut g.prompt);
@@ -202,7 +202,7 @@ impl ReactorDispatcher for RandomSourceDispatcher {
 
 
 struct RandomSourceAssembler {
-    _rstate: Rc<RefCell</*{{*/RandomSourceDispatcher/*}}*/>>,
+    _rstate: Arc<Mutex</*{{*/RandomSourceDispatcher/*}}*/>>,
     /*{{*/react_schedule/*}}*/: Arc<ReactionInvoker>,
     /*{{*/react_emit/*}}*/: Arc<ReactionInvoker>,
 }
@@ -211,18 +211,18 @@ impl ReactorAssembler for /*{{*/RandomSourceAssembler/*}}*/ {
     type RState = /*{{*/RandomSourceDispatcher/*}}*/;
 
     fn start(&mut self, ctx: PhysicalCtx) {
-        RandomSource::react_startup(ctx, &self._rstate.borrow().prompt);
+        RandomSource::react_startup(ctx, &self._rstate.lock().unwrap().prompt);
     }
 
 
     fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
-        let mut _rstate = Rc::new(RefCell::new(Self::RState::assemble(args)));
+        let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
 
         let /*{{*/react_schedule /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Schedule/*}}*/);
         let /*{{*/react_emit /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Emit/*}}*/);
 
         { // declare local dependencies
-            let mut statemut = _rstate.borrow_mut();
+            let mut statemut = _rstate.lock().unwrap();
 
             statemut./*{{*/another/*}}*/.set_downstream(vec![/*{{*/react_schedule/*}}*/.clone()].into());
             statemut./*{{*/prompt/*}}*/.set_downstream(vec![/*{{*/react_emit/*}}*/.clone()].into());
@@ -344,7 +344,7 @@ impl ReactorDispatcher for GetUserInputReactionState {
 }
 
 struct GetUserInputAssembler {
-    _rstate: Rc<RefCell</*{{*/GetUserInputReactionState/*}}*/>>,
+    _rstate: Arc<Mutex</*{{*/GetUserInputReactionState/*}}*/>>,
     /*{{*/react_handle_line/*}}*/: Arc<ReactionInvoker>,
     /*{{*/react_prompt/*}}*/: Arc<ReactionInvoker>,
 }
@@ -361,13 +361,13 @@ impl ReactorAssembler for /*{{*/GetUserInputAssembler/*}}*/ {
     }
 
     fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
-        let mut _rstate = Rc::new(RefCell::new(Self::RState::assemble(args)));
+        let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
 
         let /*{{*/react_handle_line /*}}*/ = new_reaction!(rid, _rstate, /*{{*/HandleLine/*}}*/);
         let /*{{*/react_prompt /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Prompt/*}}*/);
 
         { // declare local dependencies
-            let mut statemut = _rstate.borrow_mut();
+            let mut statemut = _rstate.lock().unwrap();
 
             statemut./*{{*/prompt/*}}*/.set_downstream(vec![/*{{*/react_prompt/*}}*/.clone()].into());
         }
