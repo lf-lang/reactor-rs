@@ -5,6 +5,7 @@ use std::fmt::{Debug, Pointer};
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
+use std::marker::PhantomData;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -15,7 +16,7 @@ use std::time::{Duration, Instant};
 use priority_queue::PriorityQueue;
 
 use crate::reactors::Named;
-use crate::runtime::{LogicalAction, PhysicalAction, ReactorAssembler};
+use crate::runtime::{Logical, LogicalAction, Physical, PhysicalAction, ReactorAssembler};
 use crate::runtime::ports::{InputPort, OutputPort, Port};
 
 use super::{Action, Dependencies, ReactionInvoker};
@@ -105,6 +106,7 @@ impl SyncScheduler {
             PhysicalCtx {
                 scheduler: sched,
                 cur_logical_time: state.cur_logical_time,
+                _t: PhantomData
             }
         });
         r.start(ctx)
@@ -124,12 +126,13 @@ impl SchedulerRef {
     }
 
 
-    pub fn new_ctx(&self) -> Ctx {
+    pub fn new_ctx(&self) -> LogicalCtx {
         let sched = self.clone();
         self.critical(|state| {
-            Ctx {
+            LogicalCtx {
                 scheduler: sched,
                 cur_logical_time: state.cur_logical_time,
+                _t: PhantomData
             }
         })
     }
@@ -142,6 +145,7 @@ impl SchedulerRef {
 
         let mut ctx = self.new_ctx();
         reaction.fire(&mut ctx)
+        // todo probably we should destroy the port values at this time
     }
 
     fn catch_up_physical_time(up_to_time: LogicalTime) {
@@ -180,23 +184,22 @@ impl SchedulerRef {
 }
 
 
+pub type LogicalCtx = Ctx<Logical>;
+pub type PhysicalCtx = Ctx<Physical>;
+
+
 /// This is the context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler. Only the
 /// interactions declared at assembly time are allowed.
 ///
-pub struct Ctx {
+pub struct Ctx<T> {
     scheduler: SchedulerRef,
     cur_logical_time: LogicalTime,
+    _t: PhantomData<T>
 }
 
-impl Ctx {
+impl<A> Ctx<A> {
     /// Get the value of a port at this time.
-    ///
-    /// # Panics
-    ///
-    /// If the reaction being executed has not declared its
-    /// dependency on the given port ([reaction_uses](super::Assembler::reaction_uses)).
-    ///
     pub fn get<T: Copy>(&self, port: &InputPort<T>) -> Option<T> {
         port.get()
     }
@@ -206,12 +209,6 @@ impl Ctx {
     /// propagates immediately. This may hence schedule more
     /// reactions that should execute on the same logical
     /// step.
-    ///
-    /// # Panics
-    ///
-    /// If the reaction being executed has not declared its
-    /// dependency on the given port ([reaction_affects](super::Assembler::reaction_affects)).
-    ///
     pub fn set<T>(&mut self, port: &mut OutputPort<T>, value: T) {
         let downstream = port.set(value);
         self.scheduler.enqueue_port(downstream, self.cur_logical_time);
@@ -221,38 +218,31 @@ impl Ctx {
     /// plus an optional additional time delay. These delays are in
     /// logical time.
     pub fn schedule(&mut self, action: &LogicalAction, offset: Offset) {
-        self.scheduler.enqueue_action(action, offset.to_duration())
+        self.schedule_impl(action, offset);
     }
 
-    pub fn schedule_delayed(&mut self, action: &LogicalAction, offset: Duration) {
-        self.scheduler.enqueue_action(action, offset)
+    // private
+    fn schedule_impl<T>(&mut self, action: &Action<T>, offset: Offset) {
+        self.scheduler.enqueue_action(action, offset.to_duration())
     }
 
     pub fn get_physical_time(&self) -> Instant {
         Instant::now()
     }
+}
 
+impl LogicalCtx {
     /// note: this doesn't work for
     pub fn get_logical_time(&self) -> LogicalTime {
         self.cur_logical_time
     }
 }
 
-/// This context allows physical actions to be scheduled.
-pub struct PhysicalCtx {
-    scheduler: SchedulerRef,
-    cur_logical_time: LogicalTime,
-}
-
 impl PhysicalCtx {
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
-    pub fn schedule<T>(&mut self, action: &Action<T>, offset: Offset) {
-        self.scheduler.enqueue_action(action, offset.to_duration())
-    }
-
-    pub fn get_physical_time(&self) -> Instant {
-        Instant::now()
+    pub fn schedule_physical(&mut self, action: &PhysicalAction, offset: Offset) {
+        self.schedule_impl(action, offset);
     }
 }

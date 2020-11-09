@@ -49,7 +49,7 @@ use rust_reactors::runtime::Offset::{After, Asap};
 //
 // is translated *in the user struct* to
 //
-// fn (&mut self, ctx: &mut LogicalCtx<'_>, params*)
+// fn (&mut self, ctx: &mut Ctx<'_>, params*)
 //
 // where params is:
 //   - for each $p\in\{t_i\}\union\{u_i\}$, where $p$ is an input port of type $T$
@@ -122,24 +122,20 @@ fn main() {
 }
 
 
-struct RandomSource;
+struct Source;
 
-impl RandomSource {
-    fn random_delay() -> Duration {
-        let mut rng = rand::thread_rng();
-        use rand::prelude::*;
-        Duration::from_millis(rng.gen_range(200, 2500))
-    }
+impl Source {
 
-    /// reaction(startup) -> prompt {=
-    ///      // Random number functions are part of stdlib.h, which is included by reactor.h.
-    ///      // Set a seed for random number generation based on the current time.
-    ///      srand(time(0));
-    ///      schedule(prompt, random_time());
-    ///  =}
-    fn react_startup(mut ctx: PhysicalCtx, prompt: &LogicalAction) {
-        // seed random gen
-        ctx.schedule(prompt, After(RandomSource::random_delay()));
+    /// reaction(startup) -> out {=
+    //        // create an dynamically allocated mutable Hello object
+    //        auto hello = reactor::make_mutable_value<Hello>();
+    //        hello->name = "Earth";
+    //        hello->value = 42;
+    //        // this implicitly converts the mutable value to an immutable value
+    //        out.set(std::move(hello));
+    //  =}
+    fn react_startup(mut ctx: PhysicalCtx, out: &mut OutputPort<bool>) {
+        ctx.
     }
 
     /// reaction(prompt) -> out, prompt {=
@@ -147,7 +143,7 @@ impl RandomSource {
     ///     fflush(stdout);
     ///     SET(out, true);
     /// =}
-    fn react_emit(&mut self, ctx: &mut LogicalCtx, out: &mut OutputPort<bool>) {
+    fn react_emit(&mut self, ctx: &mut Ctx, out: &mut OutputPort<bool>) {
         println!("Hit Return!");
         ctx.set(out, true);
     }
@@ -155,8 +151,8 @@ impl RandomSource {
     /// reaction(another) -> prompt {=
     ///     schedule(prompt, random_time());
     /// =}
-    fn react_schedule(&mut self, ctx: &mut LogicalCtx, prompt: &LogicalAction) {
-        ctx.schedule(prompt, After(RandomSource::random_delay()));
+    fn react_schedule(&mut self, ctx: &mut Ctx, prompt: &LogicalAction) {
+        ctx.schedule(prompt, After(Source::random_delay()));
     }
 }
 
@@ -166,7 +162,7 @@ impl RandomSource {
     logical action prompt(2 secs);
  */
 struct RandomSourceDispatcher {
-    _impl: RandomSource,
+    _impl: Source,
     prompt: LogicalAction,
     another: InputPort<bool>,
     out: OutputPort<bool>,
@@ -176,19 +172,19 @@ reaction_ids!(enum RandomSourceReactions { Schedule, Emit, });
 
 impl ReactorDispatcher for RandomSourceDispatcher {
     type ReactionId = RandomSourceReactions;
-    type Wrapped = RandomSource;
+    type Wrapped = Source;
     type Params = ();
 
     fn assemble(_: Self::Params) -> Self {
         RandomSourceDispatcher {
-            _impl: RandomSource,
+            _impl: Source,
             prompt: LogicalAction::new(None, "prompt"),
             another: InputPort::<bool>::new(),
             out: OutputPort::<bool>::new(),
         }
     }
 
-    fn react(&mut self, ctx: &mut LogicalCtx, rid: Self::ReactionId) {
+    fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId) {
         match rid {
             RandomSourceReactions::Schedule => {
                 self._impl.react_schedule(ctx, &self.prompt)
@@ -211,7 +207,7 @@ impl ReactorAssembler for /*{{*/RandomSourceAssembler/*}}*/ {
     type RState = /*{{*/RandomSourceDispatcher/*}}*/;
 
     fn start(&mut self, ctx: PhysicalCtx) {
-        RandomSource::react_startup(ctx, &self._rstate.lock().unwrap().prompt);
+        Source::react_startup(ctx, &self._rstate.lock().unwrap().prompt);
     }
 
 
@@ -248,7 +244,7 @@ impl GetUserInput {
         loop {
             match stdin().read_line(&mut buf) {
                 Ok(_) => {
-                    ctx.schedule_physical(&response, Asap)
+                    ctx.schedule(&response, Asap)
                 }
                 Err(_) => {}
             }
@@ -267,7 +263,7 @@ impl GetUserInput {
     // reaction(prompt) {=
     // self->prompt_time = get_physical_time();
     // =}
-    fn react_prompt(&mut self, ctx: &mut LogicalCtx, prompt: &InputPort<bool>) {
+    fn react_prompt(&mut self, ctx: &mut Ctx, prompt: &InputPort<bool>) {
         let instant = ctx.get_physical_time();
         self.prompt_time = Some(instant)
     }
@@ -282,7 +278,7 @@ impl GetUserInput {
     ///        }
     ///        SET(another, true);
     /// =}
-    fn react_handle_line(&mut self, ctx: &mut LogicalCtx, another: &mut OutputPort<bool>) {
+    fn react_handle_line(&mut self, ctx: &mut Ctx, another: &mut OutputPort<bool>) {
         match self.prompt_time.take() {
             None => {
                 println!("You cheated!");
@@ -326,7 +322,7 @@ impl ReactorDispatcher for GetUserInputReactionState {
         }
     }
 
-    fn react(&mut self, ctx: &mut LogicalCtx, rid: Self::ReactionId) {
+    fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId) {
         match rid {
             GetUserInputReactions::HandleLine => {
                 self._impl.react_handle_line(ctx, &mut self.another)

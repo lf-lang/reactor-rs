@@ -40,7 +40,7 @@ pub trait ReactorDispatcher: Send + Sync {
     /// Dispatches on the reaction id, and unpacks parameters,
     /// which are the reactor components declared as fields of
     /// this struct.
-    fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId);
+    fn react(&mut self, ctx: &mut LogicalCtx, rid: Self::ReactionId);
 }
 
 /// Declares dependencies of every reactor component. Also
