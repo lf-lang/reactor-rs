@@ -48,63 +48,89 @@ impl LogicalTime {
 
 #[derive(Eq, PartialEq, Hash)]
 enum Event {
-    ReactionExecute { at: LogicalTime, reaction: Arc<ReactionInvoker> },
-    ReactionSchedule { min_at: LogicalTime, reaction: Arc<ReactionInvoker> },
+    ReactionExecute { tag: LogicalTime, at: LogicalTime, reaction: Arc<ReactionInvoker> },
+    ReactionSchedule { tag: LogicalTime, min_at: LogicalTime, reaction: Arc<ReactionInvoker> },
+}
+
+impl Event {
+    fn tag(&self) -> LogicalTime {
+        match self {
+            Event::ReactionExecute { tag, .. } => tag.clone(),
+            Event::ReactionSchedule { tag, .. } => tag.clone()
+        }
+    }
 }
 
 #[derive(Clone)]
-pub struct SyncScheduler {
-    state: Arc<Mutex<Scheduler>>
+pub struct SchedulerRef {
+    state: Arc<Mutex<SchedulerState>>,
+    sender: Sender<Event>,
 }
 
+pub struct SyncScheduler {
+    state: SchedulerRef,
+    receiver: Receiver<Event>,
+}
+
+impl SyncScheduler {
+    pub fn new() -> Self {
+        let (sender, receiver) = channel::<Event>();
+        let sched = SchedulerState {
+            cur_logical_time: <_>::default(),
+            micro_step: 0,
+            queue: PriorityQueue::new(),
+        };
+        let state = SchedulerRef {
+            state: Arc::new(Mutex::new(sched)),
+            sender,
+        };
+        Self {
+            state,
+            receiver,
+        }
+    }
+
+    pub fn launch_async(self) {
+        std::thread::spawn(move || {
+            loop {
+                if let Ok(evt) = self.receiver.recv() {
+                    let tag = evt.tag();
+                    self.state.step(evt, tag)
+                } else {
+                    // all senders have hung up
+                    break;
+                }
+            }
+        });
+    }
+
+    pub fn new_ctx(&self) -> Ctx {
+        self.state.new_ctx()
+    }
+}
 
 /// Directs execution of the whole reactor graph.
-pub struct Scheduler {
+pub struct SchedulerState {
     cur_logical_time: LogicalTime,
     micro_step: MicroStep,
     queue: PriorityQueue<Event, Reverse<LogicalTime>>,
 }
 
-impl SyncScheduler {
-    fn with_state<T>(&self, f: impl FnOnce(MutexGuard<Scheduler>) -> T) -> T {
+impl SchedulerRef {
+    fn critical<T>(&self, f: impl FnOnce(MutexGuard<SchedulerState>) -> T) -> T {
         let guard = self.state.lock().unwrap();
         f(guard)
     }
 
-    pub fn new() -> Self {
-        let sched = Scheduler {
-            cur_logical_time: <_>::default(),
-            micro_step: 0,
-            queue: PriorityQueue::new(),
-        };
-        Self {
-            state: Arc::new(Mutex::new(sched))
-        }
-    }
 
     pub fn new_ctx(&self) -> Ctx {
-        let inst = self.state.lock().unwrap().cur_logical_time.clone();
-        Ctx {
-            scheduler: self.clone(),
-            cur_logical_time: inst,
-        }
-    }
-
-    pub fn launch(self) {
-        loop {
-            let next = self.with_state(|mut locked| {
-                if let Some((event, Reverse(eta))) = locked.queue.pop() {
-                    Some((event, eta))
-                } else {
-                    None
-                }
-            });
-            if let Some((event, eta)) = next {
-                self.step(event, eta);
-            } else {
-                // break;
+        let sched = self.clone();
+        self.critical(|state| {
+            Ctx {
+                scheduler: sched,
+                cur_logical_time: state.cur_logical_time,
             }
-        }
+        })
     }
 
     fn step(&self, event: Event, eta: LogicalTime) {
@@ -113,13 +139,10 @@ impl SyncScheduler {
             Event::ReactionSchedule { reaction, .. } => reaction
         };
 
-        SyncScheduler::catch_up_physical_time(eta);
-        self.with_state(|mut s| s.cur_logical_time = eta);
+        SchedulerRef::catch_up_physical_time(eta);
+        self.critical(|mut s| s.cur_logical_time = eta);
 
-        let mut ctx = Ctx {
-            scheduler: self.clone(),
-            cur_logical_time: eta,
-        };
+        let mut ctx = self.new_ctx();
         reaction.fire(&mut ctx)
     }
 
@@ -130,26 +153,27 @@ impl SyncScheduler {
         }
     }
 
-    fn enqueue_port(&self, downstream: Ref<Dependencies>) {
+    fn enqueue_port(&self, downstream: Ref<Dependencies>, now: LogicalTime) {
         // todo possibly, reactions must be scheduled at most once per logical time step?
         for reaction in downstream.reactions.iter() {
-            self.with_state(|mut scheduler| {
+            self.critical(|mut scheduler| {
                 let time = scheduler.cur_logical_time;
-                let evt = Event::ReactionExecute { at: time, reaction: reaction.clone() };
-                scheduler.queue.push(evt, Reverse(time));
+                let evt = Event::ReactionExecute { tag: now, at: time, reaction: reaction.clone() };
+                self.sender.send(evt);
             });
         }
     }
 
-    fn enqueue_action(&self, action: &Action, additional_delay: Duration) {
+    fn enqueue_action(&self, action: &Action, additional_delay: Duration, now: LogicalTime) {
         let min_delay = action.delay + additional_delay;
-        let mut scheduler = self.state.lock().unwrap();
 
-        let mut instant = scheduler.cur_logical_time.instant + min_delay;
+        let mut instant = now.instant + min_delay;
         if !action.logical {
             // physical actions are adjusted to physical time if needed
             instant = Instant::max(instant, Instant::now());
         }
+
+        let mut scheduler = self.state.lock().unwrap();
 
         // note that the microstep is global, doesn't really matter though
         scheduler.micro_step += 1;
@@ -159,8 +183,8 @@ impl SyncScheduler {
         };
 
         for reaction in action.downstream.reactions.iter() {
-            let evt = Event::ReactionSchedule { min_at: eta, reaction: reaction.clone() };
-            scheduler.queue.push(evt, Reverse(eta));
+            let evt = Event::ReactionSchedule { tag: now.clone(), min_at: eta, reaction: reaction.clone() };
+            self.sender.send(evt);
         }
     }
 }
@@ -171,7 +195,7 @@ impl SyncScheduler {
 /// interactions declared at assembly time are allowed.
 ///
 pub struct Ctx {
-    scheduler: SyncScheduler,
+    scheduler: SchedulerRef,
     cur_logical_time: LogicalTime,
 }
 
@@ -200,7 +224,7 @@ impl Ctx {
     ///
     pub fn set<T>(&mut self, port: &mut OutputPort<T>, value: T) {
         let downstream = port.set(value);
-        self.scheduler.enqueue_port(downstream);
+        self.scheduler.enqueue_port(downstream, self.cur_logical_time);
     }
 
     /// Schedule an action to run after its own implicit time delay,
@@ -212,11 +236,11 @@ impl Ctx {
     /// If the reaction being executed has not declared its
     /// dependency on the given action ([reaction_schedules](super::Assembler::reaction_schedules)).
     pub fn schedule(&mut self, action: &Action) {
-        self.scheduler.enqueue_action(action, Duration::from_secs(0))
+        self.schedule_delayed(action, Duration::from_secs(0))
     }
 
     pub fn schedule_delayed(&mut self, action: &Action, offset: Duration) {
-        self.scheduler.enqueue_action(action, offset)
+        self.scheduler.enqueue_action(action, offset, self.cur_logical_time)
     }
 
     pub fn get_physical_time(&self) -> Instant {

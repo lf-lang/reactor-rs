@@ -117,7 +117,7 @@ fn main() {
 
     gcell.start(scheduler.new_ctx());
     pcell.start(scheduler.new_ctx());
-    scheduler.launch();
+    scheduler.launch_async();
 }
 
 
