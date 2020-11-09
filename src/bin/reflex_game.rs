@@ -113,11 +113,11 @@ fn main() {
         ports::bind(&mut g.another, &mut p.another);
     }
 
-    let mut scheduler = Scheduler::new();
+    let mut scheduler = SyncScheduler::new();
 
-    gcell.start(Scheduler::new_ctx(&scheduler));
-    pcell.start(Scheduler::new_ctx(&scheduler));
-    Scheduler::launch(scheduler);
+    gcell.start(scheduler.new_ctx());
+    pcell.start(scheduler.new_ctx());
+    scheduler.launch();
 }
 
 

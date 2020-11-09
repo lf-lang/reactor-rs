@@ -43,6 +43,6 @@ enum Request {
 fn fun(time: LogicalTime) {
     let time2: LogicalTime = time; // move time into time2
 
-    time.println();  // error, time was moved
+    // time.println();  // error, time was moved
     time2.println(); // ok
 }

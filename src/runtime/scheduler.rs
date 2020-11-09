@@ -9,7 +9,7 @@ use priority_queue::PriorityQueue;
 use crate::runtime::ports::{Port, InputPort, OutputPort};
 use std::hash::{Hash, Hasher};
 use std::cell::RefCell;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::sync::mpsc::{channel, Sender, Receiver};
 use crate::reactors::Named;
 use std::fmt::Formatter;
@@ -52,6 +52,12 @@ enum Event {
     ReactionSchedule { min_at: LogicalTime, reaction: Arc<ReactionInvoker> },
 }
 
+#[derive(Clone)]
+pub struct SyncScheduler {
+    state: Arc<Mutex<Scheduler>>
+}
+
+
 /// Directs execution of the whole reactor graph.
 pub struct Scheduler {
     cur_logical_time: LogicalTime,
@@ -59,56 +65,59 @@ pub struct Scheduler {
     queue: PriorityQueue<Event, Reverse<LogicalTime>>,
 }
 
-impl<'g> Scheduler {
-    // todo logging
+impl SyncScheduler {
+    fn with_state<T>(&self, f: impl FnOnce(MutexGuard<Scheduler>) -> T) -> T {
+        let guard = self.state.lock().unwrap();
+        f(guard)
+    }
 
-    pub fn new() -> Arc<Mutex<Self>> {
+    pub fn new() -> Self {
         let sched = Scheduler {
             cur_logical_time: <_>::default(),
             micro_step: 0,
             queue: PriorityQueue::new(),
         };
-        Arc::new(Mutex::new(sched))
+        Self {
+            state: Arc::new(Mutex::new(sched))
+        }
     }
 
-    pub fn new_ctx(sched: &Arc<Mutex<Self>>) -> Ctx {
-        let inst = sched.lock().unwrap().cur_logical_time.clone();
+    pub fn new_ctx(&self) -> Ctx {
+        let inst = self.state.lock().unwrap().cur_logical_time.clone();
         Ctx {
-            scheduler: sched.clone(),
+            scheduler: self.clone(),
             cur_logical_time: inst,
         }
     }
 
-    pub fn launch(sched: Arc<Mutex<Self>>) {
+    pub fn launch(self) {
         loop {
-            let next = {
-                let mut locked = sched.lock().unwrap();
+            let next = self.with_state(|mut locked| {
                 if let Some((event, Reverse(eta))) = locked.queue.pop() {
                     Some((event, eta))
                 } else {
                     None
                 }
-                // drop the lock
-            };
+            });
             if let Some((event, eta)) = next {
-                Scheduler::step(&sched, event, eta)
+                self.step(event, eta);
             } else {
                 // break;
             }
         }
     }
 
-    fn step(sched: &Arc<Mutex<Self>>, event: Event, eta: LogicalTime) {
+    fn step(&self, event: Event, eta: LogicalTime) {
         let reaction = match event {
             Event::ReactionExecute { reaction, .. } => reaction,
             Event::ReactionSchedule { reaction, .. } => reaction
         };
 
-        Scheduler::catch_up_physical_time(eta);
-        sched.lock().unwrap().cur_logical_time = eta;
+        SyncScheduler::catch_up_physical_time(eta);
+        self.with_state(|mut s| s.cur_logical_time = eta);
 
         let mut ctx = Ctx {
-            scheduler: sched.clone(),
+            scheduler: self.clone(),
             cur_logical_time: eta,
         };
         reaction.fire(&mut ctx)
@@ -121,19 +130,20 @@ impl<'g> Scheduler {
         }
     }
 
-    fn enqueue_port(sched: &Arc<Mutex<Self>>, downstream: Ref<Dependencies>) {
+    fn enqueue_port(&self, downstream: Ref<Dependencies>) {
         // todo possibly, reactions must be scheduled at most once per logical time step?
         for reaction in downstream.reactions.iter() {
-            let mut scheduler = sched.lock().unwrap();
-            let time = scheduler.cur_logical_time;
-            let evt = Event::ReactionExecute { at: time, reaction: reaction.clone() };
-            scheduler.queue.push(evt, Reverse(time));
+            self.with_state(|mut scheduler| {
+                let time = scheduler.cur_logical_time;
+                let evt = Event::ReactionExecute { at: time, reaction: reaction.clone() };
+                scheduler.queue.push(evt, Reverse(time));
+            });
         }
     }
 
-    fn enqueue_action(sched: &Arc<Mutex<Self>>, action: &Action, additional_delay: Duration) {
+    fn enqueue_action(&self, action: &Action, additional_delay: Duration) {
         let min_delay = action.delay + additional_delay;
-        let mut scheduler = sched.lock().unwrap();
+        let mut scheduler = self.state.lock().unwrap();
 
         let mut instant = scheduler.cur_logical_time.instant + min_delay;
         if !action.logical {
@@ -161,7 +171,7 @@ impl<'g> Scheduler {
 /// interactions declared at assembly time are allowed.
 ///
 pub struct Ctx {
-    scheduler: Arc<Mutex<Scheduler>>,
+    scheduler: SyncScheduler,
     cur_logical_time: LogicalTime,
 }
 
@@ -190,7 +200,7 @@ impl Ctx {
     ///
     pub fn set<T>(&mut self, port: &mut OutputPort<T>, value: T) {
         let downstream = port.set(value);
-        Scheduler::enqueue_port(&self.scheduler, downstream);
+        self.scheduler.enqueue_port(downstream);
     }
 
     /// Schedule an action to run after its own implicit time delay,
@@ -202,11 +212,11 @@ impl Ctx {
     /// If the reaction being executed has not declared its
     /// dependency on the given action ([reaction_schedules](super::Assembler::reaction_schedules)).
     pub fn schedule(&mut self, action: &Action) {
-        Scheduler::enqueue_action(&self.scheduler, action, Duration::from_secs(0))
+        self.scheduler.enqueue_action(action, Duration::from_secs(0))
     }
 
     pub fn schedule_delayed(&mut self, action: &Action, offset: Duration) {
-        Scheduler::enqueue_action(&self.scheduler, action, offset)
+        self.scheduler.enqueue_action(action, offset)
     }
 
     pub fn get_physical_time(&self) -> Instant {
