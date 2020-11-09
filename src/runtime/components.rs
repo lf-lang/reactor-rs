@@ -60,6 +60,7 @@ impl ReactionInvoker {
     }
 
     pub fn new<T: ReactorDispatcher + 'static>(id: i32,
+                                               //todo should be sync
                                                reactor: Rc<RefCell<T>>,
                                                rid: T::ReactionId) -> ReactionInvoker {
         let body = move |ctx: &mut Ctx| {

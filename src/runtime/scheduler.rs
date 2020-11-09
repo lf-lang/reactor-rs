@@ -1,21 +1,25 @@
-use std::cell::{Ref, RefMut, Cell};
+use std::cell::{Cell, Ref, RefMut};
+use std::cell::RefCell;
 use std::cmp::Reverse;
 use std::fmt::{Debug, Pointer};
+use std::fmt::Display;
+use std::fmt::Formatter;
+use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::mpsc::{channel, Receiver, Sender};
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use priority_queue::PriorityQueue;
-use crate::runtime::ports::{Port, InputPort, OutputPort};
-use std::hash::{Hash, Hasher};
-use std::cell::RefCell;
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::sync::mpsc::{channel, Sender, Receiver};
+
 use crate::reactors::Named;
-use std::fmt::Formatter;
-use std::fmt::Display;
+use crate::runtime::{LogicalAction, PhysicalAction, ReactorAssembler};
+use crate::runtime::ports::{InputPort, OutputPort, Port};
+
+use super::{Action, Dependencies, ReactionInvoker};
 use super::time::*;
-use super::{ReactionInvoker, Dependencies, Action};
 
 #[derive(Eq, PartialEq, Hash)]
 enum Event {
@@ -28,6 +32,20 @@ impl Event {
         match self {
             Event::ReactionExecute { tag, .. } => tag.clone(),
             Event::ReactionSchedule { tag, .. } => tag.clone()
+        }
+    }
+
+    fn eta(&self) -> LogicalTime {
+        match self {
+            Event::ReactionExecute { at, .. } => at.clone(),
+            Event::ReactionSchedule { min_at, .. } => min_at.clone()
+        }
+    }
+
+    fn reaction(&self) -> Arc<ReactionInvoker> {
+        match self {
+            Event::ReactionExecute { reaction, .. } => reaction.clone(),
+            Event::ReactionSchedule { reaction, .. } => reaction.clone()
         }
     }
 }
@@ -61,12 +79,12 @@ impl SyncScheduler {
         }
     }
 
-    pub fn launch_async(self) {
+    pub fn launch_async(self) -> JoinHandle<()> {
         use std::thread;
         thread::spawn(move || {
             loop {
                 if let Ok(evt) = self.receiver.recv() {
-                    let tag = evt.tag();
+                    let tag = evt.eta();
                     self.state.step(evt, tag)
                 } else {
                     // all senders have hung up
@@ -74,11 +92,18 @@ impl SyncScheduler {
                     break;
                 }
             }
-        }).join();
+        })
     }
 
-    pub fn new_ctx(&self) -> Ctx {
-        self.state.new_ctx()
+    pub fn start(&self, r: &mut impl ReactorAssembler) {
+        let sched = self.state.clone();
+        let ctx = self.state.critical(|state| {
+            PhysicalCtx {
+                scheduler: sched,
+                cur_logical_time: state.cur_logical_time,
+            }
+        });
+        r.start(ctx)
     }
 }
 
@@ -107,10 +132,7 @@ impl SchedulerRef {
     }
 
     fn step(&self, event: Event, eta: LogicalTime) {
-        let reaction = match event {
-            Event::ReactionExecute { reaction, .. } => reaction,
-            Event::ReactionSchedule { reaction, .. } => reaction
-        };
+        let reaction = event.reaction();
 
         SchedulerRef::catch_up_physical_time(eta);
         self.critical(|mut s| s.cur_logical_time = LogicalTime::default());
@@ -122,7 +144,8 @@ impl SchedulerRef {
     fn catch_up_physical_time(up_to_time: LogicalTime) {
         let now = Instant::now();
         if now < up_to_time.instant {
-            std::thread::sleep(up_to_time.instant - now);
+            let t = up_to_time.instant - now;
+            std::thread::sleep(t);
         }
     }
 
@@ -137,25 +160,14 @@ impl SchedulerRef {
         }
     }
 
-    fn enqueue_action(&self, action: &Action, additional_delay: Duration) {
-        let min_delay = action.delay + additional_delay;
+    fn enqueue_action<T>(&self, action: &Action<T>, additional_delay: Duration) {
+        let (now, eta) = self.critical(|mut scheduler| {
+            let now = scheduler.cur_logical_time.clone();
 
-        let mut scheduler = self.state.lock().unwrap();
-        let now = scheduler.cur_logical_time.clone();
-
-        let mut instant = now.instant + min_delay;
-        if !action.logical {
-            // physical actions are adjusted to physical time if needed
-            instant = Instant::max(instant, Instant::now());
-        }
-
-
-        // note that the microstep is global, doesn't really matter though
-        scheduler.micro_step += 1;
-        let eta = LogicalTime {
-            instant,
-            microstep: scheduler.micro_step,
-        };
+            // note that the microstep is global, doesn't really matter though
+            scheduler.micro_step += 1;
+            (now, action.make_eta(now, scheduler.micro_step, additional_delay))
+        });
 
         for reaction in action.downstream.reactions.iter() {
             let evt = Event::ReactionSchedule { tag: now, min_at: eta, reaction: reaction.clone() };
@@ -210,11 +222,11 @@ impl Ctx {
     ///
     /// If the reaction being executed has not declared its
     /// dependency on the given action ([reaction_schedules](super::Assembler::reaction_schedules)).
-    pub fn schedule(&mut self, action: &Action) {
+    pub fn schedule(&mut self, action: &LogicalAction) {
         self.schedule_delayed(action, Duration::from_secs(0))
     }
 
-    pub fn schedule_delayed(&mut self, action: &Action, offset: Duration) {
+    pub fn schedule_delayed(&mut self, action: &LogicalAction, offset: Duration) {
         self.scheduler.enqueue_action(action, offset)
     }
 
@@ -228,53 +240,33 @@ impl Ctx {
     }
 }
 
-
-/// Wrapper around the user struct for safe dispatch.
+/// This is the context in which a reaction executes. Its API
+/// allows mutating the event queue of the scheduler. Only the
+/// interactions declared at assembly time are allowed.
 ///
-/// Fields are
-/// 1. the user struct, and
-/// 2. every action and port declared by the reactor.
-///
-pub trait ReactorDispatcher {
-    /// The type of reaction IDs
-    type ReactionId: Copy + Named;
-    /// Type of the user struct
-    type Wrapped;
-    /// Type of the construction parameters
-    type Params;
-
-    /// Assemble the user reactor, ie produce components with
-    /// uninitialized dependencies & make state variables assume
-    /// their default values, or else, a value taken from the params.
-    fn assemble(args: Self::Params) -> Self;
-
-    /// Execute a single user-written reaction.
-    /// Dispatches on the reaction id, and unpacks parameters,
-    /// which are the reactor components declared as fields of
-    /// this struct.
-    fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId);
+pub struct PhysicalCtx {
+    scheduler: SchedulerRef,
+    cur_logical_time: LogicalTime,
 }
 
-/// Declares dependencies of every reactor component.
-///
-/// Fields are
-/// 1. a ReactorDispatcher
-/// 2. a Rc<ReactionInvoker> for every reaction declared by the reactor
-///
-pub trait ReactorAssembler {
-    /// Type of the [ReactorDispatcher]
-    type RState: ReactorDispatcher;
-
-    /// Execute the startup reaction of the reactor
-    fn start(&mut self, ctx: Ctx);
-
-    /// Create a new instance. The rid is a counter used to
-    /// give unique IDs to reactions. The args are passed down
-    /// to [ReactorDispatcher::assemble].
+impl PhysicalCtx {
+    /// Schedule an action to run after its own implicit time delay,
+    /// plus an optional additional time delay. These delays are in
+    /// logical time.
     ///
-    /// The components of the ReactorDispatcher must be filled
-    /// in with their respective dependencies (precomputed before
-    /// codegen)
-    fn assemble(rid: &mut i32,
-                args: <Self::RState as ReactorDispatcher>::Params) -> Self;
+    /// # Panics
+    ///
+    /// If the reaction being executed has not declared its
+    /// dependency on the given action ([reaction_schedules](super::Assembler::reaction_schedules)).
+    pub fn schedule<T>(&mut self, action: &Action<T>) {
+        self.schedule_delayed(action, Duration::from_secs(0))
+    }
+
+    pub fn schedule_delayed<T>(&mut self, action: &Action<T>, offset: Duration) {
+        self.scheduler.enqueue_action(action, offset)
+    }
+
+    pub fn get_physical_time(&self) -> Instant {
+        Instant::now()
+    }
 }

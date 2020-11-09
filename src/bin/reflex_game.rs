@@ -115,9 +115,9 @@ fn main() {
 
     let mut scheduler = SyncScheduler::new();
 
-    gcell.start(scheduler.new_ctx());
-    pcell.start(scheduler.new_ctx());
-    scheduler.launch_async();
+    scheduler.start(&mut gcell);
+    scheduler.start(&mut pcell);
+    scheduler.launch_async().join();
 }
 
 
@@ -127,7 +127,7 @@ impl RandomSource {
     fn random_delay() -> Duration {
         let mut rng = rand::thread_rng();
         use rand::prelude::*;
-        Duration::from_millis(rng.gen_range(100, 4000))
+        Duration::from_millis(rng.gen_range(200, 2500))
     }
 
     /// reaction(startup) -> prompt {=
@@ -136,7 +136,7 @@ impl RandomSource {
     ///      srand(time(0));
     ///      schedule(prompt, random_time());
     ///  =}
-    fn react_startup(mut ctx: Ctx, prompt: &Action) {
+    fn react_startup(mut ctx: PhysicalCtx, prompt: &LogicalAction) {
         // seed random gen
         ctx.schedule_delayed(prompt, RandomSource::random_delay());
     }
@@ -154,8 +154,7 @@ impl RandomSource {
     /// reaction(another) -> prompt {=
     ///     schedule(prompt, random_time());
     /// =}
-    fn react_schedule(&mut self, ctx: &mut Ctx, prompt: &Action) {
-        // println!("Hit Return!");
+    fn react_schedule(&mut self, ctx: &mut Ctx, prompt: &LogicalAction) {
         ctx.schedule_delayed(prompt, RandomSource::random_delay());
     }
 }
@@ -167,7 +166,7 @@ impl RandomSource {
  */
 struct RandomSourceDispatcher {
     _impl: RandomSource,
-    prompt: Action,
+    prompt: LogicalAction,
     another: InputPort<bool>,
     out: OutputPort<bool>,
 }
@@ -182,7 +181,7 @@ impl ReactorDispatcher for RandomSourceDispatcher {
     fn assemble(_: Self::Params) -> Self {
         RandomSourceDispatcher {
             _impl: RandomSource,
-            prompt: Action::new(None, true, "prompt"),
+            prompt: LogicalAction::new(None, "prompt"),
             another: InputPort::<bool>::new(),
             out: OutputPort::<bool>::new(),
         }
@@ -210,7 +209,7 @@ struct RandomSourceAssembler {
 impl ReactorAssembler for /*{{*/RandomSourceAssembler/*}}*/ {
     type RState = /*{{*/RandomSourceDispatcher/*}}*/;
 
-    fn start(&mut self, ctx: Ctx) {
+    fn start(&mut self, ctx: PhysicalCtx) {
         RandomSource::react_startup(ctx, &self._rstate.borrow().prompt);
     }
 
@@ -243,7 +242,7 @@ struct GetUserInput {
 
 // user impl
 impl GetUserInput {
-    fn read_input_loop(ctx: &mut Ctx, response: &Action) {
+    fn read_input_loop(ctx: &mut PhysicalCtx, response: &PhysicalAction) {
         let mut buf = String::new();
         loop {
             match stdin().read_line(&mut buf) {
@@ -260,7 +259,7 @@ impl GetUserInput {
     ///     pthread_create(&thread_id, NULL, &read_input, response);
     /// =}
     ///
-    fn react_startup(ctx: Ctx, response: Action) {
+    fn react_startup(ctx: PhysicalCtx, response: PhysicalAction) {
         use std::thread;
         thread::spawn(move || {
             let response = response;
@@ -300,9 +299,6 @@ impl GetUserInput {
         ctx.set(another, true)
     }
 }
-
-
-
 
 
 /*
@@ -356,8 +352,8 @@ impl ReactorAssembler for /*{{*/GetUserInputAssembler/*}}*/ {
     type RState = /*{{*/GetUserInputReactionState/*}}*/;
 
 
-    fn start(&mut self, ctx: Ctx) {
-        let mut response = (/* response */Action::new(None, false, "response"));
+    fn start(&mut self, ctx: PhysicalCtx) {
+        let mut response = (/* response */PhysicalAction::new(None, "response"));
         /*{{*/response/*}}*/.set_downstream(vec![/*{{*/self.react_handle_line/*}}*/.clone()].into());
 
         GetUserInput::react_startup(ctx, response);

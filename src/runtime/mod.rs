@@ -4,6 +4,7 @@ pub use self::ports::*;
 
 pub use self::scheduler::*;
 pub use self::time::*;
+use crate::reactors::Named;
 
 mod scheduler;
 mod ports;
@@ -13,3 +14,53 @@ mod components;
 
 
 mod ohio;
+
+
+/// Wrapper around the user struct for safe dispatch.
+///
+/// Fields are
+/// 1. the user struct, and
+/// 2. every action and port declared by the reactor.
+///
+pub trait ReactorDispatcher {
+    /// The type of reaction IDs
+    type ReactionId: Copy + Named;
+    /// Type of the user struct
+    type Wrapped;
+    /// Type of the construction parameters
+    type Params;
+
+    /// Assemble the user reactor, ie produce components with
+    /// uninitialized dependencies & make state variables assume
+    /// their default values, or else, a value taken from the params.
+    fn assemble(args: Self::Params) -> Self;
+
+    /// Execute a single user-written reaction.
+    /// Dispatches on the reaction id, and unpacks parameters,
+    /// which are the reactor components declared as fields of
+    /// this struct.
+    fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId);
+}
+
+/// Declares dependencies of every reactor component.
+///
+/// Fields are
+/// 1. a ReactorDispatcher
+/// 2. a Rc<ReactionInvoker> for every reaction declared by the reactor
+///
+pub trait ReactorAssembler {
+    /// Type of the [ReactorDispatcher]
+    type RState: ReactorDispatcher;
+
+    /// Execute the startup reaction of the reactor
+    fn start(&mut self, ctx: PhysicalCtx);
+
+    /// Create a new instance. The rid is a counter used to
+    /// give unique IDs to reactions. The args are passed down
+    /// to [ReactorDispatcher::assemble].
+    ///
+    /// The components of the ReactorDispatcher must be filled
+    /// in with their respective dependencies (precomputed before
+    /// codegen)
+    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self;
+}
