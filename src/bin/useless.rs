@@ -17,65 +17,13 @@ use rand::Rng;
 
 use rust_reactors::reaction_ids;
 use rust_reactors::reaction_ids_helper;
-use rust_reactors::reactors::{Enumerated, Named};
+use rust_reactors::reactors::{Enumerated, Named, Nothing};
 use rust_reactors::runtime::*;
 use rust_reactors::runtime::Offset::{After, Asap};
+use std::process::exit;
 
-// this is a manual translation of https://github.com/icyphy/lingua-franca/blob/master/example/ReflexGame/ReflexGameMinimal.lf
-
-// translation strategy:
-// - reactor: struct
-//   - state variables: struct fields
-
-// Reactor r -> 3 structs + 1 enum
-// - user struct (r)
-// - dispatch struct (r_dispatch)   : ReactionState
-// - assembly struct (r_assembly)   : AssemblyWrapper
-// - reaction id enum (r_reactions) : Copy
-
-// # User struct
-//
-// Contains user-written code. The form of declarations is
-// high-level. All the framework goo is hidden into the other
-// structs.
-//
-// The fields of this struct are the state variables of the
-// reactor (if there are none, the type is zero-size and can
-// be optimized out).
-//
-// ## Reactions
-//
-// reaction(t1, .., tn) u_1, .., u_n -> d_1, .. d_n
-//
-// is translated *in the user struct* to
-//
-// fn (&mut self, ctx: &mut Ctx<'_>, params*)
-//
-// where params is:
-//   - for each $p\in\{t_i\}\union\{u_i\}$, where $p$ is an input port of type $T$
-//       p: &InputPort<T>
-//   - for each $o\in\{d_i\}$, where $o$ is an output port of type $T$
-//       o: &mut OutputPort<T>
-//   - for each $a\in\{d_i\}$, where $a$ is a logical action
-//       a: &Action
-
-// ## Startup reaction
-
-// The startup reaction translated the same way as reactions,
-// except the additional params contain registered physical actions too.
-
-// # Glue code
-//
-// Each reaction gets an enum constant in a new enum.
-// See ReactorDispatcher and ReactorAssembler for the rest.
-
-
-// # Information needed by the code generator
-//
-// - Transitive closure of dependency graph, where ports are
-// considered opaque (they can be bound dynamically).
-// - All structural checks need to be done before codegen
-
+// this is a manual translation of
+// https://github.com/icyphy/lingua-franca/blob/master/test/Cpp/StructPrint.lf
 
 macro_rules! new_reaction {
     ($rid:ident, $_rstate:ident, $name:ident) => {{
@@ -87,45 +35,48 @@ macro_rules! new_reaction {
 
 /*
 
-main reactor ReflexGame {
-    p = new RandomSource();
-    g = new GetUserInput();
-    p.out -> g.prompt;
-    g.another -> p.another;
+
+main reactor StructAsType {
+    s = new Source();
+    p = new Print();
+    s.out -> p.in;
 }
  */
 fn main() {
     let mut rid = 0;
 
-    // --- p = new RandomSource();
-    let mut pcell = RandomSourceAssembler::assemble(&mut rid, ());
+    // --- s = new Source();
+    let mut s_cell = SourceAssembler::assemble(&mut rid, ());
 
-    // --- g = new GetUserInput();
-    let mut gcell = GetUserInputAssembler::assemble(&mut rid, ());
+    // --- p = new Print();
+    // note: default parameters are hoisted here
+    let mut p_cell = PrintAssembler::assemble(&mut rid, (42, "Earth"));
 
     {
-        let mut p = pcell._rstate.lock().unwrap();
-        let mut g = gcell._rstate.lock().unwrap();
+        let mut p = s_cell._rstate.lock().unwrap();
+        let mut g = p_cell._rstate.lock().unwrap();
 
         // --- p.out -> g.prompt;
-        bind_ports(&mut p.out, &mut g.prompt);
-
-        // --- g.another -> p.another;
-        bind_ports(&mut g.another, &mut p.another);
+        bind_ports(&mut p.out, &mut g.input);
     }
 
     let mut scheduler = SyncScheduler::new();
 
-    scheduler.start(&mut gcell);
-    scheduler.start(&mut pcell);
+    scheduler.start(&mut s_cell);
+    scheduler.start(&mut p_cell);
     scheduler.launch_async().join();
 }
 
 
+#[derive(Debug, Copy, Clone)]
+struct Hello {
+    name: &'static str,
+    value: i32,
+}
+
 struct Source;
 
 impl Source {
-
     /// reaction(startup) -> out {=
     //        // create an dynamically allocated mutable Hello object
     //        auto hello = reactor::make_mutable_value<Hello>();
@@ -134,25 +85,12 @@ impl Source {
     //        // this implicitly converts the mutable value to an immutable value
     //        out.set(std::move(hello));
     //  =}
-    fn react_startup(mut ctx: PhysicalCtx, out: &mut OutputPort<bool>) {
-        ctx.
-    }
-
-    /// reaction(prompt) -> out, prompt {=
-    ///     printf("Hit Return!");
-    ///     fflush(stdout);
-    ///     SET(out, true);
-    /// =}
-    fn react_emit(&mut self, ctx: &mut Ctx, out: &mut OutputPort<bool>) {
-        println!("Hit Return!");
-        ctx.set(out, true);
-    }
-
-    /// reaction(another) -> prompt {=
-    ///     schedule(prompt, random_time());
-    /// =}
-    fn react_schedule(&mut self, ctx: &mut Ctx, prompt: &LogicalAction) {
-        ctx.schedule(prompt, After(Source::random_delay()));
+    fn react_startup(mut ctx: PhysicalCtx, out: &mut OutputPort<Hello>) {
+        let hello = Hello {
+            name: "Earth",
+            value: 42,
+        };
+        ctx.set(out, hello);
     }
 }
 
@@ -161,134 +99,70 @@ impl Source {
     output out:bool;
     logical action prompt(2 secs);
  */
-struct RandomSourceDispatcher {
+struct SourceDispatcher {
     _impl: Source,
-    prompt: LogicalAction,
-    another: InputPort<bool>,
-    out: OutputPort<bool>,
+    out: OutputPort<Hello>,
 }
 
-reaction_ids!(enum RandomSourceReactions { Schedule, Emit, });
-
-impl ReactorDispatcher for RandomSourceDispatcher {
-    type ReactionId = RandomSourceReactions;
+impl ReactorDispatcher for SourceDispatcher {
+    type ReactionId = Nothing;
     type Wrapped = Source;
     type Params = ();
 
     fn assemble(_: Self::Params) -> Self {
-        RandomSourceDispatcher {
+        SourceDispatcher {
             _impl: Source,
-            prompt: LogicalAction::new(None, "prompt"),
-            another: InputPort::<bool>::new(),
-            out: OutputPort::<bool>::new(),
+            out: OutputPort::new(),
         }
     }
 
-    fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId) {
-        match rid {
-            RandomSourceReactions::Schedule => {
-                self._impl.react_schedule(ctx, &self.prompt)
-            }
-            RandomSourceReactions::Emit => {
-                self._impl.react_emit(ctx, &mut self.out)
-            }
-        }
-    }
+    fn react(&mut self, _: &mut LogicalCtx, _: Self::ReactionId) {}
 }
 
 
-struct RandomSourceAssembler {
-    _rstate: Arc<Mutex</*{{*/RandomSourceDispatcher/*}}*/>>,
-    /*{{*/react_schedule/*}}*/: Arc<ReactionInvoker>,
-    /*{{*/react_emit/*}}*/: Arc<ReactionInvoker>,
+struct SourceAssembler {
+    _rstate: Arc<Mutex</*{{*/SourceDispatcher/*}}*/>>,
 }
 
-impl ReactorAssembler for /*{{*/RandomSourceAssembler/*}}*/ {
-    type RState = /*{{*/RandomSourceDispatcher/*}}*/;
+impl ReactorAssembler for /*{{*/SourceAssembler/*}}*/ {
+    type RState = /*{{*/SourceDispatcher/*}}*/;
 
     fn start(&mut self, ctx: PhysicalCtx) {
-        Source::react_startup(ctx, &self._rstate.lock().unwrap().prompt);
+        Source::react_startup(ctx, &mut self._rstate.lock().unwrap().out);
     }
 
 
-    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(_: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-
-        let /*{{*/react_schedule /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Schedule/*}}*/);
-        let /*{{*/react_emit /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Emit/*}}*/);
-
-        { // declare local dependencies
-            let mut statemut = _rstate.lock().unwrap();
-
-            statemut./*{{*/another/*}}*/.set_downstream(vec![/*{{*/react_schedule/*}}*/.clone()].into());
-            statemut./*{{*/prompt/*}}*/.set_downstream(vec![/*{{*/react_emit/*}}*/.clone()].into());
-        }
 
         Self {
             _rstate,
-            /*{{*/react_schedule/*}}*/,
-            /*{{*/react_emit/*}}*/,
         }
     }
 }
 
-struct GetUserInput {
-    prompt_time: Option<Instant>
+struct Print {
+    expected_value: i32,
+    expected_name: &'static str,
 }
 
-
-// user impl
-impl GetUserInput {
-    fn read_input_loop(mut ctx: PhysicalCtx, response: PhysicalAction) {
-        let mut buf = String::new();
-        loop {
-            match stdin().read_line(&mut buf) {
-                Ok(_) => {
-                    ctx.schedule(&response, Asap)
-                }
-                Err(_) => {}
-            }
+impl Print {
+    //  reaction(in) {=
+    //         // get a reference to the received struct for convenience
+    //         auto& s = *in.get();
+    //         std::cout << "Received: name = " << s.name << ", value = " << s.value << '\n';
+    //         if (s.value != expected_value || s.name != expected_name) {
+    //             std::cerr << "ERROR: Expected name = " << expected_name << ", value = " << expected_value << '\n';
+    //             exit(1);
+    //         }
+    //  =}
+    fn react_print(&mut self, ctx: &mut LogicalCtx, _input: &InputPort<Hello>) {
+        let h = ctx.get(_input).unwrap();
+        println!("Receive {:?}", h);
+        if h.value != self.expected_value || h.name != self.expected_name {
+            eprintln!("ERROR: Expected name = {}, value = {}", self.expected_name, self.expected_value);
+            exit(1)
         }
-    }
-
-    /// reaction(startup) -> response {=
-    ///     pthread_t thread_id;
-    ///     pthread_create(&thread_id, NULL, &read_input, response);
-    /// =}
-    ///
-    fn react_startup(ctx: PhysicalCtx, response: PhysicalAction) {
-        std::thread::spawn(move || GetUserInput::read_input_loop(ctx, response));
-    }
-
-    // reaction(prompt) {=
-    // self->prompt_time = get_physical_time();
-    // =}
-    fn react_prompt(&mut self, ctx: &mut Ctx, prompt: &InputPort<bool>) {
-        let instant = ctx.get_physical_time();
-        self.prompt_time = Some(instant)
-    }
-
-    /// reaction(response) -> another {=
-    ///        if (self->prompt_time == 0LL) {
-    ///            printf("YOU CHEATED!\n");
-    ///        } else {
-    ///            int time_in_ms = (get_logical_time() - self->prompt_time) / MSEC(1);
-    ///            printf("Response time ms: %d\n", time_in_ms);
-    ///            self->prompt_time = 0LL;
-    ///        }
-    ///        SET(another, true);
-    /// =}
-    fn react_handle_line(&mut self, ctx: &mut Ctx, another: &mut OutputPort<bool>) {
-        match self.prompt_time.take() {
-            None => {
-                println!("You cheated!");
-            }
-            Some(t) => {
-                let time = ctx.get_logical_time().to_instant() - t;
-                println!("Response time: {} ms", time.as_millis());
-            }
-        }
-        ctx.set(another, true)
     }
 }
 
@@ -301,72 +175,64 @@ impl GetUserInput {
     output another:bool;
  */
 
-struct GetUserInputReactionState {
-    _impl: GetUserInput,
-    prompt: InputPort<bool>,
-    another: OutputPort<bool>,
+struct PrintReactionState {
+    _impl: Print,
+    input: InputPort<Hello>,
 }
 
-reaction_ids!(enum GetUserInputReactions { HandleLine, Prompt, });
+reaction_ids!(enum PrintReactions { Print });
 
-impl ReactorDispatcher for GetUserInputReactionState {
-    type ReactionId = GetUserInputReactions;
-    type Wrapped = GetUserInput;
-    type Params = ();
+impl ReactorDispatcher for PrintReactionState {
+    type ReactionId = PrintReactions;
+    type Wrapped = Print;
+    type Params = (i32, &'static str);
 
-    fn assemble(_: Self::Params) -> Self {
-        GetUserInputReactionState {
-            _impl: GetUserInput { prompt_time: None },
-            prompt: InputPort::<bool>::new(),
-            another: OutputPort::<bool>::new(),
+    fn assemble(p: Self::Params) -> Self {
+        PrintReactionState {
+            _impl: Print {
+                expected_value: p.0,
+                expected_name: p.1,
+            },
+            input: InputPort::new(),
         }
     }
 
-    fn react(&mut self, ctx: &mut Ctx, rid: Self::ReactionId) {
+    fn react(&mut self, ctx: &mut LogicalCtx, rid: Self::ReactionId) {
         match rid {
-            GetUserInputReactions::HandleLine => {
-                self._impl.react_handle_line(ctx, &mut self.another)
-            }
-            GetUserInputReactions::Prompt => {
-                self._impl.react_prompt(ctx, &self.prompt)
+            PrintReactions::Print => {
+                self._impl.react_print(ctx, &self.input)
             }
         }
     }
 }
 
-struct GetUserInputAssembler {
-    _rstate: Arc<Mutex</*{{*/GetUserInputReactionState/*}}*/>>,
-    /*{{*/react_handle_line/*}}*/: Arc<ReactionInvoker>,
-    /*{{*/react_prompt/*}}*/: Arc<ReactionInvoker>,
+struct PrintAssembler {
+    _rstate: Arc<Mutex</*{{*/PrintReactionState/*}}*/>>,
+    /*{{*/react_print/*}}*/: Arc<ReactionInvoker>,
 }
 
-impl ReactorAssembler for /*{{*/GetUserInputAssembler/*}}*/ {
-    type RState = /*{{*/GetUserInputReactionState/*}}*/;
+impl ReactorAssembler for /*{{*/PrintAssembler/*}}*/ {
+    type RState = /*{{*/PrintReactionState/*}}*/;
 
 
-    fn start(&mut self, ctx: PhysicalCtx) {
-        let mut response = (/* response */PhysicalAction::new(None, "response"));
-        /*{{*/response/*}}*/.set_downstream(vec![/*{{*/self.react_handle_line/*}}*/.clone()].into());
-
-        GetUserInput::react_startup(ctx, response);
+    fn start(&mut self, _: PhysicalCtx) {
+        // nothing to do
     }
 
     fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
 
-        let /*{{*/react_handle_line /*}}*/ = new_reaction!(rid, _rstate, /*{{*/HandleLine/*}}*/);
-        let /*{{*/react_prompt /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Prompt/*}}*/);
+        let /*{{*/react_print /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Print/*}}*/);
 
         { // declare local dependencies
             let mut statemut = _rstate.lock().unwrap();
 
-            statemut./*{{*/prompt/*}}*/.set_downstream(vec![/*{{*/react_prompt/*}}*/.clone()].into());
+            statemut./*{{*/input/*}}*/.set_downstream(vec![/*{{*/react_print/*}}*/.clone()].into());
         }
 
         Self {
             _rstate,
-            /*{{*/react_handle_line/*}}*/,
-            /*{{*/react_prompt/*}}*/,
+            /*{{*/react_print/*}}*/,
         }
     }
 }
