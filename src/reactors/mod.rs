@@ -106,11 +106,6 @@ pub trait Reactor {
 // helper for the macro below
 #[macro_export]
 macro_rules! reaction_ids_helper {
-        (($self:expr) $t:ident) => {
-            if Self::$t == $self {
-                ::std::stringify!($t)
-            }
-        };
         (($self:expr) $t:ident :end:) => {
             if Self::$t == $self {
                 ::std::stringify!($t)
@@ -119,8 +114,11 @@ macro_rules! reaction_ids_helper {
             }
         };
         (($self:expr) $t:ident, $($ts:ident),+ :end:) => {
-            name_match!(($self) $t)
-            else name_match!(($self) $($ts),+)
+            if Self::$t == $self {
+                ::std::stringify!($t)
+            } else {
+                reaction_ids_helper!(($self) $($ts),+ :end:)
+            }
         }
     }
 

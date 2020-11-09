@@ -1,6 +1,6 @@
 use std::cell::{Ref, RefMut, Cell};
 use std::cmp::Reverse;
-use std::fmt::Debug;
+use std::fmt::{Debug, Pointer};
 use std::ops::Deref;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
@@ -11,6 +11,9 @@ use std::hash::{Hash, Hasher};
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Sender, Receiver};
+use crate::reactors::Named;
+use std::fmt::Formatter;
+use std::fmt::Display;
 
 type MicroStep = u128;
 
@@ -18,6 +21,17 @@ type MicroStep = u128;
 pub struct LogicalTime {
     instant: Instant,
     microstep: MicroStep,
+}
+
+impl Display for LogicalTime {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str("LogicalTime(")?;
+        self.instant.fmt(f)?;
+        f.write_str(" + ")?;
+        <_ as Display>::fmt(&self.microstep, f)?;
+        f.write_str(")")?;
+        Ok(())
+    }
 }
 
 impl Default for LogicalTime {
@@ -66,27 +80,38 @@ impl<'g> Scheduler {
     }
 
     pub fn launch(sched: Arc<Mutex<Self>>) {
-        while !sched.lock().unwrap().queue.is_empty() {
-            Scheduler::step(&sched)
+        loop {
+            let next = {
+                let mut locked = sched.lock().unwrap();
+                if let Some((event, Reverse(eta))) = locked.queue.pop() {
+                    Some((event, eta))
+                } else {
+                    None
+                }
+                // drop the lock
+            };
+            if let Some((event, eta)) = next {
+                Scheduler::step(&sched, event, eta)
+            } else {
+                // break;
+            }
         }
     }
 
-    fn step(sched: &Arc<Mutex<Self>>) {
-        if let Some((event, Reverse(time))) = sched.lock().unwrap().queue.pop() {
-            let reaction = match event {
-                Event::ReactionExecute { reaction, .. } => reaction,
-                Event::ReactionSchedule { reaction, .. } => reaction
-            };
+    fn step(sched: &Arc<Mutex<Self>>, event: Event, eta: LogicalTime) {
+        let reaction = match event {
+            Event::ReactionExecute { reaction, .. } => reaction,
+            Event::ReactionSchedule { reaction, .. } => reaction
+        };
 
-            Scheduler::catch_up_physical_time(time);
-            sched.lock().unwrap().cur_logical_time = time;
+        Scheduler::catch_up_physical_time(eta);
+        sched.lock().unwrap().cur_logical_time = eta;
 
-            let mut ctx = Ctx {
-                scheduler: sched.clone(),
-                cur_logical_time: time,
-            };
-            reaction.fire(&mut ctx)
-        }
+        let mut ctx = Ctx {
+            scheduler: sched.clone(),
+            cur_logical_time: eta,
+        };
+        reaction.fire(&mut ctx)
     }
 
     fn catch_up_physical_time(up_to_time: LogicalTime) {
@@ -198,6 +223,7 @@ pub struct Action {
     delay: Duration,
     logical: bool,
     downstream: Dependencies,
+    name: &'static str,
 }
 
 impl Action {
@@ -207,12 +233,26 @@ impl Action {
 
     pub fn new(
         min_delay: Option<Duration>,
-        is_logical: bool) -> Self {
+        is_logical: bool,
+        name: &'static str) -> Self {
         Action {
             delay: min_delay.unwrap_or(Duration::new(0, 0)),
             logical: is_logical,
             downstream: Default::default(),
+            name,
         }
+    }
+}
+
+impl Named for Action {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+}
+
+impl Display for Action {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        <_ as Display>::fmt(&self.name(), f)
     }
 }
 
@@ -224,7 +264,7 @@ impl Action {
 ///
 pub trait ReactorDispatcher {
     /// The type of reaction IDs
-    type ReactionId: Copy;
+    type ReactionId: Copy + Named;
     /// Type of the user struct
     type Wrapped;
     /// Type of the construction parameters
@@ -291,9 +331,24 @@ impl From<Vec<Arc<ReactionInvoker>>> for Dependencies {
 pub struct ReactionInvoker {
     body: Box<dyn Fn(&mut Ctx)>,
     id: i32,
+    name: &'static str,
 }
+
 unsafe impl Sync for ReactionInvoker {}
+
 unsafe impl Send for ReactionInvoker {}
+
+impl Named for ReactionInvoker {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+}
+
+impl Display for ReactionInvoker {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        <_ as Display>::fmt(&self.name(), f)
+    }
+}
 
 impl ReactionInvoker {
     fn fire(&self, ctx: &mut Ctx) {
@@ -308,7 +363,11 @@ impl ReactionInvoker {
             let r1: &mut T = &mut *ref_mut;
             T::react(r1, ctx, rid)
         };
-        ReactionInvoker { body: Box::new(body), id }
+        ReactionInvoker {
+            body: Box::new(body),
+            id,
+            name: rid.name(),
+        }
     }
 }
 

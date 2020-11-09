@@ -10,6 +10,7 @@ edition = "2018"
 priority-queue = "1.0.0"
 petgraph = "0.5.1"
 futures = "0.3"
+rand = "0.7.3"
 
 [[bin]]
 name = "example-forwarding"

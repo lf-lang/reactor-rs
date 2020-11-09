@@ -1,3 +1,7 @@
+#[macro_use]
+extern crate rust_reactors;
+
+
 use std::pin::Pin;
 use std::cell::Cell;
 use std::time::{Duration, Instant};
@@ -11,7 +15,10 @@ use rust_reactors::runtime::*;
 use rust_reactors::runtime::ports::{OutputPort, InputPort, Port};
 use std::cell::{RefCell, RefMut};
 use std::sync::mpsc::channel;
-use crate::RandomSourceReactions::Schedule;
+use rust_reactors::reactors::{Named, Enumerated};
+use rust_reactors::reaction_ids_helper;
+use rust_reactors::reaction_ids;
+use rand::Rng;
 
 // this is a manual translation of https://github.com/icyphy/lingua-franca/blob/master/example/ReflexGame/ReflexGameMinimal.lf
 
@@ -118,7 +125,9 @@ struct RandomSource;
 
 impl RandomSource {
     fn random_delay() -> Duration {
-        Duration::from_secs(1)
+        let mut rng = rand::thread_rng();
+        use rand::prelude::*;
+        Duration::from_millis(rng.gen_range(100, 2000))
     }
 
     /// reaction(startup) -> prompt {=
@@ -146,7 +155,7 @@ impl RandomSource {
     ///     schedule(prompt, random_time());
     /// =}
     fn react_schedule(&mut self, ctx: &mut Ctx, prompt: &Action) {
-        println!("Hit Return!");
+        // println!("Hit Return!");
         ctx.schedule_delayed(prompt, RandomSource::random_delay());
     }
 }
@@ -163,11 +172,7 @@ struct RandomSourceDispatcher {
     out: OutputPort<bool>,
 }
 
-#[derive(Copy, Clone)]
-enum RandomSourceReactions {
-    Schedule,
-    Emit,
-}
+reaction_ids!(enum RandomSourceReactions { Schedule, Emit, });
 
 impl ReactorDispatcher for RandomSourceDispatcher {
     type ReactionId = RandomSourceReactions;
@@ -177,7 +182,7 @@ impl ReactorDispatcher for RandomSourceDispatcher {
     fn assemble(_: Self::Params) -> Self {
         RandomSourceDispatcher {
             _impl: RandomSource,
-            prompt: Action::new(None, true),
+            prompt: Action::new(None, true, "prompt"),
             another: InputPort::<bool>::new(),
             out: OutputPort::<bool>::new(),
         }
@@ -243,7 +248,6 @@ impl GetUserInput {
         loop {
             match stdin().read_line(&mut buf) {
                 Ok(_) => {
-                    println!("{}", buf);
                     ctx.schedule(response)
                 }
                 Err(_) => {}
@@ -314,11 +318,7 @@ struct GetUserInputReactionState {
     another: OutputPort<bool>,
 }
 
-#[derive(Copy, Clone)]
-enum GetUserInputReactions {
-    HandleLine,
-    Prompt,
-}
+reaction_ids!(enum GetUserInputReactions { HandleLine, Prompt, });
 
 impl ReactorDispatcher for GetUserInputReactionState {
     type ReactionId = GetUserInputReactions;
@@ -356,7 +356,7 @@ impl ReactorAssembler for /*{{*/GetUserInputAssembler/*}}*/ {
 
 
     fn start(&mut self, ctx: Ctx) {
-        let mut response = (/* response */Action::new(None, false));
+        let mut response = (/* response */Action::new(None, false, "response"));
         /*{{*/response/*}}*/.set_downstream(vec![/*{{*/self.react_handle_line/*}}*/.clone()].into());
 
         GetUserInput::react_startup(ctx, response);
