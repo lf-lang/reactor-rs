@@ -127,7 +127,7 @@ impl RandomSource {
     fn random_delay() -> Duration {
         let mut rng = rand::thread_rng();
         use rand::prelude::*;
-        Duration::from_millis(rng.gen_range(100, 2000))
+        Duration::from_millis(rng.gen_range(100, 4000))
     }
 
     /// reaction(startup) -> prompt {=
@@ -269,6 +269,14 @@ impl GetUserInput {
         });
     }
 
+    // reaction(prompt) {=
+    // self->prompt_time = get_physical_time();
+    // =}
+    fn react_prompt(&mut self, ctx: &mut Ctx, prompt: &InputPort<bool>) {
+        let instant = ctx.get_physical_time();
+        self.prompt_time = Some(instant)
+    }
+
     /// reaction(response) -> another {=
     ///        if (self->prompt_time == 0LL) {
     ///            printf("YOU CHEATED!\n");
@@ -290,13 +298,6 @@ impl GetUserInput {
             }
         }
         ctx.set(another, true)
-    }
-
-    // reaction(prompt) {=
-    // self->prompt_time = get_physical_time();
-    // =}
-    fn react_prompt(&mut self, ctx: &mut Ctx, prompt: &InputPort<bool>) {
-        self.prompt_time = Some(ctx.get_physical_time())
     }
 }
 

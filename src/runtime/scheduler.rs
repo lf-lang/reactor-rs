@@ -91,17 +91,19 @@ impl SyncScheduler {
     }
 
     pub fn launch_async(self) {
-        std::thread::spawn(move || {
+        use std::thread;
+        thread::spawn(move || {
             loop {
                 if let Ok(evt) = self.receiver.recv() {
                     let tag = evt.tag();
                     self.state.step(evt, tag)
                 } else {
                     // all senders have hung up
+                    println!("We're done here");
                     break;
                 }
             }
-        });
+        }).join();
     }
 
     pub fn new_ctx(&self) -> Ctx {
@@ -140,7 +142,7 @@ impl SchedulerRef {
         };
 
         SchedulerRef::catch_up_physical_time(eta);
-        self.critical(|mut s| s.cur_logical_time = eta);
+        self.critical(|mut s| s.cur_logical_time = LogicalTime::default());
 
         let mut ctx = self.new_ctx();
         reaction.fire(&mut ctx)
@@ -164,8 +166,11 @@ impl SchedulerRef {
         }
     }
 
-    fn enqueue_action(&self, action: &Action, additional_delay: Duration, now: LogicalTime) {
+    fn enqueue_action(&self, action: &Action, additional_delay: Duration) {
         let min_delay = action.delay + additional_delay;
+
+        let mut scheduler = self.state.lock().unwrap();
+        let now = scheduler.cur_logical_time.clone();
 
         let mut instant = now.instant + min_delay;
         if !action.logical {
@@ -173,7 +178,6 @@ impl SchedulerRef {
             instant = Instant::max(instant, Instant::now());
         }
 
-        let mut scheduler = self.state.lock().unwrap();
 
         // note that the microstep is global, doesn't really matter though
         scheduler.micro_step += 1;
@@ -183,7 +187,7 @@ impl SchedulerRef {
         };
 
         for reaction in action.downstream.reactions.iter() {
-            let evt = Event::ReactionSchedule { tag: now.clone(), min_at: eta, reaction: reaction.clone() };
+            let evt = Event::ReactionSchedule { tag: now, min_at: eta, reaction: reaction.clone() };
             self.sender.send(evt);
         }
     }
@@ -240,13 +244,14 @@ impl Ctx {
     }
 
     pub fn schedule_delayed(&mut self, action: &Action, offset: Duration) {
-        self.scheduler.enqueue_action(action, offset, self.cur_logical_time)
+        self.scheduler.enqueue_action(action, offset)
     }
 
     pub fn get_physical_time(&self) -> Instant {
         Instant::now()
     }
 
+    /// note: this doesn't work for
     pub fn get_logical_time(&self) -> LogicalTime {
         self.cur_logical_time
     }
