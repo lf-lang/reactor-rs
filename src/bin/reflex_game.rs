@@ -76,15 +76,6 @@ use rust_reactors::runtime::Offset::{After, Asap};
 // considered opaque (they can be bound dynamically).
 // - All structural checks need to be done before codegen
 
-
-macro_rules! new_reaction {
-    ($rid:ident, $_rstate:ident, $name:ident) => {{
-        let r = Arc::new(ReactionInvoker::new(*$rid, $_rstate.clone(), <Self::RState as ReactorDispatcher>::ReactionId::$name));
-        *$rid += 1;
-        r
-    }};
-}
-
 /*
 
 main reactor ReflexGame {

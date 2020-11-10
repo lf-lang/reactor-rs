@@ -17,6 +17,15 @@ mod ohio;
 mod safety;
 
 
+#[macro_export]
+macro_rules! new_reaction {
+    ($rid:ident, $_rstate:ident, $name:ident) => {{
+        let r = Arc::new(ReactionInvoker::new(*$rid, $_rstate.clone(), <Self::RState as ReactorDispatcher>::ReactionId::$name));
+        *$rid += 1;
+        r
+    }};
+}
+
 /// Wrapper around the user struct for safe dispatch.
 ///
 /// Fields are

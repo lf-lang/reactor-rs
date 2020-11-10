@@ -63,15 +63,19 @@ impl<T> ComputeBind<Child<T>, In> for Out {
 }
 
 
-fn test<P>(u : InputPort<i32, P>,
-           d: OutputPort<i32, P>) {
-    u.forward_to(&d);
+fn test<P>(i: InputPort<i32, P>,
+           o: OutputPort<i32, P>,
+           ic: InputPort<i32, Child<P>>,
+           oc: OutputPort<i32, Child<P>>) {
+    i.forward_to(&o); // [>I -> O>]
+    // o.forward_to(&i); // [>I <- O>]  fails!
+
+    i.forward_to(&ic); // [>I -> [>I ]]
+    // ic.forward_to(&i); // [>I <- [>I ]] fails
+
+    // i.forward_to(&oc); // [>I -> [ O>]] fails
+    // oc.forward_to(&i); // [>I <- [<O ]] fails
 }
-//
-// trait Sub<I> {
-//     type T;
-// }
-//
 
 struct Root;
 

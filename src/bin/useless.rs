@@ -25,14 +25,6 @@ use std::process::exit;
 // this is a manual translation of
 // https://github.com/icyphy/lingua-franca/blob/master/test/Cpp/StructPrint.lf
 
-macro_rules! new_reaction {
-    ($rid:ident, $_rstate:ident, $name:ident) => {{
-        let r = Arc::new(ReactionInvoker::new(*$rid, $_rstate.clone(), <Self::RState as ReactorDispatcher>::ReactionId::$name));
-        *$rid += 1;
-        r
-    }};
-}
-
 /*
 
 
@@ -78,19 +70,21 @@ struct Source;
 
 impl Source {
     /// reaction(startup) -> out {=
-    //        // create an dynamically allocated mutable Hello object
+    //        // create a dynamically allocated mutable Hello object
     //        auto hello = reactor::make_mutable_value<Hello>();
     //        hello->name = "Earth";
     //        hello->value = 42;
     //        // this implicitly converts the mutable value to an immutable value
     //        out.set(std::move(hello));
     //  =}
-    fn react_startup(mut ctx: PhysicalCtx, out: &mut OutputPort<Hello>) {
-        let hello = Hello {
-            name: "Earth",
-            value: 42,
-        };
+    fn react_startup(mut ctx: PhysicalCtx,
+                     out: &mut OutputPort<Hello>) {
+        // Create our Hello struct
+        let mut hello = Hello { name: "Venus", value: 42 };
+        hello.name = "Earth";
+        // implicitly moved
         ctx.set(out, hello);
+        // hello.name = "Mars"; // error!
     }
 }
 
