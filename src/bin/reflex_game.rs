@@ -1,3 +1,4 @@
+#![allow(unused_variables)]
 #[macro_use]
 extern crate rust_reactors;
 
@@ -109,7 +110,7 @@ fn main() {
 
     scheduler.start(&mut gcell);
     scheduler.start(&mut pcell);
-    scheduler.launch_async().join();
+    scheduler.launch_async().join().unwrap();
 }
 
 
