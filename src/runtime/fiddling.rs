@@ -1,5 +1,7 @@
-/*// #![allow(clippy::needless_lifetimes)]
+#![allow(clippy::needless_lifetimes)]
 #![allow(unused_variables)]
+
+/*//
 
 use std::time::Instant;
 use std::fmt::Display;
