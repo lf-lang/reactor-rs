@@ -1,10 +1,10 @@
-#![allow(clippy::needless_lifetimes)]
+/*// #![allow(clippy::needless_lifetimes)]
 #![allow(unused_variables)]
 
 use std::time::Instant;
 use std::fmt::Display;
 use crate::runtime::{InputPort, OutputPort, bind_ports};
-use std::cell::RefCell;
+use std::cell::{RefCell, Ref};
 use std::marker::PhantomData;
 
 // A struct that defines two fields
@@ -84,9 +84,10 @@ struct WaveCtx<'w> {
     _p: PhantomData<&'w str>
 }
 
-struct Port<T: Copy> {
+struct Port<T> {
     _p: PhantomData<T>
 }
+
 //     fn set<T>(&mut self, port: &mut Port<T>, v: T) where T: Copy + 'w {}
 
 // 'w: lifetime of the wave
@@ -118,44 +119,91 @@ fn mutable_borrow(mutable: &mut String) {
     consume(my_str); // error: use of moved value
 }
 
-fn clone<T>(some_ref: &T) -> T {
+fn clone<T>(some_ref: &T) -> T {}
 
+fn get_copy<T>(port: &Port<T>) -> T {
+    let r: &T = get_ref(port);
+    return clone(r);
+}
+
+fn set<T>(port: &mut OutputPort<T>, value: T) {}
+
+// fn get<T>(port: &InputPort<T>) -> Option<T> where T: Copy {}
+
+fn with_ref<T, R>(port: &InputPort<T>,
+                  closure: impl FnOnce(&T) -> R) -> Option<R> {}
+
+// todo
+fn get_ref<T>(port: &Port<T>) -> &T {}
+
+
+fn react_startup(out: &mut OutputPort<Hello>) {
+    // Create our Hello struct
+    let mut hello = Hello { name: "Venus", value: 42 };
+    hello.name = "Earth";
+    // implicitly moved
+    set(out, hello);
+    // hello.name = "Mars"; // error!
 }
 
 fn example<T: Clone>(owned: T,
                      shared: &T,
                      mutable: &mut T, ) {}
 
+fn react_no_copy(port: &Port<[i32; 64]>) {
+    let inner_ref : &[i32; 64] = get_ref(port);
+    // sum values, no need to copy
+    let sum: i32 = inner_ref.iter().sum();
+}
+
+fn react_copy(port: &Port<i32>) {
+    // copies the value out
+    let value: i32 = get_copy(port);
+}
+
+fn elevation<T>(t_ref: &T) {
+    let t: T = *t_ref;
+}
+
+fn elevation_ok<T>(t_ref: &T) {
+    let t: T = clone(t_ref);
+}
+
 fn example2() {
     let str: String = String::new();
-    let some_ref: &String = &str;
-    let some_ref2: &String = &str;
+
+    let mut str2: String = str; // move
+
+    let shared_ref1: &String = &str2; // borrow
+    let shared_ref2: &String = &str2; //
+
+    let mutable_borrow: &mut String = &mut str2;
+
     readonly_borrow(&str); // ok
-    readonly_borrow(some_ref2); // ok
+    readonly_borrow(shared_ref2); // ok
 
     let str2: String = str; // move into str
     readonly_borrow(&str2); // ok
-    readonly_borrow(some_ref);  // error, value was moved
+    readonly_borrow(shared_ref1);  // error, value was moved
 
     consume(str2); // move str2 into function
-    // now both str2 and str have been moved,
-    // we can't do anything anymore.
+// now both str2 and str have been moved,
+// we can't do anything anymore.
 }
 
-// 'r: lifetime of the reaction
-fn react_set<'r>(output: &mut Port<&'r i32>) {
+fn react_get(input: &Port<&i32>) {
+    let ref_: &i32 = get_copy(input);
+    let x: i32 = *ref_;
+    assert_eq!(4, x);
+}
+
+fn react_set(output: &mut Port<&i32>) {
     let some_int: i32 = 2;
     let some_ref: &i32 = &some_int;
     // error: "some_int does not live long enough"
-    output.set(some_ref);
+    set(output, some_ref);
 }
 
-fn react_get<'r>(input: &Port<&'r i32>) {
-    // we know it lives long enough as 'r is larger than the
-    // lifetime of this function
-    let x: i32 = *input.get();
-    assert_eq!(4, x);
-}
 
 fn invoke<'w>(ctx: &mut WaveCtx<'w>) {
     // let mut ctx = Ctxx { _p: PhantomData };
@@ -188,3 +236,4 @@ fn invoke<'w>(ctx: &mut WaveCtx<'w>) {
 //         // ...
 //     }
 // }
+*/

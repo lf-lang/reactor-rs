@@ -22,10 +22,11 @@ type InputPort<T, L> = Port<T, In, L>;
 type OutputPort<T, L> = Port<T, Out, L>;
 
 impl<T, UK, UL> Port<T, UK, UL> {
-    fn forward_to<DK>(&self, down: &Port<T, DK, AllowedBinding<UK, DK, UL>>)
-        where UK: ComputeBind<UL, DK> {
+}
+fn bind<T, UK, UL, DK>(from: &Port<T, UK, UL>,
+                       to: &Port<T, DK, AllowedBinding<UK, DK, UL>>)
+    where UK: ComputeBind<UL, DK> {
 
-    }
 }
 
 // down
@@ -67,14 +68,15 @@ fn test<P>(i: InputPort<i32, P>,
            o: OutputPort<i32, P>,
            ic: InputPort<i32, Child<P>>,
            oc: OutputPort<i32, Child<P>>) {
-    i.forward_to(&o); // [>I -> O>]
-    // o.forward_to(&i); // [>I <- O>]  fails!
 
-    i.forward_to(&ic); // [>I -> [>I ]]
-    // ic.forward_to(&i); // [>I <- [>I ]] fails
+    // (1): input(parent) -> output(child)
+    bind(&i, &oc);
 
-    // i.forward_to(&oc); // [>I -> [ O>]] fails
-    // oc.forward_to(&i); // [>I <- [<O ]] fails
+    // (2): output(child) -> output(child)
+    bind(&oc, &oc);
+
+    // (3): input(child) -> output(parent)
+    bind(&ic, &o);
 }
 
 struct Root;
