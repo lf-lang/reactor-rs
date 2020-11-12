@@ -162,7 +162,7 @@ impl SchedulerRef {
             self.critical(|mut scheduler| {
                 let time = scheduler.cur_logical_time;
                 let evt = Event::ReactionExecute { tag: now, at: time, reaction: reaction.clone() };
-                self.sender.send(evt);
+                self.sender.send(evt).unwrap();
             });
         }
     }
@@ -178,7 +178,7 @@ impl SchedulerRef {
 
         for reaction in action.downstream.reactions.iter() {
             let evt = Event::ReactionSchedule { tag: now, min_at: eta, reaction: reaction.clone() };
-            self.sender.send(evt);
+            self.sender.send(evt).unwrap();
         }
     }
 }

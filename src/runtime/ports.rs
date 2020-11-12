@@ -28,8 +28,8 @@ impl<T, K> Port<T, K> {
     // private
     fn new_impl() -> Port<T, K> {
         Port {
-            cell: Arc::new(Mutex::new(PortCell::new())),
-            _marker: PhantomData,
+            cell: Default::default(),
+            _marker: Default::default(),
         }
     }
 
@@ -90,16 +90,29 @@ impl<T> OutputPort<T> {
     }
 }
 
+impl<T> Default for InputPort<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+
+impl<T> Default for OutputPort<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 
 struct PortCell<T> {
     cell: Cell<Option<T>>,
     downstream: Dependencies,
 }
 
-impl<T> PortCell<T> {
-    fn new() -> PortCell<T> {
+impl<T> Default for PortCell<T> {
+    fn default() -> Self {
         PortCell {
-            cell: Cell::new(None),
+            cell: Default::default(),
             downstream: Default::default(),
         }
     }

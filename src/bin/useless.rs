@@ -1,3 +1,4 @@
+#![allow(unused)]
 #[macro_use]
 extern crate rust_reactors;
 
@@ -19,7 +20,6 @@ use rust_reactors::reaction_ids;
 use rust_reactors::reaction_ids_helper;
 use rust_reactors::reactors::{Enumerated, Named, Nothing};
 use rust_reactors::runtime::*;
-use rust_reactors::runtime::Offset::{After, Asap};
 use std::process::exit;
 
 // this is a manual translation of
@@ -52,11 +52,11 @@ fn main() {
         bind_ports(&mut p.out, &mut g.input);
     }
 
-    let mut scheduler = SyncScheduler::new();
+    let scheduler = SyncScheduler::new();
 
     scheduler.start(&mut s_cell);
     scheduler.start(&mut p_cell);
-    scheduler.launch_async().join();
+    scheduler.launch_async().join().unwrap();
 }
 
 
@@ -106,7 +106,7 @@ impl ReactorDispatcher for SourceDispatcher {
     fn assemble(_: Self::Params) -> Self {
         SourceDispatcher {
             _impl: Source,
-            out: OutputPort::new(),
+            out: Default::default(),
         }
     }
 
@@ -187,7 +187,7 @@ impl ReactorDispatcher for PrintReactionState {
                 expected_value: p.0,
                 expected_name: p.1,
             },
-            input: InputPort::new(),
+            input: Default::default(),
         }
     }
 

@@ -1,3 +1,4 @@
+#![allow(unused_variables)]
 #[macro_use]
 extern crate rust_reactors;
 
@@ -109,7 +110,7 @@ fn main() {
 
     scheduler.start(&mut gcell);
     scheduler.start(&mut pcell);
-    scheduler.launch_async().join();
+    scheduler.launch_async().join().unwrap();
 }
 
 
@@ -174,8 +175,8 @@ impl ReactorDispatcher for RandomSourceDispatcher {
         RandomSourceDispatcher {
             _impl: RandomSource,
             prompt: LogicalAction::new(None, "prompt"),
-            another: InputPort::<bool>::new(),
-            out: OutputPort::<bool>::new(),
+            another: Default::default(),
+            out: Default::default(),
         }
     }
 
@@ -312,8 +313,8 @@ impl ReactorDispatcher for GetUserInputReactionState {
     fn assemble(_: Self::Params) -> Self {
         GetUserInputReactionState {
             _impl: GetUserInput { prompt_time: None },
-            prompt: InputPort::<bool>::new(),
-            another: OutputPort::<bool>::new(),
+            prompt: Default::default(),
+            another: Default::default(),
         }
     }
 
