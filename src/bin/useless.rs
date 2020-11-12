@@ -106,7 +106,7 @@ impl ReactorDispatcher for SourceDispatcher {
     fn assemble(_: Self::Params) -> Self {
         SourceDispatcher {
             _impl: Source,
-            out: OutputPort::new(),
+            out: Default::default(),
         }
     }
 
@@ -187,7 +187,7 @@ impl ReactorDispatcher for PrintReactionState {
                 expected_value: p.0,
                 expected_name: p.1,
             },
-            input: InputPort::new(),
+            input: Default::default(),
         }
     }
 
