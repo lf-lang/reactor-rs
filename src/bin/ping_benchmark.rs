@@ -24,7 +24,7 @@ use crate::PingReactions::R_Serve;
 
 
 fn main() {
-    launch(12, 40000)
+    launch(20, 1000_000)
 }
 
 fn launch(numIterations: u32, count: u32) {

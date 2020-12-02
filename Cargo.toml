@@ -19,3 +19,7 @@ path = "src/bin/forwarding.rs"
 [[bin]]
 name = "example-data-sharing"
 path = "src/bin/data_sharing.rs"
+
+[[bin]]
+name = "savina-pong"
+path = "src/bin/ping_benchmark.rs"
