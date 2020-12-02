@@ -23,7 +23,58 @@ use rust_reactors::runtime::Offset::{After, Asap};
 use crate::PingReactions::R_Serve;
 
 
-fn main() {}
+fn main() {
+    launch(12, 40000)
+}
+
+fn launch(numIterations: u32, count: u32) {
+    let mut rid = 0;
+
+    // ping = new Ping(count=count);
+    let mut ping_cell = PingAssembler::assemble(&mut rid, (count));
+
+    // runner = new BenchmarkRunner(numIterations=numIterations);
+    let mut runner_cell = BenchmarkRunnerAssembler::assemble(&mut rid, BenchmarkParams { numIterations, useInit: false, useCleanupIteration: false });
+
+    {
+        let mut ping = ping_cell._rstate.lock().unwrap();
+        let mut runner = runner_cell._rstate.lock().unwrap();
+
+        // runner.outIterationStart -> ping.inStart;
+        bind_ports(&mut runner.outIterationStart, &mut ping.inStart);
+
+        // ping.outFinished -> runner.inIterationFinish;
+        bind_ports(&mut ping.outFinished, &mut runner.inIterationFinish);
+    }
+
+
+    // pong = new Pong();
+    let mut pong_cell = PongAssembler::assemble(&mut rid, ());
+
+    {
+        let mut ping = ping_cell._rstate.lock().unwrap();
+        let mut pong = pong_cell._rstate.lock().unwrap();
+
+        // ping.outPing -> pong.inPing;
+        bind_ports(&mut ping.outPing, &mut pong.inPing);
+
+        // pong.outPong -> ping.inPong;
+        bind_ports(&mut pong.outPong, &mut ping.inPong);
+    }
+
+    let mut scheduler = SyncScheduler::new();
+
+    scheduler.start(&mut runner_cell);
+    /*
+        Let's just hack this in
+     */
+    println!("PingPongBenchmark");
+    println!("numIterations: {}, count: {}", numIterations, count);
+
+    scheduler.start(&mut ping_cell);
+    scheduler.start(&mut pong_cell);
+    scheduler.launch_async().join().unwrap();
+}
 
 
 struct Ping {
@@ -142,11 +193,9 @@ PONG
  */
 
 
-
 struct Pong;
 
 impl Pong {
-
     fn react_reactToPing(&mut self, ctx: &mut LogicalCtx, outPong: &mut OutputPort<bool>) {
         ctx.set(outPong, true)
     }
@@ -165,13 +214,13 @@ reaction_ids!(enum PongReactions {R_ReactToPing});
 impl ReactorDispatcher for PongDispatcher {
     type ReactionId = PongReactions;
     type Wrapped = Pong;
-    type Params = (u32);
+    type Params = ();
 
     fn assemble(args: Self::Params) -> Self {
         Self {
             _impl: Pong,
             inPing: Default::default(),
-            outPong: Default::default()
+            outPong: Default::default(),
         }
     }
 
@@ -216,8 +265,6 @@ impl ReactorAssembler for PongAssembler {
 }
 
 
-
-
 /*
 
 The benchmark runner
@@ -241,7 +288,6 @@ struct BenchmarkRunner {
 
 
 impl BenchmarkRunner {
-    fn react_startup(mut ctx: PhysicalCtx) {}
     /*
     R_CleanupIteration,
     R_CleanupDone,
@@ -250,7 +296,7 @@ impl BenchmarkRunner {
     R_Finish
      */
 
-    fn react_InStart(&mut self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction, initBenchmark: &LogicalAction) {
+    fn react_Startup(&self, ctx: &mut PhysicalCtx, nextIteration: &LogicalAction, initBenchmark: &LogicalAction) {
         if self.use_init {
             ctx.schedule(initBenchmark, Asap)
         } else {
@@ -316,7 +362,7 @@ impl BenchmarkRunner {
 struct BenchmarkRunnerDispatcher {
     _impl: BenchmarkRunner,
 
-    inStart: InputPort<bool>,
+    // inStart: InputPort<bool>,
 
     outIterationStart: OutputPort<bool>,
     inIterationFinish: InputPort<bool>,
@@ -334,7 +380,7 @@ struct BenchmarkRunnerDispatcher {
 }
 
 reaction_ids!(enum BenchmarkRunnerReactions {
-    R_InStart,
+    // R_InStart,
     R_Init,
     R_InitDone,
     R_CleanupIteration,
@@ -368,7 +414,7 @@ impl ReactorDispatcher for BenchmarkRunnerDispatcher {
 
         Self {
             _impl,
-            inStart: Default::default(),
+            // inStart: Default::default(),
             outIterationStart: Default::default(),
             inIterationFinish: Default::default(),
             outInitializeStart: Default::default(),
@@ -384,9 +430,9 @@ impl ReactorDispatcher for BenchmarkRunnerDispatcher {
 
     fn react(&mut self, ctx: &mut LogicalCtx, rid: Self::ReactionId) {
         match rid {
-            BenchmarkRunnerReactions::R_InStart => {
-                self._impl.react_InStart(ctx, &self.nextIteration, &self.initBenchmark)
-            }
+            // BenchmarkRunnerReactions::R_InStart => {
+            //     self._impl.react_InStart(ctx, &self.nextIteration, &self.initBenchmark)
+            // }
             BenchmarkRunnerReactions::R_Init => {
                 self._impl.react_Init(ctx, &mut self.outInitializeStart)
             }
@@ -415,7 +461,7 @@ impl ReactorDispatcher for BenchmarkRunnerDispatcher {
 
 struct BenchmarkRunnerAssembler {
     _rstate: Arc<Mutex<BenchmarkRunnerDispatcher>>,
-    react_InStart: Arc<ReactionInvoker>,
+    // react_InStart: Arc<ReactionInvoker>,
     react_Init: Arc<ReactionInvoker>,
     react_InitDone: Arc<ReactionInvoker>,
     react_CleanupIteration: Arc<ReactionInvoker>,
@@ -429,14 +475,17 @@ impl ReactorAssembler for BenchmarkRunnerAssembler {
     type RState = BenchmarkRunnerDispatcher;
 
 
-    fn start(&mut self, ctx: PhysicalCtx) {
-        BenchmarkRunner::react_startup(ctx);
+    fn start(&mut self, mut ctx: PhysicalCtx) {
+        let  rstate = self._rstate.lock().unwrap();
+        rstate._impl.react_Startup(&mut ctx, &rstate.nextIteration, &rstate.initBenchmark);
+
+        // BenchmarkRunner::react_startup(ctx);
     }
 
     fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
 
-        let react_InStart = new_reaction!(rid, _rstate, R_InStart);
+        // let react_InStart = new_reaction!(rid, _rstate, R_InStart);
         let react_Init = new_reaction!(rid, _rstate, R_Init);
         let react_InitDone = new_reaction!(rid, _rstate, R_InitDone);
         let react_CleanupIteration = new_reaction!(rid, _rstate, R_CleanupIteration);
@@ -449,7 +498,7 @@ impl ReactorAssembler for BenchmarkRunnerAssembler {
             let mut statemut = _rstate.lock().unwrap();
 
 
-            statemut.inStart.set_downstream(vec![react_InStart.clone()].into());
+            // statemut.inStart.set_downstream(vec![react_InStart.clone()].into());
             statemut.inInitializeFinish.set_downstream(vec![react_InitDone.clone()].into());
             statemut.inCleanupIterationFinish.set_downstream(vec![react_CleanupDone.clone()].into());
             statemut.inIterationFinish.set_downstream(vec![react_IterationDone.clone()].into());
@@ -463,7 +512,7 @@ impl ReactorAssembler for BenchmarkRunnerAssembler {
 
         Self {
             _rstate,
-            react_InStart,
+            // react_InStart,
             react_Init,
             react_InitDone,
             react_CleanupIteration,
