@@ -20,15 +20,130 @@ use rust_reactors::reaction_ids_helper;
 use rust_reactors::reactors::{Enumerated, Named};
 use rust_reactors::runtime::*;
 use rust_reactors::runtime::Offset::{After, Asap};
+use crate::PingReactions::R_Serve;
 
 
+fn main() {}
 
 
-fn main() {
-
+struct Ping {
+    pings_left: u32,
+    count: u32,
 }
 
+impl Ping {
+    fn react_restart(&mut self, ctx: &mut LogicalCtx, serve: &LogicalAction) {
+        self.pings_left = self.count;
+        ctx.schedule(serve, Asap)
+    }
+
+    fn react_serve(&mut self, ctx: &mut LogicalCtx, outPing: &mut OutputPort<bool>) {
+        self.pings_left -= 1;
+        ctx.set(outPing, true)
+    }
+
+    fn react_reactToPong(&mut self, ctx: &mut LogicalCtx, outFinished: &mut OutputPort<bool>, serve: &LogicalAction) {
+        if self.pings_left == 0 {
+            ctx.set(outFinished, true)
+        } else {
+            ctx.schedule(serve, Asap)
+        }
+    }
+}
+
+
+struct PingDispatcher {
+    _impl: Ping,
+
+    inStart: InputPort<bool>,
+    outFinished: OutputPort<bool>,
+
+    outPing: OutputPort<bool>,
+    inPong: InputPort<bool>,
+
+    serve: LogicalAction,
+}
+
+reaction_ids!(enum PingReactions {R_Serve, R_ReactToPong,R_Start });
+
+impl ReactorDispatcher for PingDispatcher {
+    type ReactionId = PingReactions;
+    type Wrapped = Ping;
+    type Params = (u32);
+
+    fn assemble(args: Self::Params) -> Self {
+        Self {
+            _impl: Ping { pings_left: 0, count: args },
+            inStart: Default::default(),
+            outFinished: Default::default(),
+            outPing: Default::default(),
+            inPong: Default::default(),
+            serve: LogicalAction::new(None, "serve"),
+        }
+    }
+
+    fn react(&mut self, ctx: &mut LogicalCtx, rid: Self::ReactionId) {
+        match rid {
+            PingReactions::R_Serve => {
+                self._impl.react_serve(ctx, &mut self.outPing)
+            }
+            PingReactions::R_ReactToPong => {
+                self._impl.react_reactToPong(ctx, &mut self.outFinished, &self.serve)
+            }
+            PingReactions::R_Start => {
+                self._impl.react_restart(ctx, &self.serve)
+            }
+        }
+    }
+}
+
+
+struct PingAssembler {
+    _rstate: Arc<Mutex<PingDispatcher>>,
+    react_Serve: Arc<ReactionInvoker>,
+    react_ReactToPong: Arc<ReactionInvoker>,
+    react_Start: Arc<ReactionInvoker>,
+}
+
+impl ReactorAssembler for PingAssembler {
+    type RState = PingDispatcher;
+
+    fn start(&mut self, ctx: PhysicalCtx) {
+        // Ping::react_startup(ctx);
+    }
+
+    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+        let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
+
+        let react_Serve = new_reaction!(rid, _rstate, R_Serve);
+        let react_ReactToPong = new_reaction!(rid, _rstate, R_ReactToPong);
+        let react_Start = new_reaction!(rid, _rstate, R_Start);
+
+        { // declare local dependencies
+            let mut statemut = _rstate.lock().unwrap();
+
+
+            statemut.inStart.set_downstream(vec![react_Start.clone()].into());
+            statemut.inPong.set_downstream(vec![react_ReactToPong.clone()].into());
+            statemut.serve.set_downstream(vec![react_Serve.clone()].into());
+        }
+
+        Self {
+            _rstate,
+            react_Serve,
+            react_ReactToPong,
+            react_Start,
+        }
+    }
+}
+
+
 /*
+
+The benchmark runner
+
+TODO move this into a reusable file?
+
 https://github.com/icyphy/lingua-franca/blob/c-benchmarks/benchmark/C/Savina/BenchmarkRunner.lf
 
  */
@@ -264,7 +379,6 @@ impl ReactorAssembler for BenchmarkRunnerAssembler {
             statemut.nextIteration.set_downstream(vec![react_NextIteration.clone()].into());
             statemut.finish.set_downstream(vec![react_Finish.clone()].into());
             statemut.initBenchmark.set_downstream(vec![react_Init.clone()].into());
-
         }
 
         Self {
@@ -276,7 +390,7 @@ impl ReactorAssembler for BenchmarkRunnerAssembler {
             react_CleanupDone,
             react_NextIteration,
             react_IterationDone,
-            react_Finish
+            react_Finish,
         }
     }
 }
