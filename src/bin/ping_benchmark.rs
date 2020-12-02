@@ -137,6 +137,86 @@ impl ReactorAssembler for PingAssembler {
     }
 }
 
+/*
+PONG
+ */
+
+
+
+struct Pong;
+
+impl Pong {
+
+    fn react_reactToPing(&mut self, ctx: &mut LogicalCtx, outPong: &mut OutputPort<bool>) {
+        ctx.set(outPong, true)
+    }
+}
+
+
+struct PongDispatcher {
+    _impl: Pong,
+
+    inPing: InputPort<bool>,
+    outPong: OutputPort<bool>,
+}
+
+reaction_ids!(enum PongReactions {R_ReactToPing});
+
+impl ReactorDispatcher for PongDispatcher {
+    type ReactionId = PongReactions;
+    type Wrapped = Pong;
+    type Params = (u32);
+
+    fn assemble(args: Self::Params) -> Self {
+        Self {
+            _impl: Pong,
+            inPing: Default::default(),
+            outPong: Default::default()
+        }
+    }
+
+    fn react(&mut self, ctx: &mut LogicalCtx, rid: Self::ReactionId) {
+        match rid {
+            PongReactions::R_ReactToPing => {
+                self._impl.react_reactToPing(ctx, &mut self.outPong)
+            }
+        }
+    }
+}
+
+
+struct PongAssembler {
+    _rstate: Arc<Mutex<PongDispatcher>>,
+    react_ReactToPing: Arc<ReactionInvoker>,
+}
+
+impl ReactorAssembler for PongAssembler {
+    type RState = PongDispatcher;
+
+    fn start(&mut self, ctx: PhysicalCtx) {
+        // Ping::react_startup(ctx);
+    }
+
+    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+        let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
+
+        let react_ReactToPing = new_reaction!(rid, _rstate, R_ReactToPing);
+
+        { // declare local dependencies
+            let mut statemut = _rstate.lock().unwrap();
+
+            statemut.inPing.set_downstream(vec![react_ReactToPing.clone()].into());
+        }
+
+        Self {
+            _rstate,
+            react_ReactToPing,
+        }
+    }
+}
+
+
+
 
 /*
 
