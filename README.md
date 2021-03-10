@@ -14,9 +14,6 @@ This is the unstable rust compiler + stdlib. We use some features that haven't b
 cargo +nightly run --bin reflex_game
 ```
 
-### IDE
-
-I use IntelliJ with the Rust plugin. I'm not sure how well other IDEs support Rust yet.
 
 ## Tour
 
@@ -34,8 +31,6 @@ The crate contains 2 modules:
       * this is the first example from which I worked out a translation strategy, it contains a description of the translation strategy
     * `bin/savina_pong.rs`: the ping/pong game from Savina benchmarks
     * `bin/struct_print.rs`: a simple send/print system
-
-
 
 
 ## Status

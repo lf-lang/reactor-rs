@@ -12,12 +12,6 @@ mod actions;
 mod time;
 mod components;
 
-
-// those are just scratchpads
-// mod safety;
-// mod fiddling;
-
-
 #[macro_export]
 macro_rules! new_reaction {
     ($rid:ident, $_rstate:ident, $name:ident) => {{
