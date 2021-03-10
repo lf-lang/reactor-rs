@@ -32,11 +32,20 @@ The crate contains 2 modules:
     * `bin/savina_pong.rs`: the ping/pong game from Savina benchmarks
     * `bin/struct_print.rs`: a simple send/print system
 
+Main differences between the two:
+* The `runtime` module assumes most of the structural checks have been performed by the code generator and hence elides them. 
+* There is no dependency graph structure in `runtime`; instead the list of downstream reactions is precomputed (at gen time) for each port and action, and hardcoded in the initialization routine (`ReactorAssembler::assemble`).
+* The `runtime` module layers reactors into several structs, which is cumbersome to write by hand but is ok for a generator. This achieves separation of internal state and meta-information about components.
+
 
 ## Status
 
+The `runtime` module design is by no means definitive.
+
 * The scheduler is single-threaded and really dumb.
-* There's too much synchronization on the priority queue
-* Reactors and reactions are wrapped in Arc (atomic reference counted), which perform useless synchronization too.
-
-
+* There's too much contention for the priority queue
+* Reactors and reactions needs to be wrapped in Arc (atomic reference counted).
+  This smart pointer performs synchronization on access to their value. This is probably mostly useless, because synchronization can in theory be limited to just the event queue.
+* Maybe using `async/await` would be nice?
+* More doc should be migrated from the `reactors` module to `runtime`
+* There are no tests yet... but to test is to doubt right
