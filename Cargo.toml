@@ -11,15 +11,3 @@ priority-queue = "1.0.0"
 petgraph = "0.5.1"
 futures = "0.3"
 rand = "0.7.3"
-
-[[bin]]
-name = "example-forwarding"
-path = "src/bin/forwarding.rs"
-
-[[bin]]
-name = "example-data-sharing"
-path = "src/bin/data_sharing.rs"
-
-[[bin]]
-name = "savina-pong"
-path = "src/bin/ping_benchmark.rs"

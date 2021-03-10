@@ -22,7 +22,7 @@ use rust_reactors::reactors::{Enumerated, Named};
 use rust_reactors::runtime::*;
 use rust_reactors::runtime::Offset::{After, Asap};
 
-// this is a manual translation of https://github.com/icyphy/lingua-franca/blob/master/example/ReflexGame/ReflexGameMinimal.lf
+// this is a manual translation of https://github.com/icyphy/lingua-franca/blob/f5868bec199e02f784393f32b594be5df935e2ee/example/C/ReflexGame/ReflexGameMinimal.lf#
 
 // translation strategy:
 // - reactor: struct

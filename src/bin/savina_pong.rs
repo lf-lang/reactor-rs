@@ -22,6 +22,14 @@ use rust_reactors::runtime::*;
 use rust_reactors::runtime::Offset::{After, Asap};
 use crate::PingReactions::R_Serve;
 
+/*
+The ping/pong game from Savina benchmarks. This can be compared
+to the C implementation (see results.md).
+
+See original at https://github.com/icyphy/lingua-franca/blob/f5868bec199e02f784393f32b594be5df935e2ee/benchmark/C/Savina/PingPong.lf
+
+
+ */
 
 fn main() {
     launch(20, 1000_000)
