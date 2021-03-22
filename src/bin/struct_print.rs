@@ -126,7 +126,7 @@ impl ReactorAssembler for /*{{*/SourceAssembler/*}}*/ {
     }
 
 
-    fn assemble(_: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(_: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
 
         Self {
@@ -213,7 +213,7 @@ impl ReactorAssembler for /*{{*/PrintAssembler/*}}*/ {
         // nothing to do
     }
 
-    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
 
         let /*{{*/react_print /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Print/*}}*/);

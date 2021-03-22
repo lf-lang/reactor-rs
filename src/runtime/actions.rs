@@ -16,7 +16,7 @@ pub type LogicalAction = Action<Logical>;
 pub type PhysicalAction = Action<Physical>;
 
 pub struct Action<Logical> {
-    pub(in super) delay: Duration,
+    delay: Duration,
     pub(in super) downstream: Dependencies,
     name: &'static str,
     is_logical: bool,
@@ -28,6 +28,9 @@ impl<T> Action<T> {
         self.downstream = r
     }
 
+    /// Compute the logical time at which an action must be scheduled
+    ///
+    ///
     pub fn make_eta(&self, now: LogicalTime, micro: MicroStep, additional_delay: Duration) -> LogicalTime {
         let min_delay = self.delay + additional_delay;
         let mut instant = now.instant + min_delay;

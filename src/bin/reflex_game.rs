@@ -207,7 +207,7 @@ impl ReactorAssembler for /*{{*/RandomSourceAssembler/*}}*/ {
     }
 
 
-    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
 
         let /*{{*/react_schedule /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Schedule/*}}*/);
@@ -347,7 +347,7 @@ impl ReactorAssembler for /*{{*/GetUserInputAssembler/*}}*/ {
         GetUserInput::react_startup(ctx, response);
     }
 
-    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
 
         let /*{{*/react_handle_line /*}}*/ = new_reaction!(rid, _rstate, /*{{*/HandleLine/*}}*/);

@@ -24,6 +24,7 @@ use super::time::*;
 
 #[derive(Eq, PartialEq, Hash)]
 enum Event {
+    // Reactions { at: LogicalTime, reactions: Vec<Arc<ReactionInvoker>> },
     ReactionExecute { tag: LogicalTime, at: LogicalTime, reaction: Arc<ReactionInvoker> },
     ReactionSchedule { tag: LogicalTime, min_at: LogicalTime, reaction: Arc<ReactionInvoker> },
 }
@@ -112,7 +113,9 @@ impl SyncScheduler {
                     self.state.step(evt, eta)
                 } else {
                     // all senders have hung up
-                    eprintln!("Shutting down scheduler, channel timed out after {} ms", timeout.as_millis());
+                    #[cfg(not(feature = "benchmarking"))] {
+                        eprintln!("Shutting down scheduler, channel timed out after {} ms", timeout.as_millis());
+                    }
                     assert!(self.queue.len() == 0);
                     break;
                 }

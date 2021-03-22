@@ -35,7 +35,8 @@ impl From<Vec<Arc<ReactionInvoker>>> for Dependencies {
 
 pub struct ReactionInvoker {
     body: Box<dyn Fn(&mut LogicalCtx) + Sync + Send>,
-    id: i32,
+    id: u32,
+    /// name used for debug
     name: &'static str,
 }
 
@@ -56,7 +57,7 @@ impl ReactionInvoker {
         (self.body)(ctx)
     }
 
-    pub fn new<T: ReactorDispatcher + 'static>(id: i32,
+    pub fn new<T: ReactorDispatcher + 'static>(id: u32,
                                                reactor: Arc<Mutex<T>>,
                                                rid: T::ReactionId) -> ReactionInvoker {
         let body = move |ctx: &mut LogicalCtx| {

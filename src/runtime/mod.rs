@@ -69,5 +69,5 @@ pub trait ReactorAssembler {
     /// The components of the ReactorDispatcher must be filled
     /// in with their respective dependencies (precomputed before
     /// codegen)
-    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self;
+    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self;
 }

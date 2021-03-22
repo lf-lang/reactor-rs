@@ -37,24 +37,25 @@ criterion_group!(benches, reactor_main);
 criterion_main!(benches);
 
 fn reactor_main(c: &mut Criterion) {
-    let numIterations: u32 = 1;
-    let count: u32 = 100_000;
-
-
-    c.bench_with_input(
-        BenchmarkId::new("run", format!("{} x {}", numIterations, count)),
-        &(numIterations, count),
-        move |b, &(numIterations, count)|
-            b.iter(move || {
-                let scheduler = do_assembly(numIterations, count);
-                scheduler.launch_async(Duration::from_millis(2)).join().unwrap();
-            }),
-    );
-    // launch(20, 1000_000)
+    let mut group = c.benchmark_group("savina_pong");
+    for num_pongs in [10, 100, 1000, 10_000, 30_000].iter() {
+        group.bench_with_input(
+            BenchmarkId::from_parameter(num_pongs),
+            num_pongs,
+            |b, &size| {
+                b.iter(|| {
+                    let scheduler = do_assembly(1, size);
+                    let timeout = Duration::from_millis(2);
+                    scheduler.launch_async(timeout).join().unwrap();
+                });
+            }
+        );
+    }
+    group.finish();
 }
 
 fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
-    let mut rid = 0;
+    let mut rid: u32 = 0;
 
     // ping = new Ping(count=count);
     let mut ping_cell = PingAssembler::assemble(&mut rid, count);
@@ -91,12 +92,6 @@ fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
     let scheduler = SyncScheduler::new();
 
     scheduler.start(&mut runner_cell);
-    /*
-        Let's just hack this in
-     */
-    // println!("PingPongBenchmark");
-    // println!("numIterations: {}, count: {}", numIterations, count);
-
     scheduler.start(&mut ping_cell);
     scheduler.start(&mut pong_cell);
     scheduler
@@ -189,7 +184,7 @@ impl ReactorAssembler for PingAssembler {
         // Ping::react_startup(ctx);
     }
 
-    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
 
         let react_Serve = new_reaction!(rid, _rstate, R_Serve);
@@ -272,7 +267,7 @@ impl ReactorAssembler for PongAssembler {
         // Ping::react_startup(ctx);
     }
 
-    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
 
         let react_ReactToPing = new_reaction!(rid, _rstate, R_ReactToPing);
@@ -508,7 +503,7 @@ impl ReactorAssembler for BenchmarkRunnerAssembler {
         // BenchmarkRunner::react_startup(ctx);
     }
 
-    fn assemble(rid: &mut i32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
 
         // let react_InStart = new_reaction!(rid, _rstate, R_InStart);

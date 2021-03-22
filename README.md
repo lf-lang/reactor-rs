@@ -6,13 +6,23 @@
 * Install the Rust nightly toolchain:
 ```shell
 rustup install nightly
+rustup default nightly
 ```
 This is the unstable rust compiler + stdlib. We use some features that haven't been entirely stabilized yet ([function traits](https://doc.rust-lang.org/nightly/unstable-book/library-features/fn-traits.html#fn_traits))
 
 * Run a program:
 ```shell
-cargo +nightly run --bin reflex_game
+cargo run --bin reflex_game
 ```
+
+## Benchmarking
+
+```shell
+cargo bench --feature benchmarking
+```
+You can find plots in `target/criterion/$BENCHMARK_NAME/report` (see [Criterion report structure](https://bheisler.github.io/criterion.rs/book/user_guide/plots_and_graphs.html)).
+
+Note: The `--feature` flag is used by conditional compilation directives (eg to remove some log statements).
 
 
 ## Tour
