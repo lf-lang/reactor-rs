@@ -37,17 +37,17 @@ criterion_group!(benches, reactor_main);
 criterion_main!(benches);
 
 fn reactor_main(c: &mut Criterion) {
-    let numIterations: u32 = 20;
-    let count: u32 = 1_000_000;
+    let numIterations: u32 = 1;
+    let count: u32 = 100_000;
 
 
     c.bench_with_input(
-        BenchmarkId::new("run", "20 x 1000_000"),
+        BenchmarkId::new("run", format!("{} x {}", numIterations, count)),
         &(numIterations, count),
         move |b, &(numIterations, count)|
             b.iter(move || {
                 let scheduler = do_assembly(numIterations, count);
-                scheduler.launch_async().join().unwrap();
+                scheduler.launch_async(Duration::from_millis(2)).join().unwrap();
             }),
     );
     // launch(20, 1000_000)
@@ -94,8 +94,8 @@ fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
     /*
         Let's just hack this in
      */
-    println!("PingPongBenchmark");
-    println!("numIterations: {}, count: {}", numIterations, count);
+    // println!("PingPongBenchmark");
+    // println!("numIterations: {}, count: {}", numIterations, count);
 
     scheduler.start(&mut ping_cell);
     scheduler.start(&mut pong_cell);
@@ -362,7 +362,7 @@ impl BenchmarkRunner {
         self.measured_times.push(iteration_time);
         self.count += 1;
 
-        println!("Iteration: {}\t Duration: {} ms\n", self.count, iteration_time.as_millis());
+        // println!("Iteration: {}\t Duration: {} ms\n", self.count, iteration_time.as_millis());
 
         if self.use_cleanup_iteration {
             ctx.schedule(cleanupIteration, Asap)
@@ -378,10 +378,10 @@ impl BenchmarkRunner {
         let median = self.measured_times[self.measured_times.len() / 2];
 
 
-        println!("Exec summary");
-        println!("Best time:\t{} ms", best.as_millis());
-        println!("Worst time:\t{} ms", worst.as_millis());
-        println!("Median time:\t{} ms", median.as_millis());
+        // println!("Exec summary");
+        // println!("Best time:\t{} ms", best.as_millis());
+        // println!("Worst time:\t{} ms", worst.as_millis());
+        // println!("Median time:\t{} ms", median.as_millis());
     }
 }
 

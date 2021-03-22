@@ -56,7 +56,7 @@ fn main() {
 
     scheduler.start(&mut s_cell);
     scheduler.start(&mut p_cell);
-    scheduler.launch_async().join().unwrap();
+    scheduler.launch_async(Duration::from_millis(10)).join().unwrap();
 }
 
 

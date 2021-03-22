@@ -110,7 +110,7 @@ fn main() {
 
     scheduler.start(&mut gcell);
     scheduler.start(&mut pcell);
-    scheduler.launch_async().join().unwrap();
+    scheduler.launch_async(Duration::from_secs(10)).join().unwrap();
 }
 
 

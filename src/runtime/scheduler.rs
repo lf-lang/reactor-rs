@@ -101,18 +101,19 @@ impl SyncScheduler {
         }
     }
 
-    pub fn launch_async(mut self) -> JoinHandle<()> {
+    pub fn launch_async(mut self, timeout: Duration) -> JoinHandle<()> {
         use std::thread;
         thread::spawn(move || {
             loop {
-                if let Ok(evt) = self.receiver.recv() {
+                if let Ok(evt) = self.receiver.recv_timeout(timeout) {
                     let eta = evt.eta();
                     self.queue.push(evt, Reverse(eta));
                     let (evt, Reverse(eta)) = self.queue.pop().unwrap();
                     self.state.step(evt, eta)
                 } else {
                     // all senders have hung up
-                    println!("We're done here");
+                    eprintln!("Shutting down scheduler, channel timed out after {} ms", timeout.as_millis());
+                    assert!(self.queue.len() == 0);
                     break;
                 }
             }
