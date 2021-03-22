@@ -51,20 +51,39 @@ impl Event {
     }
 }
 
-#[derive(Clone)]
-pub struct SchedulerRef {
-    state: Arc<Mutex<SchedulerState>>,
-    sender: Sender<Event>,
+
+/// Global state of the system.
+struct SchedulerState {
+    /// Current logical time in the system. Note that reactions
+    /// executing have their own copy of the value they were scheduled on.
+    cur_logical_time: LogicalTime,
+    /// Micro-step of the next action to schedule from this
+    /// logical time on. This way if several actions are scheduled
+    /// at the same logical time they're scheduled at increasing
+    /// micro-steps so they're still ordered.
+    // fixme this is completely monotonic for now & isn't reset when logical time increases
+    micro_step: MicroStep,
 }
 
+/// Main public API for the scheduler. Contains the priority queue
+/// and public launch routine with event loop.
 pub struct SyncScheduler {
+    /// Reference to the shared state (note, every reaction
+    /// ctx has the same kind of reference as this, ie, this
+    /// one is not special)
     state: SchedulerRef,
+    /// The receiver end of the communication channels. Reactions
+    /// contexts each have their own [Sender]. The main event loop
+    /// polls this to make progress.
+    ///
+    /// Note that the receiver is unique.
     receiver: Receiver<Event>,
     // todo the priority (Reverse<LogicalTime>) should take into account relative reaction priority
     queue: PriorityQueue<Event, Reverse<LogicalTime>>,
 }
 
 impl SyncScheduler {
+    /// Creates a new scheduler. Its state is initialized to nothing.
     pub fn new() -> Self {
         let (sender, receiver) = channel::<Event>();
         let sched = SchedulerState {
@@ -100,6 +119,10 @@ impl SyncScheduler {
         })
     }
 
+    fn shutdown(mut self) {
+
+    }
+
     pub fn start(&self, r: &mut impl ReactorAssembler) {
         let sched = self.state.clone();
         let ctx = self.state.critical(|state| {
@@ -113,10 +136,12 @@ impl SyncScheduler {
     }
 }
 
-/// Directs execution of the whole reactor graph.
-pub struct SchedulerState {
-    cur_logical_time: LogicalTime,
-    micro_step: MicroStep,
+/// Reference to the global state with a handle to send events.
+#[derive(Clone)]
+struct SchedulerRef {
+    /// Reference to shared global state
+    state: Arc<Mutex<SchedulerState>>,
+    sender: Sender<Event>,
 }
 
 impl SchedulerRef {
@@ -124,7 +149,6 @@ impl SchedulerRef {
         let guard = self.state.lock().unwrap();
         f(guard)
     }
-
 
     pub fn new_ctx(&self) -> LogicalCtx {
         let sched = self.clone();
@@ -178,7 +202,7 @@ impl SchedulerRef {
 
         for reaction in action.downstream.reactions.iter() {
             let evt = Event::ReactionSchedule { tag: now, min_at: eta, reaction: reaction.clone() };
-            self.sender.send(evt).unwrap();
+            self.sender.send(evt).unwrap(); // send it into the event queue
         }
     }
 }
@@ -228,6 +252,12 @@ impl<A> Ctx<A> {
 
     pub fn get_physical_time(&self) -> Instant {
         Instant::now()
+    }
+
+    /// Request a shutdown which will be acted upon at the end
+    /// of this reaction.
+    pub fn request_shutdown(self) {
+        // self.scheduler.shutdown()
     }
 }
 
