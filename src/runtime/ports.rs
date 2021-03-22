@@ -1,10 +1,10 @@
-use std::rc::Rc;
-use std::cell::{Cell, Ref};
-use crate::runtime::{ReactionInvoker, Dependencies};
+
+use std::cell::{Cell};
+use crate::runtime::{Dependencies};
 use std::marker::PhantomData;
-use std::ops::Deref;
-use std::cell::RefCell;
-use std::sync::{Mutex, Arc, MutexGuard};
+
+
+use std::sync::{Mutex, Arc};
 
 // clients may only use InputPort and OutputPort
 // but there's a single implementation.
@@ -33,7 +33,7 @@ impl<T, K> Port<T, K> {
         }
     }
 
-    pub fn set_downstream(&mut self, mut r: Dependencies) {
+    pub fn set_downstream(&mut self, r: Dependencies) {
         let mut upclass = self.cell.lock().unwrap();
         upclass.downstream = r;
     }

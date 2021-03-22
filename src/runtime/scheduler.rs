@@ -1,13 +1,13 @@
-use std::cell::{Cell, Ref, RefMut};
-use std::cell::RefCell;
+
+
 use std::cmp::Reverse;
-use std::fmt::{Debug, Pointer};
-use std::fmt::Display;
-use std::fmt::Formatter;
-use std::hash::{Hash, Hasher};
+
+
+
+use std::hash::{Hash};
 use std::marker::PhantomData;
-use std::ops::Deref;
-use std::rc::Rc;
+
+
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::JoinHandle;
@@ -15,9 +15,9 @@ use std::time::{Duration, Instant};
 
 use priority_queue::PriorityQueue;
 
-use crate::reactors::Named;
+
 use crate::runtime::{Logical, LogicalAction, Physical, PhysicalAction, ReactorAssembler};
-use crate::runtime::ports::{InputPort, OutputPort, Port};
+use crate::runtime::ports::{InputPort, OutputPort};
 
 use super::{Action, Dependencies, ReactionInvoker};
 use super::time::*;
@@ -119,7 +119,7 @@ impl SyncScheduler {
         })
     }
 
-    fn shutdown(mut self) {
+    fn shutdown(self) {
 
     }
 
@@ -183,7 +183,7 @@ impl SchedulerRef {
     fn enqueue_port(&self, downstream: Dependencies, now: LogicalTime) {
         // todo possibly, reactions must be scheduled at most once per logical time step?
         for reaction in downstream.reactions.iter() {
-            self.critical(|mut scheduler| {
+            self.critical(|scheduler| {
                 let time = scheduler.cur_logical_time;
                 let evt = Event::ReactionExecute { tag: now, at: time, reaction: reaction.clone() };
                 self.sender.send(evt).unwrap();

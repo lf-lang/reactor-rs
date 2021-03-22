@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
-use std::fmt::{Debug, Formatter};
+
 
 /// A type whose instances have statically known names
 pub trait Named {

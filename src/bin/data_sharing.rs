@@ -85,7 +85,7 @@ impl<'r> Reactor for OwnerReactor<'r> {
         Ok(OwnerReactor { output_port, emit_action, phantom: PhantomData })
     }
 
-    fn react<'g>(reactor: &RunnableReactor<'g, Self>, state: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx<'_, 'g>) where Self: Sized + 'g {
+    fn react<'g>(reactor: &RunnableReactor<'g, Self>, _state: &mut Self::State, reaction_id: Self::ReactionId, ctx: &mut ReactionCtx<'_, 'g>) where Self: Sized + 'g {
         match reaction_id {
             ProduceReactions::Emit => {
                 println!("Emitting {}", 3);

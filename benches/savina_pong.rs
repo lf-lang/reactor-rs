@@ -2,25 +2,25 @@
 #[macro_use]
 extern crate rust_reactors;
 
-use std::cell::{RefCell, RefMut};
-use std::cell::Cell;
-use std::io::stdin;
-use std::pin::Pin;
-use std::rc::Rc;
+
+
+
+
+
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::channel;
+
 use std::time::{Duration, Instant};
 
-use futures::io::Error;
-use petgraph::stable_graph::edge_index;
-use rand::Rng;
+
+
+
 
 use rust_reactors::reaction_ids;
 use rust_reactors::reaction_ids_helper;
 use rust_reactors::reactors::{Enumerated, Named};
 use rust_reactors::runtime::*;
-use rust_reactors::runtime::Offset::{After, Asap};
-use crate::PingReactions::R_Serve;
+use rust_reactors::runtime::Offset::{Asap};
+
 
 /*
 The ping/pong game from Savina benchmarks. This can be compared
@@ -31,7 +31,7 @@ See original at https://github.com/icyphy/lingua-franca/blob/f5868bec199e02f7843
 
  */
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
 
 criterion_group!(benches, reactor_main);
 criterion_main!(benches);
@@ -57,7 +57,7 @@ fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
     let mut rid = 0;
 
     // ping = new Ping(count=count);
-    let mut ping_cell = PingAssembler::assemble(&mut rid, (count));
+    let mut ping_cell = PingAssembler::assemble(&mut rid, count);
 
     // runner = new BenchmarkRunner(numIterations=numIterations);
     let mut runner_cell = BenchmarkRunnerAssembler::assemble(&mut rid, BenchmarkParams { numIterations, useInit: false, useCleanupIteration: false });
@@ -88,7 +88,7 @@ fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
         bind_ports(&mut pong.outPong, &mut ping.inPong);
     }
 
-    let mut scheduler = SyncScheduler::new();
+    let scheduler = SyncScheduler::new();
 
     scheduler.start(&mut runner_cell);
     /*
@@ -146,7 +146,7 @@ reaction_ids!(enum PingReactions {R_Serve, R_ReactToPong,R_Start });
 impl ReactorDispatcher for PingDispatcher {
     type ReactionId = PingReactions;
     type Wrapped = Ping;
-    type Params = (u32);
+    type Params = u32;
 
     fn assemble(args: Self::Params) -> Self {
         Self {

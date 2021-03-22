@@ -17,7 +17,7 @@
 #[macro_use]
 extern crate rust_reactors;
 
-use std::borrow::Borrow;
+
 use std::rc::Rc;
 use std::time::Duration;
 

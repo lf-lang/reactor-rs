@@ -3,17 +3,17 @@
 extern crate rust_reactors;
 
 
-use std::cell::{RefCell, RefMut};
-use std::cell::Cell;
+
+
 use std::io::stdin;
-use std::pin::Pin;
-use std::rc::Rc;
+
+
 use std::sync::{Arc, Mutex};
-use std::sync::mpsc::channel;
+
 use std::time::{Duration, Instant};
 
-use futures::io::Error;
-use petgraph::stable_graph::edge_index;
+
+
 use rand::Rng;
 
 use rust_reactors::reaction_ids;
@@ -106,7 +106,7 @@ fn main() {
         bind_ports(&mut g.another, &mut p.another);
     }
 
-    let mut scheduler = SyncScheduler::new();
+    let scheduler = SyncScheduler::new();
 
     scheduler.start(&mut gcell);
     scheduler.start(&mut pcell);
@@ -341,7 +341,7 @@ impl ReactorAssembler for /*{{*/GetUserInputAssembler/*}}*/ {
 
 
     fn start(&mut self, ctx: PhysicalCtx) {
-        let mut response = (/* response */PhysicalAction::new(None, "response"));
+        let mut response = /* response */PhysicalAction::new(None, "response");
         /*{{*/response/*}}*/.set_downstream(vec![/*{{*/self.react_handle_line/*}}*/.clone()].into());
 
         GetUserInput::react_startup(ctx, response);
