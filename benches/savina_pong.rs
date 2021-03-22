@@ -31,11 +31,29 @@ See original at https://github.com/icyphy/lingua-franca/blob/f5868bec199e02f7843
 
  */
 
-fn main() {
-    launch(20, 1000_000)
+use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId};
+
+criterion_group!(benches, reactor_main);
+criterion_main!(benches);
+
+fn reactor_main(c: &mut Criterion) {
+    let numIterations: u32 = 20;
+    let count: u32 = 1_000_000;
+
+
+    c.bench_with_input(
+        BenchmarkId::new("run", "20 x 1000_000"),
+        &(numIterations, count),
+        move |b, &(numIterations, count)|
+            b.iter(move || {
+                let scheduler = do_assembly(numIterations, count);
+                scheduler.launch_async().join().unwrap();
+            }),
+    );
+    // launch(20, 1000_000)
 }
 
-fn launch(numIterations: u32, count: u32) {
+fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
     let mut rid = 0;
 
     // ping = new Ping(count=count);
@@ -81,7 +99,7 @@ fn launch(numIterations: u32, count: u32) {
 
     scheduler.start(&mut ping_cell);
     scheduler.start(&mut pong_cell);
-    scheduler.launch_async().join().unwrap();
+    scheduler
 }
 
 
