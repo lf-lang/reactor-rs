@@ -106,7 +106,7 @@ fn main() {
         bind_ports(&mut g.another, &mut p.another);
     }
 
-    let scheduler = SyncScheduler::new();
+    let scheduler = SyncScheduler::new(rid);
 
     scheduler.start(&mut gcell);
     scheduler.start(&mut pcell);
@@ -129,7 +129,7 @@ impl RandomSource {
     ///      srand(time(0));
     ///      schedule(prompt, random_time());
     ///  =}
-    fn react_startup(mut ctx: PhysicalCtx, prompt: &LogicalAction) {
+    fn react_startup(mut link: SchedulerLink, ctx: &mut LogicalCtx, prompt: &LogicalAction) {
         // seed random gen
         ctx.schedule(prompt, After(RandomSource::random_delay()));
     }
@@ -202,8 +202,8 @@ struct RandomSourceAssembler {
 impl ReactorAssembler for /*{{*/RandomSourceAssembler/*}}*/ {
     type RState = /*{{*/RandomSourceDispatcher/*}}*/;
 
-    fn start(&mut self, ctx: PhysicalCtx) {
-        RandomSource::react_startup(ctx, &self._rstate.lock().unwrap().prompt);
+    fn start(&mut self, link: SchedulerLink, ctx: &mut LogicalCtx) {
+        RandomSource::react_startup(link, ctx, &self._rstate.lock().unwrap().prompt);
     }
 
 
@@ -235,7 +235,7 @@ struct GetUserInput {
 
 // user impl
 impl GetUserInput {
-    fn read_input_loop(mut ctx: PhysicalCtx, response: PhysicalAction) {
+    fn read_input_loop(mut ctx: SchedulerLink, response: PhysicalAction) {
         let mut buf = String::new();
         loop {
             match stdin().read_line(&mut buf) {
@@ -252,8 +252,8 @@ impl GetUserInput {
     ///     pthread_create(&thread_id, NULL, &read_input, response);
     /// =}
     ///
-    fn react_startup(ctx: PhysicalCtx, response: PhysicalAction) {
-        std::thread::spawn(move || GetUserInput::read_input_loop(ctx, response));
+    fn react_startup(link: SchedulerLink, ctx: &mut LogicalCtx, response: PhysicalAction) {
+        std::thread::spawn(move || GetUserInput::read_input_loop(link, response));
     }
 
     // reaction(prompt) {=
@@ -340,11 +340,11 @@ impl ReactorAssembler for /*{{*/GetUserInputAssembler/*}}*/ {
     type RState = /*{{*/GetUserInputReactionState/*}}*/;
 
 
-    fn start(&mut self, ctx: PhysicalCtx) {
+    fn start(&mut self, link: SchedulerLink, ctx: &mut LogicalCtx) {
         let mut response = /* response */PhysicalAction::new(None, "response");
         /*{{*/response/*}}*/.set_downstream(vec![/*{{*/self.react_handle_line/*}}*/.clone()].into());
 
-        GetUserInput::react_startup(ctx, response);
+        GetUserInput::react_startup(link, ctx, response);
     }
 
     fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {

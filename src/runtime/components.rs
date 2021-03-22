@@ -57,6 +57,8 @@ impl ReactionInvoker {
         (self.body)(ctx)
     }
 
+    pub fn id(&self) -> u32 { self.id }
+
     pub fn new<T: ReactorDispatcher + 'static>(id: u32,
                                                reactor: Arc<Mutex<T>>,
                                                rid: T::ReactionId) -> ReactionInvoker {

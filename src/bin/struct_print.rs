@@ -52,7 +52,7 @@ fn main() {
         bind_ports(&mut p.out, &mut g.input);
     }
 
-    let scheduler = SyncScheduler::new();
+    let scheduler = SyncScheduler::new(rid);
 
     scheduler.start(&mut s_cell);
     scheduler.start(&mut p_cell);
@@ -77,7 +77,8 @@ impl Source {
     //        // this implicitly converts the mutable value to an immutable value
     //        out.set(std::move(hello));
     //  =}
-    fn react_startup(mut ctx: PhysicalCtx,
+    fn react_startup(mut link: SchedulerLink,
+                     ctx: &mut LogicalCtx,
                      out: &mut OutputPort<Hello>) {
         // Create our Hello struct
         let mut hello = Hello { name: "Venus", value: 42 };
@@ -121,8 +122,8 @@ struct SourceAssembler {
 impl ReactorAssembler for /*{{*/SourceAssembler/*}}*/ {
     type RState = /*{{*/SourceDispatcher/*}}*/;
 
-    fn start(&mut self, ctx: PhysicalCtx) {
-        Source::react_startup(ctx, &mut self._rstate.lock().unwrap().out);
+    fn start(&mut self, link: SchedulerLink, ctx: &mut LogicalCtx) {
+        Source::react_startup(link, ctx, &mut self._rstate.lock().unwrap().out);
     }
 
 
@@ -209,7 +210,7 @@ impl ReactorAssembler for /*{{*/PrintAssembler/*}}*/ {
     type RState = /*{{*/PrintReactionState/*}}*/;
 
 
-    fn start(&mut self, _: PhysicalCtx) {
+    fn start(&mut self, _: SchedulerLink, _: &mut LogicalCtx) {
         // nothing to do
     }
 

@@ -28,10 +28,14 @@ impl<T> Action<T> {
         self.downstream = r
     }
 
+    pub(crate) fn min_delay(&self) -> Duration {
+        unimplemented!()
+    }
+
     /// Compute the logical time at which an action must be scheduled
     ///
     ///
-    pub fn make_eta(&self, now: LogicalTime, micro: MicroStep, additional_delay: Duration) -> LogicalTime {
+    pub fn make_eta(&self, now: LogicalTime, additional_delay: Duration) -> LogicalTime {
         let min_delay = self.delay + additional_delay;
         let mut instant = now.instant + min_delay;
         if !self.is_logical {
@@ -41,7 +45,7 @@ impl<T> Action<T> {
 
         LogicalTime {
             instant,
-            microstep: micro,
+            microstep: now.microstep + 1,
         }
     }
 

@@ -1,4 +1,4 @@
-#![feature(fn_traits)]
+#![feature(fn_traits,duration_zero)]
 
 #[macro_use]
 pub mod reactors;

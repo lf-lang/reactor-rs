@@ -21,84 +21,49 @@ use crate::runtime::ports::{InputPort, OutputPort};
 
 use super::{Action, Dependencies, ReactionInvoker};
 use super::time::*;
+use bitset_fixed::BitSet;
+use std::cell::Cell;
+
+/// An order to execute some reaction
+type ReactionOrder = Arc<ReactionInvoker>;
+type TimeCell = Arc<Mutex<Cell<LogicalTime>>>;
 
 #[derive(Eq, PartialEq, Hash)]
-enum Event {
-    // Reactions { at: LogicalTime, reactions: Vec<Arc<ReactionInvoker>> },
-    ReactionExecute { tag: LogicalTime, at: LogicalTime, reaction: Arc<ReactionInvoker> },
-    ReactionSchedule { tag: LogicalTime, min_at: LogicalTime, reaction: Arc<ReactionInvoker> },
-}
-
-impl Event {
-    fn tag(&self) -> LogicalTime {
-        match self {
-            Event::ReactionExecute { tag, .. } => tag.clone(),
-            Event::ReactionSchedule { tag, .. } => tag.clone()
-        }
-    }
-
-    fn eta(&self) -> LogicalTime {
-        match self {
-            Event::ReactionExecute { at, .. } => at.clone(),
-            Event::ReactionSchedule { min_at, .. } => min_at.clone()
-        }
-    }
-
-    fn reaction(&self) -> Arc<ReactionInvoker> {
-        match self {
-            Event::ReactionExecute { reaction, .. } => reaction.clone(),
-            Event::ReactionSchedule { reaction, .. } => reaction.clone()
-        }
-    }
-}
-
-
-/// Global state of the system.
-struct SchedulerState {
-    /// Current logical time in the system. Note that reactions
-    /// executing have their own copy of the value they were scheduled on.
-    cur_logical_time: LogicalTime,
-    /// Micro-step of the next action to schedule from this
-    /// logical time on. This way if several actions are scheduled
-    /// at the same logical time they're scheduled at increasing
-    /// micro-steps so they're still ordered.
-    // fixme this is completely monotonic for now & isn't reset when logical time increases
-    micro_step: MicroStep,
+struct Event {
+    process_at: LogicalTime,
+    todo: Vec<ReactionOrder>,
 }
 
 /// Main public API for the scheduler. Contains the priority queue
 /// and public launch routine with event loop.
 pub struct SyncScheduler {
-    /// Reference to the shared state (note, every reaction
-    /// ctx has the same kind of reference as this, ie, this
-    /// one is not special)
-    state: SchedulerRef,
+    /// The latest processed logical time (necessarily behind physical time)
+    cur_logical_time: TimeCell,
+
     /// The receiver end of the communication channels. Reactions
     /// contexts each have their own [Sender]. The main event loop
     /// polls this to make progress.
     ///
-    /// Note that the receiver is unique.
+    /// That the receiver is unique.
     receiver: Receiver<Event>,
+
+    /// A sender bound to the receiver, which may be cloned.
+    canonical_sender: Sender<Event>,
     // todo the priority (Reverse<LogicalTime>) should take into account relative reaction priority
     queue: PriorityQueue<Event, Reverse<LogicalTime>>,
+    max_reaction_id: u32,
 }
 
 impl SyncScheduler {
     /// Creates a new scheduler. Its state is initialized to nothing.
-    pub fn new() -> Self {
+    pub fn new(max_reaction_id: u32) -> Self {
         let (sender, receiver) = channel::<Event>();
-        let sched = SchedulerState {
-            cur_logical_time: <_>::default(),
-            micro_step: 0,
-        };
-        let state = SchedulerRef {
-            state: Arc::new(Mutex::new(sched)),
-            sender,
-        };
         Self {
-            state,
+            cur_logical_time: <_>::default(),
             receiver,
+            canonical_sender: sender,
             queue: PriorityQueue::new(),
+            max_reaction_id,
         }
     }
 
@@ -107,10 +72,13 @@ impl SyncScheduler {
         thread::spawn(move || {
             loop {
                 if let Ok(evt) = self.receiver.recv_timeout(timeout) {
-                    let eta = evt.eta();
-                    self.queue.push(evt, Reverse(eta));
+                    // received a new event
+
+                    let eta = evt.process_at;      // logical time of the processing
+                    self.queue.push(evt, Reverse(eta)); // maybe some other event is expected to be processed before
                     let (evt, Reverse(eta)) = self.queue.pop().unwrap();
-                    self.state.step(evt, eta)
+
+                    self.step(evt, eta);
                 } else {
                     // all senders have hung up
                     #[cfg(not(feature = "benchmarking"))] {
@@ -123,110 +91,117 @@ impl SyncScheduler {
         })
     }
 
-    fn shutdown(self) {
-
+    fn step(&mut self, event: Event, process_at_time: LogicalTime) {
+        let time = Self::catch_up_physical_time(process_at_time);
+        self.cur_logical_time.lock().unwrap().set(time);
+        self.new_wave(time, event.todo).consume();
     }
 
-    pub fn start(&self, r: &mut impl ReactorAssembler) {
-        let sched = self.state.clone();
-        let ctx = self.state.critical(|state| {
-            PhysicalCtx {
-                scheduler: sched,
-                cur_logical_time: state.cur_logical_time,
-                _t: PhantomData
-            }
-        });
-        r.start(ctx)
-    }
-}
-
-/// Reference to the global state with a handle to send events.
-#[derive(Clone)]
-struct SchedulerRef {
-    /// Reference to shared global state
-    state: Arc<Mutex<SchedulerState>>,
-    sender: Sender<Event>,
-}
-
-impl SchedulerRef {
-    fn critical<T>(&self, f: impl FnOnce(MutexGuard<SchedulerState>) -> T) -> T {
-        let guard = self.state.lock().unwrap();
-        f(guard)
-    }
-
-    pub fn new_ctx(&self) -> LogicalCtx {
-        let sched = self.clone();
-        self.critical(|state| {
-            LogicalCtx {
-                scheduler: sched,
-                cur_logical_time: state.cur_logical_time,
-                _t: PhantomData
-            }
-        })
-    }
-
-    fn step(&self, event: Event, eta: LogicalTime) {
-        let reaction = event.reaction();
-
-        SchedulerRef::catch_up_physical_time(eta);
-        self.critical(|mut s| s.cur_logical_time = LogicalTime::default());
-
-        let mut ctx = self.new_ctx();
-        reaction.fire(&mut ctx)
-        // todo probably we should destroy the port values at this time
-    }
-
-    fn catch_up_physical_time(up_to_time: LogicalTime) {
+    fn catch_up_physical_time(up_to_time: LogicalTime) -> LogicalTime {
         let now = Instant::now();
         if now < up_to_time.instant {
             let t = up_to_time.instant - now;
             std::thread::sleep(t);
+            LogicalTime::now()
+        } else {
+            LogicalTime { instant: now, microstep: 0 }
         }
     }
 
-    fn enqueue_port(&self, downstream: Dependencies, now: LogicalTime) {
-        // todo possibly, reactions must be scheduled at most once per logical time step?
-        for reaction in downstream.reactions.iter() {
-            self.critical(|scheduler| {
-                let time = scheduler.cur_logical_time;
-                let evt = Event::ReactionExecute { tag: now, at: time, reaction: reaction.clone() };
-                self.sender.send(evt).unwrap();
-            });
+    /// Create a new reaction wave to process the given
+    /// reactions at some point in time.
+    fn new_wave(&self, logical_time: LogicalTime, reactions: Vec<ReactionOrder>) -> ReactionWave {
+        ReactionWave {
+            logical_time,
+            todo: reactions.iter().map(|r| Some(r.clone())).collect::<Vec<_>>(),
+            done: BitSet::new(self.max_reaction_id as usize),
+            sender: self.canonical_sender.clone(),
         }
     }
 
-    fn enqueue_action<T>(&self, action: &Action<T>, additional_delay: Duration) {
-        let (now, eta) = self.critical(|mut scheduler| {
-            let now = scheduler.cur_logical_time.clone();
-
-            // note that the microstep is global, doesn't really matter though
-            scheduler.micro_step += 1;
-            (now, action.make_eta(now, scheduler.micro_step, additional_delay))
-        });
-
-        for reaction in action.downstream.reactions.iter() {
-            let evt = Event::ReactionSchedule { tag: now, min_at: eta, reaction: reaction.clone() };
-            self.sender.send(evt).unwrap(); // send it into the event queue
-        }
+    pub fn start(&self, r: &mut impl ReactorAssembler) {
+        let ctx = SchedulerLink {
+            last_processed_logical_time: self.cur_logical_time.clone(),
+            sender: self.canonical_sender.clone(),
+        };
+        let mut startup_wave = self.new_wave(LogicalTime::now(), vec![]);
+        r.start(ctx, &mut startup_wave.new_ctx())
     }
 }
 
+/// A "wave" of reactions executing at the same logical time.
+/// Waves can enqueue new reactions to execute at the same time,
+/// they're processed in exec order.
+struct ReactionWave {
+    /// Logical time of the execution of this wave
+    logical_time: LogicalTime,
 
-pub type LogicalCtx = Ctx<Logical>;
-pub type PhysicalCtx = Ctx<Physical>;
+    /// Remaining reactions to execute before the wave dies.
+    ///
+    /// This is mutable: if a reaction sets a port, then the
+    /// downstream of that port is inserted in order into this
+    /// queue.
+    todo: Vec<Option<ReactionOrder>>,
 
+    done: BitSet,
+
+    /// Sender to schedule events that should be executed later than this wave.
+    sender: Sender<Event>,
+
+}
+
+impl ReactionWave {
+    /// Add new reactions to execute in the same wave.
+    /// TODO topology information & deduplication
+    ///  Eg for a diamond situation this will execute reactions several times...
+    ///  This is why I added a bitset to patch it, but it's not optimal design
+    ///
+    fn enqueue_now(&mut self, downstream: Dependencies) {
+        for reaction in downstream.reactions.iter() {
+            if !self.done[reaction.id() as usize] {
+                self.todo.push(Some(reaction.clone()));
+            }
+        }
+    }
+
+    /// Add new reactions to execute later (at least 1 microstep later).
+    ///
+    /// This is used for actions.
+    fn enqueue_later(&mut self, downstream: &Dependencies, process_at: LogicalTime) {
+        debug_assert!(process_at > self.logical_time);
+
+        // todo merge events at equal tags by merging their dependencies
+        let evt = Event { process_at, todo: downstream.reactions.clone() };
+        self.sender.send(evt).unwrap();
+    }
+
+    fn new_ctx(&mut self) -> LogicalCtx {
+        LogicalCtx { scheduler: self }
+    }
+
+    /// Execute the wave until completion
+    fn consume(mut self) {
+        let mut i = 0;
+        while i < self.todo.len() {
+            if let Some(reaction) = self.todo[i].take() {
+                // this might add some elements to the vec, but only at the end
+                // todo this is bad memory wise, we keep using memory for the prefix of the list that's already been processed
+                reaction.fire(&mut self.new_ctx())
+            }
+            i += 1;
+        }
+    }
+}
 
 /// This is the context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler. Only the
 /// interactions declared at assembly time are allowed.
 ///
-pub struct Ctx<T> {
-    scheduler: SchedulerRef,
-    cur_logical_time: LogicalTime,
-    _t: PhantomData<T>
+pub struct LogicalCtx<'a> {
+    scheduler: &'a mut ReactionWave,
 }
 
-impl<A> Ctx<A> {
+impl LogicalCtx<'_> {
     /// Get the value of a port at this time.
     pub fn get<T: Copy>(&self, port: &InputPort<T>) -> Option<T> {
         port.get()
@@ -239,7 +214,7 @@ impl<A> Ctx<A> {
     /// step.
     pub fn set<T>(&mut self, port: &mut OutputPort<T>, value: T) {
         let downstream = port.set(value);
-        self.scheduler.enqueue_port(downstream, self.cur_logical_time);
+        self.scheduler.enqueue_now(downstream);
     }
 
     /// Schedule an action to run after its own implicit time delay,
@@ -251,7 +226,7 @@ impl<A> Ctx<A> {
 
     // private
     fn schedule_impl<T>(&mut self, action: &Action<T>, offset: Offset) {
-        self.scheduler.enqueue_action(action, offset.to_duration())
+        self.scheduler.enqueue_later(&action.downstream, action.make_eta(self.scheduler.logical_time, offset.to_duration()));
     }
 
     pub fn get_physical_time(&self) -> Instant {
@@ -261,22 +236,37 @@ impl<A> Ctx<A> {
     /// Request a shutdown which will be acted upon at the end
     /// of this reaction.
     pub fn request_shutdown(self) {
+        // todo
         // self.scheduler.shutdown()
     }
-}
 
-impl LogicalCtx {
-    /// note: this doesn't work for
     pub fn get_logical_time(&self) -> LogicalTime {
-        self.cur_logical_time
+        self.scheduler.logical_time
     }
 }
 
-impl PhysicalCtx {
+/// A type that can affect the logical event queue to implement
+/// asynchronous physical actions. This is a "link" to the event
+/// system, from the outside work.
+pub struct SchedulerLink {
+    last_processed_logical_time: TimeCell,
+
+    /// Sender to schedule events that should be executed later than this wave.
+    sender: Sender<Event>,
+}
+
+impl SchedulerLink {
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
     pub fn schedule_physical(&mut self, action: &PhysicalAction, offset: Offset) {
-        self.schedule_impl(action, offset);
+        // we have to fetch the time at which the logical timeline is currently running,
+        // this may be far behind the current physical time
+        let time_in_logical_subsystem = self.last_processed_logical_time.lock().unwrap().get();
+        let process_at = action.make_eta(time_in_logical_subsystem, offset.to_duration());
+
+        // todo merge events at equal tags by merging their dependencies
+        let evt = Event { process_at, todo: action.downstream.reactions.clone() };
+        self.sender.send(evt).unwrap();
     }
 }

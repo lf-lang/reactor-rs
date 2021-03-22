@@ -32,6 +32,14 @@ impl LogicalTime {
     pub fn to_instant(&self) -> Instant {
         self.instant
     }
+
+    pub fn offset(self, duration: Duration, mstep: MicroStep) -> Self {
+        Self {
+            instant: self.instant + duration,
+            microstep: self.microstep + mstep,
+        }
+    }
+
     pub fn now() -> Self {
         Self {
             instant: Instant::now(),

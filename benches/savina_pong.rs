@@ -89,7 +89,7 @@ fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
         bind_ports(&mut pong.outPong, &mut ping.inPong);
     }
 
-    let scheduler = SyncScheduler::new();
+    let scheduler = SyncScheduler::new(rid);
 
     scheduler.start(&mut runner_cell);
     scheduler.start(&mut ping_cell);
@@ -180,7 +180,7 @@ struct PingAssembler {
 impl ReactorAssembler for PingAssembler {
     type RState = PingDispatcher;
 
-    fn start(&mut self, ctx: PhysicalCtx) {
+    fn start(&mut self, link: SchedulerLink, ctx: &mut LogicalCtx) {
         // Ping::react_startup(ctx);
     }
 
@@ -263,7 +263,7 @@ struct PongAssembler {
 impl ReactorAssembler for PongAssembler {
     type RState = PongDispatcher;
 
-    fn start(&mut self, ctx: PhysicalCtx) {
+    fn start(&mut self, link: SchedulerLink, ctx: &mut LogicalCtx) {
         // Ping::react_startup(ctx);
     }
 
@@ -317,7 +317,7 @@ impl BenchmarkRunner {
     R_Finish
      */
 
-    fn react_Startup(&self, ctx: &mut PhysicalCtx, nextIteration: &LogicalAction, initBenchmark: &LogicalAction) {
+    fn react_Startup(&self, link: SchedulerLink, ctx: &mut LogicalCtx, nextIteration: &LogicalAction, initBenchmark: &LogicalAction) {
         if self.use_init {
             ctx.schedule(initBenchmark, Asap)
         } else {
@@ -496,9 +496,9 @@ impl ReactorAssembler for BenchmarkRunnerAssembler {
     type RState = BenchmarkRunnerDispatcher;
 
 
-    fn start(&mut self, mut ctx: PhysicalCtx) {
+    fn start(&mut self, link: SchedulerLink, ctx: &mut LogicalCtx) {
         let  rstate = self._rstate.lock().unwrap();
-        rstate._impl.react_Startup(&mut ctx, &rstate.nextIteration, &rstate.initBenchmark);
+        rstate._impl.react_Startup(link, ctx, &rstate.nextIteration, &rstate.initBenchmark);
 
         // BenchmarkRunner::react_startup(ctx);
     }
