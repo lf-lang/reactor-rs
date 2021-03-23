@@ -3,7 +3,7 @@
 
 use std::cell::Cell;
 use std::cmp::Reverse;
-use std::collections::{HashSet, LinkedList};
+use std::collections::HashSet;
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -47,11 +47,6 @@ pub struct SyncScheduler {
     /// TODO work out your own data structure that merges events scheduled at the same time
     queue: PriorityQueue<Event, Reverse<LogicalTime>>,
 
-    /// Maximum id of a reaction (exclusive), ie, number of
-    /// distinct reactions in the system. This is used to
-    /// dimension BitSets.
-    max_reaction_id: u32,
-
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
     initial_time: Option<LogicalTime>
@@ -61,14 +56,13 @@ impl SyncScheduler {
     /// Creates a new scheduler. An empty scheduler doesn't
     /// do anything unless some events are pushed to the queue.
     /// See [Self::launch_async].
-    pub fn new(max_reaction_id: u32) -> Self {
+    pub fn new(_max_reaction_id: u32) -> Self {
         let (sender, receiver) = channel::<Event>();
         Self {
             latest_logical_time: <_>::default(),
             receiver,
             canonical_sender: sender,
             queue: PriorityQueue::new(),
-            max_reaction_id,
             initial_time: None
         }
     }

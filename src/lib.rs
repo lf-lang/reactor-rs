@@ -4,4 +4,4 @@
 pub mod runtime;
 
 #[cfg(test)]
-mod test;
+pub mod test;

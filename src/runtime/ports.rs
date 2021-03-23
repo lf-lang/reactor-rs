@@ -1,10 +1,10 @@
-
-use std::cell::{Cell};
-use crate::runtime::{Dependencies};
+use std::cell::Cell;
+use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
+use std::ops::DerefMut;
+use std::sync::{Arc, Mutex};
 
-
-use std::sync::{Mutex, Arc};
+use crate::runtime::Dependencies;
 
 // clients may only use InputPort and OutputPort
 // but there's a single implementation.
@@ -38,25 +38,33 @@ pub struct Output;
 /// able to add conditional compilation flags that enable
 /// runtime checks.
 ///
-#[derive(Clone)]
+///
 pub struct Port<T, Kind> {
     cell: Arc<Mutex<PortCell<T>>>,
     _marker: PhantomData<Kind>,
+    debug_label: &'static str,
+}
+
+impl<T, K> Debug for Port<T, K> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.debug_label.fmt(f)
+    }
 }
 
 impl<T, K> Port<T, K> {
     // private
-    fn new_impl() -> Port<T, K> {
+    fn new_impl(name: Option<&'static str>) -> Port<T, K> {
         Port {
             cell: Default::default(),
             _marker: Default::default(),
+            debug_label: name.unwrap_or("<missing label>"),
         }
     }
 
     /// Only for glue code during assembly.
     pub fn set_downstream(&mut self, r: Dependencies) {
         let mut upclass = self.cell.lock().unwrap();
-        upclass.downstream = r;
+        upclass.downstream = Some(r);
     }
 }
 
@@ -83,11 +91,26 @@ impl<T, K> Port<T, K> {
 /// Also the edges must be that of a transitive reduction of
 /// the graph, as the down port is destroyed.
 pub fn bind_ports<T, U, D>(up: &mut Port<T, U>, mut down: &mut Port<T, D>) {
+    // todo these strategies contradict each other,
+    //  to support proper cell binding, we need a topo ordering,
+    //  and to support dependency merging, we need a reverse topo ordering.
     {
+
         let mut upclass = up.cell.lock().unwrap();
         let mut downclass = down.cell.lock().unwrap();
-        (&mut upclass.downstream).append(&mut downclass.downstream);
+
+        let uc: &mut PortCell<T> = upclass.deref_mut();
+        let dc: &mut PortCell<T> = downclass.deref_mut();
+
+        let up_deps = uc.downstream.as_mut().expect("Upstream port cannot be bound");
+        // note we take it to mark it as "unbindable"
+        // in the future                  vvvvvv
+        let mut down_deps = dc.downstream.take().expect("Downstream port is already bound");
+
+        up_deps.append(&mut down_deps);
     }
+
+    // this is the reason we need a topo ordering, see also tests
     down.cell = up.cell.clone();
 }
 
@@ -95,29 +118,38 @@ pub fn bind_ports<T, U, D>(up: &mut Port<T, U>, mut down: &mut Port<T, D>) {
 impl<T> InputPort<T> {
     /// Create a new input port
     pub fn new() -> Self {
-        Self::new_impl()
+        Self::new_impl(None)
+    }
+
+    pub fn labeled(label: &'static str) -> Self {
+        Self::new_impl(Some(label))
     }
 
     /// Copies the value out, see [super::LogicalCtx::get]
-    pub(in super) fn get(&self) -> Option<T> where T: Copy {
+    pub(in crate) fn get(&self) -> Option<T> where T: Copy {
         self.cell.lock().unwrap().cell.get()
     }
 }
 
 impl<T> OutputPort<T> {
-    /// Create a new output port
+    /// Create a new input port
     pub fn new() -> Self {
-        Self::new_impl()
+        Self::new_impl(None)
+    }
+
+    /// Create a new port with the given label
+    pub fn labeled(label: &'static str) -> Self {
+        Self::new_impl(Some(label))
     }
 
     /// Set the value, see [super::LogicalCtx::set]
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
-    pub(in super) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&Dependencies)) {
+    pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&Dependencies)) {
         let guard = self.cell.lock().unwrap();
         (*guard).cell.set(Some(v));
 
-        process_deps(&guard.downstream);
+        process_deps(guard.downstream.as_ref().expect("Port is bound and cannot be set"));
     }
 }
 
@@ -134,17 +166,18 @@ impl<T> Default for OutputPort<T> {
     }
 }
 
-
 struct PortCell<T> {
+    /// Cell for the value
     cell: Cell<Option<T>>,
-    downstream: Dependencies,
+    /// If None, then this cell is bound. Any attempt to bind it to a new upstream will fail.
+    downstream: Option<Dependencies>,
 }
 
 impl<T> Default for PortCell<T> {
     fn default() -> Self {
         PortCell {
             cell: Default::default(),
-            downstream: Default::default(),
+            downstream: Some(Dependencies::default()), // note: not None
         }
     }
 }
