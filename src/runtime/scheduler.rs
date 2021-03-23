@@ -221,7 +221,7 @@ impl ReactionWave {
         debug_assert!(process_at > self.logical_time);
 
         // todo merge events at equal tags by merging their dependencies
-        let evt = Event { process_at, todo: downstream.reactions.clone() };
+        let evt = Event { process_at, todo: downstream.clone() };
         self.sender.send(evt).unwrap();
     }
 
@@ -281,7 +281,7 @@ impl LogicalCtx<'_> {
         //  This is why I added a set to patch it
 
         port.set_impl(value, |downstream| {
-            for reaction in &downstream.reactions {
+            for reaction in downstream {
                 if self.wave.done.insert(reaction.id()) {
                     // todo blindly appending possibly does not respect the topological sort
                     self.do_next.push(reaction.clone());
@@ -339,7 +339,7 @@ impl SchedulerLink {
         let process_at = action.make_eta(time_in_logical_subsystem, offset.to_duration());
 
         // todo merge events at equal tags by merging their dependencies
-        let evt = Event { process_at, todo: action.downstream.reactions.clone() };
+        let evt = Event { process_at, todo: action.downstream.clone() };
         self.sender.send(evt).unwrap();
     }
 }

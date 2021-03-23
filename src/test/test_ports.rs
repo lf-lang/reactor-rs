@@ -1,5 +1,10 @@
-use crate::runtime::{InputPort, OutputPort, bind_ports};
+use crate::runtime::*;
 
+
+type TestInputPort<T> = Port<T, Input, FakeDeps>;
+type TestOutputPort<T> = Port<T, Output, FakeDeps>;
+/// Mock type of collection of dependencies
+type FakeDeps = Vec<i32>;
 
 fn set_port<T>(port: &mut OutputPort<T>, v: T) {
     port.set_impl(v, |_| {})
@@ -111,8 +116,8 @@ fn transitive_binding_in_topo_order_is_ok() {
 
     set_port(&mut upstream, 5);
 
-//    assert_eq!(Some(5), d1.get());
-    // assert_eq!(Some(5), d2.get());
+    assert_eq!(Some(5), d1.get());
+    assert_eq!(Some(5), d2.get());
     assert_eq!(Some(5), b1.get());
     assert_eq!(Some(5), b2.get());
 
@@ -120,5 +125,32 @@ fn transitive_binding_in_topo_order_is_ok() {
 
     assert_eq!(Some(6), d1.get());
     assert_eq!(Some(6), d2.get());
+    assert_eq!(Some(6), b2.get());
     assert_eq!(Some(6), b1.get());
+}
+
+#[test]
+fn dependency_merging() {
+    let mut upstream = TestOutputPort::<i32>::new_for_test("up");
+    let mut downstream = TestInputPort::<i32>::new_for_test("down");
+
+    // pretend the downstream depends on those
+    downstream.set_downstream(vec![1, 2, 3]);
+
+    bind_ports(&mut upstream, &mut downstream);
+
+    // actually they're bound to the same cell
+    assert_eq!(Some(vec![1,2,3]), upstream.get_downstream_deps());
+    assert_eq!(Some(vec![1,2,3]), downstream.get_downstream_deps());
+}
+
+#[test]
+#[should_panic]
+fn repeated_binding_panics() {
+    //
+    let mut upstream = TestOutputPort::<i32>::new_for_test("up");
+    let mut downstream = TestInputPort::<i32>::new_for_test("down");
+
+    bind_ports(&mut upstream, &mut downstream);
+    bind_ports(&mut upstream, &mut downstream);
 }

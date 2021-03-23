@@ -88,25 +88,4 @@ impl Hash for ReactionInvoker {
 }
 
 
-#[derive(Clone)]
-pub struct Dependencies {
-    pub(in super) reactions: Vec<Arc<ReactionInvoker>>
-}
-
-impl Default for Dependencies {
-    fn default() -> Self {
-        Self { reactions: Vec::new() }
-    }
-}
-
-impl Dependencies {
-    pub fn append(&mut self, other: &mut Dependencies) {
-        self.reactions.append(&mut other.reactions)
-    }
-}
-
-impl From<Vec<Arc<ReactionInvoker>>> for Dependencies {
-    fn from(reactions: Vec<Arc<ReactionInvoker>>) -> Self {
-        Self { reactions }
-    }
-}
+pub type Dependencies = Vec<Arc<ReactionInvoker>>;

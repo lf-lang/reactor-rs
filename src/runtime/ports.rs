@@ -18,6 +18,7 @@ pub type OutputPort<T> = Port<T, Output>;
 
 #[doc(hidden)]
 pub struct Input;
+
 #[doc(hidden)]
 pub struct Output;
 
@@ -39,10 +40,17 @@ pub struct Output;
 /// runtime checks.
 ///
 ///
-pub struct Port<T, Kind> {
-    cell: Arc<Mutex<PortCell<T>>>,
+pub struct Port<T, Kind, Deps = Dependencies> {
+    cell: Arc<Mutex<PortCell<T, Deps>>>,
     _marker: PhantomData<Kind>,
     debug_label: &'static str,
+    status: BindStatus,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+enum BindStatus {
+    Bindable,
+    Bound,
 }
 
 impl<T, K> Debug for Port<T, K> {
@@ -51,67 +59,80 @@ impl<T, K> Debug for Port<T, K> {
     }
 }
 
-impl<T, K> Port<T, K> {
+impl<T, K, Deps> Port<T, K, Deps> {
     // private
-    fn new_impl(name: Option<&'static str>) -> Port<T, K> {
+    fn new_impl(name: Option<&'static str>) -> Port<T, K, Deps> where Deps: Default {
         Port {
             cell: Default::default(),
             _marker: Default::default(),
             debug_label: name.unwrap_or("<missing label>"),
+            status: BindStatus::Bindable,
         }
     }
 
+    #[cfg(test)]
+    pub fn new_for_test(label: &'static str) -> Port<T, K, Deps> where Deps: Default {
+        Self::new_impl(Some(label))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn get_downstream_deps(&self) -> Option<Deps> where Deps: Clone {
+        let class = self.cell.lock().unwrap();
+        class.downstream.clone()
+    }
+
     /// Only for glue code during assembly.
-    pub fn set_downstream(&mut self, r: Dependencies) {
-        let mut upclass = self.cell.lock().unwrap();
-        upclass.downstream = Some(r);
+    pub fn set_downstream(&mut self, r: Deps) {
+        let mut class = self.cell.lock().unwrap();
+        class.downstream = Some(r);
     }
 }
 
 /// Make the downstream port accept values from the upstream port
-/// For this to work this function must be called in reverse topological
+/// For this to work this function must be called in topological
 /// order between bound ports
 /// Eg
 /// ```
-/// a.out -> b.in;
-/// b.in -> b.out;
-/// b.out -> c.in;
-/// b.out -> d.in;
+/// a.out -> b.in -> b.out -> c.in;
+///                  b.out -> d.in;
 /// ```
 ///
 /// Must be translated as
 ///
 /// ```
+/// bind(a.out, b.in);
+/// bind(b.in, b.out);
 /// bind(b.out, d.in);
 /// bind(b.out, c.in);
-/// bind(b.in, b.out);
-/// bind(a.out, b.in);
 /// ```
 ///
 /// Also the edges must be that of a transitive reduction of
 /// the graph, as the down port is destroyed.
-pub fn bind_ports<T, U, D>(up: &mut Port<T, U>, mut down: &mut Port<T, D>) {
-    // todo these strategies contradict each other,
-    //  to support proper cell binding, we need a topo ordering,
-    //  and to support dependency merging, we need a reverse topo ordering.
-    {
+///
+/// ### Panics
+///
+/// If the downstream port was already bound to some other port.
+pub fn bind_ports<T, U, D, Deps>(up: &mut Port<T, U, Deps>, mut down: &mut Port<T, D, Deps>) where Deps: Absorbing {
+    assert_eq!(down.status, BindStatus::Bindable, "Downstream port is already bound");
 
+    {
         let mut upclass = up.cell.lock().unwrap();
         let mut downclass = down.cell.lock().unwrap();
 
-        let uc: &mut PortCell<T> = upclass.deref_mut();
-        let dc: &mut PortCell<T> = downclass.deref_mut();
+        let uc: &mut PortCell<T, Deps> = upclass.deref_mut();
+        let dc: &mut PortCell<T, Deps> = downclass.deref_mut();
 
         let up_deps = uc.downstream.as_mut().expect("Upstream port cannot be bound");
         // note we take it to mark it as "unbindable"
         // in the future                  vvvvvv
         let mut down_deps = dc.downstream.take().expect("Downstream port is already bound");
 
-        up_deps.append(&mut down_deps);
+        up_deps.absorb(&mut down_deps);
     }
 
     // this is the reason we need a topo ordering, see also tests
     down.cell = up.cell.clone();
+    down.status = BindStatus::Bound;
 }
 
 
@@ -166,18 +187,30 @@ impl<T> Default for OutputPort<T> {
     }
 }
 
-struct PortCell<T> {
+struct PortCell<T, Deps = Dependencies> {
     /// Cell for the value
     cell: Cell<Option<T>>,
     /// If None, then this cell is bound. Any attempt to bind it to a new upstream will fail.
-    downstream: Option<Dependencies>,
+    downstream: Option<Deps>,
 }
 
-impl<T> Default for PortCell<T> {
+impl<T, Deps> Default for PortCell<T, Deps> where Deps: Default {
     fn default() -> Self {
         PortCell {
             cell: Default::default(),
-            downstream: Some(Dependencies::default()), // note: not None
+            downstream: Some(Deps::default()), // note: not None
         }
+    }
+}
+
+pub trait Absorbing {
+    /// Merge the parameter into this object.
+    /// This function is idempotent.
+    fn absorb(&mut self, other: &mut Self);
+}
+
+impl<T> Absorbing for Vec<T> {
+    fn absorb(&mut self, other: &mut Self) {
+        self.append(other)
     }
 }
