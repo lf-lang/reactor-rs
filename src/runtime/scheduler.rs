@@ -1,3 +1,6 @@
+/// Home of the scheduler component.
+///
+
 use std::cell::Cell;
 use std::cmp::Reverse;
 use std::collections::LinkedList;
@@ -32,7 +35,7 @@ struct Event {
 /// and public launch routine with event loop.
 pub struct SyncScheduler {
     /// The latest processed logical time (necessarily behind physical time)
-    cur_logical_time: TimeCell,
+    latest_logical_time: TimeCell,
 
     /// The receiver end of the communication channels. Reactions
     /// contexts each have their own [Sender]. The main event loop
@@ -62,11 +65,11 @@ pub struct SyncScheduler {
 impl SyncScheduler {
     /// Creates a new scheduler. An empty scheduler doesn't
     /// do anything unless some events are pushed to the queue.
-    /// See [launch_async].
+    /// See [Self::launch_async].
     pub fn new(max_reaction_id: u32) -> Self {
         let (sender, receiver) = channel::<Event>();
         Self {
-            cur_logical_time: <_>::default(),
+            latest_logical_time: <_>::default(),
             receiver,
             canonical_sender: sender,
             queue: PriorityQueue::new(),
@@ -84,7 +87,7 @@ impl SyncScheduler {
     /// ```
     /// let mut scheduler = SyncScheduler::new(rid);
     //
-    //  scheduler.start_all(|mut starter| {
+    //  scheduler.startup(|mut starter| {
     //      starter.start(&mut s_cell);
     //      starter.start(&mut p_cell);
     //  });
@@ -106,7 +109,7 @@ impl SyncScheduler {
     /// for instance,
     /// - some thread is scheduling physical actions through a [SchedulerLink]
     /// - some startup reaction has set a port or scheduled a logical action
-    /// Both of those should be taken care of by calling [startup]
+    /// Both of those should be taken care of by calling [Self::startup]
     /// before launching the scheduler.
     ///
     /// The loop exits when the queue has been empty for a longer
@@ -156,7 +159,7 @@ impl SyncScheduler {
     /// time (logical) is ahead of current physical time.
     fn step(&mut self, event: Event) {
         let time = Self::catch_up_physical_time(event.process_at);
-        self.cur_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
+        self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
         self.new_wave(time, event.todo).consume();
     }
 
@@ -184,7 +187,7 @@ impl SyncScheduler {
 
 }
 
-/// Just the API of [Scheduler::start_all].
+/// The API of [SyncScheduler::startup].
 pub struct StartupCtx<'a> {
     scheduler: &'a mut SyncScheduler,
     initial_wave: ReactionWave
@@ -195,7 +198,7 @@ impl<'a> StartupCtx<'a> {
     /// Execute the startup reaction of the given assembler.
     pub fn start(&mut self, r: &mut impl ReactorAssembler) {
         let ctx = SchedulerLink {
-            last_processed_logical_time: self.scheduler.cur_logical_time.clone(),
+            last_processed_logical_time: self.scheduler.latest_logical_time.clone(),
             sender: self.scheduler.canonical_sender.clone(),
         };
         r.start(ctx, &mut self.initial_wave.new_ctx())
@@ -322,7 +325,7 @@ impl LogicalCtx<'_> {
 
 /// A type that can affect the logical event queue to implement
 /// asynchronous physical actions. This is a "link" to the event
-/// system, from the outside work.
+/// system, from the outside world.
 #[derive(Clone)]
 pub struct SchedulerLink {
     last_processed_logical_time: TimeCell,

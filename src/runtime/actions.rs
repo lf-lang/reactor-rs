@@ -8,8 +8,9 @@ use std::fmt::*;
 use std::time::{Duration, Instant};
 use crate::reactors::Named;
 
+#[doc(hidden)]
 pub struct Logical;
-
+#[doc(hidden)]
 pub struct Physical;
 
 pub type LogicalAction = Action<Logical>;
