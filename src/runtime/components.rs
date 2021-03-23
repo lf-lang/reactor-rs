@@ -1,14 +1,8 @@
-
-
 use std::fmt::*;
 use std::hash::{Hash, Hasher};
-
-
-
 use std::sync::{Arc, Mutex};
 
-use crate::reactors::Named;
-use crate::runtime::{ReactorDispatcher, LogicalCtx};
+use super::{LogicalCtx, Named, ReactorDispatcher};
 
 #[derive(Clone)]
 pub struct Dependencies {

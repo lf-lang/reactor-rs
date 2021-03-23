@@ -3,24 +3,15 @@
 extern crate rust_reactors;
 
 
-
-
-
-
 use std::sync::{Arc, Mutex};
-
 use std::time::{Duration, Instant};
 
-
-
-
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
 use rust_reactors::reaction_ids;
 use rust_reactors::reaction_ids_helper;
-use rust_reactors::reactors::{Enumerated, Named};
 use rust_reactors::runtime::*;
-use rust_reactors::runtime::Offset::{Asap};
-
+use rust_reactors::runtime::Offset::Asap;
 
 /*
 The ping/pong game from Savina benchmarks. This can be compared
@@ -30,8 +21,6 @@ See original at https://github.com/icyphy/lingua-franca/blob/f5868bec199e02f7843
 
 
  */
-
-use criterion::{criterion_group, criterion_main, Criterion, BenchmarkId};
 
 criterion_group!(benches, reactor_main);
 criterion_main!(benches);

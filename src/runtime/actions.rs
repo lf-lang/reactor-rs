@@ -1,12 +1,8 @@
-
-
-use crate::runtime::{Dependencies, LogicalTime};
-use std::marker::PhantomData;
-
-
 use std::fmt::*;
+use std::marker::PhantomData;
 use std::time::{Duration, Instant};
-use crate::reactors::Named;
+
+use super::{Dependencies, LogicalTime, Named};
 
 #[doc(hidden)]
 pub struct Logical;

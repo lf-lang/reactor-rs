@@ -1,24 +1,16 @@
-#![allow(unused_variables)]
+#![allow(unused)]
 #[macro_use]
 extern crate rust_reactors;
 
 
-
-
 use std::io::stdin;
-
-
 use std::sync::{Arc, Mutex};
-
 use std::time::{Duration, Instant};
-
-
 
 use rand::Rng;
 
 use rust_reactors::reaction_ids;
 use rust_reactors::reaction_ids_helper;
-use rust_reactors::reactors::{Enumerated, Named};
 use rust_reactors::runtime::*;
 use rust_reactors::runtime::Offset::{After, Asap};
 

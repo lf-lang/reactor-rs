@@ -4,13 +4,14 @@ pub use self::ports::*;
 
 pub use self::scheduler::*;
 pub use self::time::*;
-use crate::reactors::Named;
+pub use self::util::*;
 
 mod scheduler;
 mod ports;
 mod actions;
 mod time;
 mod components;
+mod util;
 
 #[macro_export]
 macro_rules! new_reaction {
@@ -73,3 +74,58 @@ pub trait ReactorAssembler {
     /// codegen)
     fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self;
 }
+
+
+// helper for the macro below
+#[macro_export]
+macro_rules! reaction_ids_helper {
+        (($self:expr) $t:ident :end:) => {
+            if Self::$t == $self {
+                ::std::stringify!($t)
+            } else {
+                panic!("Unreachable code")
+            }
+        };
+        (($self:expr) $t:ident, $($ts:ident),+ :end:) => {
+            if Self::$t == $self {
+                ::std::stringify!($t)
+            } else {
+                reaction_ids_helper!(($self) $($ts),+ :end:)
+            }
+        }
+    }
+
+/// Declare a new type for reaction ids and derives the correct
+/// traits. For example:
+///
+/// ```
+/// reaction_ids!(pub enum AppReactions { Receive, Emit })
+/// ```
+///
+/// defines that enum and derives [Named](Named)
+/// and [Enumerated](Enumerated).
+#[macro_export]
+macro_rules! reaction_ids {
+        ($viz:vis enum $typename:ident { $($id:ident),+$(,)? }) => {
+
+            #[derive(Ord, PartialOrd, Eq, PartialEq, Debug, Hash, Copy, Clone)]
+            $viz enum $typename {
+                $($id),+
+            }
+
+            impl Named for $typename {
+                fn name(&self) -> &'static str {
+                    let me = *self;
+                    reaction_ids_helper!((me) $($id),+ :end:)
+                }
+            }
+
+            impl Enumerated for $typename {
+                fn list() -> Vec<Self> {
+                    vec![ $(Self::$id),+ ]
+                }
+            }
+        };
+
+}
+

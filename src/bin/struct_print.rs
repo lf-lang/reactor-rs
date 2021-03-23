@@ -7,20 +7,17 @@ use std::cell::{RefCell, RefMut};
 use std::cell::Cell;
 use std::io::stdin;
 use std::pin::Pin;
+use std::process::exit;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::channel;
 use std::time::{Duration, Instant};
 
-use futures::io::Error;
-use petgraph::stable_graph::edge_index;
 use rand::Rng;
 
 use rust_reactors::reaction_ids;
 use rust_reactors::reaction_ids_helper;
-use rust_reactors::reactors::{Enumerated, Named, Nothing};
 use rust_reactors::runtime::*;
-use std::process::exit;
 
 // this is a manual translation of
 // https://github.com/icyphy/lingua-franca/blob/master/test/Cpp/StructPrint.lf
