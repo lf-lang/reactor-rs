@@ -44,8 +44,8 @@ fn reactor_main(c: &mut Criterion) {
             num_pongs,
             |b, &size| {
                 b.iter(|| {
-                    let scheduler = do_assembly(1, size);
                     let timeout = Duration::from_millis(2);
+                    let scheduler = do_assembly(1, size);
                     scheduler.launch_async(timeout).join().unwrap();
                 });
             }
@@ -91,9 +91,14 @@ fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
 
     let scheduler = SyncScheduler::new(rid);
 
-    scheduler.start(&mut runner_cell);
-    scheduler.start(&mut ping_cell);
-    scheduler.start(&mut pong_cell);
+    let mut scheduler = SyncScheduler::new(rid);
+
+    scheduler.startup(|mut starter| {
+        starter.start(&mut runner_cell);
+        starter.start(&mut ping_cell);
+        starter.start(&mut pong_cell);
+    });
+
     scheduler
 }
 

@@ -1,8 +1,7 @@
 use std::cell::Cell;
-use std::cmp::{Reverse};
-use std::collections::{LinkedList};
+use std::cmp::Reverse;
+use std::collections::LinkedList;
 use std::hash::Hash;
-
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::JoinHandle;
@@ -19,6 +18,7 @@ use super::time::*;
 
 /// An order to execute some reaction
 type ReactionOrder = Arc<ReactionInvoker>;
+/// The internal cell type used to store a thread-safe mutable logical time value.
 type TimeCell = Arc<Mutex<Cell<LogicalTime>>>;
 
 /// A simple tuple of (expected processing time, reactions to execute).
@@ -45,6 +45,7 @@ pub struct SyncScheduler {
     canonical_sender: Sender<Event>,
 
     /// A queue of events, which orders events according to their logical time.
+    /// It needs to be reversed so that smallest delay == greatest priority.
     /// TODO work out your own data structure that merges events scheduled at the same time
     queue: PriorityQueue<Event, Reverse<LogicalTime>>,
 
@@ -52,10 +53,16 @@ pub struct SyncScheduler {
     /// distinct reactions in the system. This is used to
     /// dimension BitSets.
     max_reaction_id: u32,
+
+    /// Initial time of the logical system. Only filled in
+    /// when startup has been called.
+    initial_time: Option<LogicalTime>
 }
 
 impl SyncScheduler {
-    /// Creates a new scheduler. Its state is initialized to nothing.
+    /// Creates a new scheduler. An empty scheduler doesn't
+    /// do anything unless some events are pushed to the queue.
+    /// See [launch_async].
     pub fn new(max_reaction_id: u32) -> Self {
         let (sender, receiver) = channel::<Event>();
         Self {
@@ -64,9 +71,48 @@ impl SyncScheduler {
             canonical_sender: sender,
             queue: PriorityQueue::new(),
             max_reaction_id,
+            initial_time: None
         }
     }
 
+
+    /// Fix the origin of the logical timeline to the current
+    /// physical time, and allows running the startup reactions
+    /// of all reactors in the provided closure (see [ReactorAssembler::start]).
+    ///
+    /// Possible usage:
+    /// ```
+    /// let mut scheduler = SyncScheduler::new(rid);
+    //
+    //  scheduler.start_all(|mut starter| {
+    //      starter.start(&mut s_cell);
+    //      starter.start(&mut p_cell);
+    //  });
+    /// ```
+    ///
+    /// TODO why not merge launch_async into this function
+    pub fn startup(&mut self, startup_actions: impl FnOnce(StartupCtx)) {
+        let initial_time = LogicalTime::now();
+        self.initial_time = Some(initial_time);
+        let startup_wave = self.new_wave(initial_time, vec![]);
+        startup_actions(StartupCtx { scheduler: self, initial_wave: startup_wave });
+    }
+
+    /// Launch the event loop in an auxiliary thread. Returns
+    /// the handle for that thread.
+    ///
+    /// Note that this will do nothing unless some other part
+    /// of the reactor program pushes events into the queue,
+    /// for instance,
+    /// - some thread is scheduling physical actions through a [SchedulerLink]
+    /// - some startup reaction has set a port or scheduled a logical action
+    /// Both of those should be taken care of by calling [startup]
+    /// before launching the scheduler.
+    ///
+    /// The loop exits when the queue has been empty for a longer
+    /// time than the specified timeout. The timeout should be
+    /// chosen with care to the application requirements.
+    // TODO track whether there are live [SchedulerLink] to prevent idle spinning?
     pub fn launch_async(mut self, timeout: Duration) -> JoinHandle<()> {
         use std::thread;
         thread::spawn(move || {
@@ -81,10 +127,9 @@ impl SyncScheduler {
                 }
 
                 if let Some((evt, _)) = self.queue.pop() {
-                    // try taking an event from the queue
+                    // execute the wave for this event.
                     self.step(evt);
-                } else if let Ok(evt) = self.receiver.recv_timeout(timeout) {
-                    // if there is none, try blocking to wait for one
+                } else if let Ok(evt) = self.receiver.recv_timeout(timeout) { // this will block
                     self.push_event(evt);
                     continue;
                 } else {
@@ -95,19 +140,23 @@ impl SyncScheduler {
                     break;
                 }
             } // end loop
-            assert!(self.queue.is_empty());
+            assert!(self.queue.is_empty(), "Program exited with pending events!");
             // self destructor is called here
         })
     }
 
+    /// Push a single event to the event queue
     fn push_event(&mut self, evt: Event) {
-        let eta = evt.process_at;                // logical time of the processing
-        self.queue.push(evt, Reverse(eta));      // maybe some other event is expected to be processed before
+        let eta = evt.process_at;
+        self.queue.push(evt, Reverse(eta));
     }
 
+    /// Execute a wave. This may make the calling thread
+    /// (the scheduler one) sleep, if the expected processing
+    /// time (logical) is ahead of current physical time.
     fn step(&mut self, event: Event) {
         let time = Self::catch_up_physical_time(event.process_at);
-        self.cur_logical_time.lock().unwrap().set(time);
+        self.cur_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
         self.new_wave(time, event.todo).consume();
     }
 
@@ -115,7 +164,7 @@ impl SyncScheduler {
         let now = Instant::now();
         if now < up_to_time.instant {
             let t = up_to_time.instant - now;
-            std::thread::sleep(t);
+            std::thread::sleep(t); // todo: see crate shuteyes for nanosleep capabilities on linux/macos platforms
             LogicalTime::now()
         } else {
             LogicalTime { instant: now, microstep: 0 }
@@ -133,13 +182,23 @@ impl SyncScheduler {
         }
     }
 
-    pub fn start(&self, r: &mut impl ReactorAssembler) {
+}
+
+/// Just the API of [Scheduler::start_all].
+pub struct StartupCtx<'a> {
+    scheduler: &'a mut SyncScheduler,
+    initial_wave: ReactionWave
+}
+
+impl<'a> StartupCtx<'a> {
+
+    /// Execute the startup reaction of the given assembler.
+    pub fn start(&mut self, r: &mut impl ReactorAssembler) {
         let ctx = SchedulerLink {
-            last_processed_logical_time: self.cur_logical_time.clone(),
-            sender: self.canonical_sender.clone(),
+            last_processed_logical_time: self.scheduler.cur_logical_time.clone(),
+            sender: self.scheduler.canonical_sender.clone(),
         };
-        let mut startup_wave = self.new_wave(LogicalTime::now(), vec![]);
-        r.start(ctx, &mut startup_wave.new_ctx())
+        r.start(ctx, &mut self.initial_wave.new_ctx())
     }
 }
 
@@ -264,6 +323,7 @@ impl LogicalCtx<'_> {
 /// A type that can affect the logical event queue to implement
 /// asynchronous physical actions. This is a "link" to the event
 /// system, from the outside work.
+#[derive(Clone)]
 pub struct SchedulerLink {
     last_processed_logical_time: TimeCell,
 

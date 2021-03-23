@@ -52,10 +52,12 @@ fn main() {
         bind_ports(&mut p.out, &mut g.input);
     }
 
-    let scheduler = SyncScheduler::new(rid);
+    let mut scheduler = SyncScheduler::new(rid);
 
-    scheduler.start(&mut s_cell);
-    scheduler.start(&mut p_cell);
+    scheduler.startup(|mut starter| {
+        starter.start(&mut s_cell);
+        starter.start(&mut p_cell);
+    });
     scheduler.launch_async(Duration::from_millis(10)).join().unwrap();
 }
 
