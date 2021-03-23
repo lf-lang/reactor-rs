@@ -44,3 +44,50 @@ This was scrapped in 11a3ad5. Check it out for ideas about how to implement eg r
   This smart pointer performs synchronization on access to their value. This is probably mostly useless, because synchronization can in theory be limited to just the event queue.
 * Maybe using `async/await` would be nice?
 * There are no tests yet... but to test is to doubt right
+
+
+## Profiling a binary
+
+Compile the binary with debug symbols (`-g`) and optimisations (`--release`)
+```shell
+cargo rustc --release --bin savina_pong_bin -- -g
+```
+(you can use whatever binary)
+
+Make sure Oprofile is installed
+```shell
+sudo apt-get install linux-tools-generic oprofile
+```
+
+Run the profiler
+```
+$ operf target/release/savina_pong_bin
+
+operf: Profiler started
+Iteration: 1	 Duration: 540 ms
+
+Iteration: 2	 Duration: 546 ms
+
+Iteration: 3	 Duration: 538 ms
+
+Iteration: 4	 Duration: 540 ms
+
+Iteration: 5	 Duration: 554 ms
+
+Exec summary
+Best time:	538 ms
+Worst time:	554 ms
+Median time:	540 ms
+Shutting down scheduler, channel timed out after 2 ms
+* * * * WARNING: Profiling rate was throttled back by the kernel * * * *
+The number of samples actually recorded is less than expected, but is
+probably still statistically valid.  Decreasing the sampling rate is the
+best option if you want to avoid throttling.
+
+Profiling done.
+```
+
+Inspect results
+```
+$ opannotate --source | less
+```
