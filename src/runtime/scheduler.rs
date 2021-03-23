@@ -1,33 +1,27 @@
-
-
-use std::cmp::Reverse;
-
-
-
-use std::hash::{Hash};
+use std::cell::Cell;
+use std::cmp::{Ordering, Reverse};
+use std::collections::{HashSet, LinkedList};
+use std::hash::Hash;
 use std::marker::PhantomData;
-
-
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
+use bitset_fixed::BitSet;
 use priority_queue::PriorityQueue;
-
 
 use crate::runtime::{Logical, LogicalAction, Physical, PhysicalAction, ReactorAssembler};
 use crate::runtime::ports::{InputPort, OutputPort};
 
 use super::{Action, Dependencies, ReactionInvoker};
 use super::time::*;
-use bitset_fixed::BitSet;
-use std::cell::Cell;
 
 /// An order to execute some reaction
 type ReactionOrder = Arc<ReactionInvoker>;
 type TimeCell = Arc<Mutex<Cell<LogicalTime>>>;
 
+/// A simple tuple of (expected processing time, reactions to execute).
 #[derive(Eq, PartialEq, Hash)]
 struct Event {
     process_at: LogicalTime,
@@ -49,8 +43,13 @@ pub struct SyncScheduler {
 
     /// A sender bound to the receiver, which may be cloned.
     canonical_sender: Sender<Event>,
-    // todo the priority (Reverse<LogicalTime>) should take into account relative reaction priority
+
+    /// A queue of events, which orders events according to their logical time.
     queue: PriorityQueue<Event, Reverse<LogicalTime>>,
+
+    /// Maximum id of a reaction (exclusive), ie, number of
+    /// distinct reactions in the system. This is used to
+    /// dimension BitSets.
     max_reaction_id: u32,
 }
 
@@ -74,8 +73,8 @@ impl SyncScheduler {
                 if let Ok(evt) = self.receiver.recv_timeout(timeout) {
                     // received a new event
 
-                    let eta = evt.process_at;      // logical time of the processing
-                    self.queue.push(evt, Reverse(eta)); // maybe some other event is expected to be processed before
+                    let eta = evt.process_at;                // logical time of the processing
+                    self.queue.push(evt, Reverse(eta));      // maybe some other event is expected to be processed before
                     let (evt, Reverse(eta)) = self.queue.pop().unwrap();
 
                     self.step(evt, eta);
@@ -113,7 +112,7 @@ impl SyncScheduler {
     fn new_wave(&self, logical_time: LogicalTime, reactions: Vec<ReactionOrder>) -> ReactionWave {
         ReactionWave {
             logical_time,
-            todo: reactions.iter().map(|r| Some(r.clone())).collect::<Vec<_>>(),
+            todo: reactions.iter().cloned().collect::<LinkedList<_>>(),
             done: BitSet::new(self.max_reaction_id as usize),
             sender: self.canonical_sender.clone(),
         }
@@ -144,7 +143,7 @@ struct ReactionWave {
     /// This is mutable: if a reaction sets a port, then the
     /// downstream of that port is inserted in order into this
     /// queue.
-    todo: Vec<Option<ReactionOrder>>,
+    todo: LinkedList<ReactionOrder>,
 
     /// The set of reactions that have been processed (or scheduled)
     /// in this wave, used to avoid duplication. todo this is a bad idea
@@ -166,7 +165,8 @@ impl ReactionWave {
             let rid = reaction.id() as usize;
             if !self.done[rid] {
                 self.done.set(rid, true);
-                self.todo.push(Some(reaction.clone()));
+                // todo blindly appending possibly does not respect the topological sort
+                self.todo.push_back(reaction.clone());
             }
         }
     }
@@ -188,14 +188,8 @@ impl ReactionWave {
 
     /// Execute the wave until completion
     fn consume(mut self) {
-        let mut i = 0;
-        while i < self.todo.len() {
-            if let Some(reaction) = self.todo[i].take() {
-                // this might add some elements to the vec, but only at the end
-                // todo this is bad memory wise, we keep using memory for the prefix of the list that's already been processed
-                reaction.fire(&mut self.new_ctx())
-            }
-            i += 1;
+        while let Some(reaction) = self.todo.pop_front() {
+            reaction.fire(&mut self.new_ctx())
         }
     }
 }
