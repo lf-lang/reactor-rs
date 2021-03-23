@@ -6,7 +6,7 @@ extern crate rust_reactors;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main, black_box};
 
 use rust_reactors::reaction_ids;
 use rust_reactors::reaction_ids_helper;
@@ -27,7 +27,7 @@ criterion_main!(benches);
 
 fn reactor_main(c: &mut Criterion) {
     let mut group = c.benchmark_group("savina_pong");
-    for num_pongs in [10, 100, 1000, 10_000, 30_000, 1_000_000].iter() {
+    for num_pongs in [10, 100, 1000, 10_000, 50_000].iter() {
         group.bench_with_input(
             BenchmarkId::from_parameter(num_pongs),
             num_pongs,
@@ -357,7 +357,8 @@ impl BenchmarkRunner {
         self.measured_times.push(iteration_time);
         self.count += 1;
 
-        // println!("Iteration: {}\t Duration: {} ms\n", self.count, iteration_time.as_millis());
+        // in the C benchmark this is a print
+        black_box(format!("Iteration: {}\t Duration: {} ms\n", self.count, iteration_time.as_millis()));
 
         if self.use_cleanup_iteration {
             ctx.schedule(cleanupIteration, Asap)
