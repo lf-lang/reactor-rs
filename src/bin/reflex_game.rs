@@ -129,7 +129,7 @@ impl RandomSource {
     ///      srand(time(0));
     ///      schedule(prompt, random_time());
     ///  =}
-    fn react_startup(mut link: SchedulerLink, ctx: &mut LogicalCtx, prompt: &LogicalAction) {
+    fn react_startup(link: SchedulerLink, ctx: &mut LogicalCtx, prompt: &LogicalAction) {
         // seed random gen
         ctx.schedule(prompt, After(RandomSource::random_delay()));
     }

@@ -1,6 +1,6 @@
 
 
-use crate::runtime::{Dependencies, LogicalTime, MicroStep};
+use crate::runtime::{Dependencies, LogicalTime};
 use std::marker::PhantomData;
 
 

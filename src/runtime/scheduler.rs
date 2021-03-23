@@ -1,9 +1,9 @@
 use std::cell::Cell;
-use std::cmp::{Ordering, Reverse};
-use std::collections::{HashSet, LinkedList};
+use std::cmp::{Reverse};
+use std::collections::{LinkedList};
 use std::hash::Hash;
-use std::marker::PhantomData;
-use std::sync::{Arc, Mutex, MutexGuard};
+
+use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -38,7 +38,7 @@ pub struct SyncScheduler {
     /// contexts each have their own [Sender]. The main event loop
     /// polls this to make progress.
     ///
-    /// That the receiver is unique.
+    /// The receiver is unique.
     receiver: Receiver<Event>,
 
     /// A sender bound to the receiver, which may be cloned.
@@ -92,10 +92,11 @@ impl SyncScheduler {
                     #[cfg(not(feature = "benchmarking"))] {
                         eprintln!("Shutting down scheduler, channel timed out after {} ms", timeout.as_millis());
                     }
-                    assert!(self.queue.len() == 0);
-                    return;
+                    break;
                 }
-            }
+            } // end loop
+            assert!(self.queue.is_empty());
+            // self destructor is called here
         })
     }
 
