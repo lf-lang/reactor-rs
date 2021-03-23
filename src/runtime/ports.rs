@@ -115,6 +115,7 @@ impl<T> OutputPort<T> {
         let guard = self.cell.lock().unwrap();
         (*guard).cell.set(Some(v));
 
+        // fixme:perf this clones an entire vector on each set which is Bad (tm).
         guard.downstream.clone()
     }
 }
