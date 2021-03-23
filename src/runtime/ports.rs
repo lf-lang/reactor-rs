@@ -111,12 +111,13 @@ impl<T> OutputPort<T> {
     }
 
     /// Set the value, see [super::LogicalCtx::set]
-    pub(in super) fn set(&mut self, v: T) -> Dependencies {
+    /// Note: we use a closure to process the dependencies to
+    /// avoid having to clone the dependency list just to return it.
+    pub(in super) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&Dependencies)) {
         let guard = self.cell.lock().unwrap();
         (*guard).cell.set(Some(v));
 
-        // fixme:perf this clones an entire vector on each set which is Bad (tm).
-        guard.downstream.clone()
+        process_deps(&guard.downstream);
     }
 }
 

@@ -284,15 +284,16 @@ impl LogicalCtx<'_> {
     pub fn set<T>(&mut self, port: &mut OutputPort<T>, value: T) {
         // TODO topology information & deduplication
         //  Eg for a diamond situation this will execute reactions several times...
-        //  This is why I added a bitset to patch it, but the size of it is really bad.
+        //  This is why I added a set to patch it
 
-        let downstream = port.set(value);
-        for reaction in downstream.reactions {
-            if self.wave.done.insert(reaction.id()) {
-                // todo blindly appending possibly does not respect the topological sort
-                self.do_next.push(reaction.clone());
+        port.set_impl(value, |downstream| {
+            for reaction in &downstream.reactions {
+                if self.wave.done.insert(reaction.id()) {
+                    // todo blindly appending possibly does not respect the topological sort
+                    self.do_next.push(reaction.clone());
+                }
             }
-        }
+        });
     }
 
     /// Schedule an action to run after its own implicit time delay,
