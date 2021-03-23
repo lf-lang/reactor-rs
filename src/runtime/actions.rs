@@ -25,10 +25,6 @@ impl<T> Action<T> {
         self.downstream = r
     }
 
-    pub(crate) fn min_delay(&self) -> Duration {
-        unimplemented!()
-    }
-
     /// Compute the logical time at which an action must be scheduled
     ///
     ///

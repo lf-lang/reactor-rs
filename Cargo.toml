@@ -11,7 +11,6 @@ benchmarking = []
 
 [dependencies]
 priority-queue = "1.0.0"
-bitset-fixed = "0.1.0"
 rand = "0.7.3" # note that this is just used in a test program and could also be scrapped
 
 [dev-dependencies]

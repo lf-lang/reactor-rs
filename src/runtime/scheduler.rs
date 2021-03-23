@@ -3,21 +3,16 @@
 
 use std::cell::Cell;
 use std::cmp::Reverse;
-use std::collections::LinkedList;
+use std::collections::{HashSet, LinkedList};
 use std::hash::Hash;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use bitset_fixed::BitSet;
 use priority_queue::PriorityQueue;
 
-use crate::runtime::{Logical, LogicalAction, Physical, PhysicalAction, ReactorAssembler};
-use crate::runtime::ports::{InputPort, OutputPort};
-
-use super::{Action, Dependencies, ReactionInvoker};
-use super::time::*;
+use super::*;
 
 /// An order to execute some reaction
 type ReactionOrder = Arc<ReactionInvoker>;
@@ -180,7 +175,7 @@ impl SyncScheduler {
         ReactionWave {
             logical_time,
             todo: reactions.iter().cloned().collect::<LinkedList<_>>(),
-            done: BitSet::new(self.max_reaction_id as usize),
+            done: <_>::default(),
             sender: self.canonical_sender.clone(),
         }
     }
@@ -224,7 +219,7 @@ struct ReactionWave {
 
     /// The set of reactions that have been processed (or scheduled)
     /// in this wave, used to avoid duplication. todo this is a bad idea
-    done: BitSet,
+    done: HashSet<GlobalId>,
 
     /// Sender to schedule events that should be executed later than this wave.
     sender: Sender<Event>,
@@ -239,9 +234,7 @@ impl ReactionWave {
     ///
     fn enqueue_now(&mut self, downstream: Dependencies) {
         for reaction in downstream.reactions.iter() {
-            let rid = reaction.id() as usize;
-            if !self.done[rid] {
-                self.done.set(rid, true);
+            if self.done.insert(reaction.id()) {
                 // todo blindly appending possibly does not respect the topological sort
                 self.todo.push_back(reaction.clone());
             }
@@ -314,8 +307,7 @@ impl LogicalCtx<'_> {
     /// Request a shutdown which will be acted upon at the end
     /// of this reaction.
     pub fn request_shutdown(self) {
-        // todo
-        // self.scheduler.shutdown()
+        unimplemented!()
     }
 
     pub fn get_logical_time(&self) -> LogicalTime {

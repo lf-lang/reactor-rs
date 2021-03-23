@@ -15,9 +15,9 @@ mod util;
 
 #[macro_export]
 macro_rules! new_reaction {
-    ($rid:ident, $_rstate:ident, $name:ident) => {{
-        let r = Arc::new(ReactionInvoker::new(*$rid, $_rstate.clone(), <Self::RState as ReactorDispatcher>::ReactionId::$name));
-        *$rid += 1;
+    ($reactorid:ident, $reactionid:ident, $_rstate:ident, $name:ident) => {{
+        let r = Arc::new(ReactionInvoker::new($reactorid, $reactionid, $_rstate.clone(), <Self::RState as ReactorDispatcher>::ReactionId::$name));
+        $reactionid += 1;
         r
     }};
 }

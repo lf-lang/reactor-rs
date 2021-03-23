@@ -126,8 +126,11 @@ impl ReactorAssembler for /*{{*/SourceAssembler/*}}*/ {
     }
 
 
-    fn assemble(_: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
+        let this_reactor = *reactor_id;
+        *reactor_id += 1;
+        let mut reaction_id = 0;
 
         Self {
             _rstate,
@@ -213,10 +216,13 @@ impl ReactorAssembler for /*{{*/PrintAssembler/*}}*/ {
         // nothing to do
     }
 
-    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
+        let this_reactor = *reactor_id;
+        *reactor_id += 1;
+        let mut reaction_id = 0;
 
-        let /*{{*/react_print /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Print/*}}*/);
+        let /*{{*/react_print /*}}*/ = new_reaction!(this_reactor, reaction_id, _rstate, /*{{*/Print/*}}*/);
 
         { // declare local dependencies
             let mut statemut = _rstate.lock().unwrap();

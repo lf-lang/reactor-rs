@@ -79,13 +79,13 @@ main reactor ReflexGame {
 }
  */
 fn main() {
-    let mut rid = 0;
+    let mut reactor_id = 0;
 
     // --- p = new RandomSource();
-    let mut pcell = RandomSourceAssembler::assemble(&mut rid, ());
+    let mut pcell = RandomSourceAssembler::assemble(&mut reactor_id, ());
 
     // --- g = new GetUserInput();
-    let mut gcell = GetUserInputAssembler::assemble(&mut rid, ());
+    let mut gcell = GetUserInputAssembler::assemble(&mut reactor_id, ());
 
     {
         let mut p = pcell._rstate.lock().unwrap();
@@ -98,7 +98,7 @@ fn main() {
         bind_ports(&mut g.another, &mut p.another);
     }
 
-    let mut scheduler = SyncScheduler::new(rid);
+    let mut scheduler = SyncScheduler::new(reactor_id);
 
     scheduler.startup(|mut starter| {
         starter.start(&mut gcell);
@@ -201,11 +201,14 @@ impl ReactorAssembler for /*{{*/RandomSourceAssembler/*}}*/ {
     }
 
 
-    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
+        let this_reactor = *reactor_id;
+        *reactor_id += 1;
+        let mut reaction_id = 0;
 
-        let /*{{*/react_schedule /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Schedule/*}}*/);
-        let /*{{*/react_emit /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Emit/*}}*/);
+        let /*{{*/react_schedule /*}}*/ = new_reaction!(this_reactor, reaction_id, _rstate, /*{{*/Schedule/*}}*/);
+        let /*{{*/react_emit /*}}*/ = new_reaction!(this_reactor, reaction_id, _rstate, /*{{*/Emit/*}}*/);
 
         { // declare local dependencies
             let mut statemut = _rstate.lock().unwrap();
@@ -341,11 +344,14 @@ impl ReactorAssembler for /*{{*/GetUserInputAssembler/*}}*/ {
         GetUserInput::react_startup(link, ctx, response);
     }
 
-    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
+        let this_reactor = *reactor_id;
+        *reactor_id += 1;
+        let mut reaction_id = 0;
 
-        let /*{{*/react_handle_line /*}}*/ = new_reaction!(rid, _rstate, /*{{*/HandleLine/*}}*/);
-        let /*{{*/react_prompt /*}}*/ = new_reaction!(rid, _rstate, /*{{*/Prompt/*}}*/);
+        let /*{{*/react_handle_line /*}}*/ = new_reaction!(this_reactor, reaction_id, _rstate, /*{{*/HandleLine/*}}*/);
+        let /*{{*/react_prompt /*}}*/ = new_reaction!(this_reactor, reaction_id, _rstate, /*{{*/Prompt/*}}*/);
 
         { // declare local dependencies
             let mut statemut = _rstate.lock().unwrap();

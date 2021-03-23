@@ -178,12 +178,15 @@ impl ReactorAssembler for PingAssembler {
         // Ping::react_startup(ctx);
     }
 
-    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
+        let this_reactor = *reactor_id;
+        *reactor_id += 1;
+        let mut reaction_id = 0;
 
-        let react_Serve = new_reaction!(rid, _rstate, R_Serve);
-        let react_ReactToPong = new_reaction!(rid, _rstate, R_ReactToPong);
-        let react_Start = new_reaction!(rid, _rstate, R_Start);
+        let react_Serve = new_reaction!(this_reactor, reaction_id, _rstate, R_Serve);
+        let react_ReactToPong = new_reaction!(this_reactor, reaction_id, _rstate, R_ReactToPong);
+        let react_Start = new_reaction!(this_reactor, reaction_id, _rstate, R_Start);
 
         { // declare local dependencies
             let mut statemut = _rstate.lock().unwrap();
@@ -261,10 +264,13 @@ impl ReactorAssembler for PongAssembler {
         // Ping::react_startup(ctx);
     }
 
-    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
+        let this_reactor = *reactor_id;
+        *reactor_id += 1;
+        let mut reaction_id = 0;
 
-        let react_ReactToPing = new_reaction!(rid, _rstate, R_ReactToPing);
+        let react_ReactToPing = new_reaction!(this_reactor, reaction_id, _rstate, R_ReactToPing);
 
         { // declare local dependencies
             let mut statemut = _rstate.lock().unwrap();
@@ -497,17 +503,20 @@ impl ReactorAssembler for BenchmarkRunnerAssembler {
         // BenchmarkRunner::react_startup(ctx);
     }
 
-    fn assemble(rid: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
+        let this_reactor = *reactor_id;
+        *reactor_id += 1;
+        let mut reaction_id = 0;
 
         // let react_InStart = new_reaction!(rid, _rstate, R_InStart);
-        let react_Init = new_reaction!(rid, _rstate, R_Init);
-        let react_InitDone = new_reaction!(rid, _rstate, R_InitDone);
-        let react_CleanupIteration = new_reaction!(rid, _rstate, R_CleanupIteration);
-        let react_CleanupDone = new_reaction!(rid, _rstate, R_CleanupDone);
-        let react_NextIteration = new_reaction!(rid, _rstate, R_NextIteration);
-        let react_IterationDone = new_reaction!(rid, _rstate, R_IterationDone);
-        let react_Finish = new_reaction!(rid, _rstate, R_Finish);
+        let react_Init = new_reaction!(this_reactor, reaction_id, _rstate, R_Init);
+        let react_InitDone = new_reaction!(this_reactor, reaction_id, _rstate, R_InitDone);
+        let react_CleanupIteration = new_reaction!(this_reactor, reaction_id, _rstate, R_CleanupIteration);
+        let react_CleanupDone = new_reaction!(this_reactor, reaction_id, _rstate, R_CleanupDone);
+        let react_NextIteration = new_reaction!(this_reactor, reaction_id, _rstate, R_NextIteration);
+        let react_IterationDone = new_reaction!(this_reactor, reaction_id, _rstate, R_IterationDone);
+        let react_Finish = new_reaction!(this_reactor, reaction_id, _rstate, R_Finish);
 
         { // declare local dependencies
             let mut statemut = _rstate.lock().unwrap();
