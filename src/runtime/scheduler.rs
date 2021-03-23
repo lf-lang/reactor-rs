@@ -132,8 +132,11 @@ impl SyncScheduler {
 /// A "wave" of reactions executing at the same logical time.
 /// Waves can enqueue new reactions to execute at the same time,
 /// they're processed in exec order.
+///
+/// todo would there be a way to "split" waves into workers?
 struct ReactionWave {
-    /// Logical time of the execution of this wave
+    /// Logical time of the execution of this wave, constant
+    /// during the existence of the object
     logical_time: LogicalTime,
 
     /// Remaining reactions to execute before the wave dies.
@@ -143,6 +146,8 @@ struct ReactionWave {
     /// queue.
     todo: Vec<Option<ReactionOrder>>,
 
+    /// The set of reactions that have been processed (or scheduled)
+    /// in this wave, used to avoid duplication. todo this is a bad idea
     done: BitSet,
 
     /// Sender to schedule events that should be executed later than this wave.
@@ -154,11 +159,13 @@ impl ReactionWave {
     /// Add new reactions to execute in the same wave.
     /// TODO topology information & deduplication
     ///  Eg for a diamond situation this will execute reactions several times...
-    ///  This is why I added a bitset to patch it, but it's not optimal design
+    ///  This is why I added a bitset to patch it, but the size of it is really bad.
     ///
     fn enqueue_now(&mut self, downstream: Dependencies) {
         for reaction in downstream.reactions.iter() {
-            if !self.done[reaction.id() as usize] {
+            let rid = reaction.id() as usize;
+            if !self.done[rid] {
+                self.done.set(rid, true);
                 self.todo.push(Some(reaction.clone()));
             }
         }
