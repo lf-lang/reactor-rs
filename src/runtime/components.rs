@@ -87,5 +87,5 @@ impl Hash for ReactionInvoker {
     }
 }
 
-
-pub type Dependencies = Vec<Arc<ReactionInvoker>>;
+/// todo ensure it is toposorted
+pub type ToposortedReactions = Vec<Arc<ReactionInvoker>>;

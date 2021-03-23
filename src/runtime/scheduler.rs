@@ -217,7 +217,7 @@ impl ReactionWave {
     /// Add new reactions to execute later (at least 1 microstep later).
     ///
     /// This is used for actions.
-    fn enqueue_later(&mut self, downstream: &Dependencies, process_at: LogicalTime) {
+    fn enqueue_later(&mut self, downstream: &ToposortedReactions, process_at: LogicalTime) {
         debug_assert!(process_at > self.logical_time);
 
         // todo merge events at equal tags by merging their dependencies

@@ -2,7 +2,7 @@ use std::fmt::*;
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
-use super::{Dependencies, LogicalTime, Named};
+use super::{ToposortedReactions, LogicalTime, Named};
 
 #[doc(hidden)]
 pub struct Logical;
@@ -14,14 +14,14 @@ pub type PhysicalAction = Action<Physical>;
 
 pub struct Action<Logical> {
     delay: Duration,
-    pub(in super) downstream: Dependencies,
+    pub(in super) downstream: ToposortedReactions,
     name: &'static str,
     is_logical: bool,
     _logical: PhantomData<Logical>,
 }
 
 impl<T> Action<T> {
-    pub fn set_downstream(&mut self, r: Dependencies) {
+    pub fn set_downstream(&mut self, r: ToposortedReactions) {
         self.downstream = r
     }
 

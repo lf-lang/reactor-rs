@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 
-use crate::runtime::Dependencies;
+use crate::runtime::ToposortedReactions;
 
 // clients may only use InputPort and OutputPort
 // but there's a single implementation.
@@ -40,7 +40,7 @@ pub struct Output;
 /// runtime checks.
 ///
 ///
-pub struct Port<T, Kind, Deps = Dependencies> {
+pub struct Port<T, Kind, Deps = ToposortedReactions> {
     cell: Arc<Mutex<PortCell<T, Deps>>>,
     _marker: PhantomData<Kind>,
     debug_label: &'static str,
@@ -166,7 +166,7 @@ impl<T> OutputPort<T> {
     /// Set the value, see [super::LogicalCtx::set]
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
-    pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&Dependencies)) {
+    pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ToposortedReactions)) {
         let guard = self.cell.lock().unwrap();
         (*guard).cell.set(Some(v));
 
@@ -187,7 +187,7 @@ impl<T> Default for OutputPort<T> {
     }
 }
 
-struct PortCell<T, Deps = Dependencies> {
+struct PortCell<T, Deps = ToposortedReactions> {
     /// Cell for the value
     cell: Cell<Option<T>>,
     /// If None, then this cell is bound. Any attempt to bind it to a new upstream will fail.
@@ -203,6 +203,9 @@ impl<T, Deps> Default for PortCell<T, Deps> where Deps: Default {
     }
 }
 
+/// This trait is only used to be able to fake a reaction type
+/// in tests
+#[doc(hidden)]
 pub trait Absorbing {
     /// Merge the parameter into this object.
     /// This function is idempotent.
@@ -211,6 +214,8 @@ pub trait Absorbing {
 
 impl<T> Absorbing for Vec<T> {
     fn absorb(&mut self, other: &mut Self) {
+        /// TODO when absorbing reactions we need to preserve the topological sort
+        ///  I think it would suffice to
         self.append(other)
     }
 }
