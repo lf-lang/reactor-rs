@@ -92,7 +92,7 @@ impl SyncScheduler {
     pub fn startup(&mut self, startup_actions: impl FnOnce(StartupCtx)) {
         let initial_time = LogicalTime::now();
         self.initial_time = Some(initial_time);
-        let startup_wave = self.new_wave(initial_time, vec![]);
+        let startup_wave = self.new_wave(initial_time);
         startup_actions(StartupCtx { scheduler: self, initial_wave: startup_wave });
     }
 
@@ -155,7 +155,7 @@ impl SyncScheduler {
     fn step(&mut self, event: Event) {
         let time = Self::catch_up_physical_time(event.process_at);
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
-        self.new_wave(time, event.todo).consume();
+        self.new_wave(time).consume(event.todo);
     }
 
     fn catch_up_physical_time(up_to_time: LogicalTime) -> LogicalTime {
@@ -171,10 +171,9 @@ impl SyncScheduler {
 
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    fn new_wave(&self, logical_time: LogicalTime, reactions: Vec<ReactionOrder>) -> ReactionWave {
+    fn new_wave(&self, logical_time: LogicalTime) -> ReactionWave {
         ReactionWave {
             logical_time,
-            todo: reactions.iter().cloned().collect::<LinkedList<_>>(),
             done: <_>::default(),
             sender: self.canonical_sender.clone(),
         }
@@ -210,13 +209,6 @@ struct ReactionWave {
     /// during the existence of the object
     logical_time: LogicalTime,
 
-    /// Remaining reactions to execute before the wave dies.
-    ///
-    /// This is mutable: if a reaction sets a port, then the
-    /// downstream of that port is inserted in order into this
-    /// queue.
-    todo: LinkedList<ReactionOrder>,
-
     /// The set of reactions that have been processed (or scheduled)
     /// in this wave, used to avoid duplication. todo this is a bad idea
     done: HashSet<GlobalId>,
@@ -227,19 +219,6 @@ struct ReactionWave {
 }
 
 impl ReactionWave {
-    /// Add new reactions to execute in the same wave.
-    /// TODO topology information & deduplication
-    ///  Eg for a diamond situation this will execute reactions several times...
-    ///  This is why I added a bitset to patch it, but the size of it is really bad.
-    ///
-    fn enqueue_now(&mut self, downstream: Dependencies) {
-        for reaction in downstream.reactions.iter() {
-            if self.done.insert(reaction.id()) {
-                // todo blindly appending possibly does not respect the topological sort
-                self.todo.push_back(reaction.clone());
-            }
-        }
-    }
 
     /// Add new reactions to execute later (at least 1 microstep later).
     ///
@@ -253,13 +232,25 @@ impl ReactionWave {
     }
 
     fn new_ctx(&mut self) -> LogicalCtx {
-        LogicalCtx { scheduler: self }
+        LogicalCtx { wave: self, do_next: Vec::new() }
     }
 
-    /// Execute the wave until completion
-    fn consume(mut self) {
-        while let Some(reaction) = self.todo.pop_front() {
-            reaction.fire(&mut self.new_ctx())
+    /// Execute the wave until completion.
+    /// The parameter is the list of reactions to start with.
+    /// Todo topological info to split into independent subgraphs.
+    fn consume(mut self, mut todo: Vec<ReactionOrder>) {
+        let mut i = 0;
+        while i < todo.len() {
+            // we can share it, to reuse the allocation of the do_next buffer
+            let mut ctx = self.new_ctx();
+            if let Some(reaction) = todo.get_mut(i) {
+                // this may append new elements into the queue,
+                // which is why we can't use an iterator.
+                reaction.fire(&mut ctx);
+            }
+            // this clears the ctx.do_next buffer but retains its allocation
+            todo.append(&mut ctx.do_next);
+            i += 1;
         }
     }
 }
@@ -269,7 +260,14 @@ impl ReactionWave {
 /// interactions declared at assembly time are allowed.
 ///
 pub struct LogicalCtx<'a> {
-    scheduler: &'a mut ReactionWave,
+    wave: &'a mut ReactionWave,
+
+    /// Remaining reactions to execute before the wave dies.
+    ///
+    /// This is mutable: if a reaction sets a port, then the
+    /// downstream of that port is inserted in order into this
+    /// queue.
+    do_next: Vec<ReactionOrder>,
 }
 
 impl LogicalCtx<'_> {
@@ -284,8 +282,17 @@ impl LogicalCtx<'_> {
     /// reactions that should execute on the same logical
     /// step.
     pub fn set<T>(&mut self, port: &mut OutputPort<T>, value: T) {
+        // TODO topology information & deduplication
+        //  Eg for a diamond situation this will execute reactions several times...
+        //  This is why I added a bitset to patch it, but the size of it is really bad.
+
         let downstream = port.set(value);
-        self.scheduler.enqueue_now(downstream);
+        for reaction in downstream.reactions {
+            if self.wave.done.insert(reaction.id()) {
+                // todo blindly appending possibly does not respect the topological sort
+                self.do_next.push(reaction.clone());
+            }
+        }
     }
 
     /// Schedule an action to run after its own implicit time delay,
@@ -297,7 +304,7 @@ impl LogicalCtx<'_> {
 
     // private
     fn schedule_impl<T>(&mut self, action: &Action<T>, offset: Offset) {
-        self.scheduler.enqueue_later(&action.downstream, action.make_eta(self.scheduler.logical_time, offset.to_duration()));
+        self.wave.enqueue_later(&action.downstream, action.make_eta(self.wave.logical_time, offset.to_duration()));
     }
 
     pub fn get_physical_time(&self) -> Instant {
@@ -311,7 +318,7 @@ impl LogicalCtx<'_> {
     }
 
     pub fn get_logical_time(&self) -> LogicalTime {
-        self.scheduler.logical_time
+        self.wave.logical_time
     }
 }
 
