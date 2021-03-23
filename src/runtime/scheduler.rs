@@ -45,6 +45,7 @@ pub struct SyncScheduler {
     canonical_sender: Sender<Event>,
 
     /// A queue of events, which orders events according to their logical time.
+    /// TODO work out your own data structure that merges events scheduled at the same time
     queue: PriorityQueue<Event, Reverse<LogicalTime>>,
 
     /// Maximum id of a reaction (exclusive), ie, number of
@@ -69,29 +70,42 @@ impl SyncScheduler {
     pub fn launch_async(mut self, timeout: Duration) -> JoinHandle<()> {
         use std::thread;
         thread::spawn(move || {
+            /************************************************
+             * This is the main event loop of the scheduler *
+             ************************************************/
             loop {
-                if let Ok(evt) = self.receiver.recv_timeout(timeout) {
-                    // received a new event
 
-                    let eta = evt.process_at;                // logical time of the processing
-                    self.queue.push(evt, Reverse(eta));      // maybe some other event is expected to be processed before
-                    let (evt, Reverse(eta)) = self.queue.pop().unwrap();
+                // flush pending events, this doesn't block
+                while let Ok(evt) = self.receiver.try_recv() {
+                    self.push_event(evt);
+                }
 
-                    self.step(evt, eta);
+                if let Some((evt, _)) = self.queue.pop() {
+                    // try taking an event from the queue
+                    self.step(evt);
+                } else if let Ok(evt) = self.receiver.recv_timeout(timeout) {
+                    // if there is none, try blocking to wait for one
+                    self.push_event(evt);
+                    continue;
                 } else {
-                    // all senders have hung up
+                    // all senders have hung up, or timeout
                     #[cfg(not(feature = "benchmarking"))] {
                         eprintln!("Shutting down scheduler, channel timed out after {} ms", timeout.as_millis());
                     }
                     assert!(self.queue.len() == 0);
-                    break;
+                    return;
                 }
             }
         })
     }
 
-    fn step(&mut self, event: Event, process_at_time: LogicalTime) {
-        let time = Self::catch_up_physical_time(process_at_time);
+    fn push_event(&mut self, evt: Event) {
+        let eta = evt.process_at;                // logical time of the processing
+        self.queue.push(evt, Reverse(eta));      // maybe some other event is expected to be processed before
+    }
+
+    fn step(&mut self, event: Event) {
+        let time = Self::catch_up_physical_time(event.process_at);
         self.cur_logical_time.lock().unwrap().set(time);
         self.new_wave(time, event.todo).consume();
     }
