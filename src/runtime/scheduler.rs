@@ -49,7 +49,7 @@ pub struct SyncScheduler {
 
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
-    initial_time: Option<LogicalTime>
+    initial_time: Option<LogicalTime>,
 }
 
 impl SyncScheduler {
@@ -63,7 +63,7 @@ impl SyncScheduler {
             receiver,
             canonical_sender: sender,
             queue: PriorityQueue::new(),
-            initial_time: None
+            initial_time: None,
         }
     }
 
@@ -168,21 +168,18 @@ impl SyncScheduler {
     fn new_wave(&self, logical_time: LogicalTime) -> ReactionWave {
         ReactionWave {
             logical_time,
-            done: <_>::default(),
             sender: self.canonical_sender.clone(),
         }
     }
-
 }
 
 /// The API of [SyncScheduler::startup].
 pub struct StartupCtx<'a> {
     scheduler: &'a mut SyncScheduler,
-    initial_wave: ReactionWave
+    initial_wave: ReactionWave,
 }
 
 impl<'a> StartupCtx<'a> {
-
     /// Execute the startup reaction of the given assembler.
     pub fn start(&mut self, r: &mut impl ReactorAssembler) {
         let ctx = SchedulerLink {
@@ -203,17 +200,12 @@ struct ReactionWave {
     /// during the existence of the object
     logical_time: LogicalTime,
 
-    /// The set of reactions that have been processed (or scheduled)
-    /// in this wave, used to avoid duplication. todo this is a bad idea, should be done when binding ports right?
-    done: HashSet<GlobalId>,
-
     /// Sender to schedule events that should be executed later than this wave.
     sender: Sender<Event>,
 
 }
 
 impl ReactionWave {
-
     /// Add new reactions to execute later (at least 1 microstep later).
     ///
     /// This is used for actions.
@@ -234,16 +226,23 @@ impl ReactionWave {
     /// Todo topological info to split into independent subgraphs.
     fn consume(mut self, mut todo: Vec<ReactionOrder>) {
         let mut i = 0;
-        // we can share it, to reuse the allocation of the do_next buffer
+        // We can share it, to reuse the allocation of the do_next buffer
         let mut ctx = self.new_ctx();
+        // reactions that have already been processed.
+        // In some situations (diamonds) this is necessary.
+        // Possibly with more static information we can avoid that.
+        let mut done: HashSet<GlobalId> = HashSet::new();
+
         while i < todo.len() {
             if let Some(reaction) = todo.get_mut(i) {
-                // this may append new elements into the queue,
-                // which is why we can't use an iterator.
-                reaction.fire(&mut ctx);
+                if done.insert(reaction.id()) {
+                    // this may append new elements into the queue,
+                    // which is why we can't use an iterator
+                    reaction.fire(&mut ctx);
+                    // this clears the ctx.do_next buffer but retains its allocation
+                    todo.append(&mut ctx.do_next);
+                }
             }
-            // this clears the ctx.do_next buffer but retains its allocation
-            todo.append(&mut ctx.do_next);
             i += 1;
         }
     }
@@ -282,10 +281,8 @@ impl LogicalCtx<'_> {
 
         port.set_impl(value, |downstream| {
             for reaction in downstream {
-                if self.wave.done.insert(reaction.id()) {
-                    // todo blindly appending possibly does not respect the topological sort
-                    self.do_next.push(reaction.clone());
-                }
+                // todo blindly appending possibly does not respect the topological sort
+                self.do_next.push(reaction.clone());
             }
         });
     }
