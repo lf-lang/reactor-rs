@@ -1,4 +1,4 @@
-#![allow(unused_variables, non_snake_case)]
+#![allow(unused, non_snake_case, non_camel_case_types)]
 #[macro_use]
 extern crate rust_reactors;
 
@@ -62,9 +62,7 @@ fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
         bind_ports(&mut pong.outPong, &mut ping.inPong);
     }
 
-    let scheduler = SyncScheduler::new(rid);
-
-    let mut scheduler = SyncScheduler::new(rid);
+    let mut scheduler = SyncScheduler::new();
 
     scheduler.startup(|mut starter| {
         starter.start(&mut runner_cell);

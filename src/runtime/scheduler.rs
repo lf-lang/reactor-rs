@@ -56,7 +56,7 @@ impl SyncScheduler {
     /// Creates a new scheduler. An empty scheduler doesn't
     /// do anything unless some events are pushed to the queue.
     /// See [Self::launch_async].
-    pub fn new(_max_reaction_id: u32) -> Self {
+    pub fn new() -> Self {
         let (sender, receiver) = channel::<Event>();
         Self {
             latest_logical_time: <_>::default(),
@@ -73,13 +73,13 @@ impl SyncScheduler {
     /// of all reactors in the provided closure (see [ReactorAssembler::start]).
     ///
     /// Possible usage:
-    /// ```
-    /// let mut scheduler = SyncScheduler::new(rid);
-    //
-    //  scheduler.startup(|mut starter| {
-    //      starter.start(&mut s_cell);
-    //      starter.start(&mut p_cell);
-    //  });
+    /// ```ignore
+    /// let mut scheduler = SyncScheduler::new();
+    ///
+    /// scheduler.startup(|mut starter| {
+    ///     starter.start(&mut s_cell);
+    ///     starter.start(&mut p_cell);
+    /// });
     /// ```
     ///
     /// TODO why not merge launch_async into this function

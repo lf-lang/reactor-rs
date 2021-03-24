@@ -91,18 +91,27 @@ impl<T, K, Deps> Port<T, K, Deps> {
 /// For this to work this function must be called in topological
 /// order between bound ports
 /// Eg
-/// ```
-/// a.out -> b.in -> b.out -> c.in;
-///                  b.out -> d.in;
+/// ```text
+/// a_out -> b_in -> b_out -> c_in;
+///                  b_out -> d_in;
 /// ```
 ///
 /// Must be translated as
 ///
 /// ```
-/// bind(a.out, b.in);
-/// bind(b.in, b.out);
-/// bind(b.out, d.in);
-/// bind(b.out, c.in);
+///
+/// # fn main() {
+/// # use rust_reactors::runtime::{OutputPort, InputPort, bind_ports};
+/// # let mut a_out = OutputPort::<i32>::new();
+/// # let mut b_out = OutputPort::<i32>::new();
+/// # let mut b_in = InputPort::<i32>::new();
+/// # let mut c_in = InputPort::<i32>::new();
+/// # let mut d_in = InputPort::<i32>::new();
+/// bind_ports(&mut a_out, &mut b_in);
+/// bind_ports(&mut b_in, &mut b_out);
+/// bind_ports(&mut b_out, &mut d_in);
+/// bind_ports(&mut b_out, &mut c_in);
+/// # }
 /// ```
 ///
 /// Also the edges must be that of a transitive reduction of

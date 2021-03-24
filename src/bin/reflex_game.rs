@@ -98,7 +98,7 @@ fn main() {
         bind_ports(&mut g.another, &mut p.another);
     }
 
-    let mut scheduler = SyncScheduler::new(reactor_id);
+    let mut scheduler = SyncScheduler::new();
 
     scheduler.startup(|mut starter| {
         starter.start(&mut gcell);
