@@ -129,24 +129,23 @@ fn transitive_binding_in_topo_order_is_ok() {
 }
 
 #[test]
-fn dependency_merging() {
-    let mut upstream = TestOutputPort::<i32>::new_for_test("up");
-    let mut downstream = TestInputPort::<i32>::new_for_test("down");
+fn dependencies_are_adopted_by_upstream_when_binding() {
+    let mut up = TestOutputPort::<i32>::new_for_test("up");
+    let mut down = TestInputPort::<i32>::new_for_test("down");
 
-    // pretend the downstream depends on those
-    downstream.set_downstream(vec![1, 2, 3]);
+    up.set_downstream(vec![0]);
+    down.set_downstream(vec![1, 2, 3]);
 
-    bind_ports(&mut upstream, &mut downstream);
+    assert_eq!(vec![0], up.get_downstream_deps());
 
-    // actually they're bound to the same cell
-    assert_eq!(vec![1,2,3], upstream.get_downstream_deps());
-    assert_eq!(vec![1,2,3], downstream.get_downstream_deps());
+    bind_ports(&mut up, &mut down);
+
+    assert_eq!(vec![0, 1, 2, 3], up.get_downstream_deps());
 }
 
 #[test]
 #[should_panic]
 fn repeated_binding_panics() {
-    //
     let mut upstream = TestOutputPort::<i32>::new_for_test("up");
     let mut downstream = TestInputPort::<i32>::new_for_test("down");
 

@@ -8,9 +8,7 @@ use crate::runtime::ToposortedReactions;
 // clients may only use InputPort and OutputPort
 // but there's a single implementation.
 
-// todo maybe a type token to represent bound/unbound state
-
-/// An input port.
+/// An input port. fixme input ports cannot be written to, which is necessary when writing to inner reactor.
 pub type InputPort<T> = Port<T, Input>;
 /// An output port.
 pub type OutputPort<T> = Port<T, Output>;
@@ -74,12 +72,6 @@ impl<T, K, Deps> Port<T, K, Deps> {
         Self::new_impl(Some(label))
     }
 
-    #[cfg(test)]
-    pub(crate) fn get_downstream_deps(&self) -> Deps where Deps: Clone {
-        let class = self.cell.lock().unwrap();
-        class.downstream.clone()
-    }
-
     /// Only for glue code during assembly.
     pub fn set_downstream(&mut self, r: Deps) {
         let mut class = self.cell.lock().unwrap();
@@ -115,13 +107,15 @@ impl<T, K, Deps> Port<T, K, Deps> {
 /// ```
 ///
 /// Also the edges must be that of a transitive reduction of
-/// the graph, as the down port is destroyed.
+/// the graph, as the down port is destroyed. These responsibilities
+/// are shifted onto the code generator.
 ///
 /// ### Panics
 ///
 /// If the downstream port was already bound to some other port.
+///
 pub fn bind_ports<T, U, D, Deps>(up: &mut Port<T, U, Deps>, mut down: &mut Port<T, D, Deps>) where Deps: Absorbing {
-    assert_eq!(down.status, BindStatus::Bindable, "Downstream port is already bound");
+    assert_eq!(down.status, BindStatus::Bindable, "Downstream port cannot be bound a second time");
 
     {
         let mut upclass = up.cell.lock().unwrap();
@@ -171,6 +165,17 @@ impl<T> OutputPort<T> {
         (*guard).cell.set(Some(v));
 
         process_deps(&guard.downstream);
+    }
+}
+
+impl<T, Deps> Port<T, Output, Deps> {
+    /// Only output ports can be explicitly set, so only them
+    /// produce events and hence need access to the set of their
+    /// dependencies. This is why we only test those.
+    #[cfg(test)]
+    pub(crate) fn get_downstream_deps(&self) -> Deps where Deps: Clone {
+        let class = self.cell.lock().unwrap();
+        class.downstream.clone()
     }
 }
 
