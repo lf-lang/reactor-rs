@@ -30,7 +30,7 @@ macro_rules! new_reaction {
 ///
 pub trait ReactorDispatcher: Send + Sync {
     /// The type of reaction IDs
-    type ReactionId: Copy + Named + Send + Sync;
+    type ReactionId: Copy + Send + Sync;
     /// Type of the user struct
     type Wrapped;
     /// Type of the construction parameters

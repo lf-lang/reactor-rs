@@ -24,7 +24,7 @@ impl ReactorId {
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
-pub(in super) struct GlobalId {
+pub(in super) struct GlobalReactionId {
     container: ReactorId,
     local: u32,
 }
@@ -37,20 +37,12 @@ pub struct ReactionInvoker {
     body: Box<dyn Fn(&mut LogicalCtx) + Sync + Send>,
     /// Global ID of the reaction, used to test equality of
     /// this reaction with other things.
-    id: GlobalId,
-    /// name used for debug
-    label: &'static str,
-}
-
-impl Named for ReactionInvoker {
-    fn name(&self) -> &'static str {
-        self.label
-    }
+    id: GlobalReactionId,
 }
 
 impl Display for ReactionInvoker {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        <_ as Display>::fmt(&self.name(), f)
+        self.id.fmt(f)
     }
 }
 
@@ -71,7 +63,7 @@ impl ReactionInvoker {
         (self.body)(ctx)
     }
 
-    pub(in super) fn id(&self) -> GlobalId {
+    pub(in super) fn id(&self) -> GlobalReactionId {
         self.id
     }
 
@@ -86,15 +78,22 @@ impl ReactionInvoker {
                                                reaction_priority: u32,
                                                reactor: Arc<Mutex<T>>,
                                                rid: T::ReactionId) -> ReactionInvoker {
-        let body = move |ctx: &mut LogicalCtx| {
+        Self::new_from_closure(reactor_id, reaction_priority, move |ctx: &mut LogicalCtx| {
             let mut ref_mut = reactor.lock().unwrap();
             let r1: &mut T = &mut *ref_mut;
             T::react(r1, ctx, rid)
-        };
+        })
+    }
+
+    /// Create a new reaction invoker that doesn't need a reactor,
+    /// ie the invoked code can be arbitrary.
+    /// This may be used to test the logic of the scheduler
+    pub(in crate) fn new_from_closure(reactor_id: ReactorId,
+                                      reaction_priority: u32,
+                                      action: impl Fn(&mut LogicalCtx) + Send + Sync + 'static) -> ReactionInvoker {
         ReactionInvoker {
-            body: Box::new(body) as Box<dyn Fn(&mut LogicalCtx) + Sync + Send>,
-            id: GlobalId { container: reactor_id, local: reaction_priority },
-            label: rid.name(),
+            body: Box::new(action),
+            id: GlobalReactionId { container: reactor_id, local: reaction_priority },
         }
     }
 }

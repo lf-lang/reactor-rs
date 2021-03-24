@@ -231,7 +231,7 @@ impl ReactionWave {
         // reactions that have already been processed.
         // In some situations (diamonds) this is necessary.
         // Possibly with more static information we can avoid that.
-        let mut done: HashSet<GlobalId> = HashSet::new();
+        let mut done: HashSet<GlobalReactionId> = HashSet::new();
 
         while i < todo.len() {
             if let Some(reaction) = todo.get_mut(i) {
