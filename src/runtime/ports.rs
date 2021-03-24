@@ -1,7 +1,6 @@
 use std::cell::Cell;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
-use std::ops::DerefMut;
 use std::sync::{Arc, Mutex};
 
 use crate::runtime::ToposortedReactions;
@@ -76,7 +75,7 @@ impl<T, K, Deps> Port<T, K, Deps> {
     }
 
     #[cfg(test)]
-    pub(crate) fn get_downstream_deps(&self) -> Option<Deps> where Deps: Clone {
+    pub(crate) fn get_downstream_deps(&self) -> Deps where Deps: Clone {
         let class = self.cell.lock().unwrap();
         class.downstream.clone()
     }
@@ -84,7 +83,7 @@ impl<T, K, Deps> Port<T, K, Deps> {
     /// Only for glue code during assembly.
     pub fn set_downstream(&mut self, r: Deps) {
         let mut class = self.cell.lock().unwrap();
-        class.downstream = Some(r);
+        class.downstream = r;
     }
 }
 
@@ -119,15 +118,7 @@ pub fn bind_ports<T, U, D, Deps>(up: &mut Port<T, U, Deps>, mut down: &mut Port<
         let mut upclass = up.cell.lock().unwrap();
         let mut downclass = down.cell.lock().unwrap();
 
-        let uc: &mut PortCell<T, Deps> = upclass.deref_mut();
-        let dc: &mut PortCell<T, Deps> = downclass.deref_mut();
-
-        let up_deps = uc.downstream.as_mut().expect("Upstream port cannot be bound");
-        // note we take it to mark it as "unbindable"
-        // in the future                  vvvvvv
-        let mut down_deps = dc.downstream.take().expect("Downstream port is already bound");
-
-        up_deps.absorb(&mut down_deps);
+        (&mut upclass.downstream).absorb(&mut downclass.downstream);
     }
 
     // this is the reason we need a topo ordering, see also tests
@@ -170,7 +161,7 @@ impl<T> OutputPort<T> {
         let guard = self.cell.lock().unwrap();
         (*guard).cell.set(Some(v));
 
-        process_deps(guard.downstream.as_ref().expect("Port is bound and cannot be set"));
+        process_deps(&guard.downstream);
     }
 }
 
@@ -187,24 +178,25 @@ impl<T> Default for OutputPort<T> {
     }
 }
 
+/// This is the internal cell type that is shared by ports.
 struct PortCell<T, Deps = ToposortedReactions> {
     /// Cell for the value
     cell: Cell<Option<T>>,
     /// If None, then this cell is bound. Any attempt to bind it to a new upstream will fail.
-    downstream: Option<Deps>,
+    downstream: Deps,
 }
 
 impl<T, Deps> Default for PortCell<T, Deps> where Deps: Default {
     fn default() -> Self {
         PortCell {
             cell: Default::default(),
-            downstream: Some(Deps::default()), // note: not None
+            downstream: Deps::default(),
         }
     }
 }
 
 /// This trait is only used to be able to fake a reaction type
-/// in tests
+/// in tests.
 #[doc(hidden)]
 pub trait Absorbing {
     /// Merge the parameter into this object.
@@ -214,8 +206,8 @@ pub trait Absorbing {
 
 impl<T> Absorbing for Vec<T> {
     fn absorb(&mut self, other: &mut Self) {
-        /// TODO when absorbing reactions we need to preserve the topological sort
-        ///  I think it would suffice to
+        // TODO when absorbing reactions we need to preserve the topological sort
+        //  I think it would suffice to
         self.append(other)
     }
 }

@@ -1,6 +1,5 @@
 use crate::runtime::*;
 
-
 type TestInputPort<T> = Port<T, Input, FakeDeps>;
 type TestOutputPort<T> = Port<T, Output, FakeDeps>;
 /// Mock type of collection of dependencies
@@ -140,8 +139,8 @@ fn dependency_merging() {
     bind_ports(&mut upstream, &mut downstream);
 
     // actually they're bound to the same cell
-    assert_eq!(Some(vec![1,2,3]), upstream.get_downstream_deps());
-    assert_eq!(Some(vec![1,2,3]), downstream.get_downstream_deps());
+    assert_eq!(vec![1,2,3], upstream.get_downstream_deps());
+    assert_eq!(vec![1,2,3], downstream.get_downstream_deps());
 }
 
 #[test]
