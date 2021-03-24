@@ -1,8 +1,11 @@
+//! Test utilities.
+
 use std::sync::Arc;
 
 use crate::runtime::*;
 use crate::runtime::Output;
 
+/// Set a port to a value
 pub fn set_port<T>(port: &mut OutputPort<T>, v: T) {
     port.set_impl(v, |_| {})
 }
@@ -16,10 +19,16 @@ fn make_deps(container: ReactorId, ids: Vec<u32>) -> ToposortedReactions {
     result
 }
 
+/// Set the given port's downstream dependencies as a set of
+/// fake reactions whose ids are exactly the given `local_ids`,
+/// taken to represent reactions of the given reactor.
 pub fn set_fake_downstream<T, K>(container: ReactorId, ids: Vec<u32>, port: &mut Port<T, K>) {
     port.set_downstream(make_deps(container, ids))
 }
 
+/// Assert that the given port's recorded downstream dependencies
+/// have exactly the ids contained in the given `local_ids`,
+/// taken to represent reactions of the given reactor.
 pub fn assert_deps_eq<T>(container: ReactorId, local_ids: Vec<u32>, port: &Port<T, Output>) {
     let expected =
         local_ids.into_iter()
@@ -32,5 +41,5 @@ pub fn assert_deps_eq<T>(container: ReactorId, local_ids: Vec<u32>, port: &Port<
             .collect::<Vec<_>>();
 
 
-    assert_eq!(expected, actual);
+    assert_eq!(expected, actual, "Reaction IDs do not match");
 }

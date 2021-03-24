@@ -37,8 +37,8 @@ pub struct Output;
 /// runtime checks.
 ///
 ///
-pub struct Port<T, Kind, Deps = ToposortedReactions> {
-    cell: Arc<Mutex<PortCell<T, Deps>>>,
+pub struct Port<T, Kind> {
+    cell: Arc<Mutex<PortCell<T>>>,
     debug_label: &'static str,
     status: BindStatus,
     _marker: PhantomData<Kind>,
@@ -57,9 +57,9 @@ enum BindStatus {
     Bound,
 }
 
-impl<T, K, Deps> Port<T, K, Deps> {
+impl<T, K> Port<T, K> {
     // private
-    fn new_impl(name: Option<&'static str>) -> Port<T, K, Deps> where Deps: Default {
+    fn new_impl(name: Option<&'static str>) -> Port<T, K> {
         Port {
             cell: Default::default(),
             _marker: Default::default(),
@@ -69,12 +69,12 @@ impl<T, K, Deps> Port<T, K, Deps> {
     }
 
     #[cfg(test)]
-    pub fn new_for_test(label: &'static str) -> Port<T, K, Deps> where Deps: Default {
+    pub fn new_for_test(label: &'static str) -> Port<T, K> {
         Self::new_impl(Some(label))
     }
 
     /// Only for glue code during assembly.
-    pub fn set_downstream(&mut self, r: Deps) {
+    pub fn set_downstream(&mut self, r: ToposortedReactions) {
         let mut class = self.cell.lock().unwrap();
         class.downstream = r;
     }
@@ -119,14 +119,12 @@ impl<T> OutputPort<T> {
 
         process_deps(&guard.downstream);
     }
-}
 
-impl<T, Deps> Port<T, Output, Deps> {
     /// Only output ports can be explicitly set, so only them
     /// produce events and hence need access to the set of their
     /// dependencies. This is why we only test those.
     #[cfg(test)]
-    pub(crate) fn get_downstream_deps(&self) -> Deps where Deps: Clone {
+    pub(crate) fn get_downstream_deps(&self) -> ToposortedReactions {
         let class = self.cell.lock().unwrap();
         class.downstream.clone()
     }
@@ -189,7 +187,7 @@ impl<T> Default for OutputPort<T> {
 ///
 /// If the downstream port was already bound to some other port.
 ///
-pub fn bind_ports<T, U, D, Deps>(up: &mut Port<T, U, Deps>, mut down: &mut Port<T, D, Deps>) where Deps: Absorbing {
+pub fn bind_ports<T, U, D>(up: &mut Port<T, U>, mut down: &mut Port<T, D>) {
     assert_ne!(down.status, BindStatus::Bound, "Downstream port cannot be bound a second time");
     // in a topo order the downstream is always free
     assert_ne!(down.status, BindStatus::Upstream, "Ports are being bound in a non topological order");
@@ -198,7 +196,8 @@ pub fn bind_ports<T, U, D, Deps>(up: &mut Port<T, U, Deps>, mut down: &mut Port<
         let mut upclass = up.cell.lock().unwrap();
         let mut downclass = down.cell.lock().unwrap();
 
-        (&mut upclass.downstream).absorb(&mut downclass.downstream);
+        // todo we need to make sure that this merge preserves the toposort, eg removes duplicates
+        (&mut upclass.downstream).append(&mut downclass.downstream);
     }
 
     // this is the reason we need a topo ordering, see also tests
@@ -208,37 +207,19 @@ pub fn bind_ports<T, U, D, Deps>(up: &mut Port<T, U, Deps>, mut down: &mut Port<
 }
 
 
-
 /// This is the internal cell type that is shared by ports.
-struct PortCell<T, Deps = ToposortedReactions> {
+struct PortCell<T> {
     /// Cell for the value.
     cell: RefCell<Option<T>>,
     /// The set of reactions which are scheduled when this cell is set.
-    downstream: Deps,
+    downstream: ToposortedReactions,
 }
 
-impl<T, Deps> Default for PortCell<T, Deps> where Deps: Default {
+impl<T> Default for PortCell<T> {
     fn default() -> Self {
         PortCell {
             cell: Default::default(),
-            downstream: Deps::default(),
+            downstream: Default::default(),
         }
-    }
-}
-
-/// This trait is only used to be able to fake a reaction type
-/// in tests.
-#[doc(hidden)]
-pub trait Absorbing {
-    /// Merge the parameter into this object.
-    /// This function is idempotent.
-    fn absorb(&mut self, other: &mut Self);
-}
-
-impl<T> Absorbing for Vec<T> {
-    fn absorb(&mut self, other: &mut Self) {
-        // TODO when absorbing reactions we need to preserve the topological sort,
-        //  this also means pruning duplicates
-        self.append(other)
     }
 }

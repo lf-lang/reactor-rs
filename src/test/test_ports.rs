@@ -1,8 +1,4 @@
-use std::sync::Arc;
-
 use crate::runtime::*;
-use crate::runtime::Output;
-
 use super::testutil::*;
 
 #[test]
