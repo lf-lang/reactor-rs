@@ -1,13 +1,9 @@
+use std::sync::Arc;
+
 use crate::runtime::*;
+use crate::runtime::Output;
 
-type TestInputPort<T> = Port<T, Input, FakeDeps>;
-type TestOutputPort<T> = Port<T, Output, FakeDeps>;
-/// Mock type of collection of dependencies
-type FakeDeps = Vec<i32>;
-
-fn set_port<T>(port: &mut OutputPort<T>, v: T) {
-    port.set_impl(v, |_| {})
-}
+use super::testutil::*;
 
 #[test]
 fn a_port_is_initially_empty() {
@@ -141,24 +137,26 @@ fn transitive_binding_in_non_topo_order_panics() {
 
 #[test]
 fn dependencies_are_adopted_by_upstream_when_binding() {
-    let mut up = TestOutputPort::<i32>::new_for_test("up");
-    let mut down = TestInputPort::<i32>::new_for_test("down");
+    let mut up = OutputPort::<i32>::labeled("up");
+    let mut down = InputPort::<i32>::labeled("down");
 
-    up.set_downstream(vec![0]);
-    down.set_downstream(vec![1, 2, 3]);
+    let container = ReactorId::first();
 
-    assert_eq!(vec![0], up.get_downstream_deps());
+    set_fake_downstream(container, vec![0], &mut up);
+    set_fake_downstream(container, vec![1, 2, 3], &mut down);
+
+    assert_deps_eq(container, vec![0], &up);
 
     bind_ports(&mut up, &mut down);
 
-    assert_eq!(vec![0, 1, 2, 3], up.get_downstream_deps());
+    assert_deps_eq(container, vec![0, 1, 2, 3], &up);
 }
 
 #[test]
 #[should_panic]
 fn repeated_binding_panics() {
-    let mut upstream = TestOutputPort::<i32>::new_for_test("up");
-    let mut downstream = TestInputPort::<i32>::new_for_test("down");
+    let mut upstream = OutputPort::<i32>::labeled("up");
+    let mut downstream = InputPort::<i32>::labeled("down");
 
     bind_ports(&mut upstream, &mut downstream);
     bind_ports(&mut upstream, &mut downstream);

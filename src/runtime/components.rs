@@ -1,9 +1,9 @@
+use std::cmp::Ordering;
 use std::fmt::*;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
-use super::{LogicalCtx, Named, ReactorDispatcher};
-use std::cmp::Ordering;
+use super::{LogicalCtx, ReactorDispatcher};
 
 /// Type of the global ID of a reactor.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
@@ -19,12 +19,20 @@ impl ReactorId {
         *self = Self { value: this.value + 1 };
         this
     }
+
+    #[cfg(test)]
+    pub(in crate) fn make_reaction_id(self, local: u32) -> GlobalReactionId {
+        GlobalReactionId {
+            container: self,
+            local
+        }
+    }
 }
 
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
-pub(in super) struct GlobalReactionId {
+pub(in crate) struct GlobalReactionId {
     container: ReactorId,
     local: u32,
 }
@@ -63,7 +71,7 @@ impl ReactionInvoker {
         (self.body)(ctx)
     }
 
-    pub(in super) fn id(&self) -> GlobalReactionId {
+    pub(in crate) fn id(&self) -> GlobalReactionId {
         self.id
     }
 
