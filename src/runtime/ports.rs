@@ -1,4 +1,4 @@
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
@@ -39,9 +39,9 @@ pub struct Output;
 ///
 pub struct Port<T, Kind, Deps = ToposortedReactions> {
     cell: Arc<Mutex<PortCell<T, Deps>>>,
-    _marker: PhantomData<Kind>,
     debug_label: &'static str,
     status: BindStatus,
+    _marker: PhantomData<Kind>,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -55,12 +55,6 @@ enum BindStatus {
     /// and a single writable port through which values are
     /// communicated ([Self::Upstream]).
     Bound,
-}
-
-impl<T, K> Debug for Port<T, K> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.debug_label.fmt(f)
-    }
 }
 
 impl<T, K, Deps> Port<T, K, Deps> {
@@ -85,6 +79,80 @@ impl<T, K, Deps> Port<T, K, Deps> {
         class.downstream = r;
     }
 }
+
+
+impl<T> InputPort<T> {
+    /// Create a new input port
+    pub fn new() -> Self {
+        Self::new_impl(None)
+    }
+
+    pub fn labeled(label: &'static str) -> Self {
+        Self::new_impl(Some(label))
+    }
+
+    /// Copies the value out, see [super::LogicalCtx::get]
+    pub(in crate) fn get(&self) -> Option<T> where T: Copy {
+        self.cell.lock().unwrap().cell.borrow().clone()
+    }
+}
+
+impl<T> OutputPort<T> {
+    /// Create a new input port
+    pub fn new() -> Self {
+        Self::new_impl(None)
+    }
+
+    /// Create a new port with the given label
+    pub fn labeled(label: &'static str) -> Self {
+        Self::new_impl(Some(label))
+    }
+
+    /// Set the value, see [super::LogicalCtx::set]
+    /// Note: we use a closure to process the dependencies to
+    /// avoid having to clone the dependency list just to return it.
+    pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ToposortedReactions)) {
+        assert_ne!(self.status, BindStatus::Bound, "Bound port cannot be bound");
+
+        let guard = self.cell.lock().unwrap();
+        *(*guard).cell.borrow_mut() = Some(v);
+
+        process_deps(&guard.downstream);
+    }
+}
+
+impl<T, Deps> Port<T, Output, Deps> {
+    /// Only output ports can be explicitly set, so only them
+    /// produce events and hence need access to the set of their
+    /// dependencies. This is why we only test those.
+    #[cfg(test)]
+    pub(crate) fn get_downstream_deps(&self) -> Deps where Deps: Clone {
+        let class = self.cell.lock().unwrap();
+        class.downstream.clone()
+    }
+}
+
+impl<T, K> Debug for Port<T, K> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.debug_label.fmt(f)
+    }
+}
+
+impl<T> Default for InputPort<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+
+impl<T> Default for OutputPort<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+
+
 
 /// Make the downstream port accept values from the upstream port
 /// For this to work this function must be called in topological
@@ -140,75 +208,12 @@ pub fn bind_ports<T, U, D, Deps>(up: &mut Port<T, U, Deps>, mut down: &mut Port<
 }
 
 
-impl<T> InputPort<T> {
-    /// Create a new input port
-    pub fn new() -> Self {
-        Self::new_impl(None)
-    }
-
-    pub fn labeled(label: &'static str) -> Self {
-        Self::new_impl(Some(label))
-    }
-
-    /// Copies the value out, see [super::LogicalCtx::get]
-    pub(in crate) fn get(&self) -> Option<T> where T: Copy {
-        self.cell.lock().unwrap().cell.get()
-    }
-}
-
-impl<T> OutputPort<T> {
-    /// Create a new input port
-    pub fn new() -> Self {
-        Self::new_impl(None)
-    }
-
-    /// Create a new port with the given label
-    pub fn labeled(label: &'static str) -> Self {
-        Self::new_impl(Some(label))
-    }
-
-    /// Set the value, see [super::LogicalCtx::set]
-    /// Note: we use a closure to process the dependencies to
-    /// avoid having to clone the dependency list just to return it.
-    pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ToposortedReactions)) {
-        assert_ne!(self.status, BindStatus::Bound, "Bound port cannot be bound");
-
-        let guard = self.cell.lock().unwrap();
-        (*guard).cell.set(Some(v));
-
-        process_deps(&guard.downstream);
-    }
-}
-
-impl<T, Deps> Port<T, Output, Deps> {
-    /// Only output ports can be explicitly set, so only them
-    /// produce events and hence need access to the set of their
-    /// dependencies. This is why we only test those.
-    #[cfg(test)]
-    pub(crate) fn get_downstream_deps(&self) -> Deps where Deps: Clone {
-        let class = self.cell.lock().unwrap();
-        class.downstream.clone()
-    }
-}
-
-impl<T> Default for InputPort<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-
-impl<T> Default for OutputPort<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 /// This is the internal cell type that is shared by ports.
 struct PortCell<T, Deps = ToposortedReactions> {
-    /// Cell for the value
-    cell: Cell<Option<T>>,
-    /// If None, then this cell is bound. Any attempt to bind it to a new upstream will fail.
+    /// Cell for the value.
+    cell: RefCell<Option<T>>,
+    /// The set of reactions which are scheduled when this cell is set.
     downstream: Deps,
 }
 
