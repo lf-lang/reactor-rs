@@ -129,6 +129,17 @@ fn transitive_binding_in_topo_order_is_ok() {
 }
 
 #[test]
+#[should_panic]
+fn transitive_binding_in_non_topo_order_panics() {
+    let mut a = OutputPort::<i32>::new();
+    let mut b = InputPort::<i32>::new();
+    let mut c = InputPort::<i32>::new();
+
+    bind_ports(&mut b, &mut c);
+    bind_ports(&mut a, &mut b);
+}
+
+#[test]
 fn dependencies_are_adopted_by_upstream_when_binding() {
     let mut up = TestOutputPort::<i32>::new_for_test("up");
     let mut down = TestInputPort::<i32>::new_for_test("down");

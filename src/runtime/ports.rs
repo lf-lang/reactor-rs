@@ -46,7 +46,14 @@ pub struct Port<T, Kind, Deps = ToposortedReactions> {
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 enum BindStatus {
-    Bindable,
+    /// A bindable port is also writable explicitly (with set)
+    Free,
+    /// Means that this port is the upstream of some bound port.
+    Upstream,
+    /// A bound port cannot be written to explicitly. For a
+    /// set of ports bound together, there is a single cell,
+    /// and a single writable port through which values are
+    /// communicated ([Self::Upstream]).
     Bound,
 }
 
@@ -63,7 +70,7 @@ impl<T, K, Deps> Port<T, K, Deps> {
             cell: Default::default(),
             _marker: Default::default(),
             debug_label: name.unwrap_or("<missing label>"),
-            status: BindStatus::Bindable,
+            status: BindStatus::Free,
         }
     }
 
@@ -115,7 +122,9 @@ impl<T, K, Deps> Port<T, K, Deps> {
 /// If the downstream port was already bound to some other port.
 ///
 pub fn bind_ports<T, U, D, Deps>(up: &mut Port<T, U, Deps>, mut down: &mut Port<T, D, Deps>) where Deps: Absorbing {
-    assert_eq!(down.status, BindStatus::Bindable, "Downstream port cannot be bound a second time");
+    assert_ne!(down.status, BindStatus::Bound, "Downstream port cannot be bound a second time");
+    // in a topo order the downstream is always free
+    assert_ne!(down.status, BindStatus::Upstream, "Ports are being bound in a non topological order");
 
     {
         let mut upclass = up.cell.lock().unwrap();
@@ -127,6 +136,7 @@ pub fn bind_ports<T, U, D, Deps>(up: &mut Port<T, U, Deps>, mut down: &mut Port<
     // this is the reason we need a topo ordering, see also tests
     down.cell = up.cell.clone();
     down.status = BindStatus::Bound;
+    up.status = BindStatus::Upstream;
 }
 
 
@@ -161,6 +171,8 @@ impl<T> OutputPort<T> {
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
     pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ToposortedReactions)) {
+        assert_ne!(self.status, BindStatus::Bound, "Bound port cannot be bound");
+
         let guard = self.cell.lock().unwrap();
         (*guard).cell.set(Some(v));
 
@@ -220,8 +232,8 @@ pub trait Absorbing {
 
 impl<T> Absorbing for Vec<T> {
     fn absorb(&mut self, other: &mut Self) {
-        // TODO when absorbing reactions we need to preserve the topological sort
-        //  I think it would suffice to
+        // TODO when absorbing reactions we need to preserve the topological sort,
+        //  this also means pruning duplicates
         self.append(other)
     }
 }
