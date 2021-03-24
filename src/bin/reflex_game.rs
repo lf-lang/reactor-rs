@@ -79,7 +79,7 @@ main reactor ReflexGame {
 }
  */
 fn main() {
-    let mut reactor_id = 0;
+    let mut reactor_id = ReactorId::first();
 
     // --- p = new RandomSource();
     let mut pcell = RandomSourceAssembler::assemble(&mut reactor_id, ());
@@ -201,10 +201,9 @@ impl ReactorAssembler for /*{{*/RandomSourceAssembler/*}}*/ {
     }
 
 
-    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut ReactorId, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = *reactor_id;
-        *reactor_id += 1;
+        let this_reactor = reactor_id.get_and_increment();
         let mut reaction_id = 0;
 
         let /*{{*/react_schedule /*}}*/ = new_reaction!(this_reactor, reaction_id, _rstate, /*{{*/Schedule/*}}*/);
@@ -344,10 +343,9 @@ impl ReactorAssembler for /*{{*/GetUserInputAssembler/*}}*/ {
         GetUserInput::react_startup(link, ctx, response);
     }
 
-    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut ReactorId, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = *reactor_id;
-        *reactor_id += 1;
+        let this_reactor = reactor_id.get_and_increment();
         let mut reaction_id = 0;
 
         let /*{{*/react_handle_line /*}}*/ = new_reaction!(this_reactor, reaction_id, _rstate, /*{{*/HandleLine/*}}*/);

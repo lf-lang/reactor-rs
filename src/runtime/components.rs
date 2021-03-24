@@ -5,25 +5,46 @@ use std::sync::{Arc, Mutex};
 use super::{LogicalCtx, Named, ReactorDispatcher};
 use std::cmp::Ordering;
 
+/// Type of the global ID of a reactor.
+#[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
+pub struct ReactorId { value: usize }
 
+impl ReactorId {
+    pub fn first() -> Self {
+        Self { value: 0 }
+    }
+
+    pub fn get_and_increment(&mut self) -> Self {
+        let this = *self;
+        *self = Self { value: this.value + 1 };
+        this
+    }
+}
+
+/// Identifies a component of a reactor using the ID of its container
+/// and a local component ID.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
 pub(in super) struct GlobalId {
-    container: u32,
+    container: ReactorId,
     local: u32,
 }
 
 /// Wraps a reaction in an "erased" executable form.
 /// This wraps a closures, that captures the reactor instance.
 pub struct ReactionInvoker {
+    /// This is the invocable function.
+    /// It needs to be boxed otherwise the struct has no known size.
     body: Box<dyn Fn(&mut LogicalCtx) + Sync + Send>,
+    /// Global ID of the reaction, used to test equality of
+    /// this reaction with other things.
     id: GlobalId,
     /// name used for debug
-    name: &'static str,
+    label: &'static str,
 }
 
 impl Named for ReactionInvoker {
     fn name(&self) -> &'static str {
-        self.name
+        self.label
     }
 }
 
@@ -45,6 +66,7 @@ impl PartialOrd for ReactionInvoker {
 }
 
 impl ReactionInvoker {
+    /// Execute the body of the reaction for the given logical context.
     pub(in super) fn fire(&self, ctx: &mut LogicalCtx) {
         (self.body)(ctx)
     }
@@ -55,7 +77,12 @@ impl ReactionInvoker {
 
     /// Create a new reaction, closing over its reactor instance.
     /// Note that this is only called from within the [new_reaction] macro.
-    pub fn new<T: ReactorDispatcher + 'static>(reactor_id: u32,
+    ///
+    /// The reaction_priority orders the reaction relative to
+    /// the other reactions of the same reactor. The `reactor_id`
+    /// is global.
+    ///
+    pub fn new<T: ReactorDispatcher + 'static>(reactor_id: ReactorId,
                                                reaction_priority: u32,
                                                reactor: Arc<Mutex<T>>,
                                                rid: T::ReactionId) -> ReactionInvoker {
@@ -67,7 +94,7 @@ impl ReactionInvoker {
         ReactionInvoker {
             body: Box::new(body) as Box<dyn Fn(&mut LogicalCtx) + Sync + Send>,
             id: GlobalId { container: reactor_id, local: reaction_priority },
-            name: rid.name(),
+            label: rid.name(),
         }
     }
 }

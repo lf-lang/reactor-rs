@@ -44,7 +44,7 @@ fn reactor_main(c: &mut Criterion) {
 }
 
 fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
-    let mut rid: u32 = 0;
+    let mut rid = ReactorId::first();
 
     // ping = new Ping(count=count);
     let mut ping_cell = PingAssembler::assemble(&mut rid, count);
@@ -176,10 +176,9 @@ impl ReactorAssembler for PingAssembler {
         // Ping::react_startup(ctx);
     }
 
-    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut ReactorId, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = *reactor_id;
-        *reactor_id += 1;
+        let this_reactor = reactor_id.get_and_increment();
         let mut reaction_id = 0;
 
         let react_Serve = new_reaction!(this_reactor, reaction_id, _rstate, R_Serve);
@@ -262,10 +261,9 @@ impl ReactorAssembler for PongAssembler {
         // Ping::react_startup(ctx);
     }
 
-    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut ReactorId, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = *reactor_id;
-        *reactor_id += 1;
+        let this_reactor = reactor_id.get_and_increment();
         let mut reaction_id = 0;
 
         let react_ReactToPing = new_reaction!(this_reactor, reaction_id, _rstate, R_ReactToPing);
@@ -502,10 +500,9 @@ impl ReactorAssembler for BenchmarkRunnerAssembler {
         // BenchmarkRunner::react_startup(ctx);
     }
 
-    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut ReactorId, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = *reactor_id;
-        *reactor_id += 1;
+        let this_reactor = reactor_id.get_and_increment();
         let mut reaction_id = 0;
 
         // let react_InStart = new_reaction!(rid, _rstate, R_InStart);

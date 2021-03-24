@@ -32,14 +32,14 @@ main reactor StructAsType {
 }
  */
 fn main() {
-    let mut rid = 0;
+    let mut reactor_id = ReactorId::first();
 
     // --- s = new Source();
-    let mut s_cell = SourceAssembler::assemble(&mut rid, ());
+    let mut s_cell = SourceAssembler::assemble(&mut reactor_id, ());
 
     // --- p = new Print();
     // note: default parameters are hoisted here
-    let mut p_cell = PrintAssembler::assemble(&mut rid, (42, "Earth"));
+    let mut p_cell = PrintAssembler::assemble(&mut reactor_id, (42, "Earth"));
 
     {
         let mut p = s_cell._rstate.lock().unwrap();
@@ -126,10 +126,9 @@ impl ReactorAssembler for /*{{*/SourceAssembler/*}}*/ {
     }
 
 
-    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut ReactorId, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = *reactor_id;
-        *reactor_id += 1;
+        let this_reactor = reactor_id.get_and_increment();
         let mut reaction_id = 0;
 
         Self {
@@ -216,10 +215,9 @@ impl ReactorAssembler for /*{{*/PrintAssembler/*}}*/ {
         // nothing to do
     }
 
-    fn assemble(reactor_id: &mut u32, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(reactor_id: &mut ReactorId, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = *reactor_id;
-        *reactor_id += 1;
+        let this_reactor = reactor_id.get_and_increment();
         let mut reaction_id = 0;
 
         let /*{{*/react_print /*}}*/ = new_reaction!(this_reactor, reaction_id, _rstate, /*{{*/Print/*}}*/);
