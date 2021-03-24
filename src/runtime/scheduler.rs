@@ -204,7 +204,7 @@ struct ReactionWave {
     logical_time: LogicalTime,
 
     /// The set of reactions that have been processed (or scheduled)
-    /// in this wave, used to avoid duplication. todo this is a bad idea
+    /// in this wave, used to avoid duplication. todo this is a bad idea, should be done when binding ports right?
     done: HashSet<GlobalId>,
 
     /// Sender to schedule events that should be executed later than this wave.
@@ -234,9 +234,9 @@ impl ReactionWave {
     /// Todo topological info to split into independent subgraphs.
     fn consume(mut self, mut todo: Vec<ReactionOrder>) {
         let mut i = 0;
+        // we can share it, to reuse the allocation of the do_next buffer
+        let mut ctx = self.new_ctx();
         while i < todo.len() {
-            // we can share it, to reuse the allocation of the do_next buffer
-            let mut ctx = self.new_ctx();
             if let Some(reaction) = todo.get_mut(i) {
                 // this may append new elements into the queue,
                 // which is why we can't use an iterator.
