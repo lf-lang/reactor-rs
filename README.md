@@ -15,6 +15,19 @@ This is the unstable rust compiler + stdlib. We use some features that haven't b
 cargo run --bin reflex_game
 ```
 
+
+## Tour
+
+* See `src/runtime/scheduler.rs` for the scheduler implementation.
+* See `benches` for some benchmarks.
+* See `src/bin` for some example programs.
+
+The runtime assumes we have a code generator that works as described in the header of `src/bin/reflex_game.rs`. It assumes most of the structural checks have been performed by the code generator and hence elides them.
+
+> **Note:** the crate used to contain a module that does not assume a code generator.
+This was scrapped in 11a3ad5. Check it out for ideas about how to implement eg runtime checks.
+
+
 ## Benchmarking
 
 ```shell
@@ -37,17 +50,6 @@ Tests are organised into
 * a `/tests` directory for integration tests (TODO)
 
 Note the `#[cfg(test)]` attribute in some places, which means that an item is only compiled when running a test target.
-
-## Tour
-
-* See `src/runtime/scheduler.rs` for the scheduler implementation.
-* See `benches` for some benchmarks.
-* See `src/bin` for some example programs.
-
-The runtime assumes we have a code generator that works as described in the header of `src/bin/reflex_game.rs`. It assumes most of the structural checks have been performed by the code generator and hence elides them.
-
-> **Note:** the crate used to contain a module that does not assume a code generator.
-This was scrapped in 11a3ad5. Check it out for ideas about how to implement eg runtime checks.
 
 ## Status
 
