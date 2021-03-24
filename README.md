@@ -24,6 +24,19 @@ You can then find plots in `target/criterion/$BENCHMARK_NAME/report` (see [Crite
 
 Note: The `--feature` flag is used by conditional compilation directives (eg to remove some log statements).
 
+## Tests
+
+```shell
+cargo test
+```
+Note that the code sample included in documentation comments are also tests.
+See [rustdoc](https://doc.rust-lang.org/rustdoc/documentation-tests.html) reference.
+
+Tests are organised into
+* a `test` module for unit tests
+* a `/tests` directory for integration tests (TODO)
+
+Note the `#[cfg(test)]` attribute in some places, which means that an item is only compiled when running a test target.
 
 ## Tour
 
