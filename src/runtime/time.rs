@@ -10,9 +10,13 @@ use std::fmt::{Display, Formatter, Debug};
 
 pub(in super) type MicroStep = u128;
 
+/// Logical time is the union of an [Instant], ie a point in time
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub struct LogicalTime {
+    /// This is an instant in time. Physical time is measured
+    /// with the same unit.
     pub(in super) instant: Instant,
+    /// The microstep at this time.
     pub(in super) microstep: MicroStep,
 }
 
@@ -33,13 +37,6 @@ impl LogicalTime {
         self.instant
     }
 
-    pub fn offset(self, duration: Duration, mstep: MicroStep) -> Self {
-        Self {
-            instant: self.instant + duration,
-            microstep: self.microstep + mstep,
-        }
-    }
-
     pub fn now() -> Self {
         Self {
             instant: Instant::now(),
@@ -57,6 +54,7 @@ pub enum Offset {
 }
 
 impl Offset {
+    // Duration::zero() is unstable
     const ZERO_DURATION: Duration = Duration::from_millis(0);
 
     pub fn to_duration(&self) -> Duration {
