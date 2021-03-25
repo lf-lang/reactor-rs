@@ -3,13 +3,6 @@
 ## Setup
 
 * Download [rustup](https://rustup.rs/) (Rust toolchain manager).
-* Install the Rust nightly toolchain:
-```shell
-rustup install nightly
-rustup default nightly
-```
-This is the unstable rust compiler + stdlib. We use some features that haven't been entirely stabilized yet ([function traits](https://doc.rust-lang.org/nightly/unstable-book/library-features/fn-traits.html#fn_traits))
-
 * Run a program:
 ```shell
 cargo run --bin reflex_game
