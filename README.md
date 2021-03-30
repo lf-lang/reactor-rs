@@ -99,3 +99,22 @@ Inspect results
 ```
 $ opannotate --source | less
 ```
+
+### Results
+
+An examination of the results as obtained above for `savina_pong_bin` yields the following:
+- 14% samples are malloc/free/realloc
+- 16% samples are pthread_mutex_lock/unlock
+- 2.5% samples are Arc::clone
+- Only 0.008% samples are reaction execution (payload)
+  - the mutex around the reactor is acquired in every reaction.
+  Consumes 100x more time as the payload (0.6%).
+  - creating the closure (=boxing) also takes a lot of time? (2%)
+  ```rust
+   484  0.4882 :        Self::new_from_closure(reactor_id, reaction_priority, move |ctx: &mut LogicalCtx| { /* _PATH_ReactionInvoker3new_MANGLING    506  0.5104, _PATH_ReactionInvoker3new_MANGLING   1393  1.4051, total:   1899  1.9154 */
+   254  0.2562 :            let mut ref_mut = reactor.lock().unwrap();
+               :            let r1: &mut T = &mut *ref_mut;
+     8  0.0081 :            T::react(r1, ctx, rid)
+   326  0.3288 :        }) // note: this sample count is for the release of the lock
+               :    }
+  ```
