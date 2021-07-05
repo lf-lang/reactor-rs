@@ -166,7 +166,7 @@ impl<T> Default for OutputPort<T> {
 /// ```
 ///
 /// # fn main() {
-/// # use rust_reactors::runtime::{OutputPort, InputPort, bind_ports};
+/// # use reactor_rust::runtime::{OutputPort, InputPort, bind_ports};
 /// # let mut a_out = OutputPort::<i32>::new();
 /// # let mut b_out = OutputPort::<i32>::new();
 /// # let mut b_in = InputPort::<i32>::new();

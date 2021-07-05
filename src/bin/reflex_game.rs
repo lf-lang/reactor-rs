@@ -1,6 +1,6 @@
 #![allow(unused)]
 #[macro_use]
-extern crate rust_reactors;
+extern crate reactor_rust;
 
 
 use std::io::stdin;
@@ -9,10 +9,10 @@ use std::time::{Duration, Instant};
 
 use rand::Rng;
 
-use rust_reactors::reaction_ids;
-use rust_reactors::reaction_ids_helper;
-use rust_reactors::runtime::*;
-use rust_reactors::runtime::Offset::{After, Asap};
+use reactor_rust::reaction_ids;
+use reactor_rust::reaction_ids_helper;
+use reactor_rust::runtime::*;
+use reactor_rust::runtime::Offset::{After, Asap};
 
 // this is a manual translation of https://github.com/icyphy/lingua-franca/blob/f5868bec199e02f784393f32b594be5df935e2ee/example/C/ReflexGame/ReflexGameMinimal.lf#
 
