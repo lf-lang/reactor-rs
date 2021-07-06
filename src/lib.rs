@@ -16,10 +16,18 @@ mod time;
 mod components;
 mod util;
 
+// todo doc
 #[macro_export]
 macro_rules! new_reaction {
     ($reactorid:ident, $reactionid:ident, $_rstate:ident, $name:ident) => {{
-        let r = Arc::new(ReactionInvoker::new($reactorid, $reactionid, $_rstate.clone(), <Self::RState as ReactorDispatcher>::ReactionId::$name));
+        let r = ::std::sync::Arc::new(
+            $crate::ReactionInvoker::new(
+                $reactorid,
+                $reactionid,
+                $_rstate.clone(),
+                <Self::RState as $crate::ReactorDispatcher>::ReactionId::$name
+            )
+        );
         $reactionid += 1;
         r
     }};
