@@ -1,4 +1,4 @@
-use crate::runtime::*;
+use crate::*;
 use super::testutil::*;
 
 #[test]

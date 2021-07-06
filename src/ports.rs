@@ -3,7 +3,7 @@ use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
-use crate::runtime::ToposortedReactions;
+use crate::ToposortedReactions;
 
 // clients may only use InputPort and OutputPort
 // but there's a single implementation.
@@ -166,7 +166,7 @@ impl<T> Default for OutputPort<T> {
 /// ```
 ///
 /// # fn main() {
-/// # use reactor_rust::runtime::{OutputPort, InputPort, bind_ports};
+/// # use reactor_rust::{OutputPort, InputPort, bind_ports};
 /// # let mut a_out = OutputPort::<i32>::new();
 /// # let mut b_out = OutputPort::<i32>::new();
 /// # let mut b_in = InputPort::<i32>::new();

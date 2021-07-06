@@ -10,8 +10,8 @@ use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main, black_b
 
 use reactor_rust::reaction_ids;
 use reactor_rust::reaction_ids_helper;
-use reactor_rust::runtime::*;
-use reactor_rust::runtime::Offset::Asap;
+use reactor_rust::*;
+use reactor_rust::Offset::Asap;
 
 /*
 The ping/pong game from Savina benchmarks. This can be compared

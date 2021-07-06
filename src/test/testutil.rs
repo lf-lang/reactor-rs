@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use crate::runtime::*;
-use crate::runtime::Output;
+use crate::*;
+use crate::Output;
 
 /// Set a port to a value
 pub fn set_port<T>(port: &mut OutputPort<T>, v: T) {

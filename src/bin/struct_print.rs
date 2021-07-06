@@ -17,7 +17,7 @@ use rand::Rng;
 
 use reactor_rust::reaction_ids;
 use reactor_rust::reaction_ids_helper;
-use reactor_rust::runtime::*;
+use reactor_rust::*;
 
 // this is a manual translation of
 // https://github.com/icyphy/lingua-franca/blob/master/test/Cpp/StructPrint.lf
