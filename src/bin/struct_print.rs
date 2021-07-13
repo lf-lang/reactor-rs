@@ -1,6 +1,6 @@
 #![allow(unused)]
 #[macro_use]
-extern crate reactor_rust;
+extern crate reactor_rt;
 
 
 use std::cell::{RefCell, RefMut};
@@ -15,9 +15,9 @@ use std::time::{Duration, Instant};
 
 use rand::Rng;
 
-use reactor_rust::reaction_ids;
-use reactor_rust::reaction_ids_helper;
-use reactor_rust::*;
+use reactor_rt::reaction_ids;
+use reactor_rt::reaction_ids_helper;
+use reactor_rt::*;
 
 // this is a manual translation of
 // https://github.com/icyphy/lingua-franca/blob/master/test/Cpp/StructPrint.lf

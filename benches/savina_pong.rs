@@ -1,6 +1,6 @@
 #![allow(unused, non_snake_case, non_camel_case_types)]
 #[macro_use]
-extern crate reactor_rust;
+extern crate reactor_rt;
 
 
 use std::sync::{Arc, Mutex};
@@ -8,10 +8,10 @@ use std::time::{Duration, Instant};
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main, black_box};
 
-use reactor_rust::reaction_ids;
-use reactor_rust::reaction_ids_helper;
-use reactor_rust::*;
-use reactor_rust::Offset::Asap;
+use reactor_rt::reaction_ids;
+use reactor_rt::reaction_ids_helper;
+use reactor_rt::*;
+use reactor_rt::Offset::Asap;
 
 /*
 The ping/pong game from Savina benchmarks. This can be compared

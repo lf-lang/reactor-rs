@@ -110,7 +110,7 @@ macro_rules! reaction_ids_helper {
 /// traits. For example:
 ///
 /// ```
-/// # #[macro_use] extern crate reactor_rust;
+/// # #[macro_use] extern crate reactor_rt;
 /// reaction_ids!(pub enum AppReactions { Receive, Emit });
 /// ```
 ///
@@ -125,14 +125,14 @@ macro_rules! reaction_ids {
                 $($id),+
             }
 
-            impl reactor_rust::Named for $typename {
+            impl reactor_rt::Named for $typename {
                 fn name(&self) -> &'static str {
                     let me = *self;
                     reaction_ids_helper!((me) $($id),+ :end:)
                 }
             }
 
-            impl reactor_rust::Enumerated for $typename {
+            impl reactor_rt::Enumerated for $typename {
                 fn list() -> Vec<Self> {
                     vec![ $(Self::$id),+ ]
                 }
