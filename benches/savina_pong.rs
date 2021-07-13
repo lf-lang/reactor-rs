@@ -78,7 +78,7 @@ fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
         bind_ports(&mut pong.outPong, &mut ping.inPong);
     }
 
-    let mut scheduler = SyncScheduler::new();
+    let mut scheduler = SyncScheduler::new(SchedulerOptions::default());
 
     scheduler.startup(|mut starter| {
         starter.start(&mut runner_cell);

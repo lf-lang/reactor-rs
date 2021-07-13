@@ -49,7 +49,7 @@ fn main() {
         bind_ports(&mut p.out, &mut g.input);
     }
 
-    let mut scheduler = SyncScheduler::new();
+    let mut scheduler = SyncScheduler::new(SchedulerOptions::default());
 
     scheduler.startup(|mut starter| {
         starter.start(&mut s_cell);

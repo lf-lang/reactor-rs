@@ -26,6 +26,20 @@ struct Event {
     todo: Vec<ReactionOrder>,
 }
 
+pub struct SchedulerOptions {
+    pub keep_alive: bool,
+    pub timeout: Option<Duration>,
+}
+
+impl Default for SchedulerOptions {
+    fn default() -> Self {
+        Self {
+            keep_alive: false,
+            timeout: None,
+        }
+    }
+}
+
 /// Main public API for the scheduler. Contains the priority queue
 /// and public launch routine with event loop.
 pub struct SyncScheduler {
@@ -50,13 +64,18 @@ pub struct SyncScheduler {
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
     initial_time: Option<LogicalTime>,
+    /// Scheduled shutdown time. If not None, shutdown must
+    /// be initiated at least at this physical time step.
+    /// todo does this match lf semantics?
+    shutdown_time: Option<Instant>,
+    options: SchedulerOptions
 }
 
 impl SyncScheduler {
     /// Creates a new scheduler. An empty scheduler doesn't
     /// do anything unless some events are pushed to the queue.
     /// See [Self::launch_async].
-    pub fn new() -> Self {
+    pub fn new(options: SchedulerOptions) -> Self {
         let (sender, receiver) = channel::<Event>();
         Self {
             latest_logical_time: <_>::default(),
@@ -64,6 +83,8 @@ impl SyncScheduler {
             canonical_sender: sender,
             queue: PriorityQueue::new(),
             initial_time: None,
+            shutdown_time: None,
+            options,
         }
     }
 
@@ -86,6 +107,9 @@ impl SyncScheduler {
     pub fn startup(&mut self, startup_actions: impl FnOnce(StartupCtx)) {
         let initial_time = LogicalTime::now();
         self.initial_time = Some(initial_time);
+        if let Some(timeout) = self.options.timeout {
+            self.shutdown_time = Some(initial_time.to_instant() + timeout)
+        }
         let startup_wave = self.new_wave(initial_time);
         startup_actions(StartupCtx { scheduler: self, initial_wave: startup_wave });
     }
@@ -105,7 +129,7 @@ impl SyncScheduler {
     /// time than the specified timeout. The timeout should be
     /// chosen with care to the application requirements.
     // TODO track whether there are live [SchedulerLink] to prevent idle spinning?
-    pub fn launch_async(mut self, timeout: Duration) -> JoinHandle<()> {
+    pub fn launch_async(mut self) -> JoinHandle<()> {
         use std::thread;
         thread::spawn(move || {
             /************************************************
@@ -121,20 +145,33 @@ impl SyncScheduler {
                 if let Some((evt, _)) = self.queue.pop() {
                     // execute the wave for this event.
                     self.step(evt);
-                } else if let Ok(evt) = self.receiver.recv_timeout(timeout) { // this will block
+                } else if let Some(evt) = self.receive_event() { // this may block
                     self.push_event(evt);
                     continue;
                 } else {
                     // all senders have hung up, or timeout
                     #[cfg(not(feature = "benchmarking"))] {
-                        eprintln!("Shutting down scheduler, channel timed out after {} ms", timeout.as_millis());
+                        eprintln!("Shutting down scheduler");
                     }
                     break;
                 }
             } // end loop
+
             assert!(self.queue.is_empty(), "Program exited with pending events!");
             // self destructor is called here
         })
+    }
+
+    fn receive_event(&mut self) -> Option<Event> {
+        if self.options.keep_alive {
+            if let Some(shutdown_t) = self.shutdown_time {
+                let now = Instant::now();
+                if now < shutdown_t { // we don't have to shutdown yet
+                  return self.receiver.recv_timeout(shutdown_t.duration_since(now)).ok()
+                }
+            }
+        }
+        None
     }
 
     /// Push a single event to the event queue
