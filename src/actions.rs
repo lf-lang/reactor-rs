@@ -26,7 +26,7 @@ use std::fmt::*;
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
-use super::{ToposortedReactions, LogicalTime, Named};
+use super::{ToposortedReactions, LogicalInstant, Named};
 
 #[doc(hidden)]
 pub struct Logical;
@@ -52,7 +52,7 @@ impl<T> Action<T> {
     /// Compute the logical time at which an action must be scheduled
     ///
     ///
-    pub fn make_eta(&self, now: LogicalTime, additional_delay: Duration) -> LogicalTime {
+    pub fn make_eta(&self, now: LogicalInstant, additional_delay: Duration) -> LogicalInstant {
         let min_delay = self.delay + additional_delay;
         let mut instant = now.instant + min_delay;
         if !self.is_logical {
@@ -60,7 +60,7 @@ impl<T> Action<T> {
             instant = Instant::max(instant, Instant::now());
         }
 
-        LogicalTime {
+        LogicalInstant {
             instant,
             microstep: now.microstep + 1,
         }

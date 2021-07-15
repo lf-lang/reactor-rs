@@ -22,21 +22,22 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-
-
-
-
-
 use std::time::{Instant, Duration};
 use std::fmt::{Display, Formatter, Debug};
 
 
 pub(in super) type MicroStep = u128;
 
-/// Logical time is the union of an [Instant], ie a point in time
+/// A logical instant the union of an [Instant], ie a point
+/// in time, and a microstep. An [Instant] can be sampled with
+/// [Instant.now], which gives the current physical time. The
+/// current logical instant of the application may lag behind
+/// physical time. Timekeeping of the logical timeline is at
+/// the core of the scheduler, and the current logical time may
+/// only be accessed through a [LogicalCtx].
+///
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
-pub struct LogicalTime {
+pub struct LogicalInstant {
     /// This is an instant in time. Physical time is measured
     /// with the same unit.
     pub(in super) instant: Instant,
@@ -44,19 +45,19 @@ pub struct LogicalTime {
     pub(in super) microstep: MicroStep,
 }
 
-impl Display for LogicalTime {
+impl Display for LogicalInstant {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         <_ as Debug>::fmt(self, f)
     }
 }
 
-impl Default for LogicalTime {
+impl Default for LogicalInstant {
     fn default() -> Self {
         Self::now()
     }
 }
 
-impl LogicalTime {
+impl LogicalInstant {
     pub fn to_instant(&self) -> Instant {
         self.instant
     }

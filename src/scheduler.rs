@@ -41,12 +41,12 @@ use super::*;
 /// An order to execute some reaction
 type ReactionOrder = Arc<ReactionInvoker>;
 /// The internal cell type used to store a thread-safe mutable logical time value.
-type TimeCell = Arc<Mutex<Cell<LogicalTime>>>;
+type TimeCell = Arc<Mutex<Cell<LogicalInstant>>>;
 
 /// A simple tuple of (expected processing time, reactions to execute).
 #[derive(Eq, PartialEq, Hash)]
 struct Event {
-    process_at: LogicalTime,
+    process_at: LogicalInstant,
     todo: Vec<ReactionOrder>,
 }
 
@@ -83,11 +83,11 @@ pub struct SyncScheduler {
     /// A queue of events, which orders events according to their logical time.
     /// It needs to be reversed so that smallest delay == greatest priority.
     /// TODO work out your own data structure that merges events scheduled at the same time
-    queue: PriorityQueue<Event, Reverse<LogicalTime>>,
+    queue: PriorityQueue<Event, Reverse<LogicalInstant>>,
 
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
-    initial_time: Option<LogicalTime>,
+    initial_time: Option<LogicalInstant>,
     /// Scheduled shutdown time. If not None, shutdown must
     /// be initiated at least at this physical time step.
     /// todo does this match lf semantics?
@@ -129,7 +129,7 @@ impl SyncScheduler {
     ///
     /// TODO why not merge launch_async into this function
     pub fn startup(&mut self, startup_actions: impl FnOnce(StartupCtx)) {
-        let initial_time = LogicalTime::now();
+        let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
         if let Some(timeout) = self.options.timeout {
             self.shutdown_time = Some(initial_time.to_instant() + timeout)
@@ -213,20 +213,20 @@ impl SyncScheduler {
         self.new_wave(time).consume(event.todo);
     }
 
-    fn catch_up_physical_time(up_to_time: LogicalTime) -> LogicalTime {
+    fn catch_up_physical_time(up_to_time: LogicalInstant) -> LogicalInstant {
         let now = Instant::now();
         if now < up_to_time.instant {
             let t = up_to_time.instant - now;
             std::thread::sleep(t); // todo: see crate shuteyes for nanosleep capabilities on linux/macos platforms
-            LogicalTime::now()
+            LogicalInstant::now()
         } else {
-            LogicalTime { instant: now, microstep: 0 }
+            LogicalInstant { instant: now, microstep: 0 }
         }
     }
 
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    fn new_wave(&self, logical_time: LogicalTime) -> ReactionWave {
+    fn new_wave(&self, logical_time: LogicalInstant) -> ReactionWave {
         ReactionWave {
             logical_time,
             sender: self.canonical_sender.clone(),
@@ -259,7 +259,7 @@ impl<'a> StartupCtx<'a> {
 struct ReactionWave {
     /// Logical time of the execution of this wave, constant
     /// during the existence of the object
-    logical_time: LogicalTime,
+    logical_time: LogicalInstant,
 
     /// Sender to schedule events that should be executed later than this wave.
     sender: Sender<Event>,
@@ -270,7 +270,7 @@ impl ReactionWave {
     /// Add new reactions to execute later (at least 1 microstep later).
     ///
     /// This is used for actions.
-    fn enqueue_later(&mut self, downstream: &ToposortedReactions, process_at: LogicalTime) {
+    fn enqueue_later(&mut self, downstream: &ToposortedReactions, process_at: LogicalInstant) {
         debug_assert!(process_at > self.logical_time);
 
         // todo merge events at equal tags by merging their dependencies
@@ -370,7 +370,7 @@ impl LogicalCtx<'_> {
         unimplemented!()
     }
 
-    pub fn get_logical_time(&self) -> LogicalTime {
+    pub fn get_logical_time(&self) -> LogicalInstant {
         self.wave.logical_time
     }
 }
