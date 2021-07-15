@@ -44,7 +44,7 @@ type ReactionOrder = Arc<ReactionInvoker>;
 type TimeCell = Arc<Mutex<Cell<LogicalInstant>>>;
 
 /// A simple tuple of (expected processing time, reactions to execute).
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Debug)]
 struct Event {
     process_at: LogicalInstant,
     todo: Vec<ReactionOrder>,
@@ -92,7 +92,7 @@ pub struct SyncScheduler {
     /// be initiated at least at this physical time step.
     /// todo does this match lf semantics?
     shutdown_time: Option<Instant>,
-    options: SchedulerOptions
+    options: SchedulerOptions,
 }
 
 impl SyncScheduler {
@@ -128,17 +128,20 @@ impl SyncScheduler {
     /// ```
     ///
     /// TODO why not merge launch_async into this function
-    pub fn startup(&mut self, startup_actions: impl FnOnce(StartupCtx)) {
+    pub fn startup(&mut self, startup_actions: impl FnOnce(&mut StartupCtx)) {
         let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
         if let Some(timeout) = self.options.timeout {
             self.shutdown_time = Some(initial_time.to_instant() + timeout)
         }
         let mut startup_wave = self.new_wave(initial_time);
-        startup_actions(StartupCtx {
+        let mut startup_ctx = StartupCtx {
             scheduler: self,
-            logical_ctx: startup_wave.new_ctx(),
-        });
+            ctx: startup_wave.new_ctx(),
+        };
+        startup_actions(&mut startup_ctx);
+        let todo = startup_ctx.ctx.do_next.clone();
+        startup_wave.consume(todo);
     }
 
     /// Launch the event loop in an auxiliary thread. Returns
@@ -197,7 +200,10 @@ impl SyncScheduler {
             if let Some(shutdown_t) = self.shutdown_time {
                 let now = Instant::now();
                 if now < shutdown_t { // we don't have to shutdown yet
-                  return self.receiver.recv_timeout(shutdown_t.duration_since(now)).ok()
+                    #[cfg(bench)] {
+                        eprintln!("Waiting for next event.");
+                    }
+                    return self.receiver.recv_timeout(shutdown_t.duration_since(now)).ok();
                 }
             }
         }
@@ -206,6 +212,10 @@ impl SyncScheduler {
 
     /// Push a single event to the event queue
     fn push_event(&mut self, evt: Event) {
+        #[cfg(bench)] {
+            eprintln!("Pushing {:?}.", evt);
+        }
+
         let eta = evt.process_at;
         self.queue.push(evt, Reverse(eta));
     }
@@ -214,6 +224,9 @@ impl SyncScheduler {
     /// (the scheduler one) sleep, if the expected processing
     /// time (logical) is ahead of current physical time.
     fn step(&mut self, event: Event) {
+        #[cfg(bench)] {
+            eprintln!("Next event has tag {}", event.process_at);
+        }
         let time = Self::catch_up_physical_time(event.process_at);
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
         self.new_wave(time).consume(event.todo);
@@ -243,13 +256,13 @@ impl SyncScheduler {
 /// The API of [SyncScheduler::startup].
 pub struct StartupCtx<'a> {
     scheduler: &'a mut SyncScheduler,
-    logical_ctx: LogicalCtx<'a>,
+    ctx: LogicalCtx<'a>,
 }
 
 impl<'a> StartupCtx<'a> {
     #[inline]
     pub fn logical_ctx<'b>(&'b mut self) -> &'b mut LogicalCtx<'a> {
-        &mut self.logical_ctx
+        &mut self.ctx
     }
 
     #[inline]

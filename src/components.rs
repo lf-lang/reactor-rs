@@ -78,6 +78,12 @@ impl Display for ReactionInvoker {
     }
 }
 
+impl Debug for ReactionInvoker {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.id.fmt(f)
+    }
+}
+
 impl PartialOrd for ReactionInvoker {
     /// Reactions are comparable if they're declared in the same reactor.
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
