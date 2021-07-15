@@ -57,9 +57,9 @@ fn reactor_main(c: &mut Criterion) {
             num_pongs,
             |b, &size| {
                 b.iter(|| {
-                    let timeout = Duration::from_millis(2);
-                    let scheduler = do_assembly(1, size);
-                    scheduler.launch_async(timeout).join().unwrap();
+                    let timeout = Some(Duration::from_millis(2));
+                    let scheduler = do_assembly(1, size, timeout);
+                    scheduler.launch_async().join().unwrap();
                 });
             }
         );
@@ -67,7 +67,7 @@ fn reactor_main(c: &mut Criterion) {
     group.finish();
 }
 
-fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
+fn do_assembly(numIterations: u32, count: u32, timeout: Option<Duration>) -> SyncScheduler {
     let mut rid = ReactorId::first();
 
     // ping = new Ping(count=count);
@@ -102,7 +102,7 @@ fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
         bind_ports(&mut pong.outPong, &mut ping.inPong);
     }
 
-    let mut scheduler = SyncScheduler::new(SchedulerOptions::default());
+    let mut scheduler = SyncScheduler::new(SchedulerOptions { timeout, keep_alive: false });
 
     scheduler.startup(|mut starter| {
         starter.start(&mut runner_cell);

@@ -46,12 +46,12 @@ See original at https://github.com/icyphy/lingua-franca/blob/f5868bec199e02f7843
  */
 
 fn main() {
-    let timeout = Duration::from_millis(2);
-    let scheduler = do_assembly(5, 1_000_000);
-    scheduler.launch_async(timeout).join().unwrap();
+    let timeout = Some(Duration::from_millis(2));
+    let scheduler = do_assembly(5, 1_000_000, timeout);
+    scheduler.launch_async().join().unwrap();
 }
 
-fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
+fn do_assembly(numIterations: u32, count: u32, timeout: Option<Duration>) -> SyncScheduler {
     let mut rid = ReactorId::first();
 
     // ping = new Ping(count=count);
@@ -86,7 +86,7 @@ fn do_assembly(numIterations: u32, count: u32) -> SyncScheduler {
         bind_ports(&mut pong.outPong, &mut ping.inPong);
     }
 
-    let mut scheduler = SyncScheduler::new(SchedulerOptions::default());
+    let mut scheduler = SyncScheduler::new(SchedulerOptions { timeout, keep_alive: false });
 
     scheduler.startup(|mut starter| {
         starter.start(&mut runner_cell);
