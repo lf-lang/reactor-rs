@@ -142,6 +142,22 @@ macro_rules! reaction_ids_helper {
 /// and [Enumerated](Enumerated).
 #[macro_export]
 macro_rules! reaction_ids {
+        ($viz:vis enum $typename:ident { }) => {
+            #[derive(Ord, PartialOrd, Eq, PartialEq, Debug, Hash, Copy, Clone)]
+            $viz enum $typename {}
+
+            impl reactor_rt::Named for $typename {
+                fn name(&self) -> &'static str {
+                    unreachable!()
+                }
+            }
+
+            impl reactor_rt::Enumerated for $typename {
+                fn list() -> Vec<Self> {
+                    vec![]
+                }
+            }
+        };
         ($viz:vis enum $typename:ident { $($id:ident),+$(,)? }) => {
 
             #[derive(Ord, PartialOrd, Eq, PartialEq, Debug, Hash, Copy, Clone)]
