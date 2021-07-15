@@ -174,7 +174,10 @@ impl SyncScheduler {
                     continue;
                 } else {
                     // all senders have hung up, or timeout
-                    #[cfg(not(feature = "benchmarking"))] {
+                    // todo i'm not 100% sure that this cfg(bench) works properly
+                    // Previously I was using a cfg(not(feature = "benchmarking")) with a custom feature
+                    // but that's tedious to use.
+                    #[cfg(bench)] {
                         eprintln!("Shutting down scheduler");
                     }
                     break;
