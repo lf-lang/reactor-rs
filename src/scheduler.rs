@@ -134,8 +134,11 @@ impl SyncScheduler {
         if let Some(timeout) = self.options.timeout {
             self.shutdown_time = Some(initial_time.to_instant() + timeout)
         }
-        let startup_wave = self.new_wave(initial_time);
-        startup_actions(StartupCtx { scheduler: self, initial_wave: startup_wave });
+        let mut startup_wave = self.new_wave(initial_time);
+        startup_actions(StartupCtx {
+            scheduler: self,
+            logical_ctx: startup_wave.new_ctx(),
+        });
     }
 
     /// Launch the event loop in an auxiliary thread. Returns
@@ -240,23 +243,28 @@ impl SyncScheduler {
 /// The API of [SyncScheduler::startup].
 pub struct StartupCtx<'a> {
     scheduler: &'a mut SyncScheduler,
-    initial_wave: ReactionWave,
+    logical_ctx: LogicalCtx<'a>,
 }
 
 impl<'a> StartupCtx<'a> {
-    /// Execute the startup reaction of the given assembler.
-    pub fn start(&mut self, r: &mut impl ReactorAssembler) {
-        let ctx = SchedulerLink {
+    #[inline]
+    pub fn logical_ctx<'b>(&'b mut self) -> &'b mut LogicalCtx<'a> {
+        &mut self.logical_ctx
+    }
+
+    #[inline]
+    pub fn scheduler_link(&mut self) -> SchedulerLink {
+        SchedulerLink {
             last_processed_logical_time: self.scheduler.latest_logical_time.clone(),
             sender: self.scheduler.canonical_sender.clone(),
-        };
-        r.start(ctx, &mut self.initial_wave.new_ctx())
+        }
     }
 }
 
 /// A "wave" of reactions executing at the same logical time.
 /// Waves can enqueue new reactions to execute at the same time,
 /// they're processed in exec order.
+///
 ///
 /// todo would there be a way to "split" waves into workers?
 struct ReactionWave {
@@ -316,6 +324,9 @@ impl ReactionWave {
 /// allows mutating the event queue of the scheduler. Only the
 /// interactions declared at assembly time are allowed.
 ///
+/// LogicalCtx is an API built around a ReactionWave. A single
+/// ReactionWave may be used for multiple ReactionWaves, but
+/// obviously at disjoint times (&mut).
 pub struct LogicalCtx<'a> {
     wave: &'a mut ReactionWave,
 

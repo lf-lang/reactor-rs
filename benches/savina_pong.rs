@@ -105,9 +105,9 @@ fn do_assembly(numIterations: u32, count: u32, timeout: Option<Duration>) -> Syn
     let mut scheduler = SyncScheduler::new(SchedulerOptions { timeout, keep_alive: false });
 
     scheduler.startup(|mut starter| {
-        starter.start(&mut runner_cell);
-        starter.start(&mut ping_cell);
-        starter.start(&mut pong_cell);
+        runner_cell.start(&mut starter);
+        ping_cell.start(&mut starter);
+        pong_cell.start(&mut starter);
     });
 
     scheduler
@@ -196,7 +196,7 @@ struct PingAssembler {
 impl ReactorAssembler for PingAssembler {
     type RState = PingDispatcher;
 
-    fn start(&mut self, link: SchedulerLink, ctx: &mut LogicalCtx) {
+    fn start(&mut self, ctx: &mut StartupCtx) {
         // Ping::react_startup(ctx);
     }
 
@@ -281,7 +281,7 @@ struct PongAssembler {
 impl ReactorAssembler for PongAssembler {
     type RState = PongDispatcher;
 
-    fn start(&mut self, link: SchedulerLink, ctx: &mut LogicalCtx) {
+    fn start(&mut self, ctx: &mut StartupCtx) {
         // Ping::react_startup(ctx);
     }
 
@@ -337,7 +337,7 @@ impl BenchmarkRunner {
     R_Finish
      */
 
-    fn react_Startup(&self, link: SchedulerLink, ctx: &mut LogicalCtx, nextIteration: &LogicalAction, initBenchmark: &LogicalAction) {
+    fn react_Startup(&self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction, initBenchmark: &LogicalAction) {
         if self.use_init {
             ctx.schedule(initBenchmark, Asap)
         } else {
@@ -517,9 +517,9 @@ impl ReactorAssembler for BenchmarkRunnerAssembler {
     type RState = BenchmarkRunnerDispatcher;
 
 
-    fn start(&mut self, link: SchedulerLink, ctx: &mut LogicalCtx) {
+    fn start(&mut self, ctx: &mut StartupCtx) {
         let  rstate = self._rstate.lock().unwrap();
-        rstate._impl.react_Startup(link, ctx, &rstate.nextIteration, &rstate.initBenchmark);
+        rstate._impl.react_Startup(ctx.logical_ctx(), &rstate.nextIteration, &rstate.initBenchmark);
 
         // BenchmarkRunner::react_startup(ctx);
     }

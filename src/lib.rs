@@ -98,7 +98,7 @@ pub trait ReactorAssembler {
     /// This also creates physical actions.
     /// The logical context can be used to schedule things at
     /// the startup time of the app (time zero).
-    fn start(&mut self, link: SchedulerLink, ctx: &mut LogicalCtx);
+    fn start(&mut self, ctx: &mut StartupCtx);
 
     /// Create a new instance. The rid is a counter used to
     /// give unique IDs to reactions. The args are passed down

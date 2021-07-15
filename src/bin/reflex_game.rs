@@ -125,8 +125,8 @@ fn main() {
     let mut scheduler = SyncScheduler::new(SchedulerOptions::default());
 
     scheduler.startup(|mut starter| {
-        starter.start(&mut gcell);
-        starter.start(&mut pcell);
+        gcell.start(&mut starter);
+        pcell.start(&mut starter);
     });
     scheduler.launch_async().join().unwrap();
 }
@@ -147,7 +147,7 @@ impl RandomSource {
     ///      srand(time(0));
     ///      schedule(prompt, random_time());
     ///  =}
-    fn react_startup(link: SchedulerLink, ctx: &mut LogicalCtx, prompt: &LogicalAction) {
+    fn react_startup(ctx: &mut LogicalCtx, prompt: &LogicalAction) {
         // seed random gen
         ctx.schedule(prompt, After(RandomSource::random_delay()));
     }
@@ -220,8 +220,8 @@ struct RandomSourceAssembler {
 impl ReactorAssembler for /*{{*/RandomSourceAssembler/*}}*/ {
     type RState = /*{{*/RandomSourceDispatcher/*}}*/;
 
-    fn start(&mut self, link: SchedulerLink, ctx: &mut LogicalCtx) {
-        RandomSource::react_startup(link, ctx, &self._rstate.lock().unwrap().prompt);
+    fn start(&mut self, ctx: &mut StartupCtx) {
+        RandomSource::react_startup(&mut ctx.logical_ctx(), &self._rstate.lock().unwrap().prompt);
     }
 
 
@@ -272,7 +272,7 @@ impl GetUserInput {
     ///     pthread_create(&thread_id, NULL, &read_input, response);
     /// =}
     ///
-    fn react_startup(link: SchedulerLink, ctx: &mut LogicalCtx, response: PhysicalAction) {
+    fn react_startup(link: SchedulerLink, response: PhysicalAction) {
         std::thread::spawn(move || GetUserInput::read_input_loop(link, response));
     }
 
@@ -360,11 +360,11 @@ impl ReactorAssembler for /*{{*/GetUserInputAssembler/*}}*/ {
     type RState = /*{{*/GetUserInputReactionState/*}}*/;
 
 
-    fn start(&mut self, link: SchedulerLink, ctx: &mut LogicalCtx) {
+    fn start(&mut self, ctx: &mut StartupCtx) {
         let mut response = /* response */PhysicalAction::new(None, "response");
         /*{{*/response/*}}*/.set_downstream(vec![/*{{*/self.react_handle_line/*}}*/.clone()].into());
 
-        GetUserInput::react_startup(link, ctx, response);
+        GetUserInput::react_startup(ctx.scheduler_link(), response);
     }
 
     fn assemble(reactor_id: &mut ReactorId, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
