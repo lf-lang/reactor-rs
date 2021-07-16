@@ -33,6 +33,10 @@ pub use self::scheduler::*;
 pub use self::time::*;
 pub use self::util::*;
 
+// reexport those to complement our LogicalInstant
+pub use std::time::Instant as PhysicalInstant;
+pub use std::time::Duration;
+
 mod scheduler;
 mod ports;
 mod actions;

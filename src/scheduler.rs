@@ -32,7 +32,7 @@ use std::hash::Hash;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::JoinHandle;
-use std::time::{Duration, Instant};
+use super::{Duration, PhysicalInstant};
 
 use priority_queue::PriorityQueue;
 
@@ -91,7 +91,7 @@ pub struct SyncScheduler {
     /// Scheduled shutdown time. If not None, shutdown must
     /// be initiated at least at this physical time step.
     /// todo does this match lf semantics?
-    shutdown_time: Option<Instant>,
+    shutdown_time: Option<PhysicalInstant>,
     options: SchedulerOptions,
 }
 
@@ -132,7 +132,7 @@ impl SyncScheduler {
         let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
         if let Some(timeout) = self.options.timeout {
-            self.shutdown_time = Some(initial_time.to_instant() + timeout)
+            self.shutdown_time = Some(initial_time.instant + timeout)
         }
         let mut startup_wave = self.new_wave(initial_time);
         let mut startup_ctx = StartupCtx {
@@ -198,7 +198,7 @@ impl SyncScheduler {
     fn receive_event(&mut self) -> Option<Event> {
         if self.options.keep_alive {
             if let Some(shutdown_t) = self.shutdown_time {
-                let now = Instant::now();
+                let now = PhysicalInstant::now();
                 if now < shutdown_t { // we don't have to shutdown yet
                     #[cfg(bench)] {
                         eprintln!("Waiting for next event.");
@@ -233,13 +233,13 @@ impl SyncScheduler {
     }
 
     fn catch_up_physical_time(up_to_time: LogicalInstant) -> LogicalInstant {
-        let now = Instant::now();
+        let now = PhysicalInstant::now();
         if now < up_to_time.instant {
             let t = up_to_time.instant - now;
             std::thread::sleep(t); // todo: see crate shuteyes for nanosleep capabilities on linux/macos platforms
             LogicalInstant::now()
         } else {
-            LogicalInstant { instant: now, microstep: 0 }
+            LogicalInstant { instant: now, microstep: MicroStep::ZERO }
         }
     }
 
@@ -387,8 +387,8 @@ impl LogicalCtx<'_> {
         self.wave.enqueue_later(&action.downstream, action.make_eta(self.wave.logical_time, offset.to_duration()));
     }
 
-    pub fn get_physical_time(&self) -> Instant {
-        Instant::now()
+    pub fn get_physical_time(&self) -> PhysicalInstant {
+        PhysicalInstant::now()
     }
 
     /// Request a shutdown which will be acted upon at the end

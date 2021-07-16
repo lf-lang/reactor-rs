@@ -22,15 +22,29 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::time::{Instant, Duration};
 use std::fmt::{Display, Formatter, Debug};
+use super::{PhysicalInstant, Duration};
+use std::ops::Add;
 
+/// Type of the microsteps of a [LogicalInstant]
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
+pub struct MicroStep(u64);
 
-pub(in super) type MicroStep = u128;
+impl MicroStep {
+    pub const ZERO: MicroStep = MicroStep(0);
+}
 
-/// A logical instant the union of an [Instant], ie a point
-/// in time, and a microstep. An [Instant] can be sampled with
-/// [Instant.now], which gives the current physical time. The
+impl Add<u64> for MicroStep {
+    type Output = Self;
+    #[inline]
+    fn add(self, rhs: u64) -> Self::Output {
+        Self(self.0 + rhs)
+    }
+}
+
+/// A logical instant the union of an [PhysicalInstant], ie a point
+/// in time, and a microstep. An [PhysicalInstant] can be sampled with
+/// [PhysicalInstant.now], which gives the current physical time. The
 /// current logical instant of the application may lag behind
 /// physical time. Timekeeping of the logical timeline is at
 /// the core of the scheduler, and the current logical time may
@@ -40,9 +54,9 @@ pub(in super) type MicroStep = u128;
 pub struct LogicalInstant {
     /// This is an instant in time. Physical time is measured
     /// with the same unit.
-    pub(in super) instant: Instant,
+    pub instant: PhysicalInstant,
     /// The microstep at this time.
-    pub(in super) microstep: MicroStep,
+    pub microstep: MicroStep,
 }
 
 impl Display for LogicalInstant {
@@ -52,20 +66,18 @@ impl Display for LogicalInstant {
 }
 
 impl Default for LogicalInstant {
+    #[inline]
     fn default() -> Self {
         Self::now()
     }
 }
 
 impl LogicalInstant {
-    pub fn to_instant(&self) -> Instant {
-        self.instant
-    }
-
+    #[inline]
     pub fn now() -> Self {
         Self {
-            instant: Instant::now(),
-            microstep: 0,
+            instant: PhysicalInstant::now(),
+            microstep: MicroStep::ZERO,
         }
     }
 }
@@ -82,6 +94,7 @@ impl Offset {
     // Duration::zero() is unstable
     const ZERO_DURATION: Duration = Duration::from_millis(0);
 
+    #[inline]
     pub fn to_duration(&self) -> Duration {
         match self {
             Offset::Asap => Self::ZERO_DURATION,

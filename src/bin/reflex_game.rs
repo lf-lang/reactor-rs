@@ -300,7 +300,7 @@ impl GetUserInput {
                 println!("You cheated!");
             }
             Some(t) => {
-                let time = ctx.get_logical_time().to_instant() - t;
+                let time = ctx.get_logical_time().instant - t;
                 println!("Response time: {} ms", time.as_millis());
             }
         }
