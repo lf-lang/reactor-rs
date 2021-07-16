@@ -249,6 +249,10 @@ impl SyncScheduler {
         ReactionWave {
             logical_time,
             sender: self.canonical_sender.clone(),
+            // note: initializing self.initial_time is the
+            // first thing done during startup so the unwrap
+            // should never panic
+            initial_time: self.initial_time.unwrap()
         }
     }
 }
@@ -288,12 +292,15 @@ struct ReactionWave {
     /// Sender to schedule events that should be executed later than this wave.
     sender: Sender<Event>,
 
+    /// Start time of the program.
+    initial_time: LogicalInstant,
 }
 
 impl ReactionWave {
     /// Add new reactions to execute later (at least 1 microstep later).
     ///
     /// This is used for actions.
+    #[inline]
     fn enqueue_later(&mut self, downstream: &ToposortedReactions, process_at: LogicalInstant) {
         debug_assert!(process_at > self.logical_time);
 
@@ -302,6 +309,7 @@ impl ReactionWave {
         self.sender.send(evt).unwrap();
     }
 
+    #[inline]
     fn new_ctx(&mut self) -> LogicalCtx {
         LogicalCtx { wave: self, do_next: Vec::new() }
     }
@@ -353,6 +361,7 @@ pub struct LogicalCtx<'a> {
 
 impl LogicalCtx<'_> {
     /// Get the value of a port at this time.
+    #[inline]
     pub fn get<T: Copy>(&self, port: &InputPort<T>) -> Option<T> {
         port.get()
     }
@@ -362,6 +371,7 @@ impl LogicalCtx<'_> {
     /// propagates immediately. This may hence schedule more
     /// reactions that should execute on the same logical
     /// step.
+    #[inline]
     pub fn set<T>(&mut self, port: &mut OutputPort<T>, value: T) {
         // TODO topology information & deduplication
         //  Eg for a diamond situation this will execute reactions several times...
@@ -378,27 +388,42 @@ impl LogicalCtx<'_> {
     /// Schedule an action to run after its own implicit time delay,
     /// plus an optional additional time delay. These delays are in
     /// logical time.
+    #[inline]
     pub fn schedule(&mut self, action: &LogicalAction, offset: Offset) {
         self.schedule_impl(action, offset);
     }
 
+    #[inline]
     // private
     fn schedule_impl<T>(&mut self, action: &Action<T>, offset: Offset) {
         self.wave.enqueue_later(&action.downstream, action.make_eta(self.wave.logical_time, offset.to_duration()));
     }
 
+    #[inline]
     pub fn get_physical_time(&self) -> PhysicalInstant {
         PhysicalInstant::now()
     }
 
     /// Request a shutdown which will be acted upon at the end
     /// of this reaction.
+    #[inline]
     pub fn request_shutdown(self) {
         unimplemented!()
     }
 
+    #[inline]
     pub fn get_logical_time(&self) -> LogicalInstant {
         self.wave.logical_time
+    }
+
+    #[inline]
+    pub fn get_elapsed_logical_time(&self) -> Duration {
+        self.get_logical_time().instant - self.wave.initial_time.instant
+    }
+
+    #[inline]
+    pub fn get_elapsed_physical_time(&self) -> Duration {
+        self.get_physical_time() - self.wave.initial_time.instant
     }
 }
 
