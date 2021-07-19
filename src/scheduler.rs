@@ -32,10 +32,10 @@ use std::hash::Hash;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::thread::JoinHandle;
-use super::{Duration, PhysicalInstant};
 
 use priority_queue::PriorityQueue;
 
+use super::{Duration, PhysicalInstant};
 use super::*;
 
 /// An order to execute some reaction
@@ -166,6 +166,13 @@ impl SyncScheduler {
              * This is the main event loop of the scheduler *
              ************************************************/
             loop {
+                let now = PhysicalInstant::now();
+                if let Some(shutdown_t) = self.shutdown_time {
+                    // we need to shutdown even if there are more events in the queue
+                    if now > shutdown_t {
+                        break;
+                    }
+                }
 
                 // flush pending events, this doesn't block
                 while let Ok(evt) = self.receiver.try_recv() {
@@ -175,7 +182,7 @@ impl SyncScheduler {
                 if let Some((evt, _)) = self.queue.pop() {
                     // execute the wave for this event.
                     self.step(evt);
-                } else if let Some(evt) = self.receive_event() { // this may block
+                } else if let Some(evt) = self.receive_event(now) { // this may block
                     self.push_event(evt);
                     continue;
                 } else {
@@ -190,16 +197,15 @@ impl SyncScheduler {
                 }
             } // end loop
 
-            assert!(self.queue.is_empty(), "Program exited with pending events!");
             // self destructor is called here
         })
     }
 
-    fn receive_event(&mut self) -> Option<Event> {
+    fn receive_event(&mut self, now: PhysicalInstant) -> Option<Event> {
         if self.options.keep_alive {
             if let Some(shutdown_t) = self.shutdown_time {
-                let now = PhysicalInstant::now();
-                if now < shutdown_t { // we don't have to shutdown yet
+                if now < shutdown_t {
+                    // we don't have to shutdown yet, so we can wait
                     #[cfg(bench)] {
                         eprintln!("Waiting for next event.");
                     }
@@ -227,6 +233,7 @@ impl SyncScheduler {
         #[cfg(bench)] {
             eprintln!("Next event has tag {}", event.process_at);
         }
+
         let time = Self::catch_up_physical_time(event.process_at);
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
         self.new_wave(time).consume(event.todo);
