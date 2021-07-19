@@ -126,7 +126,7 @@ impl ReactionInvoker {
     /// Create a new reaction invoker that doesn't need a reactor,
     /// ie the invoked code can be arbitrary.
     /// This may be used to test the logic of the scheduler
-    pub(in crate) fn new_from_closure(reactor_id: ReactorId,
+    pub fn new_from_closure(reactor_id: ReactorId,
                                       reaction_priority: u32,
                                       action: impl Fn(&mut LogicalCtx) + Send + Sync + 'static) -> ReactionInvoker {
         ReactionInvoker {

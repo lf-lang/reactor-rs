@@ -63,6 +63,18 @@ macro_rules! new_reaction {
     }};
 }
 
+#[macro_export]
+macro_rules! reschedule_self_timer {
+    ($reactorid:ident, $_rstate:ident, $_rpriority:literal) => {{
+        let mut mystate = $_rstate.clone();
+        let schedule_myself = move |ctx: &mut LogicalCtx| {
+            let me = mystate.lock().unwrap();
+            ctx.reschedule(&me.t); // this doesn't reschedule aperiodic timers
+        };
+        Arc::new($crate::ReactionInvoker::new_from_closure($reactorid, $_rpriority, schedule_myself))
+    }};
+}
+
 /// Wrapper around the user struct for safe dispatch.
 ///
 /// Fields are

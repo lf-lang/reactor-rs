@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -23,11 +22,13 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::Offset::After;
 
+
 use super::*;
+use std::ops::Deref;
 
 /// A timer is conceptually a logical action that re-schedules
 /// itself periodically.
@@ -35,8 +36,17 @@ pub struct Timer {
     // A reaction that reschedules this
     reschedule: Option<Arc<ReactionInvoker>>,
     name: &'static str,
-    offset: Duration,
-    period: Duration,
+
+    /// Minimal duration after the start of the program after
+    /// which the timer starts to trigger.
+    pub offset: Duration,
+
+    /// Period between events emitted by this timer. A period
+    /// of zero means that the timer will trigger exactly once
+    /// after the specified offset.
+    pub period: Duration,
+
+    pub(in super) downstream: ToposortedReactions,
 }
 
 
@@ -52,17 +62,21 @@ impl Timer {
             offset,
             period,
             name,
+            downstream: Default::default(),
             reschedule: None,
         }
     }
 
-    pub fn make_reschedule_reaction(&mut self, rid: ReactorId) -> Arc<ReactionInvoker> {
-        let mut action = LogicalAction::new(self.name, None);
-        // action.set_downstream(r);
-        let period = self.period.clone();
-        let schedule_myself = move |ctx: &mut LogicalCtx| {
-            ctx.schedule(&action, After(period))
-        };
-        return Arc::new(ReactionInvoker::new_from_closure(rid, 1000, schedule_myself));
+    #[inline]
+    pub fn set_downstream(&mut self, r: ToposortedReactions) {
+        self.downstream = r
+    }
+
+    /// Whether the timer should repeat itself. A period of zero
+    /// means that the timer will trigger exactly once after the
+    /// specified offset.
+    #[inline]
+    pub fn is_periodic(&self) -> bool {
+        !self.period.is_zero()
     }
 }

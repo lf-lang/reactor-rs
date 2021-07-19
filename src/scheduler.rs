@@ -252,7 +252,7 @@ impl SyncScheduler {
             // note: initializing self.initial_time is the
             // first thing done during startup so the unwrap
             // should never panic
-            initial_time: self.initial_time.unwrap()
+            initial_time: self.initial_time.unwrap(),
         }
     }
 }
@@ -267,6 +267,15 @@ impl<'a> StartupCtx<'a> {
     #[inline]
     pub fn logical_ctx<'b>(&'b mut self) -> &'b mut LogicalCtx<'a> {
         &mut self.ctx
+    }
+
+    pub fn start_timer(&mut self, t: &Timer) {
+        if t.offset.is_zero() {
+            // no offset
+            self.ctx.enqueue_now(&t.downstream)
+        } else {
+            self.ctx.enqueue_later(&t.downstream, self.ctx.get_logical_time() + t.offset)
+        }
     }
 
     #[inline]
@@ -376,13 +385,7 @@ impl LogicalCtx<'_> {
         // TODO topology information & deduplication
         //  Eg for a diamond situation this will execute reactions several times...
         //  This is why I added a set to patch it
-
-        port.set_impl(value, |downstream| {
-            for reaction in downstream {
-                // todo blindly appending possibly does not respect the topological sort
-                self.do_next.push(reaction.clone());
-            }
-        });
+        port.set_impl(value, |downstream| self.enqueue_now(downstream));
     }
 
     /// Schedule an action to run after its own implicit time delay,
@@ -393,10 +396,27 @@ impl LogicalCtx<'_> {
         self.schedule_impl(action, offset);
     }
 
-    #[inline]
+    pub fn reschedule(&mut self, action: &Timer) {
+        if action.is_periodic() {
+            self.enqueue_later(&action.downstream, self.wave.logical_time + action.period);
+        }
+    }
+
     // private
+    #[inline]
     fn schedule_impl<T>(&mut self, action: &Action<T>, offset: Offset) {
-        self.wave.enqueue_later(&action.downstream, action.make_eta(self.wave.logical_time, offset.to_duration()));
+        self.enqueue_later(&action.downstream, action.make_eta(self.wave.logical_time, offset.to_duration()));
+    }
+
+    pub(in crate) fn enqueue_later(&mut self, downstream: &ToposortedReactions, process_at: LogicalInstant) {
+        self.wave.enqueue_later(&downstream, process_at);
+    }
+
+    pub(in crate) fn enqueue_now(&mut self, downstream: &ToposortedReactions) {
+        for reaction in downstream {
+            // todo blindly appending possibly does not respect the topological sort
+            self.do_next.push(reaction.clone());
+        }
     }
 
     #[inline]

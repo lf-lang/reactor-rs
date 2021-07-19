@@ -84,6 +84,17 @@ impl LogicalInstant {
 }
 
 
+impl Add<Duration> for LogicalInstant {
+    type Output = Self;
+
+    fn add(self, rhs: Duration) -> Self::Output {
+        Self {
+            instant: self.instant + rhs,
+            microstep: MicroStep::ZERO,
+        }
+    }
+}
+
 
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Offset {
