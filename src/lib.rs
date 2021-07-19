@@ -26,7 +26,8 @@
 pub mod test;
 
 pub use self::actions::*;
-pub use self::components::*;
+pub use self::timers::*;
+pub use self::reactions::*;
 pub use self::ports::*;
 
 pub use self::scheduler::*;
@@ -41,7 +42,8 @@ mod scheduler;
 mod ports;
 mod actions;
 mod time;
-mod components;
+mod timers;
+mod reactions;
 mod util;
 
 // todo doc
