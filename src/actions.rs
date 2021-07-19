@@ -27,9 +27,13 @@ use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
 use super::{ToposortedReactions, LogicalInstant, Named};
+use crate::{LogicalCtx, ReactionInvoker, ReactorId};
+use std::sync::Arc;
+use crate::Offset::After;
 
 #[doc(hidden)]
 pub struct Logical;
+
 #[doc(hidden)]
 pub struct Physical;
 
@@ -81,13 +85,13 @@ impl<T> Action<T> {
 }
 
 impl LogicalAction {
-    pub fn new(min_delay: Option<Duration>, name: &'static str) -> Self {
+    pub fn new(name: &'static str, min_delay: Option<Duration>) -> Self {
         Self::new_impl(min_delay, true, name)
     }
 }
 
 impl PhysicalAction {
-    pub fn new(min_delay: Option<Duration>, name: &'static str) -> Self {
+    pub fn new(name: &'static str, min_delay: Option<Duration>) -> Self {
         Self::new_impl(min_delay, false, name)
     }
 }
@@ -101,5 +105,43 @@ impl<T> Named for Action<T> {
 impl<T> Display for Action<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         <_ as Display>::fmt(&self.name(), f)
+    }
+}
+
+/// A timer is conceptually a logical action that re-schedules
+/// itself periodically.
+pub struct Timer {
+    // A reaction that reschedules this
+    reschedule: Option<Arc<ReactionInvoker>>,
+    name: &'static str,
+    offset: Duration,
+    period: Duration,
+}
+
+
+impl Named for Timer {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+}
+
+impl Timer {
+    pub fn new(name: &'static str, offset: Duration, period: Duration) -> Self {
+        Self {
+            offset,
+            period,
+            name,
+            reschedule: None,
+        }
+    }
+
+    pub(in crate) fn make_reschedule_reaction(&mut self, rid: ReactorId) -> Arc<ReactionInvoker> {
+        let mut action = LogicalAction::new(self.name, None);
+        // action.set_downstream(r);
+        let period = self.period.clone();
+        let schedule_myself = move |ctx: &mut LogicalCtx| {
+            ctx.schedule(&action, After(period))
+        };
+        return Arc::new(ReactionInvoker::new_from_closure(rid, 1000, schedule_myself));
     }
 }

@@ -166,7 +166,7 @@ impl ReactorDispatcher for PingDispatcher {
             outFinished: Default::default(),
             outPing: Default::default(),
             inPong: Default::default(),
-            serve: LogicalAction::new(None, "serve"),
+            serve: LogicalAction::new("serve", None),
         }
     }
 
@@ -463,10 +463,10 @@ impl ReactorDispatcher for BenchmarkRunnerDispatcher {
             inInitializeFinish: Default::default(),
             outCleanupIterationStart: Default::default(),
             inCleanupIterationFinish: Default::default(),
-            initBenchmark: LogicalAction::new(None, "init"),
-            cleanupIteration: LogicalAction::new(None, "cleanup"),
-            nextIteration: LogicalAction::new(None, "next"),
-            finish: LogicalAction::new(None, "finish"),
+            initBenchmark: LogicalAction::new("init", None),
+            cleanupIteration: LogicalAction::new("cleanup", None),
+            nextIteration: LogicalAction::new("next", None),
+            finish: LogicalAction::new("finish", None),
         }
     }
 

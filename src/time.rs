@@ -22,9 +22,10 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::fmt::{Display, Formatter, Debug};
-use super::{PhysicalInstant, Duration};
+use std::fmt::{Debug, Display, Formatter};
 use std::ops::Add;
+
+use super::{Duration, PhysicalInstant};
 
 /// Type of the microsteps of a [LogicalInstant]
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
@@ -91,13 +92,11 @@ pub enum Offset {
 }
 
 impl Offset {
-    // Duration::zero() is unstable
-    const ZERO_DURATION: Duration = Duration::from_millis(0);
 
     #[inline]
     pub fn to_duration(&self) -> Duration {
         match self {
-            Offset::Asap => Self::ZERO_DURATION,
+            Offset::Asap => super::ZERO_DURATION,
             Offset::After(d) => d.clone()
         }
     }

@@ -24,6 +24,7 @@
 
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
+use crate::Duration;
 
 
 /// A type whose instances have statically known names
@@ -87,3 +88,5 @@ impl Enumerated for Nothing {
     }
 }
 
+/// Duration::zero() is unstable
+pub const ZERO_DURATION: Duration = Duration::from_millis(0);
