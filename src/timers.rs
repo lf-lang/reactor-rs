@@ -22,19 +22,17 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::sync::{Arc, Mutex};
 
-use crate::Offset::After;
+
+
 
 
 use super::*;
-use std::ops::Deref;
+
 
 /// A timer is conceptually a logical action that re-schedules
 /// itself periodically.
 pub struct Timer {
-    // A reaction that reschedules this
-    reschedule: Option<Arc<ReactionInvoker>>,
     name: &'static str,
 
     /// Minimal duration after the start of the program after
@@ -63,7 +61,6 @@ impl Timer {
             period,
             name,
             downstream: Default::default(),
-            reschedule: None,
         }
     }
 
