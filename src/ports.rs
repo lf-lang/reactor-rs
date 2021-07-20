@@ -119,6 +119,19 @@ impl<T> InputPort<T> {
     pub(in crate) fn get(&self) -> Option<T> where T: Copy {
         self.cell.lock().unwrap().cell.borrow().clone()
     }
+
+    /// Copies the value out, see [super::LogicalCtx::use_ref]
+    #[inline]
+    pub(in crate) fn use_ref<F, O>(&self, action: F) -> Option<O>
+        where F: FnOnce(&T) -> O {
+        let lock = self.cell.lock().unwrap();
+        let deref = lock.cell.borrow();
+        let opt: &Option<T> = &*deref;
+        match opt {
+            Some(ref t) => Some(action(t)),
+            None => None
+        }
+    }
 }
 
 impl<T> OutputPort<T> {

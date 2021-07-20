@@ -382,6 +382,14 @@ impl LogicalCtx<'_> {
         port.get()
     }
 
+    /// Execute the provided closure on the value of the port,
+    /// if it is present. The value is fetched by reference and
+    /// not copied.
+    #[inline]
+    pub fn use_ref<T, F, O>(&self, port: &InputPort<T>, action: F) -> Option<O> where F: FnOnce(&T) -> O {
+        port.use_ref(action)
+    }
+
     /// Sets the value of the given output port. The change
     /// is visible at the same logical time, ie the value
     /// propagates immediately. This may hence schedule more
