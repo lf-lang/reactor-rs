@@ -183,6 +183,11 @@ impl ReactorDispatcher for PingDispatcher {
             }
         }
     }
+
+    fn cleanup_tag(&mut self, ctx: LogicalCtx) {
+
+    }
+
 }
 
 
@@ -270,6 +275,11 @@ impl ReactorDispatcher for PongDispatcher {
             }
         }
     }
+
+    fn cleanup_tag(&mut self, ctx: LogicalCtx) {
+
+    }
+
 }
 
 
@@ -497,6 +507,10 @@ impl ReactorDispatcher for BenchmarkRunnerDispatcher {
                 self._impl.react_Finish(ctx)
             }
         }
+    }
+
+    fn cleanup_tag(&mut self, ctx: LogicalCtx) {
+
     }
 }
 

@@ -382,6 +382,12 @@ impl LogicalCtx<'_> {
         port.get()
     }
 
+    /// Get the value of an action at this time.
+    #[inline]
+    pub fn get_action<T: Clone>(&self, action: &LogicalAction<T>) -> Option<T> {
+        action.get_value(self.get_logical_time())
+    }
+
     /// Execute the provided closure on the value of the port,
     /// if it is present. The value is fetched by reference and
     /// not copied.
@@ -407,8 +413,8 @@ impl LogicalCtx<'_> {
     /// plus an optional additional time delay. These delays are in
     /// logical time.
     #[inline]
-    pub fn schedule(&mut self, action: &LogicalAction, offset: Offset) {
-        self.schedule_impl(action, offset);
+    pub fn schedule<T:Clone>(&mut self, action: &LogicalAction<T>, value: Option<T>, offset: Offset) {
+        self.schedule_impl(action, value, offset);
     }
 
     pub fn reschedule(&mut self, action: &Timer) {
@@ -419,8 +425,10 @@ impl LogicalCtx<'_> {
 
     // private
     #[inline]
-    fn schedule_impl<T>(&mut self, action: &Action<T>, offset: Offset) {
-        self.enqueue_later(&action.downstream, action.make_eta(self.wave.logical_time, offset.to_duration()));
+    fn schedule_impl<K, T:Clone>(&mut self, action: &Action<K, T>, value: Option<T>, offset: Offset) {
+        let eta = action.make_eta(self.wave.logical_time, offset.to_duration());
+        action.schedule_future_value(eta, value);
+        self.enqueue_later(&action.downstream, eta);
     }
 
     pub(in crate) fn enqueue_later(&mut self, downstream: &ToposortedReactions, process_at: LogicalInstant) {
@@ -477,11 +485,12 @@ impl SchedulerLink {
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
-    pub fn schedule_physical(&mut self, action: &PhysicalAction, offset: Offset) {
+    pub fn schedule_physical<T:Clone>(&mut self, action: &PhysicalAction<T>, value: Option<T>, offset: Offset) {
         // we have to fetch the time at which the logical timeline is currently running,
         // this may be far behind the current physical time
         let time_in_logical_subsystem = self.last_processed_logical_time.lock().unwrap().get();
         let process_at = action.make_eta(time_in_logical_subsystem, offset.to_duration());
+        action.schedule_future_value(process_at, value);
 
         // todo merge events at equal tags by merging their dependencies
         let evt = Event { process_at, todo: action.downstream.clone() };

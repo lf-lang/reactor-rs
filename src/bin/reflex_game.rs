@@ -208,6 +208,10 @@ impl ReactorDispatcher for RandomSourceDispatcher {
             }
         }
     }
+
+    fn cleanup_tag(&mut self, ctx: LogicalCtx) {
+
+    }
 }
 
 
@@ -347,6 +351,10 @@ impl ReactorDispatcher for GetUserInputReactionState {
                 self._impl.react_prompt(ctx, &self.prompt)
             }
         }
+    }
+
+    fn cleanup_tag(&mut self, ctx: LogicalCtx) {
+
     }
 }
 

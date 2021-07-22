@@ -99,6 +99,10 @@ pub trait ReactorDispatcher: Send + Sync {
     /// which are the reactor components declared as fields of
     /// this struct.
     fn react(&mut self, ctx: &mut LogicalCtx, rid: Self::ReactionId);
+
+    /// Acknowledge that the given tag is done executing and
+    /// free resources if need be.
+    fn cleanup_tag(&mut self, ctx: LogicalCtx);
 }
 
 /// Declares dependencies of every reactor component. Also
