@@ -57,7 +57,7 @@ fn reactor_main(c: &mut Criterion) {
             num_pongs,
             |b, &size| {
                 b.iter(|| {
-                    let timeout = Some(Duration::from_millis(2));
+                    let timeout = Some(Duration::from_secs(5));
                     let scheduler = do_assembly(1, size, timeout);
                     scheduler.launch_async().join().unwrap();
                 });
