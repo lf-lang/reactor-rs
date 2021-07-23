@@ -136,6 +136,7 @@ pub trait ReactorAssembler {
 
 // helper for the macro below
 #[macro_export]
+#[doc(hidden)]
 macro_rules! reaction_ids_helper {
         (($self:expr) $t:ident :end:) => {
             if Self::$t == $self {
@@ -181,11 +182,12 @@ macro_rules! reaction_ids {
                 }
             }
         };
-        ($viz:vis enum $typename:ident { $($id:ident),+$(,)? }) => {
+        ($viz:vis enum $typename:ident { $($id:ident = $lit:literal),+$(,)? }) => {
 
-            #[derive(Ord, PartialOrd, Eq, PartialEq, Debug, Hash, Copy, Clone)]
+            #[repr(u32)]
+            #[derive(Ord, PartialOrd, Eq, PartialEq, Debug, Hash, Copy, Clone, int_enum::IntEnum)]
             $viz enum $typename {
-                $($id),+
+                $($id = $lit),+
             }
 
             impl reactor_rt::Named for $typename {
@@ -195,17 +197,10 @@ macro_rules! reaction_ids {
                 }
             }
 
-            impl reactor_rt::Enumerated for $typename {
+            impl reactor_rt::ReactionId for $typename {
                 fn list() -> Vec<Self> {
                     vec![ $(Self::$id),+ ]
                 }
-
-                fn to_usize(&self) -> usize {
-                    self.discriminant()
-                }
-                fn from_usize(i: usize) -> Result<Self, ()>;
-                fn num_members() -> usize { Self::list().len() }
-
             }
         };
 }

@@ -25,6 +25,7 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use crate::Duration;
+use int_enum::{IntEnum, IntEnumError};
 
 
 /// A type whose instances have statically known names
@@ -33,13 +34,9 @@ pub trait Named {
 }
 
 /// A type that can list all its instances
-pub trait Enumerated {
+pub trait ReactionId: IntEnum {
     /// Returns a list of all instances
     fn list() -> Vec<Self> where Self: Sized;
-
-    fn to_usize(&self) -> usize;
-    fn from_usize(i: usize) -> Result<Self, ()>;
-    fn num_members() -> usize { Self::list().len(); }
 }
 
 
@@ -87,16 +84,20 @@ impl Named for Nothing {
     }
 }
 
-impl Enumerated for Nothing {
-    fn list() -> Vec<Self> where Self: Sized { vec![] }
+impl IntEnum for Nothing {
+    type Int = u32;
 
-    fn to_usize(&self) -> i32 {
+    fn int_value(self) -> Self::Int {
         unreachable!()
     }
 
-    fn from_usize(i: i32) -> Result<Self, ()> {
-        Err(())
+    fn from_int(n: Self::Int) -> Result<Self, IntEnumError<Self>> where Self: Sized {
+        Err(IntEnumError::__new(n))
     }
+}
+
+impl ReactionId for Nothing {
+    fn list() -> Vec<Self> where Self: Sized { vec![] }
 }
 
 /// Duration::zero() is unstable

@@ -120,7 +120,7 @@ struct Ping {
 }
 
 impl Ping {
-    fn react_restart(&mut self, ctx: &mut LogicalCtx, serve: &LogicalAction) {
+    fn react_restart(&mut self, ctx: &mut LogicalCtx, serve: &LogicalAction<()>) {
         self.pings_left = self.count;
         ctx.schedule(serve, Asap)
     }
@@ -130,7 +130,7 @@ impl Ping {
         ctx.set(outPing, true)
     }
 
-    fn react_reactToPong(&mut self, ctx: &mut LogicalCtx, outFinished: &mut OutputPort<bool>, serve: &LogicalAction) {
+    fn react_reactToPong(&mut self, ctx: &mut LogicalCtx, outFinished: &mut OutputPort<bool>, serve: &LogicalAction<()>) {
         if self.pings_left == 0 {
             ctx.set(outFinished, true)
         } else {
@@ -149,10 +149,10 @@ struct PingDispatcher {
     outPing: OutputPort<bool>,
     inPong: InputPort<bool>,
 
-    serve: LogicalAction,
+    serve: LogicalAction<()>,
 }
 
-reaction_ids!(enum PingReactions {R_Serve, R_ReactToPong,R_Start });
+reaction_ids!(enum PingReactions {R_Serve = 0, R_ReactToPong=1,R_Start=2 });
 
 impl ReactorDispatcher for PingDispatcher {
     type ReactionId = PingReactions;
@@ -253,7 +253,7 @@ struct PongDispatcher {
     outPong: OutputPort<bool>,
 }
 
-reaction_ids!(enum PongReactions {R_ReactToPing});
+reaction_ids!(enum PongReactions {R_ReactToPing=0});
 
 impl ReactorDispatcher for PongDispatcher {
     type ReactionId = PongReactions;
@@ -347,7 +347,7 @@ impl BenchmarkRunner {
     R_Finish
      */
 
-    fn react_Startup(&self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction, initBenchmark: &LogicalAction) {
+    fn react_Startup(&self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction<()>, initBenchmark: &LogicalAction<()>) {
         if self.use_init {
             ctx.schedule(initBenchmark, Asap)
         } else {
@@ -359,7 +359,7 @@ impl BenchmarkRunner {
         ctx.set(outInitializeStart, true)
     }
 
-    fn react_InitDone(&mut self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction) {
+    fn react_InitDone(&mut self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction<()>) {
         ctx.schedule(nextIteration, Asap)
     }
 
@@ -367,11 +367,11 @@ impl BenchmarkRunner {
         ctx.set(outCleanupIterationStart, true)
     }
 
-    fn react_CleanupDone(&mut self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction) {
+    fn react_CleanupDone(&mut self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction<()>) {
         ctx.schedule(nextIteration, Asap)
     }
 
-    fn react_NextIteration(&mut self, ctx: &mut LogicalCtx, outIterationStart: &mut OutputPort<bool>, finish: &LogicalAction) {
+    fn react_NextIteration(&mut self, ctx: &mut LogicalCtx, outIterationStart: &mut OutputPort<bool>, finish: &LogicalAction<()>) {
         if self.count < self.num_iterations {
             self.start_time = Instant::now();
             ctx.set(outIterationStart, true)
@@ -380,7 +380,7 @@ impl BenchmarkRunner {
         }
     }
 
-    fn react_IterationDone(&mut self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction, cleanupIteration: &LogicalAction) {
+    fn react_IterationDone(&mut self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction<()>, cleanupIteration: &LogicalAction<()>) {
         let end_time = ctx.get_physical_time();
         let iteration_time = end_time - self.start_time;
 
@@ -425,21 +425,21 @@ struct BenchmarkRunnerDispatcher {
     outCleanupIterationStart: OutputPort<bool>,
     inCleanupIterationFinish: InputPort<bool>,
 
-    initBenchmark: LogicalAction,
-    cleanupIteration: LogicalAction,
-    nextIteration: LogicalAction,
-    finish: LogicalAction,
+    initBenchmark: LogicalAction<()>,
+    cleanupIteration: LogicalAction<()>,
+    nextIteration: LogicalAction<()>,
+    finish: LogicalAction<()>,
 }
 
 reaction_ids!(enum BenchmarkRunnerReactions {
     // R_InStart,
-    R_Init,
-    R_InitDone,
-    R_CleanupIteration,
-    R_CleanupDone,
-    R_NextIteration,
-    R_IterationDone,
-    R_Finish
+    R_Init=0,
+    R_InitDone=1,
+    R_CleanupIteration=2,
+    R_CleanupDone=3,
+    R_NextIteration=4,
+    R_IterationDone=5,
+    R_Finish=6
 });
 
 #[derive(Copy, Clone)]

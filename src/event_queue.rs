@@ -28,8 +28,9 @@
 //  std::map<Tag, std::unique_ptr<EventMap>> event_queue;
 
 
-use std::collections::HashMap;
-use crate::{Action, LogicalInstant, GlobalReactionId};
+use std::collections::{HashMap, HashSet};
+
+use crate::{Action, GlobalReactionId, LogicalInstant};
 
 /// Planned execution for a specific logical tag
 struct WavePlan {
@@ -38,7 +39,7 @@ struct WavePlan {
     action_setups: Vec<Box<dyn FnOnce()>>,
 
     /// Reactions that are supposed to trigger.
-    triggered_reactions: Set<GlobalReactionId>,
+    triggered_reactions: HashSet<GlobalReactionId>,
 }
 
 struct EventQueue {
