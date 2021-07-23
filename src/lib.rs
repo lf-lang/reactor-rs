@@ -47,34 +47,6 @@ mod reactions;
 mod util;
 mod event_queue;
 
-// todo doc
-#[macro_export]
-macro_rules! new_reaction {
-    ($reactorid:ident, $reactionid:ident, $_rstate:ident, $name:ident) => {{
-        let r = ::std::sync::Arc::new(
-            $crate::ReactionInvoker::new(
-                $reactorid,
-                $reactionid,
-                $_rstate.clone(),
-                <Self::RState as $crate::ReactorDispatcher>::ReactionId::$name
-            )
-        );
-        $reactionid += 1;
-        r
-    }};
-}
-
-#[macro_export]
-macro_rules! reschedule_self_timer {
-    ($reactorid:ident, $_rstate:ident, $_rpriority:literal) => {{
-        let mut mystate = $_rstate.clone();
-        let schedule_myself = move |ctx: &mut LogicalCtx| {
-            let me = mystate.lock().unwrap();
-            ctx.reschedule(&me.t); // this doesn't reschedule aperiodic timers
-        };
-        Arc::new($crate::ReactionInvoker::new_from_closure($reactorid, $_rpriority, schedule_myself))
-    }};
-}
 
 /// Wrapper around the user struct for safe dispatch.
 ///
@@ -206,3 +178,32 @@ macro_rules! reaction_ids {
 }
 
 
+#[macro_export]
+#[doc(hidden)]
+macro_rules! new_reaction {
+    ($reactorid:ident, $reactionid:ident, $_rstate:ident, $name:ident) => {{
+        let r = ::std::sync::Arc::new(
+            $crate::ReactionInvoker::new(
+                $reactorid,
+                $reactionid,
+                $_rstate.clone(),
+                <Self::RState as $crate::ReactorDispatcher>::ReactionId::$name
+            )
+        );
+        $reactionid += 1;
+        r
+    }};
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! reschedule_self_timer {
+    ($reactorid:ident, $_rstate:ident, $_rpriority:literal) => {{
+        let mut mystate = $_rstate.clone();
+        let schedule_myself = move |ctx: &mut LogicalCtx| {
+            let me = mystate.lock().unwrap();
+            ctx.reschedule(&me.t); // this doesn't reschedule aperiodic timers
+        };
+        Arc::new($crate::ReactionInvoker::new_from_closure($reactorid, $_rpriority, schedule_myself))
+    }};
+}
