@@ -29,9 +29,9 @@ use std::cell::Cell;
 use std::cmp::Reverse;
 use std::collections::HashSet;
 use std::hash::Hash;
+use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 use std::sync::mpsc::{channel, Receiver, Sender};
-use std::thread::JoinHandle;
 
 use priority_queue::PriorityQueue;
 
@@ -93,9 +93,52 @@ pub struct SyncScheduler {
     /// todo does this match lf semantics?
     shutdown_time: Option<PhysicalInstant>,
     options: SchedulerOptions,
+
+    /// All reactors.
+    reactors: Vec<Box<dyn ErasedReactorDispatcher + 'static>>,
+    reactor_id: ReactorId
+}
+
+pub struct AssemblyCtx<'a, T: ReactorAssembler> {
+    id: &'a mut ReactorId,
+    my_id: ReactorId,
+    _p: PhantomData<T>,
+}
+
+impl<'a, T: ReactorAssembler> AssemblyCtx<'a, T> {
+    #[inline]
+    pub fn get_id(&self) -> ReactorId {
+        self.my_id
+    }
+
+    pub fn assemble_sub<R: ReactorAssembler>(&mut self, args: <R::RState as ReactorDispatcher>::Params) -> R {
+        AssemblyCtx::<R>::do_assembly(&mut self.id, args)
+    }
+
+    fn do_assembly<R: ReactorAssembler>(id: &mut ReactorId, args: <R::RState as ReactorDispatcher>::Params) -> R {
+        let mut sub = AssemblyCtx { my_id: id.get_and_increment(), id, _p: PhantomData };
+        R::assemble(&mut sub, args)
+    }
 }
 
 impl SyncScheduler {
+    fn do_assembly<R: ReactorAssembler>(&mut self, args: <R::RState as ReactorDispatcher>::Params) -> R {
+        AssemblyCtx::<R>::do_assembly(&mut self.reactor_id, args)
+    }
+
+    pub fn run_main<R: ReactorAssembler>(options: SchedulerOptions, args: <R::RState as ReactorDispatcher>::Params) {
+        let mut scheduler = Self::new(options);
+        let mut topcell: R = scheduler.do_assembly(args);
+        scheduler.startup(|mut starter| {
+            topcell.start(&mut starter);
+        });
+        scheduler.launch_sync()
+    }
+
+    fn get_reactor(&self, id: ReactorId) -> &Box<dyn ErasedReactorDispatcher + 'static> {
+        self.reactors.get(id.to_usize()).unwrap()
+    }
+
     /// Creates a new scheduler. An empty scheduler doesn't
     /// do anything unless some events are pushed to the queue.
     /// See [Self::launch_async].
@@ -109,6 +152,8 @@ impl SyncScheduler {
             initial_time: None,
             shutdown_time: None,
             options,
+            reactors: Vec::new(),
+            reactor_id: ReactorId::first(),
         }
     }
 
@@ -159,46 +204,43 @@ impl SyncScheduler {
     /// time than the specified timeout. The timeout should be
     /// chosen with care to the application requirements.
     // TODO track whether there are live [SchedulerLink] to prevent idle spinning?
-    pub fn launch_async(mut self) -> JoinHandle<()> {
-        use std::thread;
-        thread::spawn(move || {
-            /************************************************
-             * This is the main event loop of the scheduler *
-             ************************************************/
-            loop {
-                let now = PhysicalInstant::now();
-                if let Some(shutdown_t) = self.shutdown_time {
-                    // we need to shutdown even if there are more events in the queue
-                    if now > shutdown_t {
-                        break;
-                    }
-                }
-
-                // flush pending events, this doesn't block
-                while let Ok(evt) = self.receiver.try_recv() {
-                    self.push_event(evt);
-                }
-
-                if let Some((evt, _)) = self.queue.pop() {
-                    // execute the wave for this event.
-                    self.step(evt);
-                } else if let Some(evt) = self.receive_event(now) { // this may block
-                    self.push_event(evt);
-                    continue;
-                } else {
-                    // all senders have hung up, or timeout
-                    // todo i'm not 100% sure that this cfg(bench) works properly
-                    // Previously I was using a cfg(not(feature = "benchmarking")) with a custom feature
-                    // but that's tedious to use.
-                    #[cfg(bench)] {
-                        eprintln!("Shutting down scheduler");
-                    }
+    fn launch_sync(mut self) {
+        /************************************************
+         * This is the main event loop of the scheduler *
+         ************************************************/
+        loop {
+            let now = PhysicalInstant::now();
+            if let Some(shutdown_t) = self.shutdown_time {
+                // we need to shutdown even if there are more events in the queue
+                if now > shutdown_t {
                     break;
                 }
-            } // end loop
+            }
 
-            // self destructor is called here
-        })
+            // flush pending events, this doesn't block
+            while let Ok(evt) = self.receiver.try_recv() {
+                self.push_event(evt);
+            }
+
+            if let Some((evt, _)) = self.queue.pop() {
+                // execute the wave for this event.
+                self.step(evt);
+            } else if let Some(evt) = self.receive_event(now) { // this may block
+                self.push_event(evt);
+                continue;
+            } else {
+                // all senders have hung up, or timeout
+                // todo i'm not 100% sure that this cfg(bench) works properly
+                // Previously I was using a cfg(not(feature = "benchmarking")) with a custom feature
+                // but that's tedious to use.
+                #[cfg(bench)] {
+                    eprintln!("Shutting down scheduler");
+                }
+                break;
+            }
+        } // end loop
+
+        // self destructor is called here
     }
 
     fn receive_event(&mut self, now: PhysicalInstant) -> Option<Event> {

@@ -45,18 +45,18 @@ mod time;
 mod timers;
 mod reactions;
 mod util;
-mod event_queue;
 
 
 /// Wrapper around the user struct for safe dispatch.
 ///
 /// Fields are
-/// 1. the user struct, and
-/// 2. every logical action and port declared by the reactor.
+/// 1. the user struct,
+/// 2. ctor parameters of the reactor, and
+/// 3. every logical action and port declared by the reactor.
 ///
-pub trait ReactorDispatcher {
+pub trait ReactorDispatcher: ErasedReactorDispatcher {
     /// The type of reaction IDs
-    type ReactionId: Copy + Send + Sync;
+    type ReactionId: Copy + Send + Sync + int_enum::IntEnum<Int=u32>;
     /// Type of the user struct
     type Wrapped;
     /// Type of the construction parameters
@@ -71,7 +71,16 @@ pub trait ReactorDispatcher {
     /// Dispatches on the reaction id, and unpacks parameters,
     /// which are the reactor components declared as fields of
     /// this struct.
-    fn react(&mut self, ctx: &mut LogicalCtx, rid: Self::ReactionId);
+    fn react(&mut self, ctx: &mut LogicalCtx, local_rid: Self::ReactionId);
+
+}
+
+pub trait ErasedReactorDispatcher {
+    /// Execute a single user-written reaction.
+    /// Dispatches on the reaction id, and unpacks parameters,
+    /// which are the reactor components declared as fields of
+    /// this struct.
+    fn react_erased(&mut self, ctx: &mut LogicalCtx, local_rid: u32);
 
     /// Acknowledge that the given tag is done executing and
     /// free resources if need be.
@@ -102,7 +111,8 @@ pub trait ReactorAssembler {
     /// The components of the ReactorDispatcher must be filled
     /// in with their respective dependencies (precomputed before
     /// codegen)
-    fn assemble(rid: &mut ReactorId, args: <Self::RState as ReactorDispatcher>::Params) -> Self;
+    fn assemble(ctx: &mut AssemblyCtx<Self>, args: <Self::RState as ReactorDispatcher>::Params) -> Self
+        where Self: Sized;
 }
 
 
@@ -131,7 +141,7 @@ macro_rules! reaction_ids_helper {
 ///
 /// ```
 /// # #[macro_use] extern crate reactor_rt;
-/// reaction_ids!(pub enum AppReactions { Receive, Emit });
+/// reaction_ids!(pub enum AppReactions { Receive=0, Emit=1 });
 /// ```
 ///
 /// defines that enum and derives [Named](Named)

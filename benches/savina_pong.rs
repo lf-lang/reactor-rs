@@ -68,6 +68,7 @@ fn reactor_main(c: &mut Criterion) {
 }
 
 fn do_assembly(numIterations: u32, count: u32, timeout: Option<Duration>) -> SyncScheduler {
+    let mut scheduler = SyncScheduler::new(SchedulerOptions { timeout, keep_alive: false });
     let mut rid = ReactorId::first();
 
     // ping = new Ping(count=count);
@@ -102,7 +103,6 @@ fn do_assembly(numIterations: u32, count: u32, timeout: Option<Duration>) -> Syn
         bind_ports(&mut pong.outPong, &mut ping.inPong);
     }
 
-    let mut scheduler = SyncScheduler::new(SchedulerOptions { timeout, keep_alive: false });
 
     scheduler.startup(|mut starter| {
         runner_cell.start(&mut starter);
@@ -205,7 +205,7 @@ impl ReactorAssembler for PingAssembler {
         // Ping::react_startup(ctx);
     }
 
-    fn assemble(reactor_id: &mut ReactorId, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(ctx: &mut AssemblyCtx<Self>, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
         let this_reactor = reactor_id.get_and_increment();
         let mut reaction_id = 0;
@@ -295,7 +295,8 @@ impl ReactorAssembler for PongAssembler {
         // Ping::react_startup(ctx);
     }
 
-    fn assemble(reactor_id: &mut ReactorId, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(ctx: &mut AssemblyCtx<Self>, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
         let this_reactor = reactor_id.get_and_increment();
         let mut reaction_id = 0;
@@ -449,6 +450,8 @@ struct BenchmarkParams {
     useCleanupIteration: bool,
 }
 
+
+
 impl ReactorDispatcher for BenchmarkRunnerDispatcher {
     type ReactionId = BenchmarkRunnerReactions;
     type Wrapped = BenchmarkRunner;
@@ -538,9 +541,9 @@ impl ReactorAssembler for BenchmarkRunnerAssembler {
         // BenchmarkRunner::react_startup(ctx);
     }
 
-    fn assemble(reactor_id: &mut ReactorId, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
+    fn assemble(ctx: &mut AssemblyCtx<Self>, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = reactor_id.get_and_increment();
+        let this_reactor = ctx.get_id();
         let mut reaction_id = 0;
 
         // let react_InStart = new_reaction!(rid, _rstate, R_InStart);

@@ -37,11 +37,18 @@ pub struct ReactorId {
 }
 
 impl ReactorId {
-    pub fn first() -> Self {
+    #[inline]
+    pub(in crate) fn to_usize(&self) -> usize {
+        self.value
+    }
+
+    #[inline]
+    pub(in crate) fn first() -> Self {
         Self { value: 0 }
     }
 
-    pub fn get_and_increment(&mut self) -> Self {
+    #[inline]
+    pub(in crate) fn get_and_increment(&mut self) -> Self {
         let this = *self;
         *self = Self { value: this.value + 1 };
         this
