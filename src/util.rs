@@ -34,7 +34,12 @@ pub trait Named {
 
 /// A type that can list all its instances
 pub trait Enumerated {
+    /// Returns a list of all instances
     fn list() -> Vec<Self> where Self: Sized;
+
+    fn to_usize(&self) -> usize;
+    fn from_usize(i: usize) -> Result<Self, ()>;
+    fn num_members() -> usize { Self::list().len(); }
 }
 
 
@@ -83,8 +88,14 @@ impl Named for Nothing {
 }
 
 impl Enumerated for Nothing {
-    fn list() -> Vec<Self> where Self: Sized {
-        vec![]
+    fn list() -> Vec<Self> where Self: Sized { vec![] }
+
+    fn to_usize(&self) -> i32 {
+        unreachable!()
+    }
+
+    fn from_usize(i: i32) -> Result<Self, ()> {
+        Err(())
     }
 }
 

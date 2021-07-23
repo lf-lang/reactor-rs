@@ -45,6 +45,7 @@ mod time;
 mod timers;
 mod reactions;
 mod util;
+mod event_queue;
 
 // todo doc
 #[macro_export]
@@ -81,7 +82,7 @@ macro_rules! reschedule_self_timer {
 /// 1. the user struct, and
 /// 2. every logical action and port declared by the reactor.
 ///
-pub trait ReactorDispatcher: Send + Sync {
+pub trait ReactorDispatcher {
     /// The type of reaction IDs
     type ReactionId: Copy + Send + Sync;
     /// Type of the user struct
@@ -198,6 +199,13 @@ macro_rules! reaction_ids {
                 fn list() -> Vec<Self> {
                     vec![ $(Self::$id),+ ]
                 }
+
+                fn to_usize(&self) -> usize {
+                    self.discriminant()
+                }
+                fn from_usize(i: usize) -> Result<Self, ()>;
+                fn num_members() -> usize { Self::list().len() }
+
             }
         };
 }

@@ -25,15 +25,22 @@
 use crate::*;
 #[allow(unused)]
 use super::testutil::*;
+use ActionPresence::{NotPresent, Present};
 
 #[test]
 fn a_value_map_should_be_able_to_store_a_value() {
     let mut vmap = ValueMap::<i64>::default();
     let fut = LogicalInstant::now() + Duration::from_millis(500);
-    assert_eq!(None, vmap.get_value(fut));
+    assert_eq!(NotPresent, vmap.get_value(fut));
     vmap.schedule(fut, Some(2555));
-    assert_eq!(Some(&2555), vmap.get_value(fut));
-    assert_eq!(Some(&2555), vmap.get_value(fut));
+    assert_eq!(Present(Some(2555)), vmap.get_value(fut));
+    assert_eq!(Present(Some(2555)), vmap.get_value(fut)); // not deleted
+    vmap.schedule(fut, Some(16));
+    assert_eq!(Present(Some(16)), vmap.get_value(fut));
+    vmap.schedule(fut, None);
+    assert_eq!(Present(None), vmap.get_value(fut));
+    vmap.forget(fut);
+    assert_eq!(NotPresent, vmap.get_value(fut));
 }
 
 #[test]
@@ -41,9 +48,9 @@ fn a_value_map_should_be_able_to_forget_a_value() {
     let mut vmap = ValueMap::<i64>::default();
     let fut = LogicalInstant::now() + Duration::from_millis(500);
     vmap.schedule(fut, Some(2555));
-    assert_eq!(Some(&2555), vmap.get_value(fut));
+    assert_eq!(Present(Some(2555)), vmap.get_value(fut));
     vmap.forget(fut);
-    assert_eq!(None, vmap.get_value(fut));
+    assert_eq!(NotPresent, vmap.get_value(fut));
 }
 
 #[test]
@@ -58,8 +65,8 @@ fn a_value_map_should_be_able_to_store_more_values() {
     vmap.schedule(fut3, Some(3));
     vmap.schedule(fut2, Some(2));
 
-    assert_eq!(Some(&1), vmap.get_value(fut));
-    assert_eq!(Some(&2), vmap.get_value(fut2));
-    assert_eq!(Some(&3), vmap.get_value(fut3));
+    assert_eq!(Present(Some(1)), vmap.get_value(fut));
+    assert_eq!(Present(Some(2)), vmap.get_value(fut2));
+    assert_eq!(Present(Some(3)), vmap.get_value(fut3));
 
 }

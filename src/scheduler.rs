@@ -244,10 +244,12 @@ impl SyncScheduler {
         if now < up_to_time.instant {
             let t = up_to_time.instant - now;
             std::thread::sleep(t); // todo: see crate shuteyes for nanosleep capabilities on linux/macos platforms
-            LogicalInstant::now()
-        } else {
-            LogicalInstant { instant: now, microstep: MicroStep::ZERO }
         }
+        // note this doesn't use `now` because we use
+        // scheduled time identity to associate values
+        // with actions
+        //                        vvvvvvvvvv
+        LogicalInstant { instant: up_to_time.instant, microstep: MicroStep::ZERO }
     }
 
     /// Create a new reaction wave to process the given
@@ -388,6 +390,11 @@ impl LogicalCtx<'_> {
         action.get_value(self.get_logical_time())
     }
 
+    #[inline]
+    pub fn is_action_present<T: Clone>(&self, action: &LogicalAction<T>) -> bool {
+        action.is_present(self.get_logical_time())
+    }
+
     /// Execute the provided closure on the value of the port,
     /// if it is present. The value is fetched by reference and
     /// not copied.
@@ -413,7 +420,11 @@ impl LogicalCtx<'_> {
     /// plus an optional additional time delay. These delays are in
     /// logical time.
     #[inline]
-    pub fn schedule<T:Clone>(&mut self, action: &LogicalAction<T>, value: Option<T>, offset: Offset) {
+    pub fn schedule<T: Clone>(&mut self, action: &LogicalAction<T>, offset: Offset) {
+        self.schedule_with_v(action, None, offset)
+    }
+
+    pub fn schedule_with_v<T: Clone>(&mut self, action: &LogicalAction<T>, value: Option<T>, offset: Offset) {
         self.schedule_impl(action, value, offset);
     }
 
@@ -425,7 +436,7 @@ impl LogicalCtx<'_> {
 
     // private
     #[inline]
-    fn schedule_impl<K, T:Clone>(&mut self, action: &Action<K, T>, value: Option<T>, offset: Offset) {
+    fn schedule_impl<K, T: Clone>(&mut self, action: &Action<K, T>, value: Option<T>, offset: Offset) {
         let eta = action.make_eta(self.wave.logical_time, offset.to_duration());
         action.schedule_future_value(eta, value);
         self.enqueue_later(&action.downstream, eta);

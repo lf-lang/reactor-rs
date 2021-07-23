@@ -31,7 +31,10 @@ use super::{LogicalCtx, ReactorDispatcher};
 
 /// Type of the global ID of a reactor.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
-pub struct ReactorId { value: usize }
+pub struct ReactorId {
+    value: usize,
+    // todo #[cfg(feature=debug)] name: &'static str
+}
 
 impl ReactorId {
     pub fn first() -> Self {
@@ -112,7 +115,7 @@ impl ReactionInvoker {
     /// the other reactions of the same reactor. The `reactor_id`
     /// is global.
     ///
-    pub fn new<T: ReactorDispatcher + 'static>(reactor_id: ReactorId,
+    pub fn new<T: ReactorDispatcher + 'static + Send>(reactor_id: ReactorId,
                                                reaction_priority: u32,
                                                reactor: Arc<Mutex<T>>,
                                                rid: T::ReactionId) -> ReactionInvoker {
