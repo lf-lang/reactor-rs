@@ -27,7 +27,7 @@ use std::fmt::*;
 use std::hash::{Hash, Hasher};
 use std::sync::{Arc, Mutex};
 
-use super::{LogicalCtx, ReactorDispatcher};
+use crate::{LogicalCtx, ReactorDispatcher};
 
 /// Type of the global ID of a reactor.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
