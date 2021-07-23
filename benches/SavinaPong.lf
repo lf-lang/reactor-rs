@@ -1,0 +1,46 @@
+target Rust;
+
+reactor Ping(count: i32(1000000)) {
+    input receive: i32;
+    output send: i32;
+    state pingsLeft: i32(count);
+    logical action serve;
+
+    reaction(startup, serve) -> send {=
+        ctx.set(send, self.pingsLeft);
+        self.pingsLeft -= 1;
+    =}
+
+    reaction (receive) -> serve {=
+        if self.pingsLeft > 0 {
+            ctx.schedule(serve, Asap);
+        } else {
+            ctx.request_stop();
+        }
+    =}
+}
+
+reactor Pong(expected: i32(1000000)) {
+    input receive: i32;
+    output send: i32;
+    state count: i32(0);
+
+    reaction(receive) -> send {=
+        self.count += 1;
+        ctx.set(send, ctx.get(receive).unwrap());
+    =}
+
+    reaction(shutdown) {=
+        if self.count != params.expected {
+            panic!("Pong expected to receive {} inputs, but it received {}.", params.expected, self.count);
+        }
+        println!("Success.");
+    =}
+}
+
+main reactor SavinaPong {
+    ping = new Ping();
+    pong = new Pong();
+    ping.send -> pong.receive;
+    pong.send -> ping.receive;
+}

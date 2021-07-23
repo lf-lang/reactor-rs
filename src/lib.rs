@@ -152,13 +152,21 @@ macro_rules! reaction_ids {
             #[derive(Ord, PartialOrd, Eq, PartialEq, Debug, Hash, Copy, Clone)]
             $viz enum $typename {}
 
-            impl reactor_rt::Named for $typename {
+            impl $crate::Named for $typename {
                 fn name(&self) -> &'static str {
                     unreachable!()
                 }
             }
 
-            impl reactor_rt::Enumerated for $typename {
+            impl ::int_enum::IntEnum for $typename {
+                    type Int = u32;
+                    fn int_value(self) -> Self::Int {unreachable!()}
+                    fn from_int(n: Self::Int) -> Result<Self, ::int_enum::IntEnumError<Self>> where Self: Sized {
+                        Err(::int_enum::IntEnumError::__new(n))
+                    }
+            }
+
+            impl $crate::ReactionId for $typename {
                 fn list() -> Vec<Self> {
                     vec![]
                 }
@@ -172,14 +180,14 @@ macro_rules! reaction_ids {
                 $($id = $lit),+
             }
 
-            impl reactor_rt::Named for $typename {
+            impl $crate::Named for $typename {
                 fn name(&self) -> &'static str {
                     let me = *self;
                     reaction_ids_helper!((me) $($id),+ :end:)
                 }
             }
 
-            impl reactor_rt::ReactionId for $typename {
+            impl $crate::ReactionId for $typename {
                 fn list() -> Vec<Self> {
                     vec![ $(Self::$id),+ ]
                 }
@@ -210,10 +218,10 @@ macro_rules! new_reaction {
 macro_rules! reschedule_self_timer {
     ($reactorid:ident, $_rstate:ident, $_rpriority:literal) => {{
         let mut mystate = $_rstate.clone();
-        let schedule_myself = move |ctx: &mut LogicalCtx| {
+        let schedule_myself = move |ctx: &mut $crate::LogicalCtx| {
             let me = mystate.lock().unwrap();
             ctx.reschedule(&me.t); // this doesn't reschedule aperiodic timers
         };
-        Arc::new($crate::ReactionInvoker::new_from_closure($reactorid, $_rpriority, schedule_myself))
+        ::std::sync::Arc::new($crate::ReactionInvoker::new_from_closure($reactorid, $_rpriority, schedule_myself))
     }};
 }

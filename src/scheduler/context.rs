@@ -11,6 +11,7 @@ use super::{ReactionOrder, TimeCell, Event};
 /// LogicalCtx is an API built around a ReactionWave. A single
 /// ReactionWave may be used for multiple ReactionWaves, but
 /// obviously at disjoint times (&mut).
+///
 pub struct LogicalCtx<'a> {
     wave: &'a mut ReactionWave,
 
@@ -23,10 +24,18 @@ pub struct LogicalCtx<'a> {
 }
 
 impl LogicalCtx<'_> {
-    /// Get the value of a port at this time.
+    /// Get the current value of a port at this time.
     #[inline]
     pub fn get<T: Copy>(&self, port: &InputPort<T>) -> Option<T> {
         port.get()
+    }
+
+    /// Execute the provided closure on the value of the port,
+    /// if it is present. The value is fetched by reference and
+    /// not copied.
+    #[inline]
+    pub fn use_ref<T, F, O>(&self, port: &InputPort<T>, action: F) -> Option<O> where F: FnOnce(&T) -> O {
+        port.use_ref(action)
     }
 
     /// Get the value of an action at this time.
@@ -38,14 +47,6 @@ impl LogicalCtx<'_> {
     #[inline]
     pub fn is_action_present<T: Clone>(&self, action: &LogicalAction<T>) -> bool {
         action.is_present(self.get_logical_time())
-    }
-
-    /// Execute the provided closure on the value of the port,
-    /// if it is present. The value is fetched by reference and
-    /// not copied.
-    #[inline]
-    pub fn use_ref<T, F, O>(&self, port: &InputPort<T>, action: F) -> Option<O> where F: FnOnce(&T) -> O {
-        port.use_ref(action)
     }
 
     /// Sets the value of the given output port. The change
@@ -69,10 +70,14 @@ impl LogicalCtx<'_> {
         self.schedule_with_v(action, None, offset)
     }
 
+    #[inline]
     pub fn schedule_with_v<T: Clone>(&mut self, action: &LogicalAction<T>, value: Option<T>, offset: Offset) {
         self.schedule_impl(action, value, offset);
     }
 
+    // todo hide this better
+    #[doc(hidden)]
+    #[inline]
     pub fn reschedule(&mut self, action: &Timer) {
         if action.is_periodic() {
             self.enqueue_later(&action.downstream, self.wave.logical_time + action.period);
@@ -87,10 +92,12 @@ impl LogicalCtx<'_> {
         self.enqueue_later(&action.downstream, eta);
     }
 
+    #[inline]
     pub(in crate) fn enqueue_later(&mut self, downstream: &ToposortedReactions, process_at: LogicalInstant) {
         self.wave.enqueue_later(&downstream, process_at);
     }
 
+    #[inline]
     pub(in crate) fn enqueue_now(&mut self, downstream: &ToposortedReactions) {
         for reaction in downstream {
             // todo blindly appending possibly does not respect the topological sort
@@ -98,16 +105,16 @@ impl LogicalCtx<'_> {
         }
     }
 
-    #[inline]
-    pub fn get_physical_time(&self) -> PhysicalInstant {
-        PhysicalInstant::now()
-    }
-
     /// Request a shutdown which will be acted upon at the end
     /// of this reaction.
     #[inline]
-    pub fn request_shutdown(self) {
-        unimplemented!()
+    pub fn request_stop(&mut self) {
+        unimplemented!("request_stop")
+    }
+
+    #[inline]
+    pub fn get_physical_time(&self) -> PhysicalInstant {
+        PhysicalInstant::now()
     }
 
     #[inline]
