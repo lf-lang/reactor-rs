@@ -173,7 +173,7 @@ impl SchedulerLink {
 pub(in super) struct ReactionWave {
     /// Logical time of the execution of this wave, constant
     /// during the existence of the object
-    logical_time: LogicalInstant,
+    pub logical_time: LogicalInstant,
 
     /// Sender to schedule events that should be executed later than this wave.
     sender: Sender<Event>,
@@ -246,7 +246,7 @@ impl ReactionWave {
         }
 
         if requested_stop {
-            WaveResult::StopRequested(self.logical_time.next_microstep())
+            WaveResult::StopRequested
         } else {
             WaveResult::Continue
         }
@@ -255,5 +255,5 @@ impl ReactionWave {
 
 pub(in super) enum WaveResult {
     Continue,
-    StopRequested(LogicalInstant),
+    StopRequested,
 }

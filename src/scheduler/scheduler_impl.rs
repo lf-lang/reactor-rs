@@ -206,9 +206,11 @@ impl SyncScheduler {
     }
 
     fn consume_wave(&mut self, wave: ReactionWave, todo: Vec<ReactionOrder>) {
+        let logical_time = wave.logical_time;
         match wave.consume(todo) {
             WaveResult::Continue => {}
-            WaveResult::StopRequested(time) => {
+            WaveResult::StopRequested => {
+                let time = logical_time.next_microstep();
                 info!("Shutdown requested and scheduled at {}", self.display_tag(time));
                 self.shutdown_time = Some(time)
             }
