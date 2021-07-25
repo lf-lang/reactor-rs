@@ -34,7 +34,7 @@ use priority_queue::PriorityQueue;
 use crate::*;
 
 use super::{Event, ReactionWave, TimeCell, WaveResult, ReactionOrder};
-use std::fmt::{Display, Formatter};
+
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,
