@@ -26,15 +26,14 @@
 ///
 
 use std::cmp::Reverse;
-
+use std::ops::Deref;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 use priority_queue::PriorityQueue;
 
 use crate::*;
 
-use super::{Event, ReactionWave, TimeCell};
-use std::ops::Deref;
+use super::{Event, ReactionWave, TimeCell, WaveResult, ReactionOrder};
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,
@@ -195,7 +194,15 @@ impl SyncScheduler {
         // now execute all reactions that were scheduled
         // todo toposort reactions here
         let todo = ctx.ctx.do_next.clone();
-        wave.consume(todo);
+
+        self.consume_wave(wave, todo)
+    }
+
+    fn consume_wave(&mut self, wave: ReactionWave, todo: Vec<ReactionOrder>) {
+        match wave.consume(todo) {
+            WaveResult::Continue => {}
+            WaveResult::StopRequested(time) => { self.shutdown_time = Some(time) }
+        }
     }
 
 
@@ -233,6 +240,9 @@ impl SyncScheduler {
             }
 
             if let Some((evt, _)) = self.queue.pop() {
+                if self.is_after_shutdown(&evt) {
+                    break
+                }
                 // execute the wave for this event.
                 self.step(evt);
             } else if let Some(evt) = self.receive_event(now) { // this may block
@@ -243,11 +253,21 @@ impl SyncScheduler {
                 #[cfg(bench)] {
                     eprintln!("Shutting down scheduler");
                 }
+                self.shutdown();
                 break;
             }
         } // end loop
 
         // self destructor is called here
+    }
+
+    /// Returns whether the given event should be ignored and
+    /// the event loop be terminated. This would be the case
+    /// if the tag of the event is later than the projected
+    /// shutdown time. Such 'late' events may be emitted by
+    /// the shutdown wave.
+    fn is_after_shutdown(&self, evt: &Event) -> bool {
+        self.shutdown_time.map(|t| t > evt.process_at).unwrap_or(false)
     }
 
     fn receive_event(&mut self, now: PhysicalInstant) -> Option<Event> {
@@ -285,7 +305,9 @@ impl SyncScheduler {
 
         let time = Self::catch_up_physical_time(event.process_at);
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
-        self.new_wave(time).consume(event.todo);
+
+        let wave = self.new_wave(time);
+        self.consume_wave(wave, event.todo)
     }
 
     fn catch_up_physical_time(up_to_time: LogicalInstant) -> LogicalInstant {

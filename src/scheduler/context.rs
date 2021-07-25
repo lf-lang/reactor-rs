@@ -21,6 +21,8 @@ pub struct LogicalCtx<'a> {
     /// downstream of that port is inserted in order into this
     /// queue.
     pub(in super) do_next: Vec<ReactionOrder>,
+
+    requested_stop: bool,
 }
 
 impl LogicalCtx<'_> {
@@ -105,8 +107,9 @@ impl LogicalCtx<'_> {
         }
     }
 
-    /// Request a shutdown which will be acted upon at the end
-    /// of this reaction.
+    /// Request a shutdown which will be acted upon at the
+    /// next microstep. The current tag is processed until
+    /// the end before then.
     #[inline]
     pub fn request_stop(&mut self) {
         unimplemented!("request_stop")
@@ -206,13 +209,19 @@ impl ReactionWave {
 
     #[inline]
     pub fn new_ctx(&mut self) -> LogicalCtx {
-        LogicalCtx { wave: self, do_next: Vec::new() }
+        LogicalCtx {
+            wave: self,
+            do_next: Vec::new(),
+            requested_stop: false,
+        }
     }
 
     /// Execute the wave until completion.
     /// The parameter is the list of reactions to start with.
-    /// Todo topological info to split into independent subgraphs.
-    pub fn consume(mut self, mut todo: Vec<ReactionOrder>) {
+    /// Todo topological info to split into independent subgraphs
+    ///
+    /// Returns whether
+    pub fn consume(mut self, mut todo: Vec<ReactionOrder>) -> WaveResult {
         let mut i = 0;
         // We can share it, to reuse the allocation of the do_next buffer
         let mut ctx = self.new_ctx();
@@ -220,6 +229,7 @@ impl ReactionWave {
         // In some situations (diamonds) this is necessary.
         // Possibly with more static information we can avoid that.
         let mut done: HashSet<GlobalReactionId> = HashSet::new();
+        let mut requested_stop = false;
 
         while i < todo.len() {
             if let Some(reaction) = todo.get_mut(i) {
@@ -229,9 +239,21 @@ impl ReactionWave {
                     reaction.fire(&mut ctx);
                     // this clears the ctx.do_next buffer but retains its allocation
                     todo.append(&mut ctx.do_next);
+                    requested_stop |= ctx.requested_stop;
                 }
             }
             i += 1;
         }
+
+        if requested_stop {
+            WaveResult::StopRequested(self.logical_time.next_microstep())
+        } else {
+            WaveResult::Continue
+        }
     }
+}
+
+pub(in super) enum WaveResult {
+    Continue,
+    StopRequested(LogicalInstant),
 }

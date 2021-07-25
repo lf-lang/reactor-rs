@@ -81,6 +81,13 @@ impl LogicalInstant {
             microstep: MicroStep::ZERO,
         }
     }
+
+    pub fn next_microstep(&self) -> Self {
+        Self {
+            instant: self.instant,
+            microstep: self.microstep + 1,
+        }
+    }
 }
 
 
