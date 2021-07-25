@@ -26,6 +26,7 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use crate::Duration;
 use int_enum::{IntEnum, IntEnumError};
+use std::fmt::{Display, Formatter};
 
 
 /// A type whose instances have statically known names
@@ -102,3 +103,18 @@ impl ReactionId for Nothing {
 
 /// Duration::zero() is unstable
 pub const ZERO_DURATION: Duration = Duration::from_millis(0);
+
+pub(in crate) struct CommaList<'a, T: Display>(pub &'a Vec<T>);
+
+impl<T: Display> Display for CommaList<'_, T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[")?;
+
+        for (count, v) in self.0.iter().enumerate() {
+            if count != 0 { write!(f, ", ")?; }
+            write!(f, "{}", v)?;
+        }
+
+        write!(f, "]")
+    }
+}

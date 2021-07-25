@@ -35,6 +35,12 @@ impl MicroStep {
     pub const ZERO: MicroStep = MicroStep(0);
 }
 
+impl Display for MicroStep {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.0, f)
+    }
+}
+
 impl Add<u64> for MicroStep {
     type Output = Self;
     #[inline]

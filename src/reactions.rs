@@ -36,6 +36,13 @@ pub struct ReactorId {
     // todo #[cfg(feature=debug)] name: &'static str
 }
 
+impl Display for ReactorId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{}", self.value)
+    }
+}
+
+
 impl ReactorId {
     #[inline]
     pub(in crate) fn to_usize(&self) -> usize {
@@ -71,6 +78,12 @@ pub(in crate) struct GlobalReactionId {
     local: u32,
 }
 
+impl Display for GlobalReactionId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{}/{}", self.container, self.local)
+    }
+}
+
 /// Wraps a reaction in an "erased" executable form.
 /// This wraps a closures, that captures the reactor instance.
 pub struct ReactionInvoker {
@@ -84,13 +97,13 @@ pub struct ReactionInvoker {
 
 impl Display for ReactionInvoker {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.id.fmt(f)
+        <_ as Display>::fmt(&self.id, f)
     }
 }
 
 impl Debug for ReactionInvoker {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.id.fmt(f)
+        <_ as Debug>::fmt(&self.id, f)
     }
 }
 

@@ -30,6 +30,7 @@ pub use scheduler_impl::*;
 pub use context::*;
 
 use crate::{LogicalInstant, ReactionInvoker};
+use std::fmt::{Display, Formatter};
 
 /// An order to execute some reaction
 type ReactionOrder = Arc<ReactionInvoker>;

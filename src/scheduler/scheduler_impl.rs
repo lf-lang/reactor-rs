@@ -34,6 +34,7 @@ use priority_queue::PriorityQueue;
 use crate::*;
 
 use super::{Event, ReactionWave, TimeCell, WaveResult, ReactionOrder};
+use std::fmt::{Display, Formatter};
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,
@@ -100,7 +101,7 @@ impl<'x> AssemblyCtx<'x> {
         self.scheduler.reactor_id.get_and_increment()
     }
 
-    pub fn consume_child_reactor<S: ReactorDispatcher + 'static>(&mut self, child: Arc<Mutex<S>>) {
+    pub fn register_reactor<S: ReactorDispatcher + 'static>(&mut self, child: Arc<Mutex<S>>) {
         // note that the child ID does not correspond to the index in that vector.
         #[cfg(debug_assertions)]
             {
@@ -124,9 +125,13 @@ impl<'x> AssemblyCtx<'x> {
 }
 
 impl SyncScheduler {
-    pub fn run_main<R: ReactorDispatcher>(options: SchedulerOptions, args: R::Params) {
+    pub fn run_main<R: ReactorDispatcher + 'static>(options: SchedulerOptions, args: R::Params) {
         let mut scheduler = Self::new(options);
-        AssemblyCtx::assemble_impl::<R>(&mut scheduler, args);
+        let mut assembler = AssemblyCtx { scheduler: &mut scheduler };
+
+        let main_reactor = R::assemble(args, &mut assembler);
+        assembler.register_reactor(main_reactor);
+
         scheduler.startup();
         scheduler.launch_event_loop()
     }
@@ -174,6 +179,8 @@ impl SyncScheduler {
         if let Some(timeout) = self.options.timeout {
             self.shutdown_time = Some(initial_time + timeout)
         }
+
+        debug_assert!(!self.reactors.is_empty(), "No registered reactors");
         self.execute_wave(initial_time, ErasedReactorDispatcher::enqueue_startup);
     }
 
@@ -201,7 +208,10 @@ impl SyncScheduler {
     fn consume_wave(&mut self, wave: ReactionWave, todo: Vec<ReactionOrder>) {
         match wave.consume(todo) {
             WaveResult::Continue => {}
-            WaveResult::StopRequested(time) => { self.shutdown_time = Some(time) }
+            WaveResult::StopRequested(time) => {
+                info!("Shutdown requested and scheduled at {}", self.display_tag(time));
+                self.shutdown_time = Some(time)
+            }
         }
     }
 
@@ -234,7 +244,7 @@ impl SyncScheduler {
 
             if let Some((evt, _)) = self.queue.pop() {
                 if self.is_after_shutdown(&evt) {
-                    break
+                    break;
                 }
                 // execute the wave for this event.
                 self.step(evt);
@@ -282,7 +292,7 @@ impl SyncScheduler {
 
     /// Push a single event to the event queue
     fn push_event(&mut self, evt: Event) {
-        trace!("Pushing {:?}", evt);
+        trace!("Pushing {}", self.display_event(&evt));
 
         let eta = evt.process_at;
         self.queue.push(evt, Reverse(eta));
@@ -326,6 +336,15 @@ impl SyncScheduler {
             // should never panic
             self.initial_time.unwrap(),
         )
+    }
+
+    fn display_tag(&self, tag: LogicalInstant) -> String {
+        let elapsed = tag.instant - self.initial_time.unwrap().instant;
+        format!("(T0 + {} ns = {} ms, {})", elapsed.as_nanos(), elapsed.as_millis(), tag.microstep)
+    }
+
+    fn display_event(&self, evt: &Event) -> String {
+        format!("Event(at {}: run {})", self.display_tag(evt.process_at), CommaList(&evt.todo))
     }
 }
 
