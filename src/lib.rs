@@ -37,6 +37,7 @@ pub use self::util::*;
 // reexport those to complement our LogicalInstant
 pub use std::time::Instant as PhysicalInstant;
 pub use std::time::Duration;
+use std::sync::{Arc, Mutex};
 
 mod scheduler;
 mod ports;
@@ -65,17 +66,19 @@ pub trait ReactorDispatcher: ErasedReactorDispatcher {
     /// Assemble the user reactor, ie produce components with
     /// uninitialized dependencies & make state variables assume
     /// their default values, or else, a value taken from the params.
-    fn assemble(args: Self::Params) -> Self;
+    fn assemble(args: Self::Params, assembler: &mut AssemblyCtx<Self>)
+                -> Arc<Mutex<Self>> where Self: Sized;
 
     /// Execute a single user-written reaction.
     /// Dispatches on the reaction id, and unpacks parameters,
     /// which are the reactor components declared as fields of
     /// this struct.
     fn react(&mut self, ctx: &mut LogicalCtx, local_rid: Self::ReactionId);
-
 }
 
 pub trait ErasedReactorDispatcher {
+    fn id(&self) -> ReactorId;
+
     /// Execute a single user-written reaction.
     /// Dispatches on the reaction id, and unpacks parameters,
     /// which are the reactor components declared as fields of
@@ -85,37 +88,15 @@ pub trait ErasedReactorDispatcher {
     /// Acknowledge that the given tag is done executing and
     /// free resources if need be.
     fn cleanup_tag(&mut self, ctx: LogicalCtx);
-}
-
-/// Declares dependencies of every reactor component. Also
-/// initializes reaction wrappers.
-///
-/// Fields are
-/// 1. an Arc<Mutex<Self::RState>>
-/// 2. an Arc<ReactionInvoker> for every reaction declared by the reactor
-///
-pub trait ReactorAssembler {
-    /// Type of the [ReactorDispatcher]
-    type RState: ReactorDispatcher;
 
     /// Enqueue the startup reactions of this reactor and its
     /// children, without executing them.
     ///
     /// Timers are also started at this point.
-    fn enqueue_startup(&mut self, ctx: &mut StartupCtx);
+    fn enqueue_startup(_self: &Arc<Mutex<Self>>, ctx: &mut StartupCtx);
 
     // todo
-    fn enqueue_shutdown(&mut self, ctx: &mut StartupCtx);
-
-    /// Create a new instance. The rid is a counter used to
-    /// give unique IDs to reactions. The args are passed down
-    /// to [ReactorDispatcher::assemble].
-    ///
-    /// The components of the ReactorDispatcher must be filled
-    /// in with their respective dependencies (precomputed before
-    /// codegen)
-    fn assemble(ctx: &mut AssemblyCtx<Self>, args: <Self::RState as ReactorDispatcher>::Params) -> Self
-        where Self: Sized;
+    fn enqueue_shutdown(_self: &Arc<Mutex<Self>>, ctx: &mut StartupCtx);
 }
 
 
@@ -203,8 +184,8 @@ macro_rules! reaction_ids {
 #[doc(hidden)]
 macro_rules! new_reaction {
     ($reactorid:ident, $_rstate:ident, $name:ident) => {{
-        let id = <Self::RState as $crate::ReactorDispatcher>::ReactionId::$name;
-        let int_value = <<Self::RState as $crate::ReactorDispatcher>::ReactionId as ::int_enum::IntEnum>::int_value(id);
+        let id = Self::ReactionId::$name;
+        let int_value = <Self::ReactionId as ::int_enum::IntEnum>::int_value(id);
         let r = ::std::sync::Arc::new(
             $crate::ReactionInvoker::new($reactorid, int_value, $_rstate.clone(), id)
         );

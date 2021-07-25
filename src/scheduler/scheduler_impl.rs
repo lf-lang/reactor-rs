@@ -81,7 +81,7 @@ pub struct SyncScheduler {
     options: SchedulerOptions,
 
     /// All reactors.
-    reactors: Vec<Box<dyn ErasedReactorDispatcher + 'static>>,
+    reactors: Vec<Box<Arc<Mutex<dyn ErasedReactorDispatcher + 'static>>>>,
     reactor_id: ReactorId,
 }
 
@@ -89,46 +89,50 @@ pub struct SyncScheduler {
 ///
 /// Params:
 /// - `RA` - the type of the reactor currently being assembled
-/// - `'a` - the lifetime of the assembly
 /// - `'x` - the lifetime of the execution
 ///
-pub struct AssemblyCtx<'x, RA: ReactorAssembler> {
+pub struct AssemblyCtx<'x, RA: ReactorDispatcher> {
     scheduler: &'x mut SyncScheduler,
-    my_id: ReactorId,
     _p: PhantomData<RA>,
 }
 
-impl<'x, RA: ReactorAssembler> AssemblyCtx<'x, RA> {
+impl<'x, RA: ReactorDispatcher> AssemblyCtx<'x, RA> {
     #[inline]
     pub fn get_id(&self) -> ReactorId {
-        self.my_id
+        self.scheduler.reactor_id
     }
 
-    pub fn assemble_sub<S: ReactorAssembler>(&mut self, args: <S::RState as ReactorDispatcher>::Params) -> S {
-        AssemblyCtx::<S>::do_assembly(&mut self.scheduler, args)
+    pub fn consume_child_reactor<S: ReactorDispatcher + 'static>(&mut self, child: Arc<Mutex<S>>) {
+        // note that the child ID does not correspond to the index in that vector.
+        #[cfg(debug_assertions)]
+            {
+                let child = child.lock().unwrap();
+                assert_eq!(child.id().to_usize(), self.scheduler.reactors.len(), "Improper initialization order!");
+            }
+
+        self.scheduler.reactors.push(Box::new(child))
     }
 
-    fn do_assembly<R: ReactorAssembler>(scheduler: &mut SyncScheduler, args: <R::RState as ReactorDispatcher>::Params) -> R {
-        let mut sub = AssemblyCtx { my_id: scheduler.reactor_id.get_and_increment(), scheduler, _p: PhantomData };
-        R::assemble(&mut sub, args)
+    pub fn assemble_sub<S: ReactorDispatcher>(&mut self, args: S::Params) -> Arc<Mutex<S>> {
+        AssemblyCtx::<S>::assemble_impl(&mut self.scheduler, args)
+    }
+
+    fn assemble_impl<S: ReactorDispatcher>(scheduler: &mut SyncScheduler, args: S::Params) -> Arc<Mutex<S>> {
+        let mut sub = AssemblyCtx { scheduler, _p: PhantomData };
+        S::assemble(args, &mut sub)
     }
 }
 
 impl SyncScheduler {
-    fn do_assembly<RA: ReactorAssembler>(&mut self, args: <RA::RState as ReactorDispatcher>::Params) -> RA {
-        AssemblyCtx::<RA>::do_assembly(self, args)
-    }
 
-    pub fn run_main<R: ReactorAssembler>(options: SchedulerOptions, args: <R::RState as ReactorDispatcher>::Params) {
+    pub fn run_main<R: ReactorDispatcher>(options: SchedulerOptions, args: R::Params) {
         let mut scheduler = Self::new(options);
-        let mut topcell: R = scheduler.do_assembly(args);
-        scheduler.startup(|starter| {
-            topcell.enqueue_startup(starter);
-        });
-        scheduler.launch_sync()
+        AssemblyCtx::<R>::assemble_impl::<R>(&mut scheduler, args);
+        scheduler.startup();
+        scheduler.launch_event_loop()
     }
 
-    fn get_reactor(&self, id: ReactorId) -> &Box<dyn ErasedReactorDispatcher + 'static> {
+    fn get_reactor(&self, id: ReactorId) -> &Box<Arc<Mutex<dyn ErasedReactorDispatcher + 'static>>> {
         self.reactors.get(id.to_usize()).unwrap()
     }
 
@@ -166,7 +170,7 @@ impl SyncScheduler {
     /// ```
     ///
     /// TODO why not merge launch_async into this function
-    pub fn startup(&mut self, startup_actions: impl FnOnce(&mut StartupCtx)) {
+    pub fn startup(&mut self) {
         let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
         if let Some(timeout) = self.options.timeout {
@@ -174,10 +178,12 @@ impl SyncScheduler {
         }
         let mut startup_wave = self.new_wave(initial_time);
         let mut startup_ctx = StartupCtx {
-            scheduler: self,
             ctx: startup_wave.new_ctx(),
         };
-        startup_actions(&mut startup_ctx);
+        for reactor in &self.reactors {
+            let reactor = reactor.lock().unwrap();
+            reactor.enqueue_startup(&mut startup_ctx);
+        }
         let todo = startup_ctx.ctx.do_next.clone();
         startup_wave.consume(todo);
     }
@@ -197,7 +203,7 @@ impl SyncScheduler {
     /// time than the specified timeout. The timeout should be
     /// chosen with care to the application requirements.
     // TODO track whether there are live [SchedulerLink] to prevent idle spinning?
-    fn launch_sync(mut self) {
+    fn launch_event_loop(mut self) {
         /************************************************
          * This is the main event loop of the scheduler *
          ************************************************/
@@ -303,7 +309,6 @@ impl SyncScheduler {
 
 /// The API of [SyncScheduler::startup].
 pub struct StartupCtx<'a> {
-    scheduler: &'a mut SyncScheduler,
     ctx: LogicalCtx<'a>,
 }
 
