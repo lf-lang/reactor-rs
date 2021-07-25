@@ -47,6 +47,9 @@ mod timers;
 mod reactions;
 mod util;
 
+#[macro_use]
+extern crate log;
+
 
 /// Wrapper around the user struct for safe dispatch.
 ///

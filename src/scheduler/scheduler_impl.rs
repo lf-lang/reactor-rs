@@ -226,13 +226,6 @@ impl SyncScheduler {
          * This is the main event loop of the scheduler *
          ************************************************/
         loop {
-            let now = PhysicalInstant::now();
-            if let Some(shutdown_t) = self.shutdown_time {
-                // we need to shutdown even if there are more events in the queue
-                if now > shutdown_t.instant {
-                    break;
-                }
-            }
 
             // flush pending events, this doesn't block
             while let Ok(evt) = self.receiver.try_recv() {
@@ -245,14 +238,13 @@ impl SyncScheduler {
                 }
                 // execute the wave for this event.
                 self.step(evt);
-            } else if let Some(evt) = self.receive_event(now) { // this may block
+            } else if let Some(evt) = self.receive_event() { // this may block
                 self.push_event(evt);
                 continue;
             } else {
                 // all senders have hung up, or timeout
-                #[cfg(bench)] {
-                    eprintln!("Shutting down scheduler");
-                }
+                #[cfg(bench)] info!("Scheduler is shutting down");
+
                 self.shutdown();
                 break;
             }
@@ -270,15 +262,17 @@ impl SyncScheduler {
         self.shutdown_time.map(|t| t > evt.process_at).unwrap_or(false)
     }
 
-    fn receive_event(&mut self, now: PhysicalInstant) -> Option<Event> {
+    fn receive_event(&mut self) -> Option<Event> {
+        let now = PhysicalInstant::now();
         if self.options.keep_alive {
             if let Some(shutdown_t) = self.shutdown_time {
                 if now < shutdown_t.instant {
                     // we don't have to shutdown yet, so we can wait
-                    #[cfg(bench)] {
-                        eprintln!("Waiting for next event.");
-                    }
-                    return self.receiver.recv_timeout(shutdown_t.instant.duration_since(now)).ok();
+                    let timeout = shutdown_t.instant.duration_since(now);
+
+                    #[cfg(bench)] trace!("Will wait for next event {} ns", timeout.as_nanos());
+
+                    return self.receiver.recv_timeout(timeout).ok();
                 }
             }
         }
@@ -287,9 +281,7 @@ impl SyncScheduler {
 
     /// Push a single event to the event queue
     fn push_event(&mut self, evt: Event) {
-        #[cfg(bench)] {
-            eprintln!("Pushing {:?}.", evt);
-        }
+        #[cfg(bench)] #[cfg(bench)] trace!("Pushing {:?}", avt);
 
         let eta = evt.process_at;
         self.queue.push(evt, Reverse(eta));
@@ -299,9 +291,7 @@ impl SyncScheduler {
     /// (the scheduler one) sleep, if the expected processing
     /// time (logical) is ahead of current physical time.
     fn step(&mut self, event: Event) {
-        #[cfg(bench)] {
-            eprintln!("Next event has tag {}", event.process_at);
-        }
+        #[cfg(bench)] trace!("Received event for tag {}", event.process_at);
 
         let time = Self::catch_up_physical_time(event.process_at);
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
@@ -314,6 +304,7 @@ impl SyncScheduler {
         let now = PhysicalInstant::now();
         if now < up_to_time.instant {
             let t = up_to_time.instant - now;
+            #[cfg(bench)] trace!("Need to sleep {} ns", t.as_nanos());
             std::thread::sleep(t); // todo: see crate shuteyes for nanosleep capabilities on linux/macos platforms
         }
         // note this doesn't use `now` because we use
@@ -357,7 +348,7 @@ impl<'a> StartupCtx<'a> {
         }
     }
 
-    // todo
+    // todo physical actions
     // #[inline]
     // pub fn scheduler_link(&mut self) -> SchedulerLink {
     //     SchedulerLink {

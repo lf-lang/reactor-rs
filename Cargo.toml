@@ -8,7 +8,8 @@ edition = "2018"
 
 [dependencies]
 priority-queue = "1.0.0"
-int-enum = "0.4.0"
+int-enum = "0.4"
+log = "0.4"
 
 [dev-dependencies]
 criterion = "0.3"
