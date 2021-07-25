@@ -24,7 +24,7 @@
 
 //! Test utilities.
 
-use std::sync::Arc;
+
 
 use crate::*;
 use crate::Output;
@@ -35,12 +35,7 @@ pub fn set_port<T>(port: &mut OutputPort<T>, v: T) {
 }
 
 fn make_deps(container: ReactorId, ids: Vec<u32>) -> ReactionSet {
-    let mut result = Vec::new();
-    for id in ids.iter() {
-        let r = ReactionInvoker::new_from_closure(container, *id, |_| {});
-        result.push(Arc::new(r));
-    }
-    result
+    ids.iter().map(|id| GlobalReactionId::new(container, *id)).collect()
 }
 
 /// Set the given port's downstream dependencies as a set of
@@ -54,16 +49,8 @@ pub fn set_fake_downstream<T, K>(container: ReactorId, ids: Vec<u32>, port: &mut
 /// have exactly the ids contained in the given `local_ids`,
 /// taken to represent reactions of the given reactor.
 pub fn assert_deps_eq<T>(container: ReactorId, local_ids: Vec<u32>, port: &Port<T, Output>) {
-    let expected =
-        local_ids.into_iter()
-            .map(|loc| container.make_reaction_id(loc))
-            .collect::<Vec<_>>();
-
-    let actual =
-        port.get_downstream_deps().iter()
-            .map(|r| r.id())
-            .collect::<Vec<_>>();
-
+    let expected = make_deps(container, local_ids);
+    let actual = port.get_downstream_deps();
 
     assert_eq!(expected, actual, "Reaction IDs do not match");
 }

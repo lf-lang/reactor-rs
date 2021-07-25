@@ -244,7 +244,7 @@ mod ping {
         fn react_1(&mut self,
                    #[allow(unused)] ctx: &mut ::reactor_rt::LogicalCtx,
                    #[allow(unused)] params: &PingParams,
-                   receive: & ::reactor_rt::InputPort<u32>,
+                   _receive: & ::reactor_rt::InputPort<u32>,
                    #[allow(unused)] serve: & ::reactor_rt::LogicalAction::<()>) {
             if self.pingsLeft > 0 {
                 ctx.schedule(serve, Offset::Asap);

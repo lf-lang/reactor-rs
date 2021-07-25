@@ -29,6 +29,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::{LogicalCtx, ReactorDispatcher};
 
+
 /// Type of the global ID of a reactor.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
 pub struct ReactorId {
@@ -61,8 +62,7 @@ impl ReactorId {
         this
     }
 
-    #[cfg(test)]
-    pub(in crate) fn make_reaction_id(self, local: u32) -> GlobalReactionId {
+    pub fn make_reaction_id(self, local: u32) -> GlobalReactionId {
         GlobalReactionId {
             container: self,
             local
@@ -73,9 +73,15 @@ impl ReactorId {
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
-pub(in crate) struct GlobalReactionId {
-    container: ReactorId,
-    local: u32,
+pub struct GlobalReactionId {
+    pub(in crate) container: ReactorId,
+    pub(in crate) local: u32,
+}
+
+impl GlobalReactionId {
+    pub fn new(container: ReactorId, local: u32) -> Self {
+        Self { container, local }
+    }
 }
 
 impl Display for GlobalReactionId {
@@ -150,11 +156,11 @@ impl ReactionInvoker {
     /// ie the invoked code can be arbitrary.
     /// This may be used to test the logic of the scheduler
     pub fn new_from_closure(reactor_id: ReactorId,
-                                      reaction_priority: u32,
-                                      action: impl Fn(&mut LogicalCtx) + Send + Sync + 'static) -> ReactionInvoker {
+                            reaction_index: u32,
+                            action: impl Fn(&mut LogicalCtx) + Send + Sync + 'static) -> ReactionInvoker {
         ReactionInvoker {
             body: Box::new(action),
-            id: GlobalReactionId { container: reactor_id, local: reaction_priority },
+            id: GlobalReactionId { container: reactor_id, local: reaction_index },
         }
     }
 }
@@ -175,4 +181,4 @@ impl Hash for ReactionInvoker {
 }
 
 /// todo ensure it is toposorted
-pub type ReactionSet = Vec<Arc<ReactionInvoker>>;
+pub type ReactionSet = Vec<GlobalReactionId>;

@@ -29,11 +29,9 @@ use std::sync::{Arc, Mutex};
 pub use scheduler_impl::*;
 pub use context::*;
 
-use crate::{LogicalInstant, ReactionInvoker};
+use crate::{LogicalInstant, GlobalReactionId};
 
 
-/// An order to execute some reaction
-type ReactionOrder = Arc<ReactionInvoker>;
 /// The internal cell type used to store a thread-safe mutable logical time value.
 type TimeCell = Arc<Mutex<Cell<LogicalInstant>>>;
 
@@ -41,7 +39,7 @@ type TimeCell = Arc<Mutex<Cell<LogicalInstant>>>;
 #[derive(Eq, PartialEq, Hash, Debug)]
 struct Event {
     process_at: LogicalInstant,
-    todo: Vec<ReactionOrder>,
+    todo: Vec<GlobalReactionId>,
 }
 
 mod context;

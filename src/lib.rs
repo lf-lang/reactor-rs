@@ -189,10 +189,7 @@ macro_rules! new_reaction {
     ($reactorid:ident, $_rstate:ident, $name:ident) => {{
         let id = Self::ReactionId::$name;
         let int_value = <Self::ReactionId as ::int_enum::IntEnum>::int_value(id);
-        let r = ::std::sync::Arc::new(
-            $crate::ReactionInvoker::new($reactorid, int_value, $_rstate.clone(), id)
-        );
-        r
+        $crate::GlobalReactionId::new($reactorid, int_value)
     }};
 }
 

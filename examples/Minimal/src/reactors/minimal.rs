@@ -58,15 +58,14 @@ impl MinimalDispatcher {
             _params: args,
             _startup_reactions: Default::default(),
             _shutdown_reactions: Default::default(),
-            _impl: Minimal {
-
-            },
+            _impl: Minimal {},
 
         }
     }
 }
 
-use ::reactor_rt::*; // after this point there's no user-written code
+use ::reactor_rt::*;
+use std::collections::HashSet; // after this point there's no user-written code
 
 impl ::reactor_rt::ReactorDispatcher for MinimalDispatcher {
     type ReactionId = MinimalReactions;
@@ -81,15 +80,13 @@ impl ::reactor_rt::ReactorDispatcher for MinimalDispatcher {
         let this_reactor = assembler.get_next_id();
         let mut _self = Arc::new(Mutex::new(Self::user_assemble(this_reactor, args)));
 
-        let react_0 = new_reaction!(this_reactor, _self, R0);
+        let react_0: GlobalReactionId = new_reaction!(this_reactor, _self, R0);
 
         {
             let mut statemut = _self.lock().unwrap();
-            
-            statemut._startup_reactions = vec![react_0.clone()];
+
+            statemut._startup_reactions = vec![react_0];
             statemut._shutdown_reactions = vec![];
-
-
         }
         {
             // Declare connections

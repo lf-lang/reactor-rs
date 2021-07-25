@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::mpsc::Sender;
 
 use crate::*;
-use super::{ReactionOrder, TimeCell, Event};
+use super::{TimeCell, Event};
 
 /// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
@@ -21,7 +21,7 @@ pub struct LogicalCtx<'a> {
     /// This is mutable: if a reaction sets a port, then the
     /// downstream of that port is inserted in order into this
     /// queue.
-    pub(in super) do_next: Vec<ReactionOrder>,
+    pub(in super) do_next: Vec<GlobalReactionId>,
 
     requested_stop: bool,
 }
@@ -223,7 +223,7 @@ impl ReactionWave {
     ///
     /// Returns whether some reaction called [LogicalCtx#request_stop]
     /// or not.
-    pub fn consume(mut self, mut todo: Vec<ReactionOrder>) -> WaveResult {
+    pub fn consume(mut self, scheduler: &mut SyncScheduler, mut todo: Vec<GlobalReactionId>) -> WaveResult {
         let mut i = 0;
         // We can share it, to reuse the allocation of the do_next buffer
         let mut ctx = self.new_ctx();
@@ -234,11 +234,11 @@ impl ReactionWave {
         let mut requested_stop = false;
 
         while i < todo.len() {
-            if let Some(reaction) = todo.get_mut(i) {
-                if done.insert(reaction.id()) {
+            if let Some(reaction) = todo.get(i) {
+                if done.insert(*reaction) {
                     // this may append new elements into the queue,
                     // which is why we can't use an iterator
-                    reaction.fire(&mut ctx);
+                    scheduler.exec_reaction(&mut ctx, reaction);
                     // this clears the ctx.do_next buffer but retains its allocation
                     todo.append(&mut ctx.do_next);
                     requested_stop |= ctx.requested_stop;

@@ -33,7 +33,7 @@ use priority_queue::PriorityQueue;
 
 use crate::*;
 
-use super::{Event, ReactionWave, TimeCell, WaveResult, ReactionOrder};
+use super::{Event, ReactionWave, TimeCell, WaveResult};
 
 
 pub struct SchedulerOptions {
@@ -195,9 +195,9 @@ impl SyncScheduler {
         self.consume_wave(wave, todo)
     }
 
-    fn consume_wave(&mut self, wave: ReactionWave, todo: Vec<ReactionOrder>) {
+    fn consume_wave(&mut self, wave: ReactionWave, todo: Vec<GlobalReactionId>) {
         let logical_time = wave.logical_time;
-        match wave.consume(todo) {
+        match wave.consume(self, todo) {
             WaveResult::Continue => {}
             WaveResult::StopRequested => {
                 let time = logical_time.next_microstep();
@@ -205,6 +205,11 @@ impl SyncScheduler {
                 self.shutdown_time = Some(time)
             }
         }
+    }
+
+    pub(in super) fn exec_reaction(&mut self, ctx: &mut LogicalCtx, id: &GlobalReactionId) {
+        let mut reactor = self.get_reactor(id.container).lock().unwrap();
+        reactor.react_erased(ctx, id.local)
     }
 
 
