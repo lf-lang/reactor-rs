@@ -26,7 +26,6 @@
 ///
 
 use std::cmp::Reverse;
-use std::marker::PhantomData;
 
 use std::sync::mpsc::{channel, Receiver, Sender};
 
@@ -35,6 +34,7 @@ use priority_queue::PriorityQueue;
 use crate::*;
 
 use super::{Event, ReactionWave, TimeCell};
+use std::ops::Deref;
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,
@@ -77,7 +77,7 @@ pub struct SyncScheduler {
     /// Scheduled shutdown time. If not None, shutdown must
     /// be initiated at least at this physical time step.
     /// todo does this match lf semantics?
-    shutdown_time: Option<PhysicalInstant>,
+    shutdown_time: Option<LogicalInstant>,
     options: SchedulerOptions,
 
     /// All reactors.
@@ -169,24 +169,35 @@ impl SyncScheduler {
     /// });
     /// ```
     ///
-    /// TODO why not merge launch_async into this function
     fn startup(&mut self) {
         let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
         if let Some(timeout) = self.options.timeout {
-            self.shutdown_time = Some(initial_time.instant + timeout)
+            self.shutdown_time = Some(initial_time + timeout)
         }
-        let mut startup_wave = self.new_wave(initial_time);
-        let mut startup_ctx = StartupCtx {
-            ctx: startup_wave.new_ctx(),
-        };
+        self.execute_wave(initial_time, ErasedReactorDispatcher::enqueue_startup);
+    }
+
+    fn shutdown(&mut self) {
+        let shutdown_time = self.shutdown_time.unwrap_or_else(LogicalInstant::now);
+        self.execute_wave(shutdown_time, ErasedReactorDispatcher::enqueue_shutdown);
+    }
+
+    fn execute_wave(&mut self,
+                    time: LogicalInstant,
+                    enqueue_fun: fn(&(dyn ErasedReactorDispatcher + 'static), &mut StartupCtx)) {
+        let mut wave = self.new_wave(time);
+        let mut ctx = StartupCtx { ctx: wave.new_ctx() };
         for reactor in &self.reactors {
             let reactor = reactor.lock().unwrap();
-            reactor.enqueue_startup(&mut startup_ctx);
+            enqueue_fun(reactor.deref(), &mut ctx);
         }
-        let todo = startup_ctx.ctx.do_next.clone();
-        startup_wave.consume(todo);
+        // now execute all reactions that were scheduled
+        // todo toposort reactions here
+        let todo = ctx.ctx.do_next.clone();
+        wave.consume(todo);
     }
+
 
     /// Launch the event loop in an auxiliary thread. Returns
     /// the handle for that thread.
@@ -211,7 +222,7 @@ impl SyncScheduler {
             let now = PhysicalInstant::now();
             if let Some(shutdown_t) = self.shutdown_time {
                 // we need to shutdown even if there are more events in the queue
-                if now > shutdown_t {
+                if now > shutdown_t.instant {
                     break;
                 }
             }
@@ -229,9 +240,6 @@ impl SyncScheduler {
                 continue;
             } else {
                 // all senders have hung up, or timeout
-                // todo i'm not 100% sure that this cfg(bench) works properly
-                // Previously I was using a cfg(not(feature = "benchmarking")) with a custom feature
-                // but that's tedious to use.
                 #[cfg(bench)] {
                     eprintln!("Shutting down scheduler");
                 }
@@ -245,12 +253,12 @@ impl SyncScheduler {
     fn receive_event(&mut self, now: PhysicalInstant) -> Option<Event> {
         if self.options.keep_alive {
             if let Some(shutdown_t) = self.shutdown_time {
-                if now < shutdown_t {
+                if now < shutdown_t.instant {
                     // we don't have to shutdown yet, so we can wait
                     #[cfg(bench)] {
                         eprintln!("Waiting for next event.");
                     }
-                    return self.receiver.recv_timeout(shutdown_t.duration_since(now)).ok();
+                    return self.receiver.recv_timeout(shutdown_t.instant.duration_since(now)).ok();
                 }
             }
         }
