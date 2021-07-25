@@ -27,7 +27,7 @@ use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
-use crate::ToposortedReactions;
+use crate::ReactionSet;
 
 // clients may only use InputPort and OutputPort
 // but there's a single implementation.
@@ -98,7 +98,7 @@ impl<T, K> Port<T, K> {
     }
 
     /// Only for glue code during assembly.
-    pub fn set_downstream(&mut self, r: ToposortedReactions) {
+    pub fn set_downstream(&mut self, r: ReactionSet) {
         let mut class = self.cell.lock().unwrap();
         class.downstream = r;
     }
@@ -148,7 +148,7 @@ impl<T> OutputPort<T> {
     /// Set the value, see [super::LogicalCtx::set]
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
-    pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ToposortedReactions)) {
+    pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ReactionSet)) {
         assert_ne!(self.status, BindStatus::Bound, "Bound port cannot be bound");
 
         let guard = self.cell.lock().unwrap();
@@ -161,7 +161,7 @@ impl<T> OutputPort<T> {
     /// produce events and hence need access to the set of their
     /// dependencies. This is why we only test those.
     #[cfg(test)]
-    pub(crate) fn get_downstream_deps(&self) -> ToposortedReactions {
+    pub(crate) fn get_downstream_deps(&self) -> ReactionSet {
         let class = self.cell.lock().unwrap();
         class.downstream.clone()
     }
@@ -249,7 +249,7 @@ struct PortCell<T> {
     /// Cell for the value.
     cell: RefCell<Option<T>>,
     /// The set of reactions which are scheduled when this cell is set.
-    downstream: ToposortedReactions,
+    downstream: ReactionSet,
 }
 
 impl<T> Default for PortCell<T> {

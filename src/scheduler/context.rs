@@ -93,12 +93,12 @@ impl LogicalCtx<'_> {
     }
 
     #[inline]
-    pub(in crate) fn enqueue_later(&mut self, downstream: &ToposortedReactions, process_at: LogicalInstant) {
+    pub(in crate) fn enqueue_later(&mut self, downstream: &ReactionSet, process_at: LogicalInstant) {
         self.wave.enqueue_later(&downstream, process_at);
     }
 
     #[inline]
-    pub(in crate) fn enqueue_now(&mut self, downstream: &ToposortedReactions) {
+    pub(in crate) fn enqueue_now(&mut self, downstream: &ReactionSet) {
         for reaction in downstream {
             // todo blindly appending possibly does not respect the topological sort
             self.do_next.push(reaction.clone());
@@ -196,7 +196,7 @@ impl ReactionWave {
     ///
     /// This is used for actions.
     #[inline]
-    pub fn enqueue_later(&mut self, downstream: &ToposortedReactions, process_at: LogicalInstant) {
+    pub fn enqueue_later(&mut self, downstream: &ReactionSet, process_at: LogicalInstant) {
         debug_assert!(process_at > self.logical_time);
 
         // todo merge events at equal tags by merging their dependencies

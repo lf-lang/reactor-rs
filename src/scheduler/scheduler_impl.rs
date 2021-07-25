@@ -315,7 +315,7 @@ pub struct StartupCtx<'a> {
 impl<'a> StartupCtx<'a> {
 
     #[inline]
-    pub fn enqueue(&mut self, reactions: ToposortedReactions) {
+    pub fn enqueue(&mut self, reactions: ReactionSet) {
         self.ctx.enqueue_now(&reactions)
     }
 

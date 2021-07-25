@@ -34,7 +34,7 @@ pub fn set_port<T>(port: &mut OutputPort<T>, v: T) {
     port.set_impl(v, |_| {})
 }
 
-fn make_deps(container: ReactorId, ids: Vec<u32>) -> ToposortedReactions {
+fn make_deps(container: ReactorId, ids: Vec<u32>) -> ReactionSet {
     let mut result = Vec::new();
     for id in ids.iter() {
         let r = ReactionInvoker::new_from_closure(container, *id, |_| {});

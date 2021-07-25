@@ -162,4 +162,4 @@ impl Hash for ReactionInvoker {
 }
 
 /// todo ensure it is toposorted
-pub type ToposortedReactions = Vec<Arc<ReactionInvoker>>;
+pub type ReactionSet = Vec<Arc<ReactionInvoker>>;

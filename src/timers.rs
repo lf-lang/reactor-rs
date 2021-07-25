@@ -44,7 +44,7 @@ pub struct Timer {
     /// after the specified offset.
     pub period: Duration,
 
-    pub(in super) downstream: ToposortedReactions,
+    pub(in super) downstream: ReactionSet,
 }
 
 
@@ -65,7 +65,7 @@ impl Timer {
     }
 
     #[inline]
-    pub fn set_downstream(&mut self, r: ToposortedReactions) {
+    pub fn set_downstream(&mut self, r: ReactionSet) {
         self.downstream = r
     }
 

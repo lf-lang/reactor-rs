@@ -28,7 +28,7 @@ use std::fmt::*;
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
-use super::{LogicalInstant, Named, ToposortedReactions};
+use super::{LogicalInstant, Named, ReactionSet};
 use crate::ActionPresence::NotPresent;
 
 #[doc(hidden)]
@@ -42,7 +42,7 @@ pub type PhysicalAction<T> = Action<Physical, T>;
 
 pub struct Action<Kind, T: Clone> {
     pub min_delay: Duration,
-    pub(in super) downstream: ToposortedReactions,
+    pub(in super) downstream: ReactionSet,
     name: &'static str,
     is_logical: bool,
     _logical: PhantomData<Kind>,
@@ -52,7 +52,7 @@ pub struct Action<Kind, T: Clone> {
 
 impl<K, T: Clone> Action<K, T> {
     #[inline]
-    pub fn set_downstream(&mut self, r: ToposortedReactions) {
+    pub fn set_downstream(&mut self, r: ReactionSet) {
         self.downstream = r
     }
 
