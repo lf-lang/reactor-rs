@@ -160,18 +160,8 @@ impl SyncScheduler {
 
 
     /// Fix the origin of the logical timeline to the current
-    /// physical time, and allows running the startup reactions
-    /// of all reactors in the provided closure (see [ReactorAssembler::start]).
-    ///
-    /// Possible usage:
-    /// ```ignore
-    /// let mut scheduler = SyncScheduler::new();
-    ///
-    /// scheduler.startup(|mut starter| {
-    ///     starter.start(&mut s_cell);
-    ///     starter.start(&mut p_cell);
-    /// });
-    /// ```
+    /// physical time, and runs the startup reactions
+    /// of all reactors.
     ///
     fn startup(&mut self) {
         let initial_time = LogicalInstant::now();

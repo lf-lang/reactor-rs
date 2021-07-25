@@ -4,12 +4,13 @@ use std::sync::mpsc::Sender;
 use crate::*;
 use super::{ReactionOrder, TimeCell, Event};
 
-/// This is the context in which a reaction executes. Its API
-/// allows mutating the event queue of the scheduler. Only the
-/// interactions declared at assembly time are allowed.
+/// The context in which a reaction executes. Its API
+/// allows mutating the event queue of the scheduler.
+/// Only the interactions declared at assembly time
+/// are allowed.
 ///
 /// LogicalCtx is an API built around a ReactionWave. A single
-/// ReactionWave may be used for multiple ReactionWaves, but
+/// LogicalCtx may be used for multiple ReactionWaves, but
 /// obviously at disjoint times (&mut).
 ///
 pub struct LogicalCtx<'a> {
@@ -220,7 +221,8 @@ impl ReactionWave {
     /// The parameter is the list of reactions to start with.
     /// Todo topological info to split into independent subgraphs
     ///
-    /// Returns whether
+    /// Returns whether some reaction called [LogicalCtx#request_stop]
+    /// or not.
     pub fn consume(mut self, mut todo: Vec<ReactionOrder>) -> WaveResult {
         let mut i = 0;
         // We can share it, to reuse the allocation of the do_next buffer
