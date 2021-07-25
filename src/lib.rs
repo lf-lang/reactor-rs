@@ -199,16 +199,11 @@ macro_rules! reaction_ids {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! new_reaction {
-    ($reactorid:ident, $reactionid:ident, $_rstate:ident, $name:ident) => {{
+    ($reactorid:ident, $_rstate:ident, $name:ident) => {{
+        let id = <Self::RState as $crate::ReactorDispatcher>::ReactionId::$name;
         let r = ::std::sync::Arc::new(
-            $crate::ReactionInvoker::new(
-                $reactorid,
-                $reactionid,
-                $_rstate.clone(),
-                <Self::RState as $crate::ReactorDispatcher>::ReactionId::$name
-            )
+            $crate::ReactionInvoker::new($reactorid, id.int_value(), $_rstate.clone(), id)
         );
-        $reactionid += 1;
         r
     }};
 }

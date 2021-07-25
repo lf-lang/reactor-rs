@@ -114,9 +114,8 @@ impl ReactorAssembler for MinimalAssembler {
     ) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
         let this_reactor = ctx.get_id();
-        let mut reaction_id = 0;
 
-        let react_0 = new_reaction!(this_reactor, reaction_id, _rstate, R0);
+        let react_0 = new_reaction!(this_reactor, _rstate, R0);
 
 
         if false {
