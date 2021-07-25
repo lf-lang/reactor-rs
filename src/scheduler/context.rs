@@ -108,11 +108,11 @@ impl LogicalCtx<'_> {
     }
 
     /// Request a shutdown which will be acted upon at the
-    /// next microstep. The current tag is processed until
-    /// the end before then.
+    /// next microstep. Before then, the current tag is
+    /// processed until completion.
     #[inline]
     pub fn request_stop(&mut self) {
-        unimplemented!("request_stop")
+        self.requested_stop = true;
     }
 
     #[inline]

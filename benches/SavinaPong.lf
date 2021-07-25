@@ -1,9 +1,9 @@
 target Rust;
 
-reactor Ping(count: i32(1000000)) {
-    input receive: i32;
-    output send: i32;
-    state pingsLeft: i32(count);
+reactor Ping(count: u32(1000000)) {
+    input receive: u32;
+    output send: u32;
+    state pingsLeft: u32(count);
     logical action serve;
 
     reaction(startup, serve) -> send {=
@@ -20,10 +20,10 @@ reactor Ping(count: i32(1000000)) {
     =}
 }
 
-reactor Pong(expected: i32(1000000)) {
-    input receive: i32;
-    output send: i32;
-    state count: i32(0);
+reactor Pong(expected: u32(1000000)) {
+    input receive: u32;
+    output send: u32;
+    state count: u32(0);
 
     reaction(receive) -> send {=
         self.count += 1;
@@ -34,7 +34,6 @@ reactor Pong(expected: i32(1000000)) {
         if self.count != params.expected {
             panic!("Pong expected to receive {} inputs, but it received {}.", params.expected, self.count);
         }
-        println!("Success.");
     =}
 }
 

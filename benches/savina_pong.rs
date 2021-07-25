@@ -25,17 +25,20 @@
 #![allow(unused, non_snake_case, non_camel_case_types)]
 #[macro_use]
 extern crate reactor_rt;
+extern crate env_logger;
 
 
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+
+use ::reactor_rt::{LogicalInstant, PhysicalInstant, Duration};
+use ::reactor_rt::Offset::{After, Asap};
+
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main, black_box};
 
 use reactor_rt::reaction_ids;
 use reactor_rt::reaction_ids_helper;
 use reactor_rt::*;
-use reactor_rt::Offset::Asap;
 
 /*
 The ping/pong game from Savina benchmarks. This can be compared
@@ -50,6 +53,7 @@ criterion_group!(benches, reactor_main);
 criterion_main!(benches);
 
 fn reactor_main(c: &mut Criterion) {
+    env_logger::init();
     let mut group = c.benchmark_group("savina_pong");
     for num_pongs in [1000, 10_000, 50_000, 1_000_000].iter() {
         group.bench_with_input(
@@ -58,8 +62,7 @@ fn reactor_main(c: &mut Criterion) {
             |b, &size| {
                 b.iter(|| {
                     let timeout = Some(Duration::from_secs(5));
-                    let scheduler = do_assembly(1, size, timeout);
-                    scheduler.launch_async().join().unwrap();
+                    launch(1, size, timeout);
                 });
             }
         );
@@ -67,521 +70,464 @@ fn reactor_main(c: &mut Criterion) {
     group.finish();
 }
 
-fn do_assembly(numIterations: u32, count: u32, timeout: Option<Duration>) -> SyncScheduler {
-    let mut scheduler = SyncScheduler::new(SchedulerOptions { timeout, keep_alive: false });
-    let mut rid = ReactorId::first();
-
-    // ping = new Ping(count=count);
-    let mut ping_cell = PingAssembler::assemble(&mut rid, count);
-
-    // runner = new BenchmarkRunner(numIterations=numIterations);
-    let mut runner_cell = BenchmarkRunnerAssembler::assemble(&mut rid, BenchmarkParams { numIterations, useInit: false, useCleanupIteration: false });
-
-    {
-        let mut ping = ping_cell._rstate.lock().unwrap();
-        let mut runner = runner_cell._rstate.lock().unwrap();
-
-        // runner.outIterationStart -> ping.inStart;
-        bind_ports(&mut runner.outIterationStart, &mut ping.inStart);
-
-        // ping.outFinished -> runner.inIterationFinish;
-        bind_ports(&mut ping.outFinished, &mut runner.inIterationFinish);
-    }
+fn launch(numIterations: u32, count: u32, timeout: Option<Duration>)  {
 
 
-    // pong = new Pong();
-    let mut pong_cell = PongAssembler::assemble(&mut rid, ());
+    // todo CLI parsing
+    let options = SchedulerOptions {
+        timeout: None,
+        keep_alive: false
+    };
+    let main_args = savina_pong::SavinaPongParams {
+        count,
+        expected: count
+    };
 
-    {
-        let mut ping = ping_cell._rstate.lock().unwrap();
-        let mut pong = pong_cell._rstate.lock().unwrap();
-
-        // ping.outPing -> pong.inPing;
-        bind_ports(&mut ping.outPing, &mut pong.inPing);
-
-        // pong.outPong -> ping.inPong;
-        bind_ports(&mut pong.outPong, &mut ping.inPong);
-    }
-
-
-    scheduler.startup(|mut starter| {
-        runner_cell.start(&mut starter);
-        ping_cell.start(&mut starter);
-        pong_cell.start(&mut starter);
-    });
-
-    scheduler
+    SyncScheduler::run_main::<SavinaPongDispatcher>(options, main_args);
 }
 
 
-struct Ping {
-    pings_left: u32,
-    count: u32,
-}
+pub use savina_pong::SavinaPongParams;
+pub use savina_pong::SavinaPongDispatcher;
+pub use ping::PingParams;
+pub use ping::PingDispatcher;
+pub use pong::PongParams;
+pub use pong::PongDispatcher;
 
-impl Ping {
-    fn react_restart(&mut self, ctx: &mut LogicalCtx, serve: &LogicalAction<()>) {
-        self.pings_left = self.count;
-        ctx.schedule(serve, Asap)
+mod savina_pong {
+
+    // todo link to source
+    pub struct SavinaPong;
+
+    /// Parameters for the construction of a [SavinaPong]
+    #[derive(Clone)]
+    pub struct SavinaPongParams {
+        pub count:u32,
+        pub expected:u32
     }
 
-    fn react_serve(&mut self, ctx: &mut LogicalCtx, outPing: &mut OutputPort<bool>) {
-        self.pings_left -= 1;
-        ctx.set(outPing, true)
+
+//------------------------//
+
+
+    pub struct SavinaPongDispatcher {
+        _id: ::reactor_rt::ReactorId,
+        _impl: SavinaPong,
+        _params: SavinaPongParams,
+        _startup_reactions: ::reactor_rt::ReactionSet,
+        _shutdown_reactions: ::reactor_rt::ReactionSet,
+
     }
 
-    fn react_reactToPong(&mut self, ctx: &mut LogicalCtx, outFinished: &mut OutputPort<bool>, serve: &LogicalAction<()>) {
-        if self.pings_left == 0 {
-            ctx.set(outFinished, true)
-        } else {
-            ctx.schedule(serve, Asap)
-        }
-    }
-}
 
+    reaction_ids!(pub enum SavinaPongReactions {});
 
-struct PingDispatcher {
-    _impl: Ping,
+    impl SavinaPongDispatcher {
+        #[inline]
+        fn user_assemble(_id: ::reactor_rt::ReactorId, args: SavinaPongParams) -> Self {
+            let SavinaPongParams {  count, expected } = args.clone();
+            Self {
+                _id,
+                _params: args,
+                _startup_reactions: Default::default(),
+                _shutdown_reactions: Default::default(),
+                _impl: SavinaPong {
 
-    inStart: InputPort<bool>,
-    outFinished: OutputPort<bool>,
+                },
 
-    outPing: OutputPort<bool>,
-    inPong: InputPort<bool>,
-
-    serve: LogicalAction<()>,
-}
-
-reaction_ids!(enum PingReactions {R_Serve = 0, R_ReactToPong=1,R_Start=2 });
-
-impl ReactorDispatcher for PingDispatcher {
-    type ReactionId = PingReactions;
-    type Wrapped = Ping;
-    type Params = u32;
-
-    fn assemble(args: Self::Params) -> Self {
-        Self {
-            _impl: Ping { pings_left: 0, count: args },
-            inStart: Default::default(),
-            outFinished: Default::default(),
-            outPing: Default::default(),
-            inPong: Default::default(),
-            serve: LogicalAction::new("serve", None),
-        }
-    }
-
-    fn react(&mut self, ctx: &mut LogicalCtx, rid: Self::ReactionId) {
-        match rid {
-            PingReactions::R_Serve => {
-                self._impl.react_serve(ctx, &mut self.outPing)
-            }
-            PingReactions::R_ReactToPong => {
-                self._impl.react_reactToPong(ctx, &mut self.outFinished, &self.serve)
-            }
-            PingReactions::R_Start => {
-                self._impl.react_restart(ctx, &self.serve)
             }
         }
     }
 
-    fn cleanup_tag(&mut self, ctx: LogicalCtx) {
+    use ::reactor_rt::*; // after this point there's no user-written code
+    use std::sync::{Arc, Mutex};
 
-    }
+    impl ::reactor_rt::ReactorDispatcher for SavinaPongDispatcher {
+        type ReactionId = SavinaPongReactions;
+        type Wrapped = SavinaPong;
+        type Params = SavinaPongParams;
 
-}
+        fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Arc<Mutex<Self>> {
+            // children reactors
+            // --- ping = new Ping();
+            let mut ping: Arc<Mutex<super::PingDispatcher>> = assembler.assemble_sub(super::PingParams { count: args.count, });
+            // --- pong = new Pong();
+            let mut pong: Arc<Mutex<super::PongDispatcher>> = assembler.assemble_sub(super::PongParams { expected: args.expected, });
 
-
-struct PingAssembler {
-    _rstate: Arc<Mutex<PingDispatcher>>,
-    react_Serve: Arc<ReactionInvoker>,
-    react_ReactToPong: Arc<ReactionInvoker>,
-    react_Start: Arc<ReactionInvoker>,
-}
-
-impl ReactorAssembler for PingAssembler {
-    type RState = PingDispatcher;
-
-    fn start(&mut self, ctx: &mut StartupCtx) {
-        // Ping::react_startup(ctx);
-    }
-
-    fn assemble(ctx: &mut AssemblyCtx<Self>, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
-        let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = reactor_id.get_and_increment();
-        let mut reaction_id = 0;
-
-        let react_Serve = new_reaction!(this_reactor, reaction_id, _rstate, R_Serve);
-        let react_ReactToPong = new_reaction!(this_reactor, reaction_id, _rstate, R_ReactToPong);
-        let react_Start = new_reaction!(this_reactor, reaction_id, _rstate, R_Start);
-
-        { // declare local dependencies
-            let mut statemut = _rstate.lock().unwrap();
+            // assemble self
+            let this_reactor = assembler.get_next_id();
+            let mut _self = Arc::new(Mutex::new(Self::user_assemble(this_reactor, args)));
 
 
-            statemut.inStart.set_downstream(vec![react_Start.clone()].into());
-            statemut.inPong.set_downstream(vec![react_ReactToPong.clone()].into());
-            statemut.serve.set_downstream(vec![react_Serve.clone()].into());
+
+            {
+                let mut statemut = _self.lock().unwrap();
+
+                statemut._startup_reactions = vec![];
+                statemut._shutdown_reactions = vec![];
+
+
+            }
+            {
+                let mut ping = ping.lock().unwrap();
+                let mut pong = pong.lock().unwrap();
+                // Declare connections
+                // --- ping.send -> pong.receive;
+                bind_ports(&mut ping.send, &mut pong.receive);
+                // --- pong.send -> ping.receive;
+                bind_ports(&mut pong.send, &mut ping.receive);
+            }
+            assembler.register_reactor(ping);
+            assembler.register_reactor(pong);
+
+            _self
         }
 
-        Self {
-            _rstate,
-            react_Serve,
-            react_ReactToPong,
-            react_Start,
-        }
-    }
-}
+        #[inline]
+        fn react(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: Self::ReactionId) {
+            match rid {
 
-/*
-PONG
- */
-
-
-struct Pong;
-
-impl Pong {
-    fn react_reactToPing(&mut self, ctx: &mut LogicalCtx, outPong: &mut OutputPort<bool>) {
-        ctx.set(outPong, true)
-    }
-}
-
-
-struct PongDispatcher {
-    _impl: Pong,
-
-    inPing: InputPort<bool>,
-    outPong: OutputPort<bool>,
-}
-
-reaction_ids!(enum PongReactions {R_ReactToPing=0});
-
-impl ReactorDispatcher for PongDispatcher {
-    type ReactionId = PongReactions;
-    type Wrapped = Pong;
-    type Params = ();
-
-    fn assemble(args: Self::Params) -> Self {
-        Self {
-            _impl: Pong,
-            inPing: Default::default(),
-            outPong: Default::default(),
-        }
-    }
-
-    fn react(&mut self, ctx: &mut LogicalCtx, rid: Self::ReactionId) {
-        match rid {
-            PongReactions::R_ReactToPing => {
-                self._impl.react_reactToPing(ctx, &mut self.outPong)
             }
         }
     }
 
-    fn cleanup_tag(&mut self, ctx: LogicalCtx) {
 
-    }
+    impl ::reactor_rt::ErasedReactorDispatcher for SavinaPongDispatcher {
 
-}
-
-
-struct PongAssembler {
-    _rstate: Arc<Mutex<PongDispatcher>>,
-    react_ReactToPing: Arc<ReactionInvoker>,
-}
-
-impl ReactorAssembler for PongAssembler {
-    type RState = PongDispatcher;
-
-    fn start(&mut self, ctx: &mut StartupCtx) {
-        // Ping::react_startup(ctx);
-    }
-
-    fn assemble(ctx: &mut AssemblyCtx<Self>, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
-
-        let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = reactor_id.get_and_increment();
-        let mut reaction_id = 0;
-
-        let react_ReactToPing = new_reaction!(this_reactor, reaction_id, _rstate, R_ReactToPing);
-
-        { // declare local dependencies
-            let mut statemut = _rstate.lock().unwrap();
-
-            statemut.inPing.set_downstream(vec![react_ReactToPing.clone()].into());
+        fn id(&self) -> ReactorId {
+            self._id
         }
 
-        Self {
-            _rstate,
-            react_ReactToPing,
+        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: u32) {
+            let rid = <SavinaPongReactions as int_enum::IntEnum>::from_int(rid).unwrap();
+            self.react(ctx, rid)
         }
+
+        fn cleanup_tag(&mut self, ctx: ::reactor_rt::LogicalCtx) {
+            // todo
+        }
+
+        fn enqueue_startup(&self, ctx: &mut StartupCtx) {
+
+
+            ctx.enqueue(&self._startup_reactions);
+        }
+
+        fn enqueue_shutdown(&self, ctx: &mut StartupCtx) {
+            ctx.enqueue(&self._shutdown_reactions);
+        }
+
     }
 }
 
+mod ping {
 
-/*
+    // todo link to source
+    pub struct Ping {
+        pingsLeft: u32,
+    }
 
-The benchmark runner
+    #[warn(unused)]
+    impl Ping {
 
-TODO move this into a reusable file?
-
-https://github.com/icyphy/lingua-franca/blob/c-benchmarks/benchmark/C/Savina/BenchmarkRunner.lf
-
- */
-
-
-struct BenchmarkRunner {
-    count: u32,
-    start_time: Instant,
-    measured_times: Vec<Duration>,
-    // params
-    use_init: bool,
-    use_cleanup_iteration: bool,
-    num_iterations: u32,
-}
-
-
-impl BenchmarkRunner {
-    /*
-    R_CleanupIteration,
-    R_CleanupDone,
-    R_NextIteration,
-    R_IterationDone,
-    R_Finish
-     */
-
-    fn react_Startup(&self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction<()>, initBenchmark: &LogicalAction<()>) {
-        if self.use_init {
-            ctx.schedule(initBenchmark, Asap)
-        } else {
-            ctx.schedule(nextIteration, Asap)
+        // --- reaction(startup, serve) -> send {= ... =}
+        fn react_0(&mut self,
+                   #[allow(unused)] ctx: &mut ::reactor_rt::LogicalCtx,
+                   #[allow(unused)] params: &PingParams,
+                   #[allow(unused)] serve: & ::reactor_rt::LogicalAction::<()>,
+                   send: &mut ::reactor_rt::OutputPort<u32>) {
+            ctx.set(send, self.pingsLeft);
+            self.pingsLeft -= 1;
         }
-    }
 
-    fn react_Init(&mut self, ctx: &mut LogicalCtx, outInitializeStart: &mut OutputPort<bool>) {
-        ctx.set(outInitializeStart, true)
-    }
-
-    fn react_InitDone(&mut self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction<()>) {
-        ctx.schedule(nextIteration, Asap)
-    }
-
-    fn react_CleanupIteration(&mut self, ctx: &mut LogicalCtx, outCleanupIterationStart: &mut OutputPort<bool>) {
-        ctx.set(outCleanupIterationStart, true)
-    }
-
-    fn react_CleanupDone(&mut self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction<()>) {
-        ctx.schedule(nextIteration, Asap)
-    }
-
-    fn react_NextIteration(&mut self, ctx: &mut LogicalCtx, outIterationStart: &mut OutputPort<bool>, finish: &LogicalAction<()>) {
-        if self.count < self.num_iterations {
-            self.start_time = Instant::now();
-            ctx.set(outIterationStart, true)
-        } else {
-            ctx.schedule(finish, Asap)
+        // --- reaction (receive) -> serve {= ... =}
+        fn react_1(&mut self,
+                   #[allow(unused)] ctx: &mut ::reactor_rt::LogicalCtx,
+                   #[allow(unused)] params: &PingParams,
+                   receive: & ::reactor_rt::InputPort<u32>,
+                   #[allow(unused)] serve: & ::reactor_rt::LogicalAction::<()>) {
+            if self.pingsLeft > 0 {
+                ctx.schedule(serve, Offset::Asap);
+            } else {
+                ctx.request_stop();
+            }
         }
+
     }
 
-    fn react_IterationDone(&mut self, ctx: &mut LogicalCtx, nextIteration: &LogicalAction<()>, cleanupIteration: &LogicalAction<()>) {
-        let end_time = ctx.get_physical_time();
-        let iteration_time = end_time - self.start_time;
-
-        self.measured_times.push(iteration_time);
-        self.count += 1;
-
-        // in the C benchmark this is a print
-        black_box(format!("Iteration: {}\t Duration: {} ms\n", self.count, iteration_time.as_millis()));
-
-        if self.use_cleanup_iteration {
-            ctx.schedule(cleanupIteration, Asap)
-        } else {
-            ctx.schedule(nextIteration, Asap)
-        }
+    /// Parameters for the construction of a [Ping]
+    #[derive(Clone)]
+    pub struct PingParams {
+        pub count: u32,
     }
 
-    fn react_Finish(&mut self, _ctx: &mut LogicalCtx) {
-        self.measured_times.sort();
-        let best = self.measured_times.first().unwrap();
-        let worst = self.measured_times.last().unwrap();
-        let median = self.measured_times[self.measured_times.len() / 2];
+
+//------------------------//
 
 
-        // println!("Exec summary");
-        // println!("Best time:\t{} ms", best.as_millis());
-        // println!("Worst time:\t{} ms", worst.as_millis());
-        // println!("Median time:\t{} ms", median.as_millis());
-    }
-}
-
-struct BenchmarkRunnerDispatcher {
-    _impl: BenchmarkRunner,
-
-    // inStart: InputPort<bool>,
-
-    outIterationStart: OutputPort<bool>,
-    inIterationFinish: InputPort<bool>,
-
-    outInitializeStart: OutputPort<bool>,
-    inInitializeFinish: InputPort<bool>,
-
-    outCleanupIterationStart: OutputPort<bool>,
-    inCleanupIterationFinish: InputPort<bool>,
-
-    initBenchmark: LogicalAction<()>,
-    cleanupIteration: LogicalAction<()>,
-    nextIteration: LogicalAction<()>,
-    finish: LogicalAction<()>,
-}
-
-reaction_ids!(enum BenchmarkRunnerReactions {
-    // R_InStart,
-    R_Init=0,
-    R_InitDone=1,
-    R_CleanupIteration=2,
-    R_CleanupDone=3,
-    R_NextIteration=4,
-    R_IterationDone=5,
-    R_Finish=6
-});
-
-#[derive(Copy, Clone)]
-struct BenchmarkParams {
-    numIterations: u32,
-    useInit: bool,
-    useCleanupIteration: bool,
-}
-
-
-
-impl ReactorDispatcher for BenchmarkRunnerDispatcher {
-    type ReactionId = BenchmarkRunnerReactions;
-    type Wrapped = BenchmarkRunner;
-    type Params = BenchmarkParams;
-
-    fn assemble(args: Self::Params) -> Self {
-        let _impl = BenchmarkRunner {
-            count: 0,
-            start_time: Instant::now(),
-            measured_times: Vec::new(), // todo capacity
-            use_cleanup_iteration: args.useCleanupIteration,
-            use_init: args.useInit,
-            num_iterations: args.numIterations,
-        };
-
-        Self {
-            _impl,
-            // inStart: Default::default(),
-            outIterationStart: Default::default(),
-            inIterationFinish: Default::default(),
-            outInitializeStart: Default::default(),
-            inInitializeFinish: Default::default(),
-            outCleanupIterationStart: Default::default(),
-            inCleanupIterationFinish: Default::default(),
-            initBenchmark: LogicalAction::new("init", None),
-            cleanupIteration: LogicalAction::new("cleanup", None),
-            nextIteration: LogicalAction::new("next", None),
-            finish: LogicalAction::new("finish", None),
-        }
+    pub struct PingDispatcher {
+        _id: ::reactor_rt::ReactorId,
+        _impl: Ping,
+        _params: PingParams,
+        _startup_reactions: ::reactor_rt::ReactionSet,
+        _shutdown_reactions: ::reactor_rt::ReactionSet,
+        pub send: ::reactor_rt::OutputPort<u32>,
+        pub receive: ::reactor_rt::InputPort<u32>,
+        serve: ::reactor_rt::LogicalAction::<()>,
     }
 
-    fn react(&mut self, ctx: &mut LogicalCtx, rid: Self::ReactionId) {
-        match rid {
-            // BenchmarkRunnerReactions::R_InStart => {
-            //     self._impl.react_InStart(ctx, &self.nextIteration, &self.initBenchmark)
-            // }
-            BenchmarkRunnerReactions::R_Init => {
-                self._impl.react_Init(ctx, &mut self.outInitializeStart)
-            }
-            BenchmarkRunnerReactions::R_InitDone => {
-                self._impl.react_InitDone(ctx, &self.nextIteration)
-            }
-            BenchmarkRunnerReactions::R_CleanupIteration => {
-                self._impl.react_CleanupIteration(ctx, &mut self.outCleanupIterationStart)
-            }
-            BenchmarkRunnerReactions::R_CleanupDone => {
-                self._impl.react_CleanupDone(ctx, &self.nextIteration)
-            }
-            BenchmarkRunnerReactions::R_NextIteration => {
-                self._impl.react_NextIteration(ctx, &mut self.outIterationStart, &self.finish)
-            }
-            BenchmarkRunnerReactions::R_IterationDone => {
-                self._impl.react_IterationDone(ctx, &self.nextIteration, &self.cleanupIteration)
-            }
-            BenchmarkRunnerReactions::R_Finish => {
-                self._impl.react_Finish(ctx)
+
+    reaction_ids!(pub enum PingReactions {R0 = 0,R1 = 1,});
+    use std::sync::{Arc, Mutex};
+
+    impl PingDispatcher {
+        #[inline]
+        fn user_assemble(_id: ::reactor_rt::ReactorId, args: PingParams) -> Self {
+            let PingParams { count } = args.clone();
+            Self {
+                _id,
+                _params: args,
+                _startup_reactions: Default::default(),
+                _shutdown_reactions: Default::default(),
+                _impl: Ping {
+                    pingsLeft: count,
+                },
+                send: Default::default(),
+                receive: Default::default(),
+                serve: ::reactor_rt::LogicalAction::<()>::new("serve", None),
             }
         }
     }
 
-    fn cleanup_tag(&mut self, ctx: LogicalCtx) {
+    use ::reactor_rt::*; // after this point there's no user-written code
 
-    }
-}
+    impl ::reactor_rt::ReactorDispatcher for PingDispatcher {
+        type ReactionId = PingReactions;
+        type Wrapped = Ping;
+        type Params = PingParams;
 
-
-struct BenchmarkRunnerAssembler {
-    _rstate: Arc<Mutex<BenchmarkRunnerDispatcher>>,
-    // react_InStart: Arc<ReactionInvoker>,
-    react_Init: Arc<ReactionInvoker>,
-    react_InitDone: Arc<ReactionInvoker>,
-    react_CleanupIteration: Arc<ReactionInvoker>,
-    react_CleanupDone: Arc<ReactionInvoker>,
-    react_NextIteration: Arc<ReactionInvoker>,
-    react_IterationDone: Arc<ReactionInvoker>,
-    react_Finish: Arc<ReactionInvoker>,
-}
-
-impl ReactorAssembler for BenchmarkRunnerAssembler {
-    type RState = BenchmarkRunnerDispatcher;
+        fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Arc<Mutex<Self>> {
+            // children reactors
 
 
-    fn start(&mut self, ctx: &mut StartupCtx) {
-        let  rstate = self._rstate.lock().unwrap();
-        rstate._impl.react_Startup(ctx.logical_ctx(), &rstate.nextIteration, &rstate.initBenchmark);
+            // assemble self
+            let this_reactor = assembler.get_next_id();
+            let mut _self = Arc::new(Mutex::new(Self::user_assemble(this_reactor, args)));
 
-        // BenchmarkRunner::react_startup(ctx);
-    }
+            let react_0 = new_reaction!(this_reactor, _self, R0);
+            let react_1 = new_reaction!(this_reactor, _self, R1);
 
-    fn assemble(ctx: &mut AssemblyCtx<Self>, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
-        let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = ctx.get_current_id();
-        let mut reaction_id = 0;
+            {
+                let mut statemut = _self.lock().unwrap();
 
-        // let react_InStart = new_reaction!(rid, _rstate, R_InStart);
-        let react_Init = new_reaction!(this_reactor, reaction_id, _rstate, R_Init);
-        let react_InitDone = new_reaction!(this_reactor, reaction_id, _rstate, R_InitDone);
-        let react_CleanupIteration = new_reaction!(this_reactor, reaction_id, _rstate, R_CleanupIteration);
-        let react_CleanupDone = new_reaction!(this_reactor, reaction_id, _rstate, R_CleanupDone);
-        let react_NextIteration = new_reaction!(this_reactor, reaction_id, _rstate, R_NextIteration);
-        let react_IterationDone = new_reaction!(this_reactor, reaction_id, _rstate, R_IterationDone);
-        let react_Finish = new_reaction!(this_reactor, reaction_id, _rstate, R_Finish);
+                statemut._startup_reactions = vec![react_0.clone()];
+                statemut._shutdown_reactions = vec![];
 
-        { // declare local dependencies
-            let mut statemut = _rstate.lock().unwrap();
+                statemut.send.set_downstream(vec![].into());
+                statemut.receive.set_downstream(vec![react_1.clone()].into());
+                statemut.serve.set_downstream(vec![react_0.clone()].into());
+            }
+            {
+                // Declare connections
+            }
 
 
-            // statemut.inStart.set_downstream(vec![react_InStart.clone()].into());
-            statemut.inInitializeFinish.set_downstream(vec![react_InitDone.clone()].into());
-            statemut.inCleanupIterationFinish.set_downstream(vec![react_CleanupDone.clone()].into());
-            statemut.inIterationFinish.set_downstream(vec![react_IterationDone.clone()].into());
-
-
-            statemut.cleanupIteration.set_downstream(vec![react_CleanupIteration.clone()].into());
-            statemut.nextIteration.set_downstream(vec![react_NextIteration.clone()].into());
-            statemut.finish.set_downstream(vec![react_Finish.clone()].into());
-            statemut.initBenchmark.set_downstream(vec![react_Init.clone()].into());
+            _self
         }
 
-        Self {
-            _rstate,
-            // react_InStart,
-            react_Init,
-            react_InitDone,
-            react_CleanupIteration,
-            react_CleanupDone,
-            react_NextIteration,
-            react_IterationDone,
-            react_Finish,
+        #[inline]
+        fn react(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: Self::ReactionId) {
+            match rid {
+                PingReactions::R0 => {
+                    self._impl.react_0(ctx, &self._params, &self.serve, &mut self.send)
+                }
+                ,
+                PingReactions::R1 => {
+                    self._impl.react_1(ctx, &self._params, &self.receive, &self.serve)
+                }
+            }
         }
+    }
+
+
+    impl ::reactor_rt::ErasedReactorDispatcher for PingDispatcher {
+
+        fn id(&self) -> ReactorId {
+            self._id
+        }
+
+        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: u32) {
+            let rid = <PingReactions as int_enum::IntEnum>::from_int(rid).unwrap();
+            self.react(ctx, rid)
+        }
+
+        fn cleanup_tag(&mut self, ctx: ::reactor_rt::LogicalCtx) {
+            // todo
+        }
+
+        fn enqueue_startup(&self, ctx: &mut StartupCtx) {
+
+
+            ctx.enqueue(&self._startup_reactions);
+        }
+
+        fn enqueue_shutdown(&self, ctx: &mut StartupCtx) {
+            ctx.enqueue(&self._shutdown_reactions);
+        }
+
     }
 }
 
+mod pong {
+
+    // todo link to source
+    pub struct Pong {
+        count: u32,
+    }
+
+    #[warn(unused)]
+    impl Pong {
+
+        // --- reaction(receive) -> send {= ... =}
+        fn react_0(&mut self,
+                   #[allow(unused)] ctx: &mut ::reactor_rt::LogicalCtx,
+                   #[allow(unused)] params: &PongParams,
+                   receive: & ::reactor_rt::InputPort<u32>,
+                   send: &mut ::reactor_rt::OutputPort<u32>) {
+            self.count += 1;
+            ctx.set(send, ctx.get(receive).unwrap());
+        }
+
+        // --- reaction(shutdown) {= ... =}
+        fn react_1(&mut self,
+                   #[allow(unused)] ctx: &mut ::reactor_rt::LogicalCtx,
+                   #[allow(unused)] params: &PongParams,
+        ) {
+            if self.count != params.expected {
+                panic!("Pong expected to receive {} inputs, but it received {}.", params.expected, self.count);
+            }
+        }
+
+    }
+
+    /// Parameters for the construction of a [Pong]
+    #[derive(Clone)]
+    pub struct PongParams {
+        pub expected: u32,
+    }
+
+
+//------------------------//
+
+
+    pub struct PongDispatcher {
+        _id: ::reactor_rt::ReactorId,
+        _impl: Pong,
+        _params: PongParams,
+        _startup_reactions: ::reactor_rt::ReactionSet,
+        _shutdown_reactions: ::reactor_rt::ReactionSet,
+        pub send: ::reactor_rt::OutputPort<u32>,
+        pub receive: ::reactor_rt::InputPort<u32>,
+    }
+
+
+    reaction_ids!(
+  pub enum PongReactions {R0 = 0,R1 = 1,}
+);
+
+    impl PongDispatcher {
+        #[inline]
+        fn user_assemble(_id: ::reactor_rt::ReactorId, args: PongParams) -> Self {
+            let PongParams { expected } = args.clone();
+            Self {
+                _id,
+                _params: args,
+                _startup_reactions: Default::default(),
+                _shutdown_reactions: Default::default(),
+                _impl: Pong {
+                    count: 0,
+                },
+                send: Default::default(),
+                receive: Default::default(),
+            }
+        }
+    }
+
+    use ::reactor_rt::*; // after this point there's no user-written code
+    use std::sync::{Arc, Mutex};
+
+    impl ::reactor_rt::ReactorDispatcher for PongDispatcher {
+        type ReactionId = PongReactions;
+        type Wrapped = Pong;
+        type Params = PongParams;
+
+        fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Arc<Mutex<Self>> {
+            // children reactors
+
+
+            // assemble self
+            let this_reactor = assembler.get_next_id();
+            let mut _self = Arc::new(Mutex::new(Self::user_assemble(this_reactor, args)));
+
+            let react_0 = new_reaction!(this_reactor, _self, R0);
+            let react_1 = new_reaction!(this_reactor, _self, R1);
+
+            {
+                let mut statemut = _self.lock().unwrap();
+
+                statemut._startup_reactions = vec![];
+                statemut._shutdown_reactions = vec![react_1.clone()];
+
+                statemut.send.set_downstream(vec![].into());
+                statemut.receive.set_downstream(vec![react_0.clone()].into());
+            }
+            {
+                // Declare connections
+            }
+
+
+            _self
+        }
+
+        #[inline]
+        fn react(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: Self::ReactionId) {
+            match rid {
+                PongReactions::R0 => {
+                    self._impl.react_0(ctx, &self._params, &self.receive, &mut self.send)
+                }
+                ,
+                PongReactions::R1 => {
+                    self._impl.react_1(ctx, &self._params)
+                }
+            }
+        }
+    }
+
+
+    impl ::reactor_rt::ErasedReactorDispatcher for PongDispatcher {
+
+        fn id(&self) -> ReactorId {
+            self._id
+        }
+
+        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: u32) {
+            let rid = <PongReactions as int_enum::IntEnum>::from_int(rid).unwrap();
+            self.react(ctx, rid)
+        }
+
+        fn cleanup_tag(&mut self, ctx: ::reactor_rt::LogicalCtx) {
+            // todo
+        }
+
+        fn enqueue_startup(&self, ctx: &mut StartupCtx) {
+
+
+            ctx.enqueue(&self._startup_reactions);
+        }
+
+        fn enqueue_shutdown(&self, ctx: &mut StartupCtx) {
+            ctx.enqueue(&self._shutdown_reactions);
+        }
+
+    }
+}
