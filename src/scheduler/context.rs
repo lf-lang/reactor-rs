@@ -78,9 +78,9 @@ impl LogicalCtx<'_> {
     // todo hide this better
     #[doc(hidden)]
     #[inline]
-    pub fn reschedule(&mut self, action: &Timer) {
-        if action.is_periodic() {
-            self.enqueue_later(&action.downstream, self.wave.logical_time + action.period);
+    pub fn reschedule(&mut self, timer: &Timer) {
+        if timer.is_periodic() {
+            self.enqueue_later(&timer.downstream, self.wave.logical_time + timer.period);
         }
     }
 

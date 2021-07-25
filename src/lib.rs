@@ -215,11 +215,11 @@ macro_rules! new_reaction {
 #[macro_export]
 #[doc(hidden)]
 macro_rules! reschedule_self_timer {
-    ($reactorid:ident, $_rstate:ident, $_rpriority:literal) => {{
+    ($reactorid:ident, $timerid:ident, $_rstate:ident, $_rpriority:literal) => {{
         let mut mystate = $_rstate.clone();
         let schedule_myself = move |ctx: &mut $crate::LogicalCtx| {
             let me = mystate.lock().unwrap();
-            ctx.reschedule(&me.t); // this doesn't reschedule aperiodic timers
+            ctx.reschedule(&me.$timerid); // this doesn't reschedule aperiodic timers
         };
         ::std::sync::Arc::new($crate::ReactionInvoker::new_from_closure($reactorid, $_rpriority, schedule_myself))
     }};
