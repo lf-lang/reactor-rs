@@ -243,12 +243,13 @@ impl SyncScheduler {
                 continue;
             } else {
                 // all senders have hung up, or timeout
-                #[cfg(bench)] info!("Scheduler is shutting down");
+                info!("Scheduler is shutting down...");
 
                 self.shutdown();
                 break;
             }
         } // end loop
+        info!("Scheduler has been shut down")
 
         // self destructor is called here
     }
@@ -270,7 +271,7 @@ impl SyncScheduler {
                     // we don't have to shutdown yet, so we can wait
                     let timeout = shutdown_t.instant.duration_since(now);
 
-                    #[cfg(bench)] trace!("Will wait for next event {} ns", timeout.as_nanos());
+                    trace!("Will wait for next event {} ns", timeout.as_nanos());
 
                     return self.receiver.recv_timeout(timeout).ok();
                 }
@@ -281,7 +282,7 @@ impl SyncScheduler {
 
     /// Push a single event to the event queue
     fn push_event(&mut self, evt: Event) {
-        #[cfg(bench)] #[cfg(bench)] trace!("Pushing {:?}", avt);
+        trace!("Pushing {:?}", evt);
 
         let eta = evt.process_at;
         self.queue.push(evt, Reverse(eta));
@@ -291,7 +292,7 @@ impl SyncScheduler {
     /// (the scheduler one) sleep, if the expected processing
     /// time (logical) is ahead of current physical time.
     fn step(&mut self, event: Event) {
-        #[cfg(bench)] trace!("Received event for tag {}", event.process_at);
+        trace!("Received event for tag {}", event.process_at);
 
         let time = Self::catch_up_physical_time(event.process_at);
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
@@ -304,7 +305,7 @@ impl SyncScheduler {
         let now = PhysicalInstant::now();
         if now < up_to_time.instant {
             let t = up_to_time.instant - now;
-            #[cfg(bench)] trace!("Need to sleep {} ns", t.as_nanos());
+            trace!("Need to sleep {} ns", t.as_nanos());
             std::thread::sleep(t); // todo: see crate shuteyes for nanosleep capabilities on linux/macos platforms
         }
         // note this doesn't use `now` because we use
