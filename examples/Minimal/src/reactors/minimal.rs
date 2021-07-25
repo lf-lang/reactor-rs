@@ -124,7 +124,7 @@ impl ReactorAssembler for MinimalAssembler {
        args: <Self::RState as ReactorDispatcher>::Params
     ) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = ctx.get_id();
+        let this_reactor = ctx.get_current_id();
 
         let react_0 = new_reaction!(this_reactor, _rstate, R0);
 

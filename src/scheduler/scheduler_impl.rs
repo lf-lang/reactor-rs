@@ -91,15 +91,14 @@ pub struct SyncScheduler {
 /// - `RA` - the type of the reactor currently being assembled
 /// - `'x` - the lifetime of the execution
 ///
-pub struct AssemblyCtx<'x, RA: ReactorDispatcher> {
+pub struct AssemblyCtx<'x> {
     scheduler: &'x mut SyncScheduler,
-    _p: PhantomData<RA>,
 }
 
-impl<'x, RA: ReactorDispatcher> AssemblyCtx<'x, RA> {
+impl<'x> AssemblyCtx<'x> {
     #[inline]
-    pub fn get_id(&self) -> ReactorId {
-        self.scheduler.reactor_id
+    pub fn get_next_id(&mut self) -> ReactorId {
+        self.scheduler.reactor_id.get_and_increment()
     }
 
     pub fn consume_child_reactor<S: ReactorDispatcher + 'static>(&mut self, child: Arc<Mutex<S>>) {
@@ -113,21 +112,22 @@ impl<'x, RA: ReactorDispatcher> AssemblyCtx<'x, RA> {
         self.scheduler.reactors.push(Box::new(child))
     }
 
+    #[inline]
     pub fn assemble_sub<S: ReactorDispatcher>(&mut self, args: S::Params) -> Arc<Mutex<S>> {
-        AssemblyCtx::<S>::assemble_impl(&mut self.scheduler, args)
+        AssemblyCtx::assemble_impl(&mut self.scheduler, args)
     }
 
+    #[inline]
     fn assemble_impl<S: ReactorDispatcher>(scheduler: &mut SyncScheduler, args: S::Params) -> Arc<Mutex<S>> {
-        let mut sub = AssemblyCtx { scheduler, _p: PhantomData };
+        let mut sub = AssemblyCtx { scheduler };
         S::assemble(args, &mut sub)
     }
 }
 
 impl SyncScheduler {
-
     pub fn run_main<R: ReactorDispatcher>(options: SchedulerOptions, args: R::Params) {
         let mut scheduler = Self::new(options);
-        AssemblyCtx::<R>::assemble_impl::<R>(&mut scheduler, args);
+        AssemblyCtx::assemble_impl::<R>(&mut scheduler, args);
         scheduler.startup();
         scheduler.launch_event_loop()
     }
@@ -170,7 +170,7 @@ impl SyncScheduler {
     /// ```
     ///
     /// TODO why not merge launch_async into this function
-    pub fn startup(&mut self) {
+    fn startup(&mut self) {
         let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
         if let Some(timeout) = self.options.timeout {
@@ -313,10 +313,9 @@ pub struct StartupCtx<'a> {
 }
 
 impl<'a> StartupCtx<'a> {
-
     #[inline]
-    pub fn enqueue(&mut self, reactions: ReactionSet) {
-        self.ctx.enqueue_now(&reactions)
+    pub fn enqueue(&mut self, reactions: &ReactionSet) {
+        self.ctx.enqueue_now(reactions)
     }
 
     pub fn start_timer(&mut self, t: &Timer) {

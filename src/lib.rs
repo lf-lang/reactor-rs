@@ -66,7 +66,7 @@ pub trait ReactorDispatcher: ErasedReactorDispatcher {
     /// Assemble the user reactor, ie produce components with
     /// uninitialized dependencies & make state variables assume
     /// their default values, or else, a value taken from the params.
-    fn assemble(args: Self::Params, assembler: &mut AssemblyCtx<Self>)
+    fn assemble(args: Self::Params, assembler: &mut AssemblyCtx)
                 -> Arc<Mutex<Self>> where Self: Sized;
 
     /// Execute a single user-written reaction.
@@ -93,10 +93,10 @@ pub trait ErasedReactorDispatcher {
     /// children, without executing them.
     ///
     /// Timers are also started at this point.
-    fn enqueue_startup(_self: &Arc<Mutex<Self>>, ctx: &mut StartupCtx);
+    fn enqueue_startup(&self, ctx: &mut StartupCtx);
 
     // todo
-    fn enqueue_shutdown(_self: &Arc<Mutex<Self>>, ctx: &mut StartupCtx);
+    fn enqueue_shutdown(&self, ctx: &mut StartupCtx);
 }
 
 

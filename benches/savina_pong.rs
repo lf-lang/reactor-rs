@@ -543,7 +543,7 @@ impl ReactorAssembler for BenchmarkRunnerAssembler {
 
     fn assemble(ctx: &mut AssemblyCtx<Self>, args: <Self::RState as ReactorDispatcher>::Params) -> Self {
         let mut _rstate = Arc::new(Mutex::new(Self::RState::assemble(args)));
-        let this_reactor = ctx.get_id();
+        let this_reactor = ctx.get_current_id();
         let mut reaction_id = 0;
 
         // let react_InStart = new_reaction!(rid, _rstate, R_InStart);
