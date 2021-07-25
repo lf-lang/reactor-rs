@@ -98,11 +98,14 @@ pub trait ReactorAssembler {
     /// Type of the [ReactorDispatcher]
     type RState: ReactorDispatcher;
 
-    /// Execute the startup reaction of the reactor
-    /// This also creates physical actions.
-    /// The logical context can be used to schedule things at
-    /// the startup time of the app (time zero).
-    fn start(&mut self, ctx: &mut StartupCtx);
+    /// Enqueue the startup reactions of this reactor and its
+    /// children, without executing them.
+    ///
+    /// Timers are also started at this point.
+    fn enqueue_startup(&mut self, ctx: &mut StartupCtx);
+
+    // todo
+    fn enqueue_shutdown(&mut self, ctx: &mut StartupCtx);
 
     /// Create a new instance. The rid is a counter used to
     /// give unique IDs to reactions. The args are passed down
@@ -201,8 +204,9 @@ macro_rules! reaction_ids {
 macro_rules! new_reaction {
     ($reactorid:ident, $_rstate:ident, $name:ident) => {{
         let id = <Self::RState as $crate::ReactorDispatcher>::ReactionId::$name;
+        let int_value = <<Self::RState as $crate::ReactorDispatcher>::ReactionId as ::int_enum::IntEnum>::int_value(id);
         let r = ::std::sync::Arc::new(
-            $crate::ReactionInvoker::new($reactorid, id.int_value(), $_rstate.clone(), id)
+            $crate::ReactionInvoker::new($reactorid, int_value, $_rstate.clone(), id)
         );
         r
     }};

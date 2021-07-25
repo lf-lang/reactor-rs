@@ -85,38 +85,45 @@ pub struct SyncScheduler {
     reactor_id: ReactorId,
 }
 
-pub struct AssemblyCtx<'a, T: ReactorAssembler> {
-    id: &'a mut ReactorId,
+/// Helper struct to assemble reactors during initialization.
+///
+/// Params:
+/// - `RA` - the type of the reactor currently being assembled
+/// - `'a` - the lifetime of the assembly
+/// - `'x` - the lifetime of the execution
+///
+pub struct AssemblyCtx<'x, RA: ReactorAssembler> {
+    scheduler: &'x mut SyncScheduler,
     my_id: ReactorId,
-    _p: PhantomData<T>,
+    _p: PhantomData<RA>,
 }
 
-impl<'a, T: ReactorAssembler> AssemblyCtx<'a, T> {
+impl<'x, RA: ReactorAssembler> AssemblyCtx<'x, RA> {
     #[inline]
     pub fn get_id(&self) -> ReactorId {
         self.my_id
     }
 
-    pub fn assemble_sub<R: ReactorAssembler>(&mut self, args: <R::RState as ReactorDispatcher>::Params) -> R {
-        AssemblyCtx::<R>::do_assembly(&mut self.id, args)
+    pub fn assemble_sub<S: ReactorAssembler>(&mut self, args: <S::RState as ReactorDispatcher>::Params) -> S {
+        AssemblyCtx::<S>::do_assembly(&mut self.scheduler, args)
     }
 
-    fn do_assembly<R: ReactorAssembler>(id: &mut ReactorId, args: <R::RState as ReactorDispatcher>::Params) -> R {
-        let mut sub = AssemblyCtx { my_id: id.get_and_increment(), id, _p: PhantomData };
+    fn do_assembly<R: ReactorAssembler>(scheduler: &mut SyncScheduler, args: <R::RState as ReactorDispatcher>::Params) -> R {
+        let mut sub = AssemblyCtx { my_id: scheduler.reactor_id.get_and_increment(), scheduler, _p: PhantomData };
         R::assemble(&mut sub, args)
     }
 }
 
 impl SyncScheduler {
-    fn do_assembly<R: ReactorAssembler>(&mut self, args: <R::RState as ReactorDispatcher>::Params) -> R {
-        AssemblyCtx::<R>::do_assembly(&mut self.reactor_id, args)
+    fn do_assembly<RA: ReactorAssembler>(&mut self, args: <RA::RState as ReactorDispatcher>::Params) -> RA {
+        AssemblyCtx::<RA>::do_assembly(self, args)
     }
 
     pub fn run_main<R: ReactorAssembler>(options: SchedulerOptions, args: <R::RState as ReactorDispatcher>::Params) {
         let mut scheduler = Self::new(options);
         let mut topcell: R = scheduler.do_assembly(args);
-        scheduler.startup(|mut starter| {
-            topcell.start(&mut starter);
+        scheduler.startup(|starter| {
+            topcell.enqueue_startup(starter);
         });
         scheduler.launch_sync()
     }
@@ -301,9 +308,9 @@ pub struct StartupCtx<'a> {
 }
 
 impl<'a> StartupCtx<'a> {
-    #[inline]
-    pub fn logical_ctx<'b>(&'b mut self) -> &'b mut LogicalCtx<'a> {
-        &mut self.ctx
+
+    pub fn enqueue(&mut self, reactions: ToposortedReactions) {
+        self.ctx.enqueue_now(&reactions)
     }
 
     pub fn start_timer(&mut self, t: &Timer) {
