@@ -33,12 +33,13 @@ impl FromIterator<LocalReactionId> for LocalizedReactionSet {
 pub struct TagExecutionPlan {
     pub tag: LogicalInstant,
     vec: Vec<Option<LocalizedReactionSet>>,
+    is_empty: bool
 }
 
 
 impl TagExecutionPlan {
     pub fn is_empty(&self) -> bool {
-        self.vec.is_empty()
+        self.is_empty
     }
 
     /// Merge the new reactions into this plan.
@@ -50,13 +51,15 @@ impl TagExecutionPlan {
                         self.vec.resize_with(key.index() + 1, || None);
                     }
 
-                    let new_bs = group.map(|it| it.local).collect();
+                    let new_bs: LocalizedReactionSet = group.map(|it| it.local).collect();
+                    self.is_empty &= new_bs.set.is_empty();
                     self.vec[key.index()] = Some(new_bs);
                 }
                 Some(Some(set)) => {
                     group.for_each(|g| {
                         set.insert(g.local);
-                    })
+                    });
+                    self.is_empty &= set.set.is_empty();
                 }
             }
         }
@@ -66,6 +69,7 @@ impl TagExecutionPlan {
         TagExecutionPlan {
             tag,
             vec: <_>::default(),
+            is_empty: true
         }
     }
 
@@ -82,9 +86,7 @@ impl TagExecutionPlan {
     ///
     /// TODO this doesn't use any topological information
     pub fn drain<'a>(&'a mut self) -> impl Iterator<Item=Batch> + 'a {
-        // let mut vec = Vec::new();
-        // std::mem::swap(&mut self.vec, &mut vec);
-
+        self.is_empty = true;
         self.vec.drain(..)
             .enumerate()
             .filter_map(|(i, v)| v.map(|set| Batch(i.into(), set)))
