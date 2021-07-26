@@ -1,4 +1,4 @@
-use std::collections::{HashMap, BTreeSet};
+
 use crate::{ReactorId, ReactionSet, LocalReactionId, LogicalInstant};
 use itertools::Itertools;
 use std::cmp::Reverse;
@@ -10,9 +10,6 @@ pub struct LocalizedReactionSet {
 }
 
 impl LocalizedReactionSet {
-    pub fn contains(&self, id: LocalReactionId) -> bool {
-        self.set.contains(id as usize)
-    }
 
     pub fn insert(&mut self, id: LocalReactionId) -> bool {
         self.set.insert(id as usize)
@@ -35,23 +32,28 @@ impl FromIterator<LocalReactionId> for LocalizedReactionSet {
 
 pub struct TagExecutionPlan {
     pub tag: LogicalInstant,
-    map: HashMap<ReactorId, LocalizedReactionSet>,
+    vec: Vec<Option<LocalizedReactionSet>>,
 }
 
 
 impl TagExecutionPlan {
     pub fn is_empty(&self) -> bool {
-        self.map.is_empty()
+        self.vec.is_empty()
     }
 
     /// Merge the new reactions into this plan.
     pub fn accept(&mut self, new_reactions: ReactionSet) {
         for (key, group) in &new_reactions.into_iter().group_by(|id| id.container) {
-            match self.map.get_mut(&key) {
-                None => {
-                    self.map.insert(key, group.map(|it| it.local).collect());
-                },
-                Some(set) => {
+            match self.vec.get_mut(key.index()) {
+                None | Some(None) => {
+                    if key.index() >= self.vec.len() {
+                        self.vec.resize_with(key.index() + 1, || None);
+                    }
+
+                    let new_bs = group.map(|it| it.local).collect();
+                    self.vec[key.index()] = Some(new_bs);
+                }
+                Some(Some(set)) => {
                     group.for_each(|g| {
                         set.insert(g.local);
                     })
@@ -63,26 +65,24 @@ impl TagExecutionPlan {
     pub fn new_empty(tag: LogicalInstant) -> TagExecutionPlan {
         TagExecutionPlan {
             tag,
-            map: <_>::default(),
+            vec: <_>::default(),
         }
     }
 
     fn new(tag: LogicalInstant, reactions: ReactionSet) -> TagExecutionPlan {
-        let mut map: HashMap<ReactorId, LocalizedReactionSet> = HashMap::new();
-        for (key, group) in &reactions.into_iter().group_by(|id| id.container) {
-            let locals = group.map(|it| it.local).collect();
-            map.insert(key, locals);
-        }
-
-        TagExecutionPlan { tag, map }
+        let mut result = Self::new_empty(tag);
+        result.accept(reactions);
+        result
     }
 
 
-    pub fn iter(&mut self) -> impl Iterator<Item=Batch> {
-        let mut map = HashMap::new();
-        std::mem::swap(&mut self.map, &mut map);
+    pub fn drain(&mut self) -> impl Iterator<Item=Batch> {
+        let mut vec = Vec::new();
+        std::mem::swap(&mut self.vec, &mut vec);
 
-        map.into_iter().map(|(k, v)| Batch(k, v))
+        vec.into_iter()
+            .enumerate()
+            .filter_map(|(i, v)| v.and_then(|set| Some(Batch(i.into(), set))))
     }
 }
 

@@ -230,7 +230,7 @@ impl ReactionWave {
 
         while !todo.is_empty() {
             let mut ctx = self.new_ctx();
-            for Batch(reactor_id, local_ids) in todo.iter() {
+            for Batch(reactor_id, local_ids) in todo.drain() {
                 let reactor = scheduler.get_reactor_mut(reactor_id);
                 for reaction_id in local_ids.iter() {
                     let global = GlobalReactionId::new(reactor_id, reaction_id);
