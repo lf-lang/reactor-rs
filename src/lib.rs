@@ -64,12 +64,13 @@ extern crate index_vec;
 /// 3. every logical action and port declared by the reactor.
 ///
 pub trait ReactorDispatcher: ErasedReactorDispatcher {
-    /// The type of reaction IDs
-    type ReactionId: Copy + Send + Sync + int_enum::IntEnum<Int=LocalRId>;
     /// Type of the user struct
     type Wrapped;
     /// Type of the construction parameters
     type Params;
+
+    /// Exclusive maximum value of the `local_rid` parameter of [ErasedReactorDispatcher.react_erased].
+    const MAX_REACTION_ID: LocalReactionId;
 
     /// Assemble the user reactor, ie produce components with
     /// uninitialized dependencies & make state variables assume
@@ -77,112 +78,48 @@ pub trait ReactorDispatcher: ErasedReactorDispatcher {
     fn assemble(args: Self::Params, assembler: &mut AssemblyCtx)
                 -> Self where Self: Sized;
 
-    /// Execute a single user-written reaction.
-    /// Dispatches on the reaction id, and unpacks parameters,
-    /// which are the reactor components declared as fields of
-    /// this struct.
-    fn react(&mut self, ctx: &mut LogicalCtx, local_rid: Self::ReactionId);
 }
 
 pub trait ErasedReactorDispatcher {
+
+    /// The unique ID of this reactor. This is given by the
+    /// framework upon construction.
     fn id(&self) -> ReactorId;
 
     /// Execute a single user-written reaction.
     /// Dispatches on the reaction id, and unpacks parameters,
     /// which are the reactor components declared as fields of
     /// this struct.
-    fn react_erased(&mut self, ctx: &mut LogicalCtx, local_rid: LocalRId);
+    ///
+    /// It must always be the case that `local_rid < Self::MAX_REACTION_ID`.
+    fn react_erased(&mut self, ctx: &mut LogicalCtx, local_rid: LocalReactionId);
 
     /// Acknowledge that the given tag is done executing and
     /// free resources if need be.
+    /// TODO this is not implemented
     fn cleanup_tag(&mut self, ctx: LogicalCtx);
 
-    /// Enqueue the startup reactions of this reactor and its
-    /// children, without executing them.
+    /// Enqueue the startup reactions of this reactor into
+    /// the parameter. Timers are also started at this point,
+    /// meaning, their first triggering is scheduled.
     ///
-    /// Timers are also started at this point.
+    /// During startup of the program, this method is called
+    /// on every reactor of the program to build the first
+    /// reaction wave. This is then executed to completion,
+    /// producing new events which drive the program further.
+    ///
     fn enqueue_startup(&self, ctx: &mut StartupCtx);
 
-    // todo
+    /// Enqueue the shutdown reactions of this reactor.
+    /// See [enqueue_startup].
     fn enqueue_shutdown(&self, ctx: &mut StartupCtx);
 }
-
-
-// helper for the macro below
-#[macro_export]
-#[doc(hidden)]
-macro_rules! reaction_ids_helper {
-        (($self:expr) $t:ident :end:) => {
-            if Self::$t == $self {
-                ::std::stringify!($t)
-            } else {
-                panic!("Unreachable code")
-            }
-        };
-        (($self:expr) $t:ident, $($ts:ident),+ :end:) => {
-            if Self::$t == $self {
-                ::std::stringify!($t)
-            } else {
-                reaction_ids_helper!(($self) $($ts),+ :end:)
-            }
-        }
-    }
-
-/// Declare a new type for reaction ids and derives the correct
-/// traits. For example:
-///
-/// ```
-/// # #[macro_use] extern crate reactor_rt;
-/// reaction_ids!(pub enum AppReactions { Receive=0, Emit=1 });
-/// ```
-///
-/// defines that enum and derives [Named](Named)
-/// and [Enumerated](Enumerated).
-#[macro_export]
-macro_rules! reaction_ids {
-        ($viz:vis enum $typename:ident { }) => {
-            #[derive(Ord, PartialOrd, Eq, PartialEq, Debug, Hash, Copy, Clone)]
-            $viz enum $typename {}
-
-            impl $crate::Named for $typename {
-                fn name(&self) -> &'static str {
-                    unreachable!()
-                }
-            }
-
-            impl ::int_enum::IntEnum for $typename {
-                    type Int = u16;
-                    fn int_value(self) -> Self::Int {unreachable!()}
-                    fn from_int(n: Self::Int) -> Result<Self, ::int_enum::IntEnumError<Self>> where Self: Sized {
-                        Err(::int_enum::IntEnumError::__new(n))
-                    }
-            }
-        };
-        ($viz:vis enum $typename:ident { $($id:ident = $lit:literal),+$(,)? }) => {
-
-            #[repr(u16)]
-            #[derive(Ord, PartialOrd, Eq, PartialEq, Debug, Hash, Copy, Clone, int_enum::IntEnum)]
-            $viz enum $typename {
-                $($id = $lit),+
-            }
-
-            impl $crate::Named for $typename {
-                fn name(&self) -> &'static str {
-                    let me = *self;
-                    reaction_ids_helper!((me) $($id),+ :end:)
-                }
-            }
-        };
-}
-
 
 #[macro_export]
 #[doc(hidden)]
 macro_rules! new_reaction {
-    ($reactorid:ident, $_rstate:ident, $name:ident) => {{
-        let id = Self::ReactionId::$name;
-        let int_value = <Self::ReactionId as ::int_enum::IntEnum>::int_value(id);
-        $crate::GlobalReactionId::new($reactorid, int_value)
+    ($reactorid:ident, $_rstate:ident, $id:literal) => {{
+        $crate::GlobalReactionId::new($reactorid, $id)
     }};
 }
 

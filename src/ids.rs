@@ -26,7 +26,7 @@
 use std::fmt::{Display, Formatter, Result};
 
 /// Type of a local reaction ID
-pub type LocalRId = u16;
+pub type LocalReactionId = u16;
 
 define_index_type! {
     pub struct ReactorId = u16;
@@ -54,12 +54,12 @@ impl Default for ReactorId {
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
 pub struct GlobalReactionId {
     pub(in crate) container: ReactorId,
-    pub(in crate) local: LocalRId,
+    pub(in crate) local: LocalReactionId,
 }
 
 
 impl GlobalReactionId {
-    pub fn new(container: ReactorId, local: LocalRId) -> Self {
+    pub fn new(container: ReactorId, local: LocalReactionId) -> Self {
         Self { container, local }
     }
 }

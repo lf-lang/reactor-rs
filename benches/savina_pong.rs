@@ -193,7 +193,7 @@ mod savina_pong {
             self._id
         }
 
-        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalRId) {
+        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalReactionId) {
             let rid = <SavinaPongReactions as int_enum::IntEnum>::from_int(rid).unwrap();
             self.react(ctx, rid)
         }
@@ -350,7 +350,7 @@ mod ping {
             self._id
         }
 
-        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalRId) {
+        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalReactionId) {
             let rid = <PingReactions as int_enum::IntEnum>::from_int(rid).unwrap();
             self.react(ctx, rid)
         }
@@ -502,7 +502,7 @@ mod pong {
             self._id
         }
 
-        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalRId) {
+        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalReactionId) {
             let rid = <PongReactions as int_enum::IntEnum>::from_int(rid).unwrap();
             self.react(ctx, rid)
         }

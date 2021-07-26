@@ -34,21 +34,21 @@ pub fn set_port<T>(port: &mut OutputPort<T>, v: T) {
     port.set_impl(v, |_| {})
 }
 
-fn make_deps(container: ReactorId, ids: Vec<LocalRId>) -> ReactionSet {
+fn make_deps(container: ReactorId, ids: Vec<LocalReactionId>) -> ReactionSet {
     ids.iter().map(|id| GlobalReactionId::new(container, *id)).collect()
 }
 
 /// Set the given port's downstream dependencies as a set of
 /// fake reactions whose ids are exactly the given `local_ids`,
 /// taken to represent reactions of the given reactor.
-pub fn set_fake_downstream<T, K>(container: ReactorId, ids: Vec<LocalRId>, port: &mut Port<T, K>) {
+pub fn set_fake_downstream<T, K>(container: ReactorId, ids: Vec<LocalReactionId>, port: &mut Port<T, K>) {
     port.set_downstream(make_deps(container, ids))
 }
 
 /// Assert that the given port's recorded downstream dependencies
 /// have exactly the ids contained in the given `local_ids`,
 /// taken to represent reactions of the given reactor.
-pub fn assert_deps_eq<T>(container: ReactorId, local_ids: Vec<LocalRId>, port: &Port<T, Output>) {
+pub fn assert_deps_eq<T>(container: ReactorId, local_ids: Vec<LocalReactionId>, port: &Port<T, Output>) {
     let expected = make_deps(container, local_ids);
     let actual = port.get_downstream_deps();
 

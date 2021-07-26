@@ -27,7 +27,7 @@ use std::fmt::*;
 use std::hash::{Hash, Hasher};
 
 
-use crate::{GlobalReactionId, LocalRId, LogicalCtx, ReactorId};
+use crate::{GlobalReactionId, LocalReactionId, LogicalCtx, ReactorId};
 
 /// Wraps a reaction in an "erased" executable form.
 /// This wraps a closures, that captures the reactor instance.
@@ -77,7 +77,7 @@ impl ReactionInvoker {
     /// ie the invoked code can be arbitrary.
     /// This may be used to test the logic of the scheduler
     pub fn new_from_closure(reactor_id: ReactorId,
-                            reaction_index: LocalRId,
+                            reaction_index: LocalReactionId,
                             action: impl Fn(&mut LogicalCtx) + Send + Sync + 'static) -> ReactionInvoker {
         ReactionInvoker {
             body: Box::new(action),
