@@ -30,13 +30,11 @@ mod ports;
 mod actions;
 mod time;
 mod timers;
-mod reactions;
 mod util;
 mod ids;
 
 pub use self::actions::*;
 pub use self::timers::*;
-pub use self::reactions::*;
 pub use self::ports::*;
 
 pub use self::scheduler::*;
