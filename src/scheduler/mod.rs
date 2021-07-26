@@ -38,9 +38,10 @@ type TimeCell = Arc<Mutex<Cell<LogicalInstant>>>;
 /// A simple tuple of (expected processing time, reactions to execute).
 #[derive(Eq, PartialEq, Hash, Debug)]
 struct Event {
-    process_at: LogicalInstant,
     todo: Vec<GlobalReactionId>,
 }
+
+pub(in self) struct ScheduledEvent(Event, LogicalInstant);
 
 mod context;
 mod scheduler_impl;

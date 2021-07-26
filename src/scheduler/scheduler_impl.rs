@@ -33,7 +33,7 @@ use priority_queue::PriorityQueue;
 
 use crate::*;
 
-use super::{Event, ReactionWave, TimeCell, WaveResult};
+use super::*;
 use index_vec::IndexVec;
 
 
@@ -62,10 +62,10 @@ pub struct SyncScheduler {
     /// polls this to make progress.
     ///
     /// The receiver is unique.
-    receiver: Receiver<Event>,
+    receiver: Receiver<ScheduledEvent>,
 
     /// A sender bound to the receiver, which may be cloned.
-    canonical_sender: Sender<Event>,
+    canonical_sender: Sender<ScheduledEvent>,
 
     /// A queue of events, which orders events according to their logical time.
     /// It needs to be reversed so that smallest delay == greatest priority.
@@ -98,6 +98,7 @@ pub struct AssemblyCtx<'x> {
 
 impl<'x> AssemblyCtx<'x> {
     #[inline]
+    //noinspection RsSelfConvention
     pub fn get_next_id(&mut self) -> ReactorId {
         let cur = self.scheduler.reactor_id;
         self.scheduler.reactor_id += 1;
@@ -137,7 +138,7 @@ impl SyncScheduler {
     /// do anything unless some events are pushed to the queue.
     /// See [Self::launch_async].
     pub fn new(options: SchedulerOptions) -> Self {
-        let (sender, receiver) = channel::<Event>();
+        let (sender, receiver) = channel::<ScheduledEvent>();
         Self {
             latest_logical_time: <_>::default(),
             receiver,
@@ -160,7 +161,6 @@ impl SyncScheduler {
         let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
         if let Some(timeout) = self.options.timeout {
-
             trace!("Timeout specified, will shut down at tag {}", self.display_tag(initial_time + timeout));
 
             self.shutdown_time = Some(initial_time + timeout)
@@ -206,7 +206,19 @@ impl SyncScheduler {
         let reactor = self.reactors.get_mut(id.container).unwrap();
         reactor.react_erased(ctx, id.local)
     }
+}
 
+// note: we can't use a method because sometimes it would self.push_event because it would borrow self twice...
+macro_rules! push_event {
+        ($_self:expr, $evt:expr, $time:expr) => {{
+            let evt = $evt;
+            let process_at = $time;
+            trace!("Pushing {}", $_self.display_event(&evt, process_at));
+            $_self.queue.push(evt, Reverse(process_at));
+        }};
+    }
+
+impl SyncScheduler {
 
     /// Launch the event loop in an auxiliary thread. Returns
     /// the handle for that thread.
@@ -230,20 +242,20 @@ impl SyncScheduler {
         loop {
 
             // flush pending events, this doesn't block
-            while let Ok(evt) = self.receiver.try_recv() {
-                self.push_event(evt);
+            for ScheduledEvent(evt, process_at) in self.receiver.try_iter() {
+                push_event!(self, evt, process_at);
             }
 
-            if let Some((evt, _)) = self.queue.pop() {
-                if self.is_after_shutdown(&evt) {
-                    trace!("Event is late, shutting down {}", self.display_tag(evt.process_at));
+            if let Some((evt, Reverse(process_at))) = self.queue.pop() {
+                if self.is_after_shutdown(process_at) {
+                    trace!("Event is late, shutting down {}", self.display_tag(process_at));
                     break;
                 }
                 // execute the wave for this event.
-                trace!("Processing event for tag {}", self.display_tag(evt.process_at));
-                self.step(evt);
-            } else if let Some(evt) = self.receive_event() { // this may block
-                self.push_event(evt);
+                trace!("Processing event for tag {}", self.display_tag(process_at));
+                self.step(evt, process_at);
+            } else if let Some(ScheduledEvent(evt, process_at)) = self.receive_event() { // this may block
+                push_event!(self, evt, process_at);
                 continue;
             } else {
                 // all senders have hung up, or timeout
@@ -264,11 +276,11 @@ impl SyncScheduler {
     /// if the tag of the event is later than the projected
     /// shutdown time. Such 'late' events may be emitted by
     /// the shutdown wave.
-    fn is_after_shutdown(&self, evt: &Event) -> bool {
-        self.shutdown_time.map(|shutdown_t| shutdown_t < evt.process_at).unwrap_or(false)
+    fn is_after_shutdown(&self, t: LogicalInstant) -> bool {
+        self.shutdown_time.map(|shutdown_t| shutdown_t < t).unwrap_or(false)
     }
 
-    fn receive_event(&mut self) -> Option<Event> {
+    fn receive_event(&mut self) -> Option<ScheduledEvent> {
         let now = PhysicalInstant::now();
         if self.options.keep_alive {
             if let Some(shutdown_t) = self.shutdown_time {
@@ -286,19 +298,17 @@ impl SyncScheduler {
     }
 
     /// Push a single event to the event queue
-    fn push_event(&mut self, evt: Event) {
-        trace!("Pushing {}", self.display_event(&evt));
+    fn push_event(&mut self, evt: Event, process_at: LogicalInstant) {
+        trace!("Pushing {}", self.display_event(&evt, process_at));
 
-        let eta = evt.process_at;
-        self.queue.push(evt, Reverse(eta));
+        self.queue.push(evt, Reverse(process_at));
     }
 
     /// Execute a wave. This may make the calling thread
     /// (the scheduler one) sleep, if the expected processing
     /// time (logical) is ahead of current physical time.
-    fn step(&mut self, event: Event) {
-
-        let time = Self::catch_up_physical_time(event.process_at);
+    fn step(&mut self, event: Event, process_at: LogicalInstant) {
+        let time = Self::catch_up_physical_time(process_at);
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
 
         let wave = self.new_wave(time);
@@ -309,7 +319,7 @@ impl SyncScheduler {
         let now = PhysicalInstant::now();
         if now < up_to_time.instant {
             let t = up_to_time.instant - now;
-            trace!("Need to sleep {} ns", t.as_nanos());
+            trace!("  - Need to sleep {} ns", t.as_nanos());
             std::thread::sleep(t); // todo: see crate shuteyes for nanosleep capabilities on linux/macos platforms
         }
         // note this doesn't use `now` because we use
@@ -337,8 +347,8 @@ impl SyncScheduler {
         format!("(T0 + {} ns = {} ms, {})", elapsed.as_nanos(), elapsed.as_millis(), tag.microstep)
     }
 
-    fn display_event(&self, evt: &Event) -> String {
-        format!("Event(at {}: run {})", self.display_tag(evt.process_at), CommaList(&evt.todo))
+    fn display_event(&self, evt: &Event, process_at: LogicalInstant) -> String {
+        format!("Event(at {}: run {})", self.display_tag(process_at), CommaList(&evt.todo))
     }
 }
 

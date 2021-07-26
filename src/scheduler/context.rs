@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::mpsc::Sender;
 
 use crate::*;
-use super::{TimeCell, Event};
+use super::{TimeCell, Event, ScheduledEvent};
 
 /// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
@@ -102,10 +102,8 @@ impl LogicalCtx<'_> {
 
     #[inline]
     pub(in crate) fn enqueue_now(&mut self, downstream: &ReactionSet) {
-        for reaction in downstream {
-            // todo blindly appending possibly does not respect the topological sort
-            self.do_next.push(reaction.clone());
-        }
+        // todo blindly appending possibly does not respect the topological sort
+        self.do_next.append(&mut downstream.clone());
     }
 
     /// Request a shutdown which will be acted upon at the
@@ -145,7 +143,7 @@ pub struct SchedulerLink {
     last_processed_logical_time: TimeCell,
 
     /// Sender to schedule events that should be executed later than this wave.
-    sender: Sender<Event>,
+    sender: Sender<ScheduledEvent>,
 }
 
 impl SchedulerLink {
@@ -160,8 +158,8 @@ impl SchedulerLink {
         action.schedule_future_value(process_at, value);
 
         // todo merge events at equal tags by merging their dependencies
-        let evt = Event { process_at, todo: action.downstream.clone() };
-        self.sender.send(evt).unwrap();
+        let evt = Event { todo: action.downstream.clone() };
+        self.sender.send(ScheduledEvent(evt, process_at)).unwrap();
     }
 }
 
@@ -177,7 +175,7 @@ pub(in super) struct ReactionWave {
     pub logical_time: LogicalInstant,
 
     /// Sender to schedule events that should be executed later than this wave.
-    sender: Sender<Event>,
+    sender: Sender<ScheduledEvent>,
 
     /// Start time of the program.
     initial_time: LogicalInstant,
@@ -186,7 +184,7 @@ pub(in super) struct ReactionWave {
 impl ReactionWave {
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    pub fn new(sender: Sender<Event>,
+    pub fn new(sender: Sender<ScheduledEvent>,
                current_time: LogicalInstant,
                initial_time: LogicalInstant) -> ReactionWave {
         ReactionWave {
@@ -204,8 +202,8 @@ impl ReactionWave {
         debug_assert!(process_at > self.logical_time);
 
         // todo merge events at equal tags by merging their dependencies
-        let evt = Event { process_at, todo: downstream.clone() };
-        self.sender.send(evt).unwrap();
+        let evt = Event { todo: downstream.clone() };
+        self.sender.send(ScheduledEvent(evt, process_at)).unwrap();
     }
 
     #[inline]
@@ -236,6 +234,7 @@ impl ReactionWave {
         while i < todo.len() {
             if let Some(reaction) = todo.get(i) {
                 if done.insert(*reaction) {
+                    trace!("  - Executing {}", reaction);
                     // this may append new elements into the queue,
                     // which is why we can't use an iterator
                     scheduler.exec_reaction(&mut ctx, reaction);
