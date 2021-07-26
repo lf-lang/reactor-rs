@@ -227,9 +227,9 @@ impl ReactionWave {
         // Possibly with more static information we can avoid that.
         let mut done: HashSet<GlobalReactionId> = HashSet::new();
         let mut requested_stop = false;
+        let mut ctx = self.new_ctx();
 
         while !todo.is_empty() {
-            let mut ctx = self.new_ctx();
             for Batch(reactor_id, local_ids) in todo.drain() {
                 let reactor = scheduler.get_reactor_mut(reactor_id);
                 for reaction_id in local_ids.iter() {
@@ -244,7 +244,8 @@ impl ReactionWave {
                 }
             }
 
-            todo = ctx.do_next;
+            // doing this lets us reuse the allocations of these vectors
+            std::mem::swap(&mut ctx.do_next, &mut todo);
         }
 
         if requested_stop {

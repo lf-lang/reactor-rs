@@ -76,13 +76,18 @@ impl TagExecutionPlan {
     }
 
 
-    pub fn drain(&mut self) -> impl Iterator<Item=Batch> {
-        let mut vec = Vec::new();
-        std::mem::swap(&mut self.vec, &mut vec);
+    /// Returns an iterator that enumerates batches of
+    /// reactions to process. This object is cleared of
+    /// its contents even if the iterator is not consumed.
+    ///
+    /// TODO this doesn't use any topological information
+    pub fn drain<'a>(&'a mut self) -> impl Iterator<Item=Batch> + 'a {
+        // let mut vec = Vec::new();
+        // std::mem::swap(&mut self.vec, &mut vec);
 
-        vec.into_iter()
+        self.vec.drain(..)
             .enumerate()
-            .filter_map(|(i, v)| v.and_then(|set| Some(Batch(i.into(), set))))
+            .filter_map(|(i, v)| v.map(|set| Batch(i.into(), set)))
     }
 }
 
