@@ -12,7 +12,6 @@ use self::reactors::MinimalDispatcher as _MainReactor;
 use self::reactors::MinimalParams as _MainParams;
 
 fn main() {
-    env_logger::init();
 
     // todo CLI parsing
     let options = SchedulerOptions {

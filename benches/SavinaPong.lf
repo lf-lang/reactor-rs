@@ -1,4 +1,6 @@
-target Rust;
+target Rust {
+    single-file-project: true
+};
 
 reactor Ping(count: u32(1000000)) {
     input receive: u32;
@@ -37,9 +39,9 @@ reactor Pong(expected: u32(1000000)) {
     =}
 }
 
-main reactor SavinaPong {
-    ping = new Ping();
-    pong = new Pong();
+main reactor SavinaPong(count: u32(1000000)) {
+    ping = new Ping(count=count);
+    pong = new Pong(expected=count);
     ping.send -> pong.receive;
     pong.send -> ping.receive;
 }
