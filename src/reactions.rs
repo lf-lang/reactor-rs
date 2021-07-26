@@ -30,43 +30,24 @@ use std::sync::{Arc, Mutex};
 use crate::{LogicalCtx, ReactorDispatcher};
 
 
-/// Type of the global ID of a reactor.
-#[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
-pub struct ReactorId {
-    value: usize,
-    // todo #[cfg(feature=debug)] name: &'static str
+define_index_type! {
+    pub struct ReactorId = u32;
+
+    // We can also disable checking all-together if we are more concerned with perf
+    // than any overflow problems, or even do so, but only for debug builds
+    DISABLE_MAX_INDEX_CHECK = cfg!(not(debug_assertions));
 }
 
 impl Display for ReactorId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self.value)
+        write!(f, "{}", self._raw)
     }
 }
 
-
-impl ReactorId {
+impl Default for ReactorId {
     #[inline]
-    pub(in crate) fn to_usize(&self) -> usize {
-        self.value
-    }
-
-    #[inline]
-    pub(in crate) fn first() -> Self {
-        Self { value: 0 }
-    }
-
-    #[inline]
-    pub(in crate) fn get_and_increment(&mut self) -> Self {
-        let this = *self;
-        *self = Self { value: this.value + 1 };
-        this
-    }
-
-    pub fn make_reaction_id(self, local: u32) -> GlobalReactionId {
-        GlobalReactionId {
-            container: self,
-            local
-        }
+    fn default() -> Self {
+        Self::new(0)
     }
 }
 

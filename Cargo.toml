@@ -10,6 +10,7 @@ edition = "2018"
 priority-queue = "1.0.0"
 int-enum = "0.4"
 log = "0.4"
+index_vec = "0.1.2"
 
 [dev-dependencies]
 criterion = "0.3"

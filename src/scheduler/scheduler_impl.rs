@@ -34,6 +34,7 @@ use priority_queue::PriorityQueue;
 use crate::*;
 
 use super::{Event, ReactionWave, TimeCell, WaveResult};
+use index_vec::IndexVec;
 
 
 pub struct SchedulerOptions {
@@ -81,7 +82,7 @@ pub struct SyncScheduler {
     options: SchedulerOptions,
 
     /// All reactors.
-    reactors: Vec<Box<Arc<Mutex<dyn ErasedReactorDispatcher + 'static>>>>,
+    reactors: IndexVec<ReactorId, Box<dyn ErasedReactorDispatcher + 'static>>,
     reactor_id: ReactorId,
 }
 
@@ -98,27 +99,23 @@ pub struct AssemblyCtx<'x> {
 impl<'x> AssemblyCtx<'x> {
     #[inline]
     pub fn get_next_id(&mut self) -> ReactorId {
-        self.scheduler.reactor_id.get_and_increment()
+        let cur = self.scheduler.reactor_id;
+        self.scheduler.reactor_id += 1;
+        cur
     }
 
-    pub fn register_reactor<S: ReactorDispatcher + 'static>(&mut self, child: Arc<Mutex<S>>) {
-        // note that the child ID does not correspond to the index in that vector.
-        #[cfg(debug_assertions)]
-            {
-                let child = child.lock().unwrap();
-                assert_eq!(child.id().to_usize(), self.scheduler.reactors.len(), "Improper initialization order!");
-            }
-
-        self.scheduler.reactors.push(Box::new(child))
+    pub fn register_reactor<S: ReactorDispatcher + 'static>(&mut self, child: S) {
+        let vec_id = self.scheduler.reactors.push(Box::new(child));
+        debug_assert_eq!(self.scheduler.reactors[vec_id].id(), vec_id, "Improper initialization order!");
     }
 
     #[inline]
-    pub fn assemble_sub<S: ReactorDispatcher>(&mut self, args: S::Params) -> Arc<Mutex<S>> {
+    pub fn assemble_sub<S: ReactorDispatcher>(&mut self, args: S::Params) -> S {
         AssemblyCtx::assemble_impl(&mut self.scheduler, args)
     }
 
     #[inline]
-    fn assemble_impl<S: ReactorDispatcher>(scheduler: &mut SyncScheduler, args: S::Params) -> Arc<Mutex<S>> {
+    fn assemble_impl<S: ReactorDispatcher>(scheduler: &mut SyncScheduler, args: S::Params) -> S {
         let mut sub = AssemblyCtx { scheduler };
         S::assemble(args, &mut sub)
     }
@@ -136,8 +133,8 @@ impl SyncScheduler {
         scheduler.launch_event_loop()
     }
 
-    fn get_reactor(&self, id: ReactorId) -> &Box<Arc<Mutex<dyn ErasedReactorDispatcher + 'static>>> {
-        self.reactors.get(id.to_usize()).unwrap()
+    fn get_reactor(&self, id: ReactorId) -> &Box<dyn ErasedReactorDispatcher + 'static> {
+        self.reactors.get(id).unwrap()
     }
 
     /// Creates a new scheduler. An empty scheduler doesn't
@@ -149,12 +146,12 @@ impl SyncScheduler {
             latest_logical_time: <_>::default(),
             receiver,
             canonical_sender: sender,
-            queue: PriorityQueue::new(),
+            queue: <_>::default(),
             initial_time: None,
             shutdown_time: None,
             options,
-            reactors: Vec::new(),
-            reactor_id: ReactorId::first(),
+            reactors: <_>::default(),
+            reactor_id: <_>::default(),
         }
     }
 
@@ -185,7 +182,6 @@ impl SyncScheduler {
         let mut wave = self.new_wave(time);
         let mut ctx = StartupCtx { ctx: wave.new_ctx() };
         for reactor in &self.reactors {
-            let reactor = reactor.lock().unwrap();
             enqueue_fun(reactor.deref(), &mut ctx);
         }
         // now execute all reactions that were scheduled
@@ -208,7 +204,7 @@ impl SyncScheduler {
     }
 
     pub(in super) fn exec_reaction(&mut self, ctx: &mut LogicalCtx, id: &GlobalReactionId) {
-        let mut reactor = self.get_reactor(id.container).lock().unwrap();
+        let mut reactor = self.reactors.get_mut(id.container).unwrap();
         reactor.react_erased(ctx, id.local)
     }
 

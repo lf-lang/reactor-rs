@@ -72,21 +72,19 @@ impl ::reactor_rt::ReactorDispatcher for MinimalDispatcher {
     type Wrapped = Minimal;
     type Params = MinimalParams;
 
-    fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Arc<Mutex<Self>> {
+    fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Self {
         // children reactors   
 
 
         // assemble self
         let this_reactor = assembler.get_next_id();
-        let mut _self = Arc::new(Mutex::new(Self::user_assemble(this_reactor, args)));
+        let mut _self = (Self::user_assemble(this_reactor, args));
 
         let react_0: GlobalReactionId = new_reaction!(this_reactor, _self, R0);
 
         {
-            let mut statemut = _self.lock().unwrap();
-
-            statemut._startup_reactions = vec![react_0];
-            statemut._shutdown_reactions = vec![];
+            _self._startup_reactions = vec![react_0];
+            _self._shutdown_reactions = vec![];
         }
         {
             // Declare connections

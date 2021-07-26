@@ -160,7 +160,7 @@ fn dependencies_are_adopted_by_upstream_when_binding() {
     let mut up = OutputPort::<i32>::labeled("up");
     let mut down = InputPort::<i32>::labeled("down");
 
-    let container = ReactorId::first();
+    let container = ReactorId::new(0);
 
     set_fake_downstream(container, vec![0], &mut up);
     set_fake_downstream(container, vec![1, 2, 3], &mut down);

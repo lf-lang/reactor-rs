@@ -147,30 +147,24 @@ mod savina_pong {
         type Wrapped = SavinaPong;
         type Params = SavinaPongParams;
 
-        fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Arc<Mutex<Self>> {
+        fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Self {
             // children reactors
             // --- ping = new Ping();
-            let mut ping: Arc<Mutex<super::PingDispatcher>> = assembler.assemble_sub(super::PingParams { count: args.count, });
+            let mut ping: super::PingDispatcher = assembler.assemble_sub(super::PingParams { count: args.count, });
             // --- pong = new Pong();
-            let mut pong: Arc<Mutex<super::PongDispatcher>> = assembler.assemble_sub(super::PongParams { expected: args.expected, });
+            let mut pong: super::PongDispatcher = assembler.assemble_sub(super::PongParams { expected: args.expected, });
 
             // assemble self
             let this_reactor = assembler.get_next_id();
-            let mut _self = Arc::new(Mutex::new(Self::user_assemble(this_reactor, args)));
+            let mut _self = Self::user_assemble(this_reactor, args);
 
 
 
             {
-                let mut statemut = _self.lock().unwrap();
-
-                statemut._startup_reactions = vec![];
-                statemut._shutdown_reactions = vec![];
-
-
+                _self._startup_reactions = vec![];
+                _self._shutdown_reactions = vec![];
             }
             {
-                let mut ping = ping.lock().unwrap();
-                let mut pong = pong.lock().unwrap();
                 // Declare connections
                 // --- ping.send -> pong.receive;
                 bind_ports(&mut ping.send, &mut pong.receive);
@@ -306,26 +300,25 @@ mod ping {
         type Wrapped = Ping;
         type Params = PingParams;
 
-        fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Arc<Mutex<Self>> {
+        fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Self {
             // children reactors
 
 
             // assemble self
             let this_reactor = assembler.get_next_id();
-            let mut _self = Arc::new(Mutex::new(Self::user_assemble(this_reactor, args)));
+            let mut _self = (Self::user_assemble(this_reactor, args));
 
             let react_0 = new_reaction!(this_reactor, _self, R0);
             let react_1 = new_reaction!(this_reactor, _self, R1);
 
             {
-                let mut statemut = _self.lock().unwrap();
 
-                statemut._startup_reactions = vec![react_0.clone()];
-                statemut._shutdown_reactions = vec![];
+                _self._startup_reactions = vec![react_0.clone()];
+                _self._shutdown_reactions = vec![];
 
-                statemut.send.set_downstream(vec![].into());
-                statemut.receive.set_downstream(vec![react_1.clone()].into());
-                statemut.serve.set_downstream(vec![react_0.clone()].into());
+                _self.send.set_downstream(vec![].into());
+                _self.receive.set_downstream(vec![react_1.clone()].into());
+                _self.serve.set_downstream(vec![react_0.clone()].into());
             }
             {
                 // Declare connections
@@ -461,25 +454,23 @@ mod pong {
         type Wrapped = Pong;
         type Params = PongParams;
 
-        fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Arc<Mutex<Self>> {
+        fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Self {
             // children reactors
 
 
             // assemble self
             let this_reactor = assembler.get_next_id();
-            let mut _self = Arc::new(Mutex::new(Self::user_assemble(this_reactor, args)));
+            let mut _self = Self::user_assemble(this_reactor, args);
 
             let react_0 = new_reaction!(this_reactor, _self, R0);
             let react_1 = new_reaction!(this_reactor, _self, R1);
 
             {
-                let mut statemut = _self.lock().unwrap();
+                _self._startup_reactions = vec![];
+                _self._shutdown_reactions = vec![react_1.clone()];
 
-                statemut._startup_reactions = vec![];
-                statemut._shutdown_reactions = vec![react_1.clone()];
-
-                statemut.send.set_downstream(vec![].into());
-                statemut.receive.set_downstream(vec![react_0.clone()].into());
+                _self.send.set_downstream(vec![].into());
+                _self.receive.set_downstream(vec![react_0.clone()].into());
             }
             {
                 // Declare connections

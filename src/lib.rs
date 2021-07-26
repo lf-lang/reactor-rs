@@ -50,6 +50,9 @@ mod util;
 #[macro_use]
 extern crate log;
 
+#[macro_use]
+extern crate index_vec;
+
 
 /// Wrapper around the user struct for safe dispatch.
 ///
@@ -70,7 +73,7 @@ pub trait ReactorDispatcher: ErasedReactorDispatcher {
     /// uninitialized dependencies & make state variables assume
     /// their default values, or else, a value taken from the params.
     fn assemble(args: Self::Params, assembler: &mut AssemblyCtx)
-                -> Arc<Mutex<Self>> where Self: Sized;
+                -> Self where Self: Sized;
 
     /// Execute a single user-written reaction.
     /// Dispatches on the reaction id, and unpacks parameters,
