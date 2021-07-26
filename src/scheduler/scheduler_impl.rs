@@ -82,7 +82,7 @@ pub struct SyncScheduler {
     options: SchedulerOptions,
 
     /// All reactors.
-    reactors: IndexVec<ReactorId, Box<dyn ErasedReactorDispatcher + 'static>>,
+    reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
     reactor_id: ReactorId,
 }
 
@@ -104,25 +104,25 @@ impl<'x> AssemblyCtx<'x> {
         cur
     }
 
-    pub fn register_reactor<S: ReactorDispatcher + 'static>(&mut self, child: S) {
+    pub fn register_reactor<S: ReactorInitializer + 'static>(&mut self, child: S) {
         let vec_id = self.scheduler.reactors.push(Box::new(child));
         debug_assert_eq!(self.scheduler.reactors[vec_id].id(), vec_id, "Improper initialization order!");
     }
 
     #[inline]
-    pub fn assemble_sub<S: ReactorDispatcher>(&mut self, args: S::Params) -> S {
+    pub fn assemble_sub<S: ReactorInitializer>(&mut self, args: S::Params) -> S {
         AssemblyCtx::assemble_impl(&mut self.scheduler, args)
     }
 
     #[inline]
-    fn assemble_impl<S: ReactorDispatcher>(scheduler: &mut SyncScheduler, args: S::Params) -> S {
+    fn assemble_impl<S: ReactorInitializer>(scheduler: &mut SyncScheduler, args: S::Params) -> S {
         let mut sub = AssemblyCtx { scheduler };
         S::assemble(args, &mut sub)
     }
 }
 
 impl SyncScheduler {
-    pub fn run_main<R: ReactorDispatcher + 'static>(options: SchedulerOptions, args: R::Params) {
+    pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
         let mut scheduler = Self::new(options);
         let mut assembler = AssemblyCtx { scheduler: &mut scheduler };
 
@@ -164,17 +164,17 @@ impl SyncScheduler {
         }
 
         debug_assert!(!self.reactors.is_empty(), "No registered reactors");
-        self.execute_wave(initial_time, ErasedReactorDispatcher::enqueue_startup);
+        self.execute_wave(initial_time, ReactorBehavior::enqueue_startup);
     }
 
     fn shutdown(&mut self) {
         let shutdown_time = self.shutdown_time.unwrap_or_else(LogicalInstant::now);
-        self.execute_wave(shutdown_time, ErasedReactorDispatcher::enqueue_shutdown);
+        self.execute_wave(shutdown_time, ReactorBehavior::enqueue_shutdown);
     }
 
     fn execute_wave(&mut self,
                     time: LogicalInstant,
-                    enqueue_fun: fn(&(dyn ErasedReactorDispatcher + 'static), &mut StartupCtx)) {
+                    enqueue_fun: fn(&(dyn ReactorBehavior + 'static), &mut StartupCtx)) {
         let mut wave = self.new_wave(time);
         let mut ctx = StartupCtx { ctx: wave.new_ctx() };
         for reactor in &self.reactors {

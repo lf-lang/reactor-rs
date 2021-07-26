@@ -63,7 +63,7 @@ impl MinimalDispatcher {
 
 use ::reactor_rt::*; // after this point there's no user-written code
 
-impl ::reactor_rt::ReactorDispatcher for MinimalDispatcher {
+impl ::reactor_rt::ReactorInitializer for MinimalDispatcher {
     type Wrapped = Minimal;
     type Params = MinimalParams;
     const MAX_REACTION_ID: LocalReactionId = 1;
@@ -93,7 +93,7 @@ impl ::reactor_rt::ReactorDispatcher for MinimalDispatcher {
 }
 
 
-impl ::reactor_rt::ErasedReactorDispatcher for MinimalDispatcher {
+impl ::reactor_rt::ReactorBehavior for MinimalDispatcher {
 
     #[inline]
     fn id(&self) -> ReactorId {

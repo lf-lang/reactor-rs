@@ -61,12 +61,11 @@ extern crate index_vec;
 /// 2. ctor parameters of the reactor, and
 /// 3. every logical action and port declared by the reactor.
 ///
-pub trait ReactorDispatcher: ErasedReactorDispatcher {
+pub trait ReactorInitializer: ReactorBehavior {
     /// Type of the user struct
     type Wrapped;
     /// Type of the construction parameters
     type Params;
-
     /// Exclusive maximum value of the `local_rid` parameter of [ErasedReactorDispatcher.react_erased].
     const MAX_REACTION_ID: LocalReactionId;
 
@@ -78,8 +77,11 @@ pub trait ReactorDispatcher: ErasedReactorDispatcher {
 
 }
 
-pub trait ErasedReactorDispatcher {
-
+/// The trait used by the framework to interact with the reactor
+/// during runtime. Importantly, it's object-safe and has no
+/// type parameters or associated types. This allows us to
+/// wrap it into a `Box<dyn ReactorBehavior>`.
+pub trait ReactorBehavior {
     /// The unique ID of this reactor. This is given by the
     /// framework upon construction.
     fn id(&self) -> ReactorId;
@@ -89,7 +91,9 @@ pub trait ErasedReactorDispatcher {
     /// which are the reactor components declared as fields of
     /// this struct.
     ///
-    /// It must always be the case that `local_rid < Self::MAX_REACTION_ID`.
+    /// It must always be the case that `local_rid < Self::MAX_REACTION_ID`,
+    /// where `Self::MAX_REACTION_ID` is defined by the other trait,
+    /// because of object safety.
     fn react_erased(&mut self, ctx: &mut LogicalCtx, local_rid: LocalReactionId);
 
     /// Acknowledge that the given tag is done executing and

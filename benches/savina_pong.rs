@@ -176,7 +176,7 @@ mod reactors {
 
         use ::reactor_rt::*; // after this point there's no user-written code
 
-    impl ::reactor_rt::ReactorDispatcher for PongDispatcher {
+    impl ::reactor_rt::ReactorInitializer for PongDispatcher {
         type Wrapped = Pong;
         type Params = PongParams;
         const MAX_REACTION_ID: LocalReactionId = 2;
@@ -212,7 +212,7 @@ mod reactors {
     }
 
 
-        impl ::reactor_rt::ErasedReactorDispatcher for PongDispatcher {
+        impl ::reactor_rt::ReactorBehavior for PongDispatcher {
 
             #[inline]
             fn id(&self) -> ReactorId {
@@ -280,7 +280,7 @@ mod reactors {
             fn react_1(&mut self,
                        #[allow(unused)] ctx: &mut ::reactor_rt::LogicalCtx,
                        #[allow(unused)] params: &PingParams,
-                       receive: & ::reactor_rt::InputPort<u32>,
+                       _receive: & ::reactor_rt::InputPort<u32>,
                        #[allow(unused)] serve: & ::reactor_rt::LogicalAction::<()>) {
                 if self.pingsLeft > 0 {
                     ctx.schedule(serve, Asap);
@@ -333,7 +333,7 @@ mod reactors {
 
         use ::reactor_rt::*; // after this point there's no user-written code
 
-    impl ::reactor_rt::ReactorDispatcher for PingDispatcher {
+    impl ::reactor_rt::ReactorInitializer for PingDispatcher {
         type Wrapped = Ping;
         type Params = PingParams;
         const MAX_REACTION_ID: LocalReactionId = 2;
@@ -370,7 +370,7 @@ mod reactors {
     }
 
 
-        impl ::reactor_rt::ErasedReactorDispatcher for PingDispatcher {
+        impl ::reactor_rt::ReactorBehavior for PingDispatcher {
 
             #[inline]
             fn id(&self) -> ReactorId {
@@ -466,7 +466,7 @@ mod reactors {
 
         use ::reactor_rt::*; // after this point there's no user-written code
 
-    impl ::reactor_rt::ReactorDispatcher for SavinaPongDispatcher {
+    impl ::reactor_rt::ReactorInitializer for SavinaPongDispatcher {
         type Wrapped = SavinaPong;
         type Params = SavinaPongParams;
         const MAX_REACTION_ID: LocalReactionId = 0;
@@ -508,7 +508,7 @@ mod reactors {
     }
 
 
-        impl ::reactor_rt::ErasedReactorDispatcher for SavinaPongDispatcher {
+        impl ::reactor_rt::ReactorBehavior for SavinaPongDispatcher {
 
             #[inline]
             fn id(&self) -> ReactorId {
