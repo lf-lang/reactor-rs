@@ -204,7 +204,7 @@ impl SyncScheduler {
     }
 
     pub(in super) fn exec_reaction(&mut self, ctx: &mut LogicalCtx, id: &GlobalReactionId) {
-        let mut reactor = self.reactors.get_mut(id.container).unwrap();
+        let reactor = self.reactors.get_mut(id.container).unwrap();
         reactor.react_erased(ctx, id.local)
     }
 

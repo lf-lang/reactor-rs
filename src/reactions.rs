@@ -25,53 +25,9 @@
 use std::cmp::Ordering;
 use std::fmt::*;
 use std::hash::{Hash, Hasher};
-use std::sync::{Arc, Mutex};
-
-use crate::{LogicalCtx, ReactorDispatcher};
 
 
-define_index_type! {
-    pub struct ReactorId = u16;
-
-    // We can also disable checking all-together if we are more concerned with perf
-    // than any overflow problems, or even do so, but only for debug builds
-    DISABLE_MAX_INDEX_CHECK = cfg!(not(debug_assertions));
-}
-
-impl Display for ReactorId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self._raw)
-    }
-}
-
-impl Default for ReactorId {
-    #[inline]
-    fn default() -> Self {
-        Self::new(0)
-    }
-}
-
-/// Identifies a component of a reactor using the ID of its container
-/// and a local component ID.
-#[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
-pub struct GlobalReactionId {
-    pub(in crate) container: ReactorId,
-    pub(in crate) local: LocalRId,
-}
-
-pub type LocalRId = u16;
-
-impl GlobalReactionId {
-    pub fn new(container: ReactorId, local: LocalRId) -> Self {
-        Self { container, local }
-    }
-}
-
-impl Display for GlobalReactionId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}/{}", self.container, self.local)
-    }
-}
+use crate::{GlobalReactionId, LocalRId, LogicalCtx, ReactorId};
 
 /// Wraps a reaction in an "erased" executable form.
 /// This wraps a closures, that captures the reactor instance.
@@ -117,24 +73,6 @@ impl ReactionInvoker {
         self.id
     }
 
-    /// Create a new reaction, closing over its reactor instance.
-    /// Note that this is only called from within the [new_reaction] macro.
-    ///
-    /// The reaction_priority orders the reaction relative to
-    /// the other reactions of the same reactor. The `reactor_id`
-    /// is global.
-    ///
-    pub fn new<T: ReactorDispatcher + 'static + Send>(reactor_id: ReactorId,
-                                                      reaction_id: LocalRId,
-                                                      reactor: Arc<Mutex<T>>,
-                                                      rid: T::ReactionId) -> ReactionInvoker {
-        Self::new_from_closure(reactor_id, reaction_id, move |ctx: &mut LogicalCtx| {
-            let mut ref_mut = reactor.lock().unwrap();
-            let r1: &mut T = &mut *ref_mut;
-            T::react(r1, ctx, rid)
-        })
-    }
-
     /// Create a new reaction invoker that doesn't need a reactor,
     /// ie the invoked code can be arbitrary.
     /// This may be used to test the logic of the scheduler
@@ -163,5 +101,3 @@ impl Hash for ReactionInvoker {
     }
 }
 
-/// todo ensure it is toposorted
-pub type ReactionSet = Vec<GlobalReactionId>;

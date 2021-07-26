@@ -33,11 +33,12 @@ pub use self::ports::*;
 pub use self::scheduler::*;
 pub use self::time::*;
 pub use self::util::*;
+pub use self::ids::*;
 
 // reexport those to complement our LogicalInstant
 pub use std::time::Instant as PhysicalInstant;
 pub use std::time::Duration;
-use std::sync::{Arc, Mutex};
+
 
 mod scheduler;
 mod ports;
@@ -46,6 +47,7 @@ mod time;
 mod timers;
 mod reactions;
 mod util;
+mod ids;
 
 #[macro_use]
 extern crate log;
