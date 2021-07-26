@@ -53,6 +53,7 @@ extern crate log;
 #[macro_use]
 extern crate index_vec;
 extern crate itertools;
+extern crate bit_set;
 
 /// Wrapper around the user struct for safe dispatch.
 ///

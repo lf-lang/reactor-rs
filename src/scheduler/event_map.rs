@@ -2,10 +2,40 @@ use std::collections::{HashMap, BTreeSet};
 use crate::{ReactorId, ReactionSet, LocalReactionId, LogicalInstant};
 use itertools::Itertools;
 use std::cmp::Reverse;
+use bit_set::BitSet;
+use std::iter::FromIterator;
+
+pub struct LocalizedReactionSet {
+    set: BitSet,
+}
+
+impl LocalizedReactionSet {
+    pub fn contains(&self, id: LocalReactionId) -> bool {
+        self.set.contains(id as usize)
+    }
+
+    pub fn insert(&mut self, id: LocalReactionId) -> bool {
+        self.set.insert(id as usize)
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=LocalReactionId> + 'a {
+        self.set.iter().map(|u| u as LocalReactionId)
+    }
+}
+
+impl FromIterator<LocalReactionId> for LocalizedReactionSet {
+    fn from_iter<T: IntoIterator<Item=LocalReactionId>>(iter: T) -> Self {
+        let mut result = Self { set: BitSet::with_capacity(32) };
+        for t in iter {
+            result.insert(t);
+        }
+        result
+    }
+}
 
 pub struct TagExecutionPlan {
     pub tag: LogicalInstant,
-    map: HashMap<ReactorId, BTreeSet<LocalReactionId>>,
+    map: HashMap<ReactorId, LocalizedReactionSet>,
 }
 
 
@@ -38,7 +68,7 @@ impl TagExecutionPlan {
     }
 
     fn new(tag: LogicalInstant, reactions: ReactionSet) -> TagExecutionPlan {
-        let mut map: HashMap<ReactorId, BTreeSet<LocalReactionId>> = HashMap::new();
+        let mut map: HashMap<ReactorId, LocalizedReactionSet> = HashMap::new();
         for (key, group) in &reactions.into_iter().group_by(|id| id.container) {
             let locals = group.map(|it| it.local).collect();
             map.insert(key, locals);
@@ -56,7 +86,7 @@ impl TagExecutionPlan {
     }
 }
 
-pub struct Batch(pub ReactorId, pub BTreeSet<LocalReactionId>);
+pub struct Batch(pub ReactorId, pub LocalizedReactionSet);
 
 #[derive(Default)]
 pub struct EventMap {

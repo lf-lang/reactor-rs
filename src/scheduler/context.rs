@@ -232,7 +232,7 @@ impl ReactionWave {
             let mut ctx = self.new_ctx();
             for Batch(reactor_id, local_ids) in todo.iter() {
                 let reactor = scheduler.get_reactor_mut(reactor_id);
-                for reaction_id in local_ids.iter().cloned() {
+                for reaction_id in local_ids.iter() {
                     let global = GlobalReactionId::new(reactor_id, reaction_id);
                     if done.insert(global) {
                         trace!("  - Executing {}", global);
