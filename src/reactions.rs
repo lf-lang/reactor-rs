@@ -31,7 +31,7 @@ use crate::{LogicalCtx, ReactorDispatcher};
 
 
 define_index_type! {
-    pub struct ReactorId = u32;
+    pub struct ReactorId = u16;
 
     // We can also disable checking all-together if we are more concerned with perf
     // than any overflow problems, or even do so, but only for debug builds
@@ -56,11 +56,13 @@ impl Default for ReactorId {
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
 pub struct GlobalReactionId {
     pub(in crate) container: ReactorId,
-    pub(in crate) local: u32,
+    pub(in crate) local: LocalRId,
 }
 
+pub type LocalRId = u16;
+
 impl GlobalReactionId {
-    pub fn new(container: ReactorId, local: u32) -> Self {
+    pub fn new(container: ReactorId, local: LocalRId) -> Self {
         Self { container, local }
     }
 }
@@ -123,10 +125,10 @@ impl ReactionInvoker {
     /// is global.
     ///
     pub fn new<T: ReactorDispatcher + 'static + Send>(reactor_id: ReactorId,
-                                               reaction_priority: u32,
-                                               reactor: Arc<Mutex<T>>,
-                                               rid: T::ReactionId) -> ReactionInvoker {
-        Self::new_from_closure(reactor_id, reaction_priority, move |ctx: &mut LogicalCtx| {
+                                                      reaction_id: LocalRId,
+                                                      reactor: Arc<Mutex<T>>,
+                                                      rid: T::ReactionId) -> ReactionInvoker {
+        Self::new_from_closure(reactor_id, reaction_id, move |ctx: &mut LogicalCtx| {
             let mut ref_mut = reactor.lock().unwrap();
             let r1: &mut T = &mut *ref_mut;
             T::react(r1, ctx, rid)
@@ -137,7 +139,7 @@ impl ReactionInvoker {
     /// ie the invoked code can be arbitrary.
     /// This may be used to test the logic of the scheduler
     pub fn new_from_closure(reactor_id: ReactorId,
-                            reaction_index: u32,
+                            reaction_index: LocalRId,
                             action: impl Fn(&mut LogicalCtx) + Send + Sync + 'static) -> ReactionInvoker {
         ReactionInvoker {
             body: Box::new(action),

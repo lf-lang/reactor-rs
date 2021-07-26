@@ -63,7 +63,7 @@ extern crate index_vec;
 ///
 pub trait ReactorDispatcher: ErasedReactorDispatcher {
     /// The type of reaction IDs
-    type ReactionId: Copy + Send + Sync + int_enum::IntEnum<Int=u32>;
+    type ReactionId: Copy + Send + Sync + int_enum::IntEnum<Int=LocalRId>;
     /// Type of the user struct
     type Wrapped;
     /// Type of the construction parameters
@@ -89,7 +89,7 @@ pub trait ErasedReactorDispatcher {
     /// Dispatches on the reaction id, and unpacks parameters,
     /// which are the reactor components declared as fields of
     /// this struct.
-    fn react_erased(&mut self, ctx: &mut LogicalCtx, local_rid: u32);
+    fn react_erased(&mut self, ctx: &mut LogicalCtx, local_rid: LocalRId);
 
     /// Acknowledge that the given tag is done executing and
     /// free resources if need be.
@@ -149,22 +149,16 @@ macro_rules! reaction_ids {
             }
 
             impl ::int_enum::IntEnum for $typename {
-                    type Int = u32;
+                    type Int = u16;
                     fn int_value(self) -> Self::Int {unreachable!()}
                     fn from_int(n: Self::Int) -> Result<Self, ::int_enum::IntEnumError<Self>> where Self: Sized {
                         Err(::int_enum::IntEnumError::__new(n))
                     }
             }
-
-            impl $crate::ReactionId for $typename {
-                fn list() -> Vec<Self> {
-                    vec![]
-                }
-            }
         };
         ($viz:vis enum $typename:ident { $($id:ident = $lit:literal),+$(,)? }) => {
 
-            #[repr(u32)]
+            #[repr(u16)]
             #[derive(Ord, PartialOrd, Eq, PartialEq, Debug, Hash, Copy, Clone, int_enum::IntEnum)]
             $viz enum $typename {
                 $($id = $lit),+
@@ -174,12 +168,6 @@ macro_rules! reaction_ids {
                 fn name(&self) -> &'static str {
                     let me = *self;
                     reaction_ids_helper!((me) $($id),+ :end:)
-                }
-            }
-
-            impl $crate::ReactionId for $typename {
-                fn list() -> Vec<Self> {
-                    vec![ $(Self::$id),+ ]
                 }
             }
         };

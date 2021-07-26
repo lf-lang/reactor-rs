@@ -34,13 +34,6 @@ pub trait Named {
     fn name(&self) -> &'static str;
 }
 
-/// A type that can list all its instances
-pub trait ReactionId: IntEnum {
-    /// Returns a list of all instances
-    fn list() -> Vec<Self> where Self: Sized;
-}
-
-
 /// A type with no instances.
 /// Rust's bottom type, `!`, is experimental
 pub enum Nothing {}
@@ -95,10 +88,6 @@ impl IntEnum for Nothing {
     fn from_int(n: Self::Int) -> Result<Self, IntEnumError<Self>> where Self: Sized {
         Err(IntEnumError::__new(n))
     }
-}
-
-impl ReactionId for Nothing {
-    fn list() -> Vec<Self> where Self: Sized { vec![] }
 }
 
 /// Duration::zero() is unstable

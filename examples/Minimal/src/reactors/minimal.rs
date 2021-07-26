@@ -111,7 +111,7 @@ impl ::reactor_rt::ErasedReactorDispatcher for MinimalDispatcher {
         self._id
     }
 
-    fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: u32) {
+    fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: crate::LocalRId) {
         let rid = <MinimalReactions as int_enum::IntEnum>::from_int(rid).unwrap();
         self.react(ctx, rid)
     }

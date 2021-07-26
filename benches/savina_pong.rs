@@ -141,6 +141,7 @@ mod savina_pong {
 
     use ::reactor_rt::*; // after this point there's no user-written code
     use std::sync::{Arc, Mutex};
+    use int_enum::IntEnum;
 
     impl ::reactor_rt::ReactorDispatcher for SavinaPongDispatcher {
         type ReactionId = SavinaPongReactions;
@@ -192,7 +193,7 @@ mod savina_pong {
             self._id
         }
 
-        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: u32) {
+        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalRId) {
             let rid = <SavinaPongReactions as int_enum::IntEnum>::from_int(rid).unwrap();
             self.react(ctx, rid)
         }
@@ -349,7 +350,7 @@ mod ping {
             self._id
         }
 
-        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: u32) {
+        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalRId) {
             let rid = <PingReactions as int_enum::IntEnum>::from_int(rid).unwrap();
             self.react(ctx, rid)
         }
@@ -501,7 +502,7 @@ mod pong {
             self._id
         }
 
-        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: u32) {
+        fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalRId) {
             let rid = <PongReactions as int_enum::IntEnum>::from_int(rid).unwrap();
             self.react(ctx, rid)
         }
