@@ -160,6 +160,9 @@ impl SyncScheduler {
         let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
         if let Some(timeout) = self.options.timeout {
+
+            trace!("Timeout specified, will shut down at tag {}", self.display_tag(initial_time + timeout));
+
             self.shutdown_time = Some(initial_time + timeout)
         }
 
@@ -233,21 +236,24 @@ impl SyncScheduler {
 
             if let Some((evt, _)) = self.queue.pop() {
                 if self.is_after_shutdown(&evt) {
+                    trace!("Event is late, shutting down {}", self.display_tag(evt.process_at));
                     break;
                 }
                 // execute the wave for this event.
+                trace!("Processing event for tag {}", self.display_tag(evt.process_at));
                 self.step(evt);
             } else if let Some(evt) = self.receive_event() { // this may block
                 self.push_event(evt);
                 continue;
             } else {
                 // all senders have hung up, or timeout
-                info!("Scheduler is shutting down...");
-
-                self.shutdown();
                 break;
             }
         } // end loop
+
+        self.queue.clear();
+        info!("Scheduler is shutting down...");
+        self.shutdown();
         info!("Scheduler has been shut down")
 
         // self destructor is called here
@@ -259,7 +265,7 @@ impl SyncScheduler {
     /// shutdown time. Such 'late' events may be emitted by
     /// the shutdown wave.
     fn is_after_shutdown(&self, evt: &Event) -> bool {
-        self.shutdown_time.map(|t| t > evt.process_at).unwrap_or(false)
+        self.shutdown_time.map(|shutdown_t| shutdown_t < evt.process_at).unwrap_or(false)
     }
 
     fn receive_event(&mut self) -> Option<Event> {
@@ -291,7 +297,6 @@ impl SyncScheduler {
     /// (the scheduler one) sleep, if the expected processing
     /// time (logical) is ahead of current physical time.
     fn step(&mut self, event: Event) {
-        trace!("Received event for tag {}", event.process_at);
 
         let time = Self::catch_up_physical_time(event.process_at);
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
