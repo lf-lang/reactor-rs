@@ -54,6 +54,8 @@ extern crate log;
 extern crate index_vec;
 extern crate itertools;
 extern crate bit_set;
+#[macro_use]
+extern crate smallvec;
 
 /// Wrapper around the user struct for safe dispatch.
 ///

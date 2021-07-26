@@ -11,6 +11,7 @@ log = "0.4"
 index_vec = "0.1.2"
 itertools = "0.10.1"
 bit-set = "0.5"
+smallvec = "1.6"
 
 [dev-dependencies]
 criterion = "0.3"

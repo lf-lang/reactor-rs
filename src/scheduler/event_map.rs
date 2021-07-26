@@ -2,7 +2,7 @@
 use crate::{ReactorId, ReactionSet, LogicalInstant, LocalizedReactionSet};
 use itertools::Itertools;
 use std::cmp::Reverse;
-
+use smallvec::SmallVec;
 
 
 /// A set of reactions to execute at a particular tag.
@@ -87,10 +87,8 @@ pub(in crate) struct EventQueue {
     /// This is a list sorted by the tag of each TagExecutionPlan.
     /// The earliest tag is at the end.
     ///
-    /// TODO using linked list would be better for insertion
-    ///  performance, whatever.
-    /// TODO using a smallvec could be nice.
-    value_list: Vec<TagExecutionPlan>,
+    /// TODO using linked list could be nice in some cases
+    value_list: SmallVec<[TagExecutionPlan; 16]>,
 }
 
 
