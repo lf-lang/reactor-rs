@@ -25,6 +25,15 @@
 #[cfg(test)]
 pub mod test;
 
+mod scheduler;
+mod ports;
+mod actions;
+mod time;
+mod timers;
+mod reactions;
+mod util;
+mod ids;
+
 pub use self::actions::*;
 pub use self::timers::*;
 pub use self::reactions::*;
@@ -39,15 +48,6 @@ pub use self::ids::*;
 pub use std::time::Instant as PhysicalInstant;
 pub use std::time::Duration;
 
-
-mod scheduler;
-mod ports;
-mod actions;
-mod time;
-mod timers;
-mod reactions;
-mod util;
-mod ids;
 
 #[macro_use]
 extern crate log;
@@ -113,25 +113,4 @@ pub trait ErasedReactorDispatcher {
     /// Enqueue the shutdown reactions of this reactor.
     /// See [enqueue_startup].
     fn enqueue_shutdown(&self, ctx: &mut StartupCtx);
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! new_reaction {
-    ($reactorid:ident, $_rstate:ident, $id:literal) => {{
-        $crate::GlobalReactionId::new($reactorid, $id)
-    }};
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! reschedule_self_timer {
-    ($reactorid:ident, $timerid:ident, $_rstate:ident, $_rpriority:literal) => {{
-        let mut mystate = $_rstate.clone();
-        let schedule_myself = move |ctx: &mut $crate::LogicalCtx| {
-            let me = mystate.lock().unwrap();
-            ctx.reschedule(&me.$timerid); // this doesn't reschedule aperiodic timers
-        };
-        ::std::sync::Arc::new($crate::ReactionInvoker::new_from_closure($reactorid, $_rpriority, schedule_myself))
-    }};
 }
