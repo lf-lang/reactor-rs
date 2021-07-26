@@ -22,72 +22,15 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::cmp::Ordering;
-use std::hash::{Hash, Hasher};
-use crate::Duration;
-use int_enum::{IntEnum, IntEnumError};
+
 use std::fmt::{Display, Formatter};
 
+
+use crate::Duration;
 
 /// A type whose instances have statically known names
 pub trait Named {
     fn name(&self) -> &'static str;
-}
-
-/// A type with no instances.
-/// Rust's bottom type, `!`, is experimental
-pub enum Nothing {}
-
-impl PartialEq for Nothing {
-    fn eq(&self, _: &Self) -> bool {
-        unreachable!("No instance of Nothing type")
-    }
-}
-
-impl Clone for Nothing {
-    fn clone(&self) -> Self {
-        unreachable!("No instance of Nothing type")
-    }
-}
-
-impl Copy for Nothing {}
-
-impl Eq for Nothing {}
-
-impl Hash for Nothing {
-    fn hash<H: Hasher>(&self, _: &mut H) {
-        unreachable!("No instance of Nothing type")
-    }
-}
-
-impl PartialOrd for Nothing {
-    fn partial_cmp(&self, _: &Self) -> Option<Ordering> {
-        unreachable!("No instance of Nothing type")
-    }
-}
-
-impl Ord for Nothing {
-    fn cmp(&self, _: &Self) -> Ordering {
-        unreachable!("No instance of Nothing type")
-    }
-}
-
-impl Named for Nothing {
-    fn name(&self) -> &'static str {
-        unreachable!("No instance of Nothing type")
-    }
-}
-
-impl IntEnum for Nothing {
-    type Int = u32;
-
-    fn int_value(self) -> Self::Int {
-        unreachable!()
-    }
-
-    fn from_int(n: Self::Int) -> Result<Self, IntEnumError<Self>> where Self: Sized {
-        Err(IntEnumError::__new(n))
-    }
 }
 
 /// Duration::zero() is unstable
