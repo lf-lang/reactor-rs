@@ -179,7 +179,7 @@ mod reactors {
     impl ::reactor_rt::ReactorInitializer for PongDispatcher {
         type Wrapped = Pong;
         type Params = PongParams;
-        const MAX_REACTION_ID: LocalReactionId = 2;
+        const MAX_REACTION_ID: LocalReactionId = LocalReactionId::new_const(2);
 
         fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Self {
             // children reactors
@@ -192,8 +192,8 @@ mod reactors {
             // assemble self
             let mut _self = Self::user_assemble(assembler.get_next_id(), args);
 
-            let react_0 = GlobalReactionId::new(_self.id(), 0);
-            let react_1 = GlobalReactionId::new(_self.id(), 1);
+            let react_0 = GlobalReactionId::new(_self.id(), LocalReactionId::new(0));
+            let react_1 = GlobalReactionId::new(_self.id(), LocalReactionId::new(1));
 
             {
                 _self._startup_reactions = vec![];
@@ -220,7 +220,7 @@ mod reactors {
             }
 
             fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalReactionId) {
-                match rid {
+                match rid.index() {
                     0 => self._impl.react_0(ctx, &self._params, &self.port_receive, &mut self.port_send),
                     1 => self._impl.react_1(ctx, &self._params),
 
@@ -336,7 +336,7 @@ mod reactors {
     impl ::reactor_rt::ReactorInitializer for PingDispatcher {
         type Wrapped = Ping;
         type Params = PingParams;
-        const MAX_REACTION_ID: LocalReactionId = 2;
+        const MAX_REACTION_ID: LocalReactionId = LocalReactionId::new_const(2);
 
         fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Self {
             // children reactors
@@ -349,8 +349,8 @@ mod reactors {
             // assemble self
             let mut _self = Self::user_assemble(assembler.get_next_id(), args);
 
-            let react_0 = GlobalReactionId::new(_self.id(), 0);
-            let react_1 = GlobalReactionId::new(_self.id(), 1);
+            let react_0 = GlobalReactionId::new(_self.id(), LocalReactionId::new(0));
+            let react_1 = GlobalReactionId::new(_self.id(), LocalReactionId::new(1));
 
             {
                 _self._startup_reactions = vec![react_0,];
@@ -378,7 +378,7 @@ mod reactors {
             }
 
             fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalReactionId) {
-                match rid {
+                match rid.index() {
                     0 => self._impl.react_0(ctx, &self._params, &self.action_serve, &mut self.port_send),
                     1 => self._impl.react_1(ctx, &self._params, &self.port_receive, &self.action_serve),
 
@@ -469,7 +469,7 @@ mod reactors {
     impl ::reactor_rt::ReactorInitializer for SavinaPongDispatcher {
         type Wrapped = SavinaPong;
         type Params = SavinaPongParams;
-        const MAX_REACTION_ID: LocalReactionId = 0;
+        const MAX_REACTION_ID: LocalReactionId = LocalReactionId::new_const(0);
 
         fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Self {
             // children reactors
@@ -516,7 +516,7 @@ mod reactors {
             }
 
             fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalReactionId) {
-                match rid {
+                match rid.index() {
 
 
                     _ => panic!("Invalid reaction ID: {} should be < {}", rid, Self::MAX_REACTION_ID)

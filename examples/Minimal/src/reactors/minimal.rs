@@ -66,7 +66,7 @@ use ::reactor_rt::*; // after this point there's no user-written code
 impl ::reactor_rt::ReactorInitializer for MinimalDispatcher {
     type Wrapped = Minimal;
     type Params = MinimalParams;
-    const MAX_REACTION_ID: LocalReactionId = 1;
+    const MAX_REACTION_ID: LocalReactionId = LocalReactionId::new_const(1);
 
     fn assemble(args: Self::Params, assembler: &mut AssemblyCtx) -> Self {
         // children reactors   
@@ -75,7 +75,7 @@ impl ::reactor_rt::ReactorInitializer for MinimalDispatcher {
         // assemble self
         let mut _self = Self::user_assemble(assembler.get_next_id(), args);
 
-        let react_0 = GlobalReactionId::new(_self.id(), 0);
+        let react_0 = GlobalReactionId::new(_self.id(), 0.into());
 
         {
             _self._startup_reactions = vec![react_0,];
@@ -101,7 +101,7 @@ impl ::reactor_rt::ReactorBehavior for MinimalDispatcher {
     }
 
     fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalReactionId) {
-        match rid {
+        match rid.index() {
             0 => self._impl.react_0(ctx, &self._params),
 
             _ => panic!("Invalid reaction ID: {} should be < {}", rid, Self::MAX_REACTION_ID)

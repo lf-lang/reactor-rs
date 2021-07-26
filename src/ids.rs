@@ -23,30 +23,60 @@
  */
 
 
-use std::fmt::{Display, Formatter, Result};
+use std::fmt::{Display, Formatter, Result, Debug};
+use bit_set::BitSet;
+use std::iter::FromIterator;
 
-/// Type of a local reaction ID
-pub type LocalReactionId = u16;
+define_index_type! {
+    /// Type of a local reaction ID
+    pub struct LocalReactionId = u16;
+    DISABLE_MAX_INDEX_CHECK = cfg!(not(debug_assertions));
+    DISPLAY_FORMAT = "{}";
+}
+
+impl LocalReactionId {
+    // a const fn to be able to use this in const context
+    pub const fn new_const(u: u16) -> Self {
+        Self { _raw: u }
+    }
+}
+
+/// A set of reactions all belonging to the same reactor.
+/// The [ReactorId] is not stored within this struct.
+pub(in crate) struct LocalizedReactionSet {
+    set: BitSet,
+}
+
+impl LocalizedReactionSet {
+    pub fn is_empty(&self) -> bool {
+        self.set.is_empty()
+    }
+
+    pub fn insert(&mut self, id: LocalReactionId) -> bool {
+        self.set.insert(id.index())
+    }
+
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item=LocalReactionId> + 'a {
+        self.set.iter().map(Into::into)
+    }
+}
+
+impl FromIterator<LocalReactionId> for LocalizedReactionSet {
+    fn from_iter<T: IntoIterator<Item=LocalReactionId>>(iter: T) -> Self {
+        let mut result = Self { set: BitSet::with_capacity(32) };
+        for t in iter {
+            result.insert(t);
+        }
+        result
+    }
+}
+
 
 define_index_type! {
     pub struct ReactorId = u16;
-
-    // We can also disable checking all-together if we are more concerned with perf
-    // than any overflow problems, or even do so, but only for debug builds
     DISABLE_MAX_INDEX_CHECK = cfg!(not(debug_assertions));
-}
-
-impl Display for ReactorId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self._raw)
-    }
-}
-
-impl Default for ReactorId {
-    #[inline]
-    fn default() -> Self {
-        Self::new(0)
-    }
+    DISPLAY_FORMAT = "{}";
+    DEFAULT = Self::new(0);
 }
 
 /// Identifies a component of a reactor using the ID of its container

@@ -1,38 +1,23 @@
 
-use crate::{ReactorId, ReactionSet, LocalReactionId, LogicalInstant};
+use crate::{ReactorId, ReactionSet, LogicalInstant, LocalizedReactionSet};
 use itertools::Itertools;
 use std::cmp::Reverse;
-use bit_set::BitSet;
-use std::iter::FromIterator;
 
-pub struct LocalizedReactionSet {
-    set: BitSet,
-}
 
-impl LocalizedReactionSet {
 
-    pub fn insert(&mut self, id: LocalReactionId) -> bool {
-        self.set.insert(id as usize)
-    }
-
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item=LocalReactionId> + 'a {
-        self.set.iter().map(|u| u as LocalReactionId)
-    }
-}
-
-impl FromIterator<LocalReactionId> for LocalizedReactionSet {
-    fn from_iter<T: IntoIterator<Item=LocalReactionId>>(iter: T) -> Self {
-        let mut result = Self { set: BitSet::with_capacity(32) };
-        for t in iter {
-            result.insert(t);
-        }
-        result
-    }
-}
-
-pub struct TagExecutionPlan {
+/// A set of reactions to execute at a particular tag.
+pub(in crate) struct TagExecutionPlan {
+    /// Tag at which this must be executed.
     pub tag: LogicalInstant,
+
+    /// A sparse vector of [LocalizedReactionSet]. The
+    /// [ReactorId] is implicit as the index in the vector.
+    /// Reactors for which no reaction is scheduled are
+    /// [None] in this vector.
     vec: Vec<Option<LocalizedReactionSet>>,
+
+    /// Whether this set has reactions or not. This must be
+    /// manually maintained when inserting/removing reactions.
     is_empty: bool
 }
 
@@ -47,19 +32,20 @@ impl TagExecutionPlan {
         for (key, group) in &new_reactions.into_iter().group_by(|id| id.container) {
             match self.vec.get_mut(key.index()) {
                 None | Some(None) => {
+                    // need to insert None
                     if key.index() >= self.vec.len() {
                         self.vec.resize_with(key.index() + 1, || None);
                     }
 
                     let new_bs: LocalizedReactionSet = group.map(|it| it.local).collect();
-                    self.is_empty &= new_bs.set.is_empty();
+                    self.is_empty &= new_bs.is_empty();
                     self.vec[key.index()] = Some(new_bs);
                 }
                 Some(Some(set)) => {
                     group.for_each(|g| {
                         set.insert(g.local);
                     });
-                    self.is_empty &= set.set.is_empty();
+                    self.is_empty &= set.is_empty();
                 }
             }
         }
@@ -93,10 +79,11 @@ impl TagExecutionPlan {
     }
 }
 
-pub struct Batch(pub ReactorId, pub LocalizedReactionSet);
+pub(in crate) struct Batch(pub ReactorId, pub LocalizedReactionSet);
 
+/// A map of [LogicalInstant] to [TagExecutionPlan].
 #[derive(Default)]
-pub struct EventMap {
+pub(in crate) struct EventMap {
     /// This is a list sorted by the tag of each TagExecutionPlan.
     /// The earliest tag is at the end.
     /// TODO use linked list
