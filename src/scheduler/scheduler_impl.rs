@@ -133,10 +133,6 @@ impl SyncScheduler {
         scheduler.launch_event_loop()
     }
 
-    fn get_reactor(&self, id: ReactorId) -> &Box<dyn ErasedReactorDispatcher + 'static> {
-        self.reactors.get(id).unwrap()
-    }
-
     /// Creates a new scheduler. An empty scheduler doesn't
     /// do anything unless some events are pushed to the queue.
     /// See [Self::launch_async].
