@@ -25,11 +25,11 @@
 /// Home of the scheduler component.
 ///
 
-use std::cmp::Reverse;
+
 use std::ops::Deref;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
-use priority_queue::PriorityQueue;
+
 
 use crate::*;
 
@@ -70,7 +70,7 @@ pub struct SyncScheduler {
     /// A queue of events, which orders events according to their logical time.
     /// It needs to be reversed so that smallest delay == greatest priority.
     /// TODO work out your own data structure that merges events scheduled at the same time
-    queue: PriorityQueue<Event, Reverse<LogicalInstant>>,
+    queue: EventMap,
 
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
@@ -184,15 +184,14 @@ impl SyncScheduler {
             enqueue_fun(reactor.deref(), &mut ctx);
         }
         // now execute all reactions that were scheduled
-        // todo toposort reactions here
-        let todo = ctx.ctx.do_next.clone();
+        let todo = ctx.ctx.do_next;
 
         self.consume_wave(wave, todo)
     }
 
-    fn consume_wave(&mut self, wave: ReactionWave, todo: Vec<GlobalReactionId>) {
+    fn consume_wave(&mut self, wave: ReactionWave, plan: TagExecutionPlan) {
         let logical_time = wave.logical_time;
-        match wave.consume(self, todo) {
+        match wave.consume(self, plan) {
             WaveResult::Continue => {}
             WaveResult::StopRequested => {
                 let time = logical_time.next_microstep();
@@ -202,9 +201,8 @@ impl SyncScheduler {
         }
     }
 
-    pub(in super) fn exec_reaction(&mut self, ctx: &mut LogicalCtx, id: &GlobalReactionId) {
-        let reactor = self.reactors.get_mut(id.container).unwrap();
-        reactor.react_erased(ctx, id.local)
+    pub(in super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut Box<dyn ReactorBehavior> {
+        self.reactors.get_mut(id).unwrap()
     }
 }
 
@@ -214,7 +212,7 @@ macro_rules! push_event {
             let evt = $evt;
             let process_at = $time;
             trace!("Pushing {}", $_self.display_event(&evt, process_at));
-            $_self.queue.push(evt, Reverse(process_at));
+            $_self.queue.insert(process_at, evt.todo);
         }};
     }
 
@@ -246,15 +244,16 @@ impl SyncScheduler {
                 push_event!(self, evt, process_at);
             }
 
-            if let Some((evt, Reverse(process_at))) = self.queue.pop() {
-                if self.is_after_shutdown(process_at) {
-                    trace!("Event is late, shutting down {}", self.display_tag(process_at));
+            if let Some(plan) = self.queue.take_earliest() {
+                if self.is_after_shutdown(plan.tag) {
+                    trace!("Event is late, shutting down {}", self.display_tag(plan.tag));
                     break;
                 }
                 // execute the wave for this event.
-                trace!("Processing event for tag {}", self.display_tag(process_at));
-                self.step(evt, process_at);
-            } else if let Some(ScheduledEvent(evt, process_at)) = self.receive_event() { // this may block
+                trace!("Processing event for tag {}", self.display_tag(plan.tag));
+                self.step(plan);
+            } else if let Some(ScheduledEvent(evt, process_at)) = self.receive_event() {
+                // this may block
                 push_event!(self, evt, process_at);
                 continue;
             } else {
@@ -263,7 +262,6 @@ impl SyncScheduler {
             }
         } // end loop
 
-        self.queue.clear();
         info!("Scheduler is shutting down...");
         self.shutdown();
         info!("Scheduler has been shut down")
@@ -297,22 +295,15 @@ impl SyncScheduler {
         None
     }
 
-    /// Push a single event to the event queue
-    fn push_event(&mut self, evt: Event, process_at: LogicalInstant) {
-        trace!("Pushing {}", self.display_event(&evt, process_at));
-
-        self.queue.push(evt, Reverse(process_at));
-    }
-
     /// Execute a wave. This may make the calling thread
     /// (the scheduler one) sleep, if the expected processing
     /// time (logical) is ahead of current physical time.
-    fn step(&mut self, event: Event, process_at: LogicalInstant) {
-        let time = Self::catch_up_physical_time(process_at);
+    fn step(&mut self, plan: TagExecutionPlan) {
+        let time = Self::catch_up_physical_time(plan.tag);
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
 
         let wave = self.new_wave(time);
-        self.consume_wave(wave, event.todo)
+        self.consume_wave(wave, plan)
     }
 
     fn catch_up_physical_time(up_to_time: LogicalInstant) -> LogicalInstant {

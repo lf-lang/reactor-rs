@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::sync::mpsc::Sender;
 
 use crate::*;
-use super::{TimeCell, Event, ScheduledEvent};
+use super::*;
 
 /// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
@@ -21,7 +21,7 @@ pub struct LogicalCtx<'a> {
     /// This is mutable: if a reaction sets a port, then the
     /// downstream of that port is inserted in order into this
     /// queue.
-    pub(in super) do_next: Vec<GlobalReactionId>,
+    pub(in super) do_next: TagExecutionPlan,
 
     requested_stop: bool,
 }
@@ -102,8 +102,7 @@ impl LogicalCtx<'_> {
 
     #[inline]
     pub(in crate) fn enqueue_now(&mut self, downstream: &ReactionSet) {
-        // todo blindly appending possibly does not respect the topological sort
-        self.do_next.append(&mut downstream.clone());
+        self.do_next.accept(downstream.clone());
     }
 
     /// Request a shutdown which will be acted upon at the
@@ -209,8 +208,8 @@ impl ReactionWave {
     #[inline]
     pub fn new_ctx(&mut self) -> LogicalCtx {
         LogicalCtx {
+            do_next: TagExecutionPlan::new_empty(self.logical_time),
             wave: self,
-            do_next: Vec::new(),
             requested_stop: false,
         }
     }
@@ -221,29 +220,31 @@ impl ReactionWave {
     ///
     /// Returns whether some reaction called [LogicalCtx#request_stop]
     /// or not.
-    pub fn consume(mut self, scheduler: &mut SyncScheduler, mut todo: Vec<GlobalReactionId>) -> WaveResult {
-        let mut i = 0;
+    pub fn consume(mut self, scheduler: &mut SyncScheduler, mut todo: TagExecutionPlan) -> WaveResult {
         // We can share it, to reuse the allocation of the do_next buffer
-        let mut ctx = self.new_ctx();
         // reactions that have already been processed.
         // In some situations (diamonds) this is necessary.
         // Possibly with more static information we can avoid that.
         let mut done: HashSet<GlobalReactionId> = HashSet::new();
         let mut requested_stop = false;
 
-        while i < todo.len() {
-            if let Some(reaction) = todo.get(i) {
-                if done.insert(*reaction) {
-                    trace!("  - Executing {}", reaction);
-                    // this may append new elements into the queue,
-                    // which is why we can't use an iterator
-                    scheduler.exec_reaction(&mut ctx, reaction);
-                    // this clears the ctx.do_next buffer but retains its allocation
-                    todo.append(&mut ctx.do_next);
-                    requested_stop |= ctx.requested_stop;
+        while !todo.is_empty() {
+            let mut ctx = self.new_ctx();
+            for Batch(reactor_id, local_ids) in todo.iter() {
+                let reactor = scheduler.get_reactor_mut(reactor_id);
+                for reaction_id in local_ids.iter().cloned() {
+                    let global = GlobalReactionId::new(reactor_id, reaction_id);
+                    if done.insert(global) {
+                        trace!("  - Executing {}", global);
+                        // this may append new elements into the queue,
+                        // which is why we can't use an iterator
+                        reactor.react_erased(&mut ctx, reaction_id);
+                        requested_stop |= ctx.requested_stop;
+                    }
                 }
             }
-            i += 1;
+
+            todo = ctx.do_next;
         }
 
         if requested_stop {
