@@ -26,15 +26,12 @@
 use std::fmt::{Display, Formatter};
 
 
-use crate::Duration;
+
 
 /// A type whose instances have statically known names
 pub trait Named {
     fn name(&self) -> &'static str;
 }
-
-/// Duration::zero() is unstable
-pub const ZERO_DURATION: Duration = Duration::from_millis(0);
 
 pub(in crate) struct CommaList<'a, T: Display>(pub &'a Vec<T>);
 

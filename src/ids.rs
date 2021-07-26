@@ -73,6 +73,8 @@ impl FromIterator<LocalReactionId> for LocalizedReactionSet {
 
 
 define_index_type! {
+    /// The unique identifier of a reactor instance during
+    /// execution.
     pub struct ReactorId = u16;
     DISABLE_MAX_INDEX_CHECK = cfg!(not(debug_assertions));
     DISPLAY_FORMAT = "{}";

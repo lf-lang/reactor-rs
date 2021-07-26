@@ -260,3 +260,31 @@ pub(in super) enum WaveResult {
     Continue,
     StopRequested,
 }
+
+/// The offset from the current logical time after which an
+/// action is triggered.
+///
+/// This is to be used with [LogicalCtx.schedule].
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
+pub enum Offset {
+    /// Will be scheduled as soon as possible. This does not
+    /// mean that the action will trigger right away. The
+    /// action's inherent minimum delay must be taken into account,
+    /// and even with a zero minimal delay, a delay of one microstep
+    /// is applied.
+    Asap,
+
+    /// Will be scheduled at least after the provided duration.
+    After(Duration),
+}
+
+impl Offset {
+
+    #[inline]
+    pub(in crate) fn to_duration(&self) -> Duration {
+        match self {
+            Offset::Asap => Duration::from_millis(0),
+            Offset::After(d) => d.clone()
+        }
+    }
+}

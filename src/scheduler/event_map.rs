@@ -81,17 +81,22 @@ impl TagExecutionPlan {
 
 pub(in crate) struct Batch(pub ReactorId, pub LocalizedReactionSet);
 
-/// A map of [LogicalInstant] to [TagExecutionPlan].
+/// A queue of pending [TagExecutionPlan].
 #[derive(Default)]
-pub(in crate) struct EventMap {
+pub(in crate) struct EventQueue {
     /// This is a list sorted by the tag of each TagExecutionPlan.
     /// The earliest tag is at the end.
-    /// TODO use linked list
+    ///
+    /// TODO using linked list would be better for insertion
+    ///  performance, whatever.
+    /// TODO using a smallvec could be nice.
     value_list: Vec<TagExecutionPlan>,
 }
 
 
-impl EventMap {
+impl EventQueue {
+
+    /// Removes and returns the earliest tag
     pub fn take_earliest(&mut self) -> Option<TagExecutionPlan> {
         self.value_list.pop()
     }

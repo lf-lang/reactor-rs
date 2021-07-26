@@ -51,8 +51,7 @@ impl Default for SchedulerOptions {
     }
 }
 
-/// Main public API for the scheduler. Contains the priority queue
-/// and public launch routine with event loop.
+/// The runtime scheduler.
 pub struct SyncScheduler {
     /// The latest processed logical time (necessarily behind physical time)
     latest_logical_time: TimeCell,
@@ -62,15 +61,13 @@ pub struct SyncScheduler {
     /// polls this to make progress.
     ///
     /// The receiver is unique.
-    receiver: Receiver<ScheduledEvent>,
+    rx: Receiver<ScheduledEvent>,
 
     /// A sender bound to the receiver, which may be cloned.
-    canonical_sender: Sender<ScheduledEvent>,
+    tx: Sender<ScheduledEvent>,
 
-    /// A queue of events, which orders events according to their logical time.
-    /// It needs to be reversed so that smallest delay == greatest priority.
-    /// TODO work out your own data structure that merges events scheduled at the same time
-    queue: EventMap,
+    /// A queue of pending events.
+    event_queue: EventQueue,
 
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
@@ -87,11 +84,6 @@ pub struct SyncScheduler {
 }
 
 /// Helper struct to assemble reactors during initialization.
-///
-/// Params:
-/// - `RA` - the type of the reactor currently being assembled
-/// - `'x` - the lifetime of the execution
-///
 pub struct AssemblyCtx<'x> {
     scheduler: &'x mut SyncScheduler,
 }
@@ -137,13 +129,13 @@ impl SyncScheduler {
     /// Creates a new scheduler. An empty scheduler doesn't
     /// do anything unless some events are pushed to the queue.
     /// See [Self::launch_async].
-    pub fn new(options: SchedulerOptions) -> Self {
+    fn new(options: SchedulerOptions) -> Self {
         let (sender, receiver) = channel::<ScheduledEvent>();
         Self {
-            latest_logical_time: <_>::default(),
-            receiver,
-            canonical_sender: sender,
-            queue: <_>::default(),
+            latest_logical_time: Arc::new(Mutex::new(Cell::new(LogicalInstant::now()))),
+            rx: receiver,
+            tx: sender,
+            event_queue: <_>::default(),
             initial_time: None,
             shutdown_time: None,
             options,
@@ -212,7 +204,7 @@ macro_rules! push_event {
             let evt = $evt;
             let process_at = $time;
             trace!("Pushing {}", $_self.display_event(&evt, process_at));
-            $_self.queue.insert(process_at, evt.todo);
+            $_self.event_queue.insert(process_at, evt.todo);
         }};
     }
 
@@ -228,11 +220,11 @@ impl SyncScheduler {
         loop {
 
             // flush pending events, this doesn't block
-            for ScheduledEvent(evt, process_at) in self.receiver.try_iter() {
+            for ScheduledEvent(evt, process_at) in self.rx.try_iter() {
                 push_event!(self, evt, process_at);
             }
 
-            if let Some(plan) = self.queue.take_earliest() {
+            if let Some(plan) = self.event_queue.take_earliest() {
                 if self.is_after_shutdown(plan.tag) {
                     trace!("Event is late, shutting down - event tag: {}", self.display_tag(plan.tag));
                     break;
@@ -276,7 +268,7 @@ impl SyncScheduler {
 
                     trace!("Will wait for next event {} ns", timeout.as_nanos());
 
-                    return self.receiver.recv_timeout(timeout).ok();
+                    return self.rx.recv_timeout(timeout).ok();
                 }
             }
         }
@@ -312,7 +304,7 @@ impl SyncScheduler {
     /// reactions at some point in time.
     fn new_wave(&self, logical_time: LogicalInstant) -> ReactionWave {
         ReactionWave::new(
-            self.canonical_sender.clone(),
+            self.tx.clone(),
             logical_time,
             // note: initializing self.initial_time is the
             // first thing done during startup so the unwrap
@@ -331,7 +323,9 @@ impl SyncScheduler {
     }
 }
 
-/// The API of [SyncScheduler::startup].
+/// Allows directly enqueuing reactions for a future,
+/// unspecified logical time. This is only relevant
+/// during the initialization of reactors.
 pub struct StartupCtx<'a> {
     ctx: LogicalCtx<'a>,
 }

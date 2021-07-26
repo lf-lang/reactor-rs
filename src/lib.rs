@@ -79,9 +79,11 @@ pub trait ReactorInitializer: ReactorBehavior {
 }
 
 /// The trait used by the framework to interact with the reactor
-/// during runtime. Importantly, it's object-safe and has no
-/// type parameters or associated types. This allows us to
-/// wrap it into a `Box<dyn ReactorBehavior>`.
+/// during runtime.
+///
+/// Importantly, it's object-safe and has no type parameters
+/// or associated types. This allows us to wrap it into a
+/// `Box<dyn ReactorBehavior>`.
 pub trait ReactorBehavior {
     /// The unique ID of this reactor. This is given by the
     /// framework upon construction.
@@ -114,6 +116,6 @@ pub trait ReactorBehavior {
     fn enqueue_startup(&self, ctx: &mut StartupCtx);
 
     /// Enqueue the shutdown reactions of this reactor.
-    /// See [enqueue_startup].
+    /// See [Self::enqueue_startup].
     fn enqueue_shutdown(&self, ctx: &mut StartupCtx);
 }

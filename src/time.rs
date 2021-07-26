@@ -25,7 +25,68 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Add;
 
+
 use super::{Duration, PhysicalInstant};
+
+
+/// A point on the logical timeline.
+///
+/// Logical time is measured with the same units as physical
+/// time. A LogicalInstant hence contains a [PhysicalInstant].
+/// But importantly, logical time implements *superdense time*,
+/// which means an infinite sequence of logical instants may
+/// correspond to any physical instant. The label on this sequence
+/// is called the *microstep*.
+///
+/// The current logical time of the application may lag behind
+/// physical time. Timekeeping of the logical timeline is at
+/// the core of the scheduler, and within reactions, the current
+/// logical time may only be accessed through a [LogicalCtx].
+///
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
+pub struct LogicalInstant {
+    /// This is an instant in time. Physical time is measured
+    /// with the same unit.
+    pub instant: PhysicalInstant,
+    /// The microstep at this time.
+    pub microstep: MicroStep,
+}
+
+impl Display for LogicalInstant {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        <_ as Debug>::fmt(self, f)
+    }
+}
+
+impl LogicalInstant {
+    #[inline]
+    pub fn now() -> Self {
+        Self {
+            instant: PhysicalInstant::now(),
+            microstep: MicroStep::ZERO,
+        }
+    }
+
+    #[inline]
+    pub fn next_microstep(&self) -> Self {
+        Self {
+            instant: self.instant,
+            microstep: self.microstep + 1,
+        }
+    }
+}
+
+
+impl Add<Duration> for LogicalInstant {
+    type Output = Self;
+
+    fn add(self, rhs: Duration) -> Self::Output {
+        Self {
+            instant: self.instant + rhs,
+            microstep: MicroStep::ZERO,
+        }
+    }
+}
 
 /// Type of the microsteps of a [LogicalInstant]
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
@@ -49,79 +110,3 @@ impl Add<u64> for MicroStep {
     }
 }
 
-/// A logical instant the union of an [PhysicalInstant], ie a point
-/// in time, and a microstep. An [PhysicalInstant] can be sampled with
-/// [PhysicalInstant.now], which gives the current physical time. The
-/// current logical instant of the application may lag behind
-/// physical time. Timekeeping of the logical timeline is at
-/// the core of the scheduler, and the current logical time may
-/// only be accessed through a [LogicalCtx].
-///
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
-pub struct LogicalInstant {
-    /// This is an instant in time. Physical time is measured
-    /// with the same unit.
-    pub instant: PhysicalInstant,
-    /// The microstep at this time.
-    pub microstep: MicroStep,
-}
-
-impl Display for LogicalInstant {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        <_ as Debug>::fmt(self, f)
-    }
-}
-
-impl Default for LogicalInstant {
-    #[inline]
-    fn default() -> Self {
-        Self::now()
-    }
-}
-
-impl LogicalInstant {
-    #[inline]
-    pub fn now() -> Self {
-        Self {
-            instant: PhysicalInstant::now(),
-            microstep: MicroStep::ZERO,
-        }
-    }
-
-    pub fn next_microstep(&self) -> Self {
-        Self {
-            instant: self.instant,
-            microstep: self.microstep + 1,
-        }
-    }
-}
-
-
-impl Add<Duration> for LogicalInstant {
-    type Output = Self;
-
-    fn add(self, rhs: Duration) -> Self::Output {
-        Self {
-            instant: self.instant + rhs,
-            microstep: MicroStep::ZERO,
-        }
-    }
-}
-
-
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
-pub enum Offset {
-    Asap,
-    After(Duration),
-}
-
-impl Offset {
-
-    #[inline]
-    pub fn to_duration(&self) -> Duration {
-        match self {
-            Offset::Asap => super::ZERO_DURATION,
-            Offset::After(d) => d.clone()
-        }
-    }
-}
