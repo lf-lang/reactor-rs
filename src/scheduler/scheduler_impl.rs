@@ -218,21 +218,9 @@ macro_rules! push_event {
 
 impl SyncScheduler {
 
-    /// Launch the event loop in an auxiliary thread. Returns
-    /// the handle for that thread.
+    /// Launch the event loop in this thread.
     ///
-    /// Note that this will do nothing unless some other part
-    /// of the reactor program pushes events into the queue,
-    /// for instance,
-    /// - some thread is scheduling physical actions through a [SchedulerLink]
-    /// - some startup reaction has set a port or scheduled a logical action
-    /// Both of those should be taken care of by calling [Self::startup]
-    /// before launching the scheduler.
-    ///
-    /// The loop exits when the queue has been empty for a longer
-    /// time than the specified timeout. The timeout should be
-    /// chosen with care to the application requirements.
-    // TODO track whether there are live [SchedulerLink] to prevent idle spinning?
+    /// Note that this assumes [startup] has already been called.
     fn launch_event_loop(mut self) {
         /************************************************
          * This is the main event loop of the scheduler *
@@ -246,7 +234,7 @@ impl SyncScheduler {
 
             if let Some(plan) = self.queue.take_earliest() {
                 if self.is_after_shutdown(plan.tag) {
-                    trace!("Event is late, shutting down {}", self.display_tag(plan.tag));
+                    trace!("Event is late, shutting down - event tag: {}", self.display_tag(plan.tag));
                     break;
                 }
                 // execute the wave for this event.
