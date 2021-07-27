@@ -10,8 +10,8 @@ use super::*;
 /// are allowed.
 
 // Implementation details:
-// LogicalCtx is an API built around a ReactionWave. A single
-// LogicalCtx may be used for multiple ReactionWaves, but
+// ReactionCtx is an API built around a ReactionWave. A single
+// ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&mut).
 pub struct ReactionCtx<'a> {
     /// The reaction wave for the current tag.
@@ -282,7 +282,7 @@ impl ReactionWave {
     /// The parameter is the list of reactions to start with.
     /// Todo topological info to split into independent subgraphs
     ///
-    /// Returns whether some reaction called [LogicalCtx#request_stop]
+    /// Returns whether some reaction called [ReactionCtx#request_stop]
     /// or not.
     pub fn consume(mut self, scheduler: &mut SyncScheduler, mut todo: TagExecutionPlan) -> WaveResult {
         // We can share it, to reuse the allocation of the do_next buffer
@@ -328,7 +328,7 @@ pub(in super) enum WaveResult {
 /// The offset from the current logical time after which an
 /// action is triggered.
 ///
-/// This is to be used with [LogicalCtx.schedule].
+/// This is to be used with [ReactionCtx.schedule].
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Offset {
     /// Will be scheduled as soon as possible. This does not

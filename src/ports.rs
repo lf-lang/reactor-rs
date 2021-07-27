@@ -51,7 +51,7 @@ pub struct Output;
 /// (logically instantaneously). A port may have only one
 /// upstream binding.
 ///
-/// Output ports may also be explicitly [set](super::LogicalCtx::set)
+/// Output ports may also be explicitly [set](super::ReactionCtx::set)
 /// within a reaction, in which case they may not have an
 /// upstream port binding.
 ///
@@ -115,12 +115,12 @@ impl<T> InputPort<T> {
         Self::new_impl(Some(label))
     }
 
-    /// Copies the value out, see [super::LogicalCtx::get]
+    /// Copies the value out, see [super::ReactionCtx::get]
     pub(in crate) fn get(&self) -> Option<T> where T: Copy {
         self.cell.lock().unwrap().cell.borrow().clone()
     }
 
-    /// Copies the value out, see [super::LogicalCtx::use_ref]
+    /// Copies the value out, see [super::ReactionCtx::use_ref]
     #[inline]
     pub(in crate) fn use_ref<F, O>(&self, action: F) -> Option<O>
         where F: FnOnce(&T) -> O {
@@ -145,7 +145,7 @@ impl<T> OutputPort<T> {
         Self::new_impl(Some(label))
     }
 
-    /// Set the value, see [super::LogicalCtx::set]
+    /// Set the value, see [super::ReactionCtx::set]
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
     pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ReactionSet)) {

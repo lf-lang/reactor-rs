@@ -41,7 +41,7 @@ use super::{Duration, PhysicalInstant};
 /// The current logical time of the application may lag behind
 /// physical time. Timekeeping of the logical timeline is at
 /// the core of the scheduler, and within reactions, the current
-/// logical time may be accessed through a [crate::LogicalCtx].
+/// logical time may be accessed through a [crate::ReactionCtx].
 ///
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
 pub struct LogicalInstant {
