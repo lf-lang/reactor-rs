@@ -88,12 +88,18 @@ impl Add<Duration> for LogicalInstant {
     }
 }
 
+/// Private concrete type of a microstep.
+type MS = u32;
+
 /// Type of the microsteps of a [LogicalInstant]
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]
-pub struct MicroStep(u64);
+pub struct MicroStep(MS);
 
 impl MicroStep {
     pub const ZERO: MicroStep = MicroStep(0);
+    pub fn new(u: MS) -> Self {
+        Self(u)
+    }
 }
 
 impl Display for MicroStep {
@@ -102,10 +108,10 @@ impl Display for MicroStep {
     }
 }
 
-impl Add<u64> for MicroStep {
+impl Add<MS> for MicroStep {
     type Output = Self;
     #[inline]
-    fn add(self, rhs: u64) -> Self::Output {
+    fn add(self, rhs: MS) -> Self::Output {
         Self(self.0 + rhs)
     }
 }
