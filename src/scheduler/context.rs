@@ -3,6 +3,7 @@ use std::sync::mpsc::Sender;
 
 use crate::*;
 use super::*;
+use std::borrow::{Borrow, BorrowMut};
 
 /// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
@@ -34,8 +35,10 @@ impl ReactionCtx<'_> {
     /// The value is copied out. See also [Self::use_ref] if this
     /// is to be avoided.
     #[inline]
-    pub fn get<T: Copy>(&self, port: &ReadablePort<T>) -> Option<T> {
-        port.get()
+    pub fn get<'a, T, I>(&self, port: I) -> Option<T>
+        where T: Copy + 'a,
+              I: Borrow<ReadablePort<'a, T>> {
+        port.borrow().get()
     }
 
     /// Execute the provided closure on the value of the port,
@@ -43,8 +46,10 @@ impl ReactionCtx<'_> {
     ///
     /// The value is fetched by reference and not copied.
     #[inline]
-    pub fn use_ref<T, O>(&self, port: &ReadablePort<T>, action: impl FnOnce(&T) -> O) -> Option<O> {
-        port.use_ref(action)
+    pub fn use_ref<'a, T, I, O>(&self, port: I, action: impl FnOnce(&T) -> O) -> Option<O>
+        where I: Borrow<ReadablePort<'a, T>>,
+              T: 'a {
+        port.borrow().use_ref(action)
     }
 
     /// Sets the value of the given port.
@@ -54,11 +59,14 @@ impl ReactionCtx<'_> {
     /// schedule more reactions that should execute at the
     /// same logical time.
     #[inline]
-    pub fn set<T>(&mut self, port: &mut WritablePort<T>, value: T) {
+    pub fn set<'a, T, W>(&mut self, mut port: W, value: T)
+        where W: BorrowMut<WritablePort<'a, T>>,
+              T: 'a {
+
         // TODO topology information & deduplication
         //  Eg for a diamond situation this will execute reactions several times...
         //  This is why I added a set to patch it
-        port.set_impl(value, |downstream| self.enqueue_now(downstream));
+        port.borrow_mut().set_impl(value, |downstream| self.enqueue_now(downstream));
     }
 
     /// Get the value of an action at this logical time.
@@ -85,7 +93,7 @@ impl ReactionCtx<'_> {
     ///
     /// This is like [Self::schedule_with_v], where the value is [None].
     #[inline]
-    pub fn schedule<T: Clone>(&mut self, action: &LogicalAction<T>, offset: Offset) {
+    pub fn schedule<T: Clone>(&mut self, action: &mut LogicalAction<T>, offset: Offset) {
         self.schedule_with_v(action, None, offset)
     }
 
@@ -101,13 +109,13 @@ impl ReactionCtx<'_> {
     /// The action will trigger after its own implicit time delay,
     /// plus an optional additional time delay (see [Offset]).
     #[inline]
-    pub fn schedule_with_v<T: Clone>(&mut self, action: &LogicalAction<T>, value: Option<T>, offset: Offset) {
+    pub fn schedule_with_v<T: Clone>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
         self.schedule_impl(action, value, offset);
     }
 
     // private
     #[inline]
-    fn schedule_impl<K, T: Clone>(&mut self, action: &Action<K, T>, value: Option<T>, offset: Offset) {
+    fn schedule_impl<K, T: Clone>(&mut self, action: &mut Action<K, T>, value: Option<T>, offset: Offset) {
         let eta = action.make_eta(self.wave.logical_time, offset.to_duration());
         action.schedule_future_value(eta, value);
         self.enqueue_later(&action.downstream, eta);
@@ -213,7 +221,7 @@ impl SchedulerLink {
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
-    pub fn schedule_physical<T: Clone>(&mut self, action: &PhysicalAction<T>, value: Option<T>, offset: Offset) {
+    pub fn schedule_physical<T: Clone>(&mut self, action: &mut PhysicalAction<T>, value: Option<T>, offset: Offset) {
         // we have to fetch the time at which the logical timeline is currently running,
         // this may be far behind the current physical time
         let time_in_logical_subsystem = self.last_processed_logical_time.lock().unwrap().get();

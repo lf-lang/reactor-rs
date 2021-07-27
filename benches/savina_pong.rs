@@ -119,9 +119,9 @@ mod reactors {
                        #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                        #[allow(unused)] params: &PongParams,
                        receive: ::reactor_rt::ReadablePort<u32>,
-                       mut send: ::reactor_rt::WritablePort<u32>) {
+                       #[allow(unused_mut)] mut send: ::reactor_rt::WritablePort<u32>) {
                 self.count += 1;
-                ctx.set(&mut send, ctx.get(&receive).unwrap());
+                ctx.set(send, ctx.get(receive).unwrap());
             }
 
             // --- reaction(shutdown) {= ... =}
@@ -271,7 +271,7 @@ mod reactors {
                        #[allow(unused)] params: &PingParams,
                        #[allow(unused)] serve: &::reactor_rt::LogicalAction::<()>,
                        mut send: ::reactor_rt::WritablePort<u32>) {
-                ctx.set(&mut send, self.pingsLeft);
+                ctx.set(send, self.pingsLeft);
                 self.pingsLeft -= 1;
             }
 
@@ -280,7 +280,7 @@ mod reactors {
                        #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                        #[allow(unused)] params: &PingParams,
                        _receive: ::reactor_rt::ReadablePort<u32>,
-                       #[allow(unused)] serve: &::reactor_rt::LogicalAction::<()>) {
+                       #[allow(unused)] serve: &mut ::reactor_rt::LogicalAction::<()>) {
                 if self.pingsLeft > 0 {
                     ctx.schedule(serve, Asap);
                 } else {
@@ -325,7 +325,7 @@ mod reactors {
                     },
                     port_send: Port::labeled("send"),
                     port_receive: Port::labeled("receive"),
-                    action_serve: ::reactor_rt::LogicalAction::<()>::new("serve", None),
+                    action_serve: ::reactor_rt::LogicalAction::new("serve", None),
                 }
             }
         }
@@ -379,7 +379,7 @@ mod reactors {
             fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: LocalReactionId) {
                 match rid.index() {
                     0 => self._impl.react_0(ctx, &self._params, &self.action_serve, WritablePort::new(&mut self.port_send)),
-                    1 => self._impl.react_1(ctx, &self._params, ReadablePort::new(&self.port_receive), &self.action_serve),
+                    1 => self._impl.react_1(ctx, &self._params, ReadablePort::new(&self.port_receive), &mut self.action_serve),
 
                     _ => panic!("Invalid reaction ID: {} should be < {}", rid, Self::MAX_REACTION_ID)
                 }

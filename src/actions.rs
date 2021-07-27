@@ -22,15 +22,15 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::*;
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
-use super::{LogicalInstant, Named, ReactionSet};
 use crate::ActionPresence::NotPresent;
 use crate::MicroStep;
+
+use super::{LogicalInstant, Named, ReactionSet};
 
 #[doc(hidden)]
 pub struct Logical;
@@ -48,7 +48,7 @@ pub struct Action<Kind, T: Clone> {
     is_logical: bool,
     _logical: PhantomData<Kind>,
     // This is only used for an action scheduled with zero delay 
-    cell: RefCell<ValueMap<T>>,
+    values: ValueMap<T>
 }
 
 impl<K, T: Clone> Action<K, T> {
@@ -63,13 +63,13 @@ impl<K, T: Clone> Action<K, T> {
     ///
     ///
     #[inline]
-    pub(in crate) fn schedule_future_value(&self, time: LogicalInstant, value: Option<T>) {
-        self.cell.borrow_mut().schedule(time, value)
+    pub(in crate) fn schedule_future_value(&mut self, time: LogicalInstant, value: Option<T>) {
+        self.values.schedule(time, value)
     }
 
     #[inline]
     pub(in crate) fn get_value(&self, time: LogicalInstant) -> Option<T> {
-        match self.cell.borrow().get_value(time) {
+        match self.values.get_value(time) {
             ActionPresence::NotPresent => None,
             ActionPresence::Present(value) => value
         }
@@ -77,7 +77,7 @@ impl<K, T: Clone> Action<K, T> {
 
     #[inline]
     pub(in crate) fn is_present(&self, time: LogicalInstant) -> bool {
-        match self.cell.borrow().get_value(time) {
+        match self.values.get_value(time) {
             ActionPresence::NotPresent => false,
             ActionPresence::Present(_) => true
         }
@@ -85,8 +85,8 @@ impl<K, T: Clone> Action<K, T> {
 
     #[doc(hidden)]
     #[inline]
-    pub fn _forget_value(&self, time: LogicalInstant) {
-        self.cell.borrow_mut().forget(time)
+    pub fn forget_value(&mut self, time: LogicalInstant) {
+        self.values.forget(time)
     }
 
     /// Compute the logical time at which an action must be scheduled
@@ -118,7 +118,7 @@ impl<K, T: Clone> Action<K, T> {
             downstream: Default::default(),
             name,
             _logical: PhantomData,
-            cell: RefCell::default(),
+            values: Default::default(),
         }
     }
 }
