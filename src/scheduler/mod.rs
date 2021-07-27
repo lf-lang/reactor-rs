@@ -28,7 +28,7 @@ use std::sync::{Arc, Mutex};
 
 pub use scheduler_impl::*;
 pub use context::*;
-pub(in self) use event_map::*;
+pub(in self) use event_queue::*;
 
 use crate::{LogicalInstant, GlobalReactionId};
 
@@ -46,6 +46,6 @@ pub(in self) struct ScheduledEvent(Event, LogicalInstant);
 
 mod context;
 mod scheduler_impl;
-mod event_map;
+mod event_queue;
 
 
