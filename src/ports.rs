@@ -35,24 +35,23 @@ pub struct ReadablePort<'a, T> {
 }
 
 impl<'a, T> ReadablePort<'a, T> {
-    #[inline]
+    #[inline(always)]
    pub fn new(port: &'a Port<T>) -> Self {
         Self { port }
     }
 
     /// Copies the value out, see [super::ReactionCtx::get]
-    #[inline]
+    #[inline(always)]
     pub(in crate) fn get(&self) -> Option<T> where T: Copy {
         self.port.get()
     }
 
     /// Copies the value out, see [super::ReactionCtx::use_ref]
-    #[inline]
+    #[inline(always)]
     pub(in crate) fn use_ref<O>(&self, action: impl FnOnce(&T) -> O ) -> Option<O> {
         let lock = self.port.cell.lock().unwrap();
         let deref = lock.cell.borrow();
-        let opt: &Option<T> = &*deref;
-        opt.as_ref().map(action)
+        deref.as_ref().map(action)
     }
 }
 
