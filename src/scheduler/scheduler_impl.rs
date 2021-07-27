@@ -314,8 +314,7 @@ impl SyncScheduler {
     }
 
     fn display_tag(&self, tag: LogicalInstant) -> String {
-        let elapsed = tag.instant - self.initial_time.unwrap().instant;
-        format!("(T0 + {} ns = {} ms, {})", elapsed.as_nanos(), elapsed.as_millis(), tag.microstep)
+        display_tag_impl(self.initial_time.unwrap(), tag)
     }
 
     fn display_event(&self, evt: &Event, process_at: LogicalInstant) -> String {

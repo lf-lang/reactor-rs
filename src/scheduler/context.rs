@@ -114,6 +114,11 @@ impl LogicalCtx<'_> {
     }
 
     #[inline]
+    pub fn get_start_time(&self) -> LogicalInstant {
+        self.wave.initial_time
+    }
+
+    #[inline]
     pub fn get_physical_time(&self) -> PhysicalInstant {
         PhysicalInstant::now()
     }
@@ -131,6 +136,13 @@ impl LogicalCtx<'_> {
     #[inline]
     pub fn get_elapsed_physical_time(&self) -> Duration {
         self.get_physical_time() - self.wave.initial_time.instant
+    }
+
+    /// Returns a string representation of the given tag. It
+    /// is relative to the start time of the execution ([get_start_time]).
+    #[inline]
+    pub fn display_tag(&self, tag: LogicalInstant) -> String {
+        display_tag_impl(self.wave.initial_time, tag)
     }
 }
 

@@ -49,3 +49,10 @@ mod scheduler_impl;
 mod event_queue;
 
 
+#[inline]
+pub(in self) fn display_tag_impl(initial_time: LogicalInstant, tag: LogicalInstant) -> String {
+    let elapsed = tag.instant - initial_time.instant;
+    format!("(T0 + {} ns = {} ms, {})", elapsed.as_nanos(), elapsed.as_millis(), tag.microstep)
+}
+
+
