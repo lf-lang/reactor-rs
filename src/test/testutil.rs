@@ -34,7 +34,7 @@ pub fn set_port<T>(port: &mut Port<T>, v: T) {
 }
 
 fn make_deps(container: ReactorId, ids: Vec<u16>) -> ReactionSet {
-    ids.iter().map(|id| GlobalReactionId::new(container, LocalReactionId::from_raw_unchecked(*id))).collect()
+    ids.iter().map(|id| GlobalReactionId::new(container, LocalReactionId::from(*id as usize))).collect()
 }
 
 /// Set the given port's downstream dependencies as a set of

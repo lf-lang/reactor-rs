@@ -27,16 +27,20 @@ use std::fmt::{Display, Formatter, Result, Debug};
 use bit_set::BitSet;
 use std::iter::FromIterator;
 
+// private implementation types
+type ReactionIdImpl = u16;
+type ReactorIdImpl = u16;
+
 define_index_type! {
     /// Type of a local reaction ID
-    pub struct LocalReactionId = u16;
+    pub struct LocalReactionId = ReactionIdImpl;
     DISABLE_MAX_INDEX_CHECK = cfg!(not(debug_assertions));
     DISPLAY_FORMAT = "{}";
 }
 
 impl LocalReactionId {
     // a const fn to be able to use this in const context
-    pub const fn new_const(u: u16) -> Self {
+    pub const fn new_const(u: ReactionIdImpl) -> Self {
         Self { _raw: u }
     }
 }
@@ -75,7 +79,7 @@ impl FromIterator<LocalReactionId> for LocalizedReactionSet {
 define_index_type! {
     /// The unique identifier of a reactor instance during
     /// execution.
-    pub struct ReactorId = u16;
+    pub struct ReactorId = ReactorIdImpl;
     DISABLE_MAX_INDEX_CHECK = cfg!(not(debug_assertions));
     DISPLAY_FORMAT = "{}";
     DEFAULT = Self::new(0);
