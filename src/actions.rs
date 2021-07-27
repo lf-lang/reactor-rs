@@ -60,6 +60,8 @@ impl<K, T: Clone> Action<K, T> {
     /// Record a future value that can be queried at a future logical time.
     /// Note that we don't check that the given time is in the future. If it's
     /// in the past, the value will never be reclaimed.
+    ///
+    ///
     #[inline]
     pub(in crate) fn schedule_future_value(&self, time: LogicalInstant, value: Option<T>) {
         self.cell.borrow_mut().schedule(time, value)

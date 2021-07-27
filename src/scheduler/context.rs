@@ -27,36 +27,50 @@ pub struct LogicalCtx<'a> {
 }
 
 impl LogicalCtx<'_> {
-    /// Get the current value of a port at this time.
+    /// Get the current value of a port at this logical time.
+    ///
+    /// The value is copied out. See also [Self::use_ref] if this
+    /// is to be avoided.
     #[inline]
     pub fn get<T: Copy>(&self, port: &InputPort<T>) -> Option<T> {
         port.get()
     }
 
     /// Execute the provided closure on the value of the port,
-    /// if it is present. The value is fetched by reference and
-    /// not copied.
+    /// if it is present.
+    ///
+    /// The value is fetched by reference and not copied.
     #[inline]
     pub fn use_ref<T, F, O>(&self, port: &InputPort<T>, action: F) -> Option<O> where F: FnOnce(&T) -> O {
         port.use_ref(action)
     }
 
-    /// Get the value of an action at this time.
+    /// Get the value of an action at this logical time.
+    ///
+    /// The value is cloned out. The value may be absent,
+    /// in which case [Option::None] is returned. This is
+    /// the case if the action is not present ([Self::is_action_present]),
+    /// or if no value was scheduled (see [Self::schedule_with_v]).
     #[inline]
     pub fn get_action<T: Clone>(&self, action: &LogicalAction<T>) -> Option<T> {
         action.get_value(self.get_logical_time())
     }
 
+    /// Returns true if the given action was triggered at the
+    /// current logical time.
+    ///
+    /// If so, then it may, but must not, present a value ([Self::get_action]).
     #[inline]
     pub fn is_action_present<T: Clone>(&self, action: &LogicalAction<T>) -> bool {
         action.is_present(self.get_logical_time())
     }
 
-    /// Sets the value of the given output port. The change
-    /// is visible at the same logical time, ie the value
-    /// propagates immediately. This may hence schedule more
-    /// reactions that should execute on the same logical
-    /// step.
+    /// Sets the value of the given output port.
+    ///
+    /// The change is visible at the same logical time, ie
+    /// the value propagates immediately. This may hence
+    /// schedule more reactions that should execute at the
+    /// same logical time.
     #[inline]
     pub fn set<T>(&mut self, port: &mut OutputPort<T>, value: T) {
         // TODO topology information & deduplication
@@ -65,26 +79,28 @@ impl LogicalCtx<'_> {
         port.set_impl(value, |downstream| self.enqueue_now(downstream));
     }
 
-    /// Schedule an action to run after its own implicit time delay,
-    /// plus an optional additional time delay. These delays are in
-    /// logical time.
+    /// Schedule an action to trigger at some point in the future.
+    ///
+    /// This is like [Self::schedule_with_v], where the value is [None].
     #[inline]
     pub fn schedule<T: Clone>(&mut self, action: &LogicalAction<T>, offset: Offset) {
         self.schedule_with_v(action, None, offset)
     }
 
+    /// Schedule an action to trigger at some point in the future,
+    ///
+    /// The action will carry the given value at the time it
+    /// is triggered, unless it is overwritten by another call
+    /// to this method. The value can be cleared by using `None`
+    /// as a value. Note that even if the value is absent, the
+    /// *action* will still be present at the time it is triggered
+    /// (see [Self::is_action_present]).
+    ///
+    /// The action will trigger after its own implicit time delay,
+    /// plus an optional additional time delay (see [Offset]).
     #[inline]
     pub fn schedule_with_v<T: Clone>(&mut self, action: &LogicalAction<T>, value: Option<T>, offset: Offset) {
         self.schedule_impl(action, value, offset);
-    }
-
-    // todo hide this better
-    #[doc(hidden)]
-    #[inline]
-    pub fn maybe_reschedule(&mut self, timer: &Timer) {
-        if timer.is_periodic() {
-            self.enqueue_later(&timer.downstream, self.wave.logical_time + timer.period);
-        }
     }
 
     // private
@@ -94,6 +110,18 @@ impl LogicalCtx<'_> {
         action.schedule_future_value(eta, value);
         self.enqueue_later(&action.downstream, eta);
     }
+
+    // todo hide this better
+    /// Reschedule a timer if need be. This is used by synthetic
+    /// reactions that reschedule timers.
+    #[doc(hidden)]
+    #[inline]
+    pub fn maybe_reschedule(&mut self, timer: &Timer) {
+        if timer.is_periodic() {
+            self.enqueue_later(&timer.downstream, self.wave.logical_time + timer.period);
+        }
+    }
+
 
     #[inline]
     pub(in crate) fn enqueue_later(&mut self, downstream: &ReactionSet, process_at: LogicalInstant) {
@@ -113,33 +141,55 @@ impl LogicalCtx<'_> {
         self.requested_stop = true;
     }
 
+    /// Returns the start time of the execution of this program.
+    ///
+    /// This is a logical instant with microstep zero.
     #[inline]
     pub fn get_start_time(&self) -> LogicalInstant {
         self.wave.initial_time
     }
 
+    /// Returns the current physical time.
+    ///
+    /// Repeated invocation of this method may produce different
+    /// values, although [PhysicalInstant] is monotonic. The
+    /// physical time is necessarily greater than the logical time.
     #[inline]
     pub fn get_physical_time(&self) -> PhysicalInstant {
         PhysicalInstant::now()
     }
 
+    /// Returns the current logical time.
+    ///
+    /// Logical time is frozen during the execution of a reaction.
+    /// Repeated invocation of this method will always produce
+    /// the same value.
     #[inline]
     pub fn get_logical_time(&self) -> LogicalInstant {
         self.wave.logical_time
     }
 
+    /// Returns the amount of logical time elapsed since the
+    /// start of the program.
     #[inline]
     pub fn get_elapsed_logical_time(&self) -> Duration {
         self.get_logical_time().instant - self.wave.initial_time.instant
     }
 
+    /// Returns the amount of physical time elapsed since the
+    /// start of the program.
+    ///
+    /// Since this uses [Self::get_physical_time], be aware that
+    /// this function's result may change over time.
     #[inline]
     pub fn get_elapsed_physical_time(&self) -> Duration {
         self.get_physical_time() - self.wave.initial_time.instant
     }
 
-    /// Returns a string representation of the given tag. It
-    /// is relative to the start time of the execution ([get_start_time]).
+    /// Returns a string representation of the given time.
+    ///
+    /// The string is nicer than just using Debug, because
+    /// it is relative to the start time of the execution ([Self::get_start_time]).
     #[inline]
     pub fn display_tag(&self, tag: LogicalInstant) -> String {
         display_tag_impl(self.wave.initial_time, tag)
