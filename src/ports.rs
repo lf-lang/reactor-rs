@@ -29,19 +29,66 @@ use std::sync::{Arc, Mutex};
 
 use crate::ReactionSet;
 
-// clients may only use InputPort and OutputPort
-// but there's a single implementation.
+/// A read-only reference to a port.
+pub struct ReadablePort<'a, T> {
+    port: &'a Port<T>,
+}
 
-/// An input port. fixme input ports cannot be written to, which is necessary when writing to inner reactor.
-pub type InputPort<T> = Port<T, Input>;
-/// An output port.
-pub type OutputPort<T> = Port<T, Output>;
+impl<'a, T> ReadablePort<'a, T> {
+    fn new(port: &'a Port<T>) -> Self {
+        Self { port }
+    }
 
-#[doc(hidden)]
-pub struct Input;
+    /// Copies the value out, see [super::ReactionCtx::get]
+    pub(in crate) fn get(&self) -> Option<T> where T: Copy {
+        self.port.cell.lock().unwrap().cell.borrow().clone()
+    }
 
-#[doc(hidden)]
-pub struct Output;
+    /// Copies the value out, see [super::ReactionCtx::use_ref]
+    #[inline]
+    pub(in crate) fn use_ref<O>(&self, action: impl FnOnce(&T) -> O ) -> Option<O> {
+        let lock = self.port.cell.lock().unwrap();
+        let deref = lock.cell.borrow();
+        let opt: &Option<T> = &*deref;
+        match opt {
+            Some(ref t) => Some(action(t)),
+            None => None
+        }
+    }
+}
+
+/// A write-only reference to a port.
+pub struct WritablePort<'a, T> {
+    port: &'a mut Port<T>,
+}
+
+impl<'a, T> WritablePort<'a, T> {
+    fn new(port: &'a mut Port<T>) -> Self {
+        Self { port }
+    }
+
+    /// Set the value, see [super::ReactionCtx::set]
+    /// Note: we use a closure to process the dependencies to
+    /// avoid having to clone the dependency list just to return it.
+    pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ReactionSet)) {
+        assert_ne!(self.port.status, BindStatus::Bound, "Bound port cannot be bound");
+
+        let guard = self.port.cell.lock().unwrap();
+        *(*guard).cell.borrow_mut() = Some(v);
+
+        process_deps(&guard.downstream);
+    }
+
+    /// Only output ports can be explicitly set, so only them
+    /// produce events and hence need access to the set of their
+    /// dependencies. This is why we only test those.
+    #[cfg(test)]
+    pub(in crate) fn get_downstream_deps(&self) -> ReactionSet {
+        let class = self.port.cell.lock().unwrap();
+        class.downstream.clone()
+    }
+}
+
 
 /// Represents a port, which carries values of type `T`.
 /// Ports reify the data inputs and outputs of a reactor.
@@ -61,39 +108,34 @@ pub struct Output;
 /// runtime checks.
 ///
 ///
-pub struct Port<T, Kind> {
+struct Port<T> {
     cell: Arc<Mutex<PortCell<T>>>,
     debug_label: &'static str,
     status: BindStatus,
-    _marker: PhantomData<Kind>,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
-enum BindStatus {
-    /// A bindable port is also writable explicitly (with set)
-    Free,
-    /// Means that this port is the upstream of some bound port.
-    Upstream,
-    /// A bound port cannot be written to explicitly. For a
-    /// set of ports bound together, there is a single cell,
-    /// and a single writable port through which values are
-    /// communicated ([Self::Upstream]).
-    Bound,
-}
+impl<T> Port<T> {
+    /// Create a new port
+    pub fn new() -> Self {
+        Self::new_impl(None)
+    }
 
-impl<T, K> Port<T, K> {
+    /// Create a new port with the given label
+    pub fn labeled(label: &'static str) -> Self {
+        Self::new_impl(Some(label))
+    }
+
     // private
-    fn new_impl(name: Option<&'static str>) -> Port<T, K> {
+    fn new_impl(name: Option<&'static str>) -> Port<T> {
         Port {
             cell: Default::default(),
-            _marker: Default::default(),
             debug_label: name.unwrap_or("<missing label>"),
             status: BindStatus::Free,
         }
     }
 
     #[cfg(test)]
-    pub fn new_for_test(label: &'static str) -> Port<T, K> {
+    pub fn new_for_test(label: &'static str) -> Port<T> {
         Self::new_impl(Some(label))
     }
 
@@ -105,87 +147,11 @@ impl<T, K> Port<T, K> {
 }
 
 
-impl<T> InputPort<T> {
-    /// Create a new input port
-    pub fn new() -> Self {
-        Self::new_impl(None)
-    }
-
-    pub fn labeled(label: &'static str) -> Self {
-        Self::new_impl(Some(label))
-    }
-
-    /// Copies the value out, see [super::ReactionCtx::get]
-    pub(in crate) fn get(&self) -> Option<T> where T: Copy {
-        self.cell.lock().unwrap().cell.borrow().clone()
-    }
-
-    /// Copies the value out, see [super::ReactionCtx::use_ref]
-    #[inline]
-    pub(in crate) fn use_ref<F, O>(&self, action: F) -> Option<O>
-        where F: FnOnce(&T) -> O {
-        let lock = self.cell.lock().unwrap();
-        let deref = lock.cell.borrow();
-        let opt: &Option<T> = &*deref;
-        match opt {
-            Some(ref t) => Some(action(t)),
-            None => None
-        }
-    }
-}
-
-impl<T> OutputPort<T> {
-    /// Create a new input port
-    pub fn new() -> Self {
-        Self::new_impl(None)
-    }
-
-    /// Create a new port with the given label
-    pub fn labeled(label: &'static str) -> Self {
-        Self::new_impl(Some(label))
-    }
-
-    /// Set the value, see [super::ReactionCtx::set]
-    /// Note: we use a closure to process the dependencies to
-    /// avoid having to clone the dependency list just to return it.
-    pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ReactionSet)) {
-        assert_ne!(self.status, BindStatus::Bound, "Bound port cannot be bound");
-
-        let guard = self.cell.lock().unwrap();
-        *(*guard).cell.borrow_mut() = Some(v);
-
-        process_deps(&guard.downstream);
-    }
-
-    /// Only output ports can be explicitly set, so only them
-    /// produce events and hence need access to the set of their
-    /// dependencies. This is why we only test those.
-    #[cfg(test)]
-    pub(crate) fn get_downstream_deps(&self) -> ReactionSet {
-        let class = self.cell.lock().unwrap();
-        class.downstream.clone()
-    }
-}
-
-impl<T, K> Debug for Port<T, K> {
+impl<T> Debug for Port<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.debug_label.fmt(f)
     }
 }
-
-impl<T> Default for InputPort<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-
-impl<T> Default for OutputPort<T> {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 
 
 
@@ -224,7 +190,7 @@ impl<T> Default for OutputPort<T> {
 ///
 /// If the downstream port was already bound to some other port.
 ///
-pub fn bind_ports<T, U, D>(up: &mut Port<T, U>, mut down: &mut Port<T, D>) {
+fn bind_ports<T>(up: &mut Port<T>, mut down: &mut Port<T>) {
     assert_ne!(down.status, BindStatus::Bound, "Downstream port cannot be bound a second time");
     // in a topo order the downstream is always free
     assert_ne!(down.status, BindStatus::Upstream, "Ports are being bound in a non topological order");
@@ -241,6 +207,19 @@ pub fn bind_ports<T, U, D>(up: &mut Port<T, U>, mut down: &mut Port<T, D>) {
     down.cell = up.cell.clone();
     down.status = BindStatus::Bound;
     up.status = BindStatus::Upstream;
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+enum BindStatus {
+    /// A bindable port is also writable explicitly (with set)
+    Free,
+    /// Means that this port is the upstream of some bound port.
+    Upstream,
+    /// A bound port cannot be written to explicitly. For a
+    /// set of ports bound together, there is a single cell,
+    /// and a single writable port through which values are
+    /// communicated ([Self::Upstream]).
+    Bound,
 }
 
 

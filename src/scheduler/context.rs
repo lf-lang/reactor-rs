@@ -34,7 +34,7 @@ impl ReactionCtx<'_> {
     /// The value is copied out. See also [Self::use_ref] if this
     /// is to be avoided.
     #[inline]
-    pub fn get<T: Copy>(&self, port: &InputPort<T>) -> Option<T> {
+    pub fn get<T: Copy>(&self, port: &ReadablePort<T>) -> Option<T> {
         port.get()
     }
 
@@ -43,8 +43,22 @@ impl ReactionCtx<'_> {
     ///
     /// The value is fetched by reference and not copied.
     #[inline]
-    pub fn use_ref<T, F, O>(&self, port: &InputPort<T>, action: F) -> Option<O> where F: FnOnce(&T) -> O {
+    pub fn use_ref<T, O>(&self, port: &ReadablePort<T>, action: impl FnOnce(&T) -> O) -> Option<O> {
         port.use_ref(action)
+    }
+
+    /// Sets the value of the given port.
+    ///
+    /// The change is visible at the same logical time, ie
+    /// the value propagates immediately. This may hence
+    /// schedule more reactions that should execute at the
+    /// same logical time.
+    #[inline]
+    pub fn set<T>(&mut self, port: &mut WritablePort<T>, value: T) {
+        // TODO topology information & deduplication
+        //  Eg for a diamond situation this will execute reactions several times...
+        //  This is why I added a set to patch it
+        port.set_impl(value, |downstream| self.enqueue_now(downstream));
     }
 
     /// Get the value of an action at this logical time.
@@ -65,20 +79,6 @@ impl ReactionCtx<'_> {
     #[inline]
     pub fn is_action_present<T: Clone>(&self, action: &LogicalAction<T>) -> bool {
         action.is_present(self.get_logical_time())
-    }
-
-    /// Sets the value of the given output port.
-    ///
-    /// The change is visible at the same logical time, ie
-    /// the value propagates immediately. This may hence
-    /// schedule more reactions that should execute at the
-    /// same logical time.
-    #[inline]
-    pub fn set<T>(&mut self, port: &mut OutputPort<T>, value: T) {
-        // TODO topology information & deduplication
-        //  Eg for a diamond situation this will execute reactions several times...
-        //  This is why I added a set to patch it
-        port.set_impl(value, |downstream| self.enqueue_now(downstream));
     }
 
     /// Schedule an action to trigger at some point in the future.
