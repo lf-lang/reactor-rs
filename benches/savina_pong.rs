@@ -118,10 +118,10 @@ mod reactors {
             fn react_0(&mut self,
                        #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                        #[allow(unused)] params: &PongParams,
-                       receive: & ::reactor_rt::InputPort<u32>,
-                       send: &mut ::reactor_rt::OutputPort<u32>) {
+                       receive: ::reactor_rt::ReadablePort<u32>,
+                       mut send: ::reactor_rt::WritablePort<u32>) {
                 self.count += 1;
-                ctx.set(send, ctx.get(receive).unwrap());
+                ctx.set(&mut send, ctx.get(&receive).unwrap());
             }
 
             // --- reaction(shutdown) {= ... =}
@@ -152,8 +152,8 @@ mod reactors {
             _params: PongParams,
             _startup_reactions: ::reactor_rt::ReactionSet,
             _shutdown_reactions: ::reactor_rt::ReactionSet,
-            pub port_send: ::reactor_rt::OutputPort<u32>,
-            pub port_receive: ::reactor_rt::InputPort<u32>,
+            pub port_send: ::reactor_rt::Port<u32>,
+            pub port_receive: ::reactor_rt::Port<u32>,
         }
 
         impl PongDispatcher {
@@ -168,8 +168,8 @@ mod reactors {
                     _impl: Pong {
                         count: 0,
                     },
-                    port_send: Default::default(),
-                    port_receive: Default::default(),
+                    port_send: Port::labeled("send"),
+                    port_receive: Port::labeled("receive"),
                 }
             }
         }
@@ -221,7 +221,7 @@ mod reactors {
 
             fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: LocalReactionId) {
                 match rid.index() {
-                    0 => self._impl.react_0(ctx, &self._params, &self.port_receive, &mut self.port_send),
+                    0 => self._impl.react_0(ctx, &self._params, ReadablePort::new(&self.port_receive), WritablePort::new(&mut self.port_send)),
                     1 => self._impl.react_1(ctx, &self._params),
 
                     _ => panic!("Invalid reaction ID: {} should be < {}", rid, Self::MAX_REACTION_ID)
@@ -265,14 +265,13 @@ mod reactors {
 
         #[warn(unused)]
         impl Ping {
-
             // --- reaction(startup, serve) -> send {= ... =}
             fn react_0(&mut self,
                        #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                        #[allow(unused)] params: &PingParams,
-                       #[allow(unused)] serve: & ::reactor_rt::LogicalAction::<()>,
-                       send: &mut ::reactor_rt::OutputPort<u32>) {
-                ctx.set(send, self.pingsLeft);
+                       #[allow(unused)] serve: &::reactor_rt::LogicalAction::<()>,
+                       mut send: ::reactor_rt::WritablePort<u32>) {
+                ctx.set(&mut send, self.pingsLeft);
                 self.pingsLeft -= 1;
             }
 
@@ -280,8 +279,8 @@ mod reactors {
             fn react_1(&mut self,
                        #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                        #[allow(unused)] params: &PingParams,
-                       _receive: & ::reactor_rt::InputPort<u32>,
-                       #[allow(unused)] serve: & ::reactor_rt::LogicalAction::<()>) {
+                       _receive: ::reactor_rt::ReadablePort<u32>,
+                       #[allow(unused)] serve: &::reactor_rt::LogicalAction::<()>) {
                 if self.pingsLeft > 0 {
                     ctx.schedule(serve, Asap);
                 } else {
@@ -307,8 +306,8 @@ mod reactors {
             _params: PingParams,
             _startup_reactions: ::reactor_rt::ReactionSet,
             _shutdown_reactions: ::reactor_rt::ReactionSet,
-            pub port_send: ::reactor_rt::OutputPort<u32>,
-            pub port_receive: ::reactor_rt::InputPort<u32>,
+            pub port_send: ::reactor_rt::Port<u32>,
+            pub port_receive: ::reactor_rt::Port<u32>,
             action_serve: ::reactor_rt::LogicalAction::<()>,
         }
 
@@ -324,8 +323,8 @@ mod reactors {
                     _impl: Ping {
                         pingsLeft: count,
                     },
-                    port_send: Default::default(),
-                    port_receive: Default::default(),
+                    port_send: Port::labeled("send"),
+                    port_receive: Port::labeled("receive"),
                     action_serve: ::reactor_rt::LogicalAction::<()>::new("serve", None),
                 }
             }
@@ -379,8 +378,8 @@ mod reactors {
 
             fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: LocalReactionId) {
                 match rid.index() {
-                    0 => self._impl.react_0(ctx, &self._params, &self.action_serve, &mut self.port_send),
-                    1 => self._impl.react_1(ctx, &self._params, &self.port_receive, &self.action_serve),
+                    0 => self._impl.react_0(ctx, &self._params, &self.action_serve, WritablePort::new(&mut self.port_send)),
+                    1 => self._impl.react_1(ctx, &self._params, ReadablePort::new(&self.port_receive), &self.action_serve),
 
                     _ => panic!("Invalid reaction ID: {} should be < {}", rid, Self::MAX_REACTION_ID)
                 }

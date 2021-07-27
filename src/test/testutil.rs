@@ -27,10 +27,9 @@
 
 
 use crate::*;
-use crate::Output;
 
 /// Set a port to a value
-pub fn set_port<T>(port: &mut OutputPort<T>, v: T) {
+pub fn set_port<T>(port: &mut Port<T>, v: T) {
     port.set_impl(v, |_| {})
 }
 
@@ -41,14 +40,14 @@ fn make_deps(container: ReactorId, ids: Vec<u16>) -> ReactionSet {
 /// Set the given port's downstream dependencies as a set of
 /// fake reactions whose ids are exactly the given `local_ids`,
 /// taken to represent reactions of the given reactor.
-pub fn set_fake_downstream<T, K>(container: ReactorId, ids: Vec<u16>, port: &mut Port<T, K>) {
+pub fn set_fake_downstream<T>(container: ReactorId, ids: Vec<u16>, port: &mut Port<T>) {
     port.set_downstream(make_deps(container, ids))
 }
 
 /// Assert that the given port's recorded downstream dependencies
 /// have exactly the ids contained in the given `local_ids`,
 /// taken to represent reactions of the given reactor.
-pub fn assert_deps_eq<T>(container: ReactorId, local_ids: Vec<u16>, port: &Port<T, Output>) {
+pub fn assert_deps_eq<T>(container: ReactorId, local_ids: Vec<u16>, port: &Port<T>) {
     let expected = make_deps(container, local_ids);
     let actual = port.get_downstream_deps();
 

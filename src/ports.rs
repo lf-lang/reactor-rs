@@ -24,24 +24,26 @@
 
 use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
-use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
 use crate::ReactionSet;
 
 /// A read-only reference to a port.
+#[repr(transparent)]
 pub struct ReadablePort<'a, T> {
     port: &'a Port<T>,
 }
 
 impl<'a, T> ReadablePort<'a, T> {
-    fn new(port: &'a Port<T>) -> Self {
+    #[inline]
+   pub fn new(port: &'a Port<T>) -> Self {
         Self { port }
     }
 
     /// Copies the value out, see [super::ReactionCtx::get]
+    #[inline]
     pub(in crate) fn get(&self) -> Option<T> where T: Copy {
-        self.port.cell.lock().unwrap().cell.borrow().clone()
+        self.port.get()
     }
 
     /// Copies the value out, see [super::ReactionCtx::use_ref]
@@ -50,10 +52,7 @@ impl<'a, T> ReadablePort<'a, T> {
         let lock = self.port.cell.lock().unwrap();
         let deref = lock.cell.borrow();
         let opt: &Option<T> = &*deref;
-        match opt {
-            Some(ref t) => Some(action(t)),
-            None => None
-        }
+        opt.as_ref().map(action)
     }
 }
 
@@ -63,7 +62,7 @@ pub struct WritablePort<'a, T> {
 }
 
 impl<'a, T> WritablePort<'a, T> {
-    fn new(port: &'a mut Port<T>) -> Self {
+   pub fn new(port: &'a mut Port<T>) -> Self {
         Self { port }
     }
 
@@ -71,22 +70,9 @@ impl<'a, T> WritablePort<'a, T> {
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
     pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ReactionSet)) {
-        assert_ne!(self.port.status, BindStatus::Bound, "Bound port cannot be bound");
-
-        let guard = self.port.cell.lock().unwrap();
-        *(*guard).cell.borrow_mut() = Some(v);
-
-        process_deps(&guard.downstream);
+        self.port.set_impl(v, process_deps)
     }
 
-    /// Only output ports can be explicitly set, so only them
-    /// produce events and hence need access to the set of their
-    /// dependencies. This is why we only test those.
-    #[cfg(test)]
-    pub(in crate) fn get_downstream_deps(&self) -> ReactionSet {
-        let class = self.port.cell.lock().unwrap();
-        class.downstream.clone()
-    }
 }
 
 
@@ -108,7 +94,7 @@ impl<'a, T> WritablePort<'a, T> {
 /// runtime checks.
 ///
 ///
-struct Port<T> {
+pub struct Port<T> {
     cell: Arc<Mutex<PortCell<T>>>,
     debug_label: &'static str,
     status: BindStatus,
@@ -139,10 +125,32 @@ impl<T> Port<T> {
         Self::new_impl(Some(label))
     }
 
+    pub(in crate) fn get(&self) -> Option<T> where T: Copy {
+        self.cell.lock().unwrap().cell.borrow().clone()
+    }
+
+    /// Set the value, see [super::ReactionCtx::set]
+    /// Note: we use a closure to process the dependencies to
+    /// avoid having to clone the dependency list just to return it.
+    pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ReactionSet)) {
+        assert_ne!(self.status, BindStatus::Bound, "Bound port cannot be bound");
+
+        let guard = self.cell.lock().unwrap();
+        *(*guard).cell.borrow_mut() = Some(v);
+
+        process_deps(&guard.downstream);
+    }
+
     /// Only for glue code during assembly.
     pub fn set_downstream(&mut self, r: ReactionSet) {
         let mut class = self.cell.lock().unwrap();
         class.downstream = r;
+    }
+
+    #[cfg(test)]
+    pub(in crate) fn get_downstream_deps(&self) -> ReactionSet {
+        let class = self.cell.lock().unwrap();
+        class.downstream.clone()
     }
 }
 
@@ -190,7 +198,7 @@ impl<T> Debug for Port<T> {
 ///
 /// If the downstream port was already bound to some other port.
 ///
-fn bind_ports<T>(up: &mut Port<T>, mut down: &mut Port<T>) {
+pub fn bind_ports<T>(up: &mut Port<T>, mut down: &mut Port<T>) {
     assert_ne!(down.status, BindStatus::Bound, "Downstream port cannot be bound a second time");
     // in a topo order the downstream is always free
     assert_ne!(down.status, BindStatus::Upstream, "Ports are being bound in a non topological order");
