@@ -218,6 +218,11 @@ impl SyncScheduler {
          * This is the main event loop of the scheduler *
          ************************************************/
         loop {
+            // flush pending events, this doesn't block
+            for ScheduledEvent(evt, process_at) in self.rx.try_iter() {
+                push_event!(self, evt, process_at);
+            }
+
             if let Some(plan) = self.event_queue.take_earliest() {
                 if self.is_after_shutdown(plan.tag) {
                     trace!("Event is late, shutting down - event tag: {}", self.display_tag(plan.tag));
@@ -227,10 +232,6 @@ impl SyncScheduler {
                 trace!("Processing event for tag {}", self.display_tag(plan.tag));
                 self.step(plan);
 
-                // flush pending events, this doesn't block
-                for ScheduledEvent(evt, process_at) in self.rx.try_iter() {
-                    push_event!(self, evt, process_at);
-                }
             } else if let Some(ScheduledEvent(evt, process_at)) = self.receive_event() { // this may block
                 push_event!(self, evt, process_at);
                 continue;
