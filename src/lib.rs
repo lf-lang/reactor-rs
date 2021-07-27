@@ -99,12 +99,12 @@ pub trait ReactorBehavior {
     /// It must always be the case that `local_rid < Self::MAX_REACTION_ID`,
     /// where `Self::MAX_REACTION_ID` is defined by the other trait,
     /// because of object safety.
-    fn react_erased(&mut self, ctx: &mut LogicalCtx, local_rid: LocalReactionId);
+    fn react_erased(&mut self, ctx: &mut ReactionCtx, local_rid: LocalReactionId);
 
     /// Acknowledge that the given tag is done executing and
     /// free resources if need be.
     /// TODO this is not implemented
-    fn cleanup_tag(&mut self, ctx: LogicalCtx);
+    fn cleanup_tag(&mut self, ctx: ReactionCtx);
 
     /// Enqueue the startup reactions of this reactor into
     /// the parameter. Timers are also started at this point,

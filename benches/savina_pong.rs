@@ -116,7 +116,7 @@ mod reactors {
 
             // --- reaction(receive) -> send {= ... =}
             fn react_0(&mut self,
-                       #[allow(unused)] ctx: &mut ::reactor_rt::LogicalCtx,
+                       #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                        #[allow(unused)] params: &PongParams,
                        receive: & ::reactor_rt::InputPort<u32>,
                        send: &mut ::reactor_rt::OutputPort<u32>) {
@@ -126,7 +126,7 @@ mod reactors {
 
             // --- reaction(shutdown) {= ... =}
             fn react_1(&mut self,
-                       #[allow(unused)] ctx: &mut ::reactor_rt::LogicalCtx,
+                       #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                        #[allow(unused)] params: &PongParams,
             ) {
                 if self.count != params.expected {
@@ -219,7 +219,7 @@ mod reactors {
                 self._id
             }
 
-            fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalReactionId) {
+            fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: LocalReactionId) {
                 match rid.index() {
                     0 => self._impl.react_0(ctx, &self._params, &self.port_receive, &mut self.port_send),
                     1 => self._impl.react_1(ctx, &self._params),
@@ -228,7 +228,7 @@ mod reactors {
                 }
             }
 
-            fn cleanup_tag(&mut self, ctx: ::reactor_rt::LogicalCtx) {
+            fn cleanup_tag(&mut self, ctx: ::reactor_rt::ReactionCtx) {
                 // todo
             }
 
@@ -268,7 +268,7 @@ mod reactors {
 
             // --- reaction(startup, serve) -> send {= ... =}
             fn react_0(&mut self,
-                       #[allow(unused)] ctx: &mut ::reactor_rt::LogicalCtx,
+                       #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                        #[allow(unused)] params: &PingParams,
                        #[allow(unused)] serve: & ::reactor_rt::LogicalAction::<()>,
                        send: &mut ::reactor_rt::OutputPort<u32>) {
@@ -278,7 +278,7 @@ mod reactors {
 
             // --- reaction (receive) -> serve {= ... =}
             fn react_1(&mut self,
-                       #[allow(unused)] ctx: &mut ::reactor_rt::LogicalCtx,
+                       #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                        #[allow(unused)] params: &PingParams,
                        _receive: & ::reactor_rt::InputPort<u32>,
                        #[allow(unused)] serve: & ::reactor_rt::LogicalAction::<()>) {
@@ -377,7 +377,7 @@ mod reactors {
                 self._id
             }
 
-            fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalReactionId) {
+            fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: LocalReactionId) {
                 match rid.index() {
                     0 => self._impl.react_0(ctx, &self._params, &self.action_serve, &mut self.port_send),
                     1 => self._impl.react_1(ctx, &self._params, &self.port_receive, &self.action_serve),
@@ -386,7 +386,7 @@ mod reactors {
                 }
             }
 
-            fn cleanup_tag(&mut self, ctx: ::reactor_rt::LogicalCtx) {
+            fn cleanup_tag(&mut self, ctx: ::reactor_rt::ReactionCtx) {
                 // todo
             }
 
@@ -515,7 +515,7 @@ mod reactors {
                 self._id
             }
 
-            fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalReactionId) {
+            fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: LocalReactionId) {
                 match rid.index() {
 
 
@@ -523,7 +523,7 @@ mod reactors {
                 }
             }
 
-            fn cleanup_tag(&mut self, ctx: ::reactor_rt::LogicalCtx) {
+            fn cleanup_tag(&mut self, ctx: ::reactor_rt::ReactionCtx) {
                 // todo
             }
 

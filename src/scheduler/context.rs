@@ -8,12 +8,13 @@ use super::*;
 /// allows mutating the event queue of the scheduler.
 /// Only the interactions declared at assembly time
 /// are allowed.
-///
-/// LogicalCtx is an API built around a ReactionWave. A single
-/// LogicalCtx may be used for multiple ReactionWaves, but
-/// obviously at disjoint times (&mut).
-///
-pub struct LogicalCtx<'a> {
+
+// Implementation details:
+// LogicalCtx is an API built around a ReactionWave. A single
+// LogicalCtx may be used for multiple ReactionWaves, but
+// obviously at disjoint times (&mut).
+pub struct ReactionCtx<'a> {
+    /// The reaction wave for the current tag.
     wave: &'a mut ReactionWave,
 
     /// Remaining reactions to execute before the wave dies.
@@ -23,10 +24,11 @@ pub struct LogicalCtx<'a> {
     /// queue.
     pub(in super) do_next: TagExecutionPlan,
 
+    /// Whether some reaction has called [Self::request_stop].
     requested_stop: bool,
 }
 
-impl LogicalCtx<'_> {
+impl ReactionCtx<'_> {
     /// Get the current value of a port at this logical time.
     ///
     /// The value is copied out. See also [Self::use_ref] if this
@@ -268,8 +270,8 @@ impl ReactionWave {
     }
 
     #[inline]
-    pub fn new_ctx(&mut self) -> LogicalCtx {
-        LogicalCtx {
+    pub fn new_ctx(&mut self) -> ReactionCtx {
+        ReactionCtx {
             do_next: TagExecutionPlan::new_empty(self.logical_time),
             wave: self,
             requested_stop: false,

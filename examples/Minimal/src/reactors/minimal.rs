@@ -16,8 +16,8 @@ pub struct Minimal {
 impl Minimal {
 
     // --- reaction(startup) {= ... =}
-    fn react_0(&mut self, 
-               #[allow(unused)] ctx: &mut ::reactor_rt::LogicalCtx,
+    fn react_0(&mut self,
+               #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                #[allow(unused)] params: &MinimalParams,
     ) {
         println!("Hello World.");
@@ -100,7 +100,7 @@ impl ::reactor_rt::ReactorBehavior for MinimalDispatcher {
         self._id
     }
 
-    fn react_erased(&mut self, ctx: &mut ::reactor_rt::LogicalCtx, rid: LocalReactionId) {
+    fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: LocalReactionId) {
         match rid.index() {
             0 => self._impl.react_0(ctx, &self._params),
 
@@ -108,7 +108,7 @@ impl ::reactor_rt::ReactorBehavior for MinimalDispatcher {
         }
     }
 
-    fn cleanup_tag(&mut self, ctx: ::reactor_rt::LogicalCtx) {
+    fn cleanup_tag(&mut self, ctx: ::reactor_rt::ReactionCtx) {
         // todo
     }
     

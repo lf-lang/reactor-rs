@@ -325,7 +325,7 @@ impl SyncScheduler {
 /// unspecified logical time. This is only relevant
 /// during the initialization of reactors.
 pub struct StartupCtx<'a> {
-    ctx: LogicalCtx<'a>,
+    ctx: ReactionCtx<'a>,
 }
 
 impl<'a> StartupCtx<'a> {
