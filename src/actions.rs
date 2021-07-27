@@ -30,6 +30,7 @@ use std::time::{Duration, Instant};
 
 use super::{LogicalInstant, Named, ReactionSet};
 use crate::ActionPresence::NotPresent;
+use crate::MicroStep;
 
 #[doc(hidden)]
 pub struct Logical;
@@ -97,9 +98,11 @@ impl<K, T: Clone> Action<K, T> {
             instant = Instant::max(instant, Instant::now());
         }
 
+        let microstep = if instant == now.instant { now.microstep + 1 } else { MicroStep::ZERO };
+
         LogicalInstant {
             instant,
-            microstep: now.microstep + 1,
+            microstep,
         }
     }
 

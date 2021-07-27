@@ -218,12 +218,6 @@ impl SyncScheduler {
          * This is the main event loop of the scheduler *
          ************************************************/
         loop {
-
-            // flush pending events, this doesn't block
-            for ScheduledEvent(evt, process_at) in self.rx.try_iter() {
-                push_event!(self, evt, process_at);
-            }
-
             if let Some(plan) = self.event_queue.take_earliest() {
                 if self.is_after_shutdown(plan.tag) {
                     trace!("Event is late, shutting down - event tag: {}", self.display_tag(plan.tag));
@@ -232,8 +226,12 @@ impl SyncScheduler {
                 // execute the wave for this event.
                 trace!("Processing event for tag {}", self.display_tag(plan.tag));
                 self.step(plan);
-            } else if let Some(ScheduledEvent(evt, process_at)) = self.receive_event() {
-                // this may block
+
+                // flush pending events, this doesn't block
+                for ScheduledEvent(evt, process_at) in self.rx.try_iter() {
+                    push_event!(self, evt, process_at);
+                }
+            } else if let Some(ScheduledEvent(evt, process_at)) = self.receive_event() { // this may block
                 push_event!(self, evt, process_at);
                 continue;
             } else {
@@ -260,7 +258,8 @@ impl SyncScheduler {
 
     fn receive_event(&mut self) -> Option<ScheduledEvent> {
         let now = PhysicalInstant::now();
-        if self.options.keep_alive {
+        //fixme keepalive doesn't work as in C
+        // if self.options.keep_alive {
             if let Some(shutdown_t) = self.shutdown_time {
                 if now < shutdown_t.instant {
                     // we don't have to shutdown yet, so we can wait
@@ -270,7 +269,7 @@ impl SyncScheduler {
 
                     return self.rx.recv_timeout(timeout).ok();
                 }
-            }
+            // }
         }
         None
     }
@@ -283,7 +282,7 @@ impl SyncScheduler {
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
 
         let wave = self.new_wave(time);
-        self.consume_wave(wave, plan)
+        self.consume_wave(wave, plan);
     }
 
     fn catch_up_physical_time(up_to_time: LogicalInstant) -> LogicalInstant {
@@ -296,8 +295,7 @@ impl SyncScheduler {
         // note this doesn't use `now` because we use
         // scheduled time identity to associate values
         // with actions
-        //                        vvvvvvvvvv
-        LogicalInstant { instant: up_to_time.instant, microstep: MicroStep::ZERO }
+        up_to_time
     }
 
     /// Create a new reaction wave to process the given
