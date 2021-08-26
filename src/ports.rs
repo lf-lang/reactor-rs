@@ -176,12 +176,12 @@ impl<T> Debug for Port<T> {
 /// ```
 ///
 /// # fn main() {
-/// # use reactor_rt::{OutputPort, InputPort, bind_ports};
-/// # let mut a_out = OutputPort::<i32>::new();
-/// # let mut b_out = OutputPort::<i32>::new();
-/// # let mut b_in = InputPort::<i32>::new();
-/// # let mut c_in = InputPort::<i32>::new();
-/// # let mut d_in = InputPort::<i32>::new();
+/// # use reactor_rt::{Port, bind_ports};
+/// # let mut a_out = Port::<i32>::new();
+/// # let mut b_out = Port::<i32>::new();
+/// # let mut b_in = Port::<i32>::new();
+/// # let mut c_in = Port::<i32>::new();
+/// # let mut d_in = Port::<i32>::new();
 /// bind_ports(&mut a_out, &mut b_in);
 /// bind_ports(&mut b_in, &mut b_out);
 /// bind_ports(&mut b_out, &mut d_in);
