@@ -108,8 +108,8 @@ impl ::reactor_rt::ReactorBehavior for MinimalDispatcher {
         }
     }
 
-    fn cleanup_tag(&mut self, ctx: ::reactor_rt::ReactionCtx) {
-        // todo
+    fn cleanup_tag(&mut self, ctx: &::reactor_rt::CleanupCtx) {
+
     }
     
     fn enqueue_startup(&self, ctx: &mut StartupCtx) {

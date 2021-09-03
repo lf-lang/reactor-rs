@@ -30,7 +30,8 @@ pub struct ReactionCtx<'a> {
 }
 
 impl ReactionCtx<'_> {
-    /// Get the current value of a port at this logical time.
+    /// Returns the current value of a port at this logical time.
+    /// If the value is absent, [Option::None] is returned.
     ///
     /// The value is copied out. See also [Self::use_ref] if this
     /// is to be avoided.
@@ -41,7 +42,7 @@ impl ReactionCtx<'_> {
         port.borrow().get()
     }
 
-    /// Execute the provided closure on the value of the port,
+    /// Executes the provided closure on the value of the port,
     /// if it is present.
     ///
     /// The value is fetched by reference and not copied.
@@ -351,12 +352,28 @@ pub enum Offset {
 }
 
 impl Offset {
-
     #[inline]
     pub(in crate) fn to_duration(&self) -> Duration {
         match self {
             Offset::Asap => Duration::from_millis(0),
             Offset::After(d) => d.clone()
         }
+    }
+}
+
+
+/// Cleans up a tag
+// #[doc(hidden)]
+pub struct CleanupCtx {
+    /// Tag we're cleaning up
+    pub tag: LogicalInstant,
+}
+
+impl CleanupCtx {
+    pub fn cleanup_port<T>(&self, port: &mut Port<T>) {
+        port.clear_value()
+    }
+    pub fn cleanup_action<T: Clone>(&self, action: &mut LogicalAction<T>) {
+        action.forget_value(self.tag)
     }
 }

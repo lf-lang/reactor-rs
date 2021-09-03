@@ -228,8 +228,9 @@ mod reactors {
                 }
             }
 
-            fn cleanup_tag(&mut self, ctx: ::reactor_rt::ReactionCtx) {
-                // todo
+            fn cleanup_tag(&mut self, ctx: &CleanupCtx) {
+                ctx.cleanup_port(&mut self.port_send);
+                ctx.cleanup_port(&mut self.port_receive);
             }
 
             fn enqueue_startup(&self, ctx: &mut StartupCtx) {
@@ -385,8 +386,10 @@ mod reactors {
                 }
             }
 
-            fn cleanup_tag(&mut self, ctx: ::reactor_rt::ReactionCtx) {
-                // todo
+            fn cleanup_tag(&mut self, ctx: &CleanupCtx) {
+               ctx.cleanup_port(&mut self.port_receive);
+               ctx.cleanup_port(&mut self.port_send);
+               ctx.cleanup_action(&mut self.action_serve);
             }
 
             fn enqueue_startup(&self, ctx: &mut StartupCtx) {
@@ -522,8 +525,8 @@ mod reactors {
                 }
             }
 
-            fn cleanup_tag(&mut self, ctx: ::reactor_rt::ReactionCtx) {
-                // todo
+            fn cleanup_tag(&mut self, ctx: &CleanupCtx) {
+
             }
 
             fn enqueue_startup(&self, ctx: &mut StartupCtx) {

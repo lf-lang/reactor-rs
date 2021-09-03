@@ -103,8 +103,7 @@ pub trait ReactorBehavior {
 
     /// Acknowledge that the given tag is done executing and
     /// free resources if need be.
-    /// TODO this is not implemented
-    fn cleanup_tag(&mut self, ctx: ReactionCtx);
+    fn cleanup_tag(&mut self, ctx: &CleanupCtx);
 
     /// Enqueue the startup reactions of this reactor into
     /// the parameter. Timers are also started at this point,

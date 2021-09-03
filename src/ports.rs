@@ -124,6 +124,7 @@ impl<T> Port<T> {
         Self::new_impl(Some(label))
     }
 
+    #[inline]
     pub(in crate) fn get(&self) -> Option<T> where T: Copy {
         self.cell.lock().unwrap().cell.borrow().clone()
     }
@@ -131,6 +132,7 @@ impl<T> Port<T> {
     /// Set the value, see [super::ReactionCtx::set]
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
+    #[inline]
     pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ReactionSet)) {
         assert_ne!(self.status, BindStatus::Bound, "Bound port cannot be bound");
 
@@ -138,6 +140,16 @@ impl<T> Port<T> {
         *(*guard).cell.borrow_mut() = Some(v);
 
         process_deps(&guard.downstream);
+    }
+
+    /// Called at the end of a tag.
+    #[inline]
+    pub(in crate) fn clear_value(&mut self) {
+        // If this port is bound, then some other port has
+        // a reference to the same cell but is not bound.
+        if self.status != BindStatus::Bound {
+            *self.cell.lock().unwrap().cell.borrow_mut() = None;
+        }
     }
 
     /// Only for glue code during assembly.

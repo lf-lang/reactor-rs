@@ -35,6 +35,7 @@ use crate::*;
 
 use super::*;
 use index_vec::IndexVec;
+use crate::CleanupCtx;
 
 
 pub struct SchedulerOptions {
@@ -184,7 +185,12 @@ impl SyncScheduler {
     fn consume_wave(&mut self, wave: ReactionWave, plan: TagExecutionPlan) {
         let logical_time = wave.logical_time;
         match wave.consume(self, plan) {
-            WaveResult::Continue => {}
+            WaveResult::Continue => {
+                let ctx = CleanupCtx { tag: logical_time };
+                for reactor in &mut self.reactors {
+                    reactor.cleanup_tag(&ctx)
+                }
+            }
             WaveResult::StopRequested => {
                 let time = logical_time.next_microstep();
                 info!("Shutdown requested and scheduled at {}", self.display_tag(time));
