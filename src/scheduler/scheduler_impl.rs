@@ -185,19 +185,20 @@ impl SyncScheduler {
     fn consume_wave(&mut self, wave: ReactionWave, plan: TagExecutionPlan) {
         let logical_time = wave.logical_time;
         match wave.consume(self, plan) {
-            WaveResult::Continue => {
-                let ctx = CleanupCtx { tag: logical_time };
-                // cleanup temporary resources, eg clear port values
-                // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
-                for reactor in &mut self.reactors {
-                    reactor.cleanup_tag(&ctx)
-                }
-            }
+            WaveResult::Continue => {}
             WaveResult::StopRequested => {
                 let time = logical_time.next_microstep();
                 info!("Shutdown requested and scheduled at {}", self.display_tag(time));
                 self.shutdown_time = Some(time)
             }
+        }
+
+        // cleanup tag-specific resources, eg clear port values
+
+        let ctx = CleanupCtx { tag: logical_time };
+        // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
+        for reactor in &mut self.reactors {
+            reactor.cleanup_tag(&ctx)
         }
     }
 
