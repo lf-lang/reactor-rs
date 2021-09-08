@@ -187,6 +187,8 @@ impl SyncScheduler {
         match wave.consume(self, plan) {
             WaveResult::Continue => {
                 let ctx = CleanupCtx { tag: logical_time };
+                // cleanup temporary resources, eg clear port values
+                // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
                 for reactor in &mut self.reactors {
                     reactor.cleanup_tag(&ctx)
                 }
