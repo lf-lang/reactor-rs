@@ -89,7 +89,7 @@ impl Add<Duration> for LogicalInstant {
 }
 
 /// Private concrete type of a microstep.
-type MS = u32;
+pub(in crate) type MS = u32;
 
 /// Type of the microsteps of a [LogicalInstant]
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]

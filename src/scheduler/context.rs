@@ -181,7 +181,8 @@ impl ReactionCtx<'_> {
     }
 
     /// Returns the amount of logical time elapsed since the
-    /// start of the program.
+    /// start of the program. This does not take microsteps
+    /// into account.
     #[inline]
     pub fn get_elapsed_logical_time(&self) -> Duration {
         self.get_logical_time().instant - self.wave.initial_time.instant
@@ -204,6 +205,22 @@ impl ReactionCtx<'_> {
     #[inline]
     pub fn display_tag(&self, tag: LogicalInstant) -> String {
         display_tag_impl(self.wave.initial_time, tag)
+    }
+
+    /// Asserts that the current tag is equals to the tag
+    /// `(T0 + duration_since_t0, microstep)`. Panics if
+    /// that is not the case.
+    pub fn assert_tag_eq(&self,
+                         duration_since_t0: Duration,
+                         microstep: crate::time::MS) {
+        let expected_tag = LogicalInstant {
+            instant: self.get_start_time().instant + duration_since_t0,
+            microstep: MicroStep::new(microstep),
+        };
+
+        if expected_tag != self.get_logical_time() {
+            panic!("Expected tag to be {}, but found {}", self.display_tag(expected_tag), self.display_tag(self.get_logical_time()))
+        }
     }
 }
 
