@@ -174,7 +174,7 @@ impl<T> Debug for Port<T> {
 
 
 
-/// Make the downstream port accept values from the upstream port
+/// Make the downstream port accept values from the upstream port.
 /// For this to work this function must be called in topological
 /// order between bound ports
 /// Eg
@@ -211,15 +211,13 @@ impl<T> Debug for Port<T> {
 ///
 pub fn bind_ports<T>(up: &mut Port<T>, mut down: &mut Port<T>) {
     assert_ne!(down.status, BindStatus::Bound, "Downstream port cannot be bound a second time");
-    // in a topo order the downstream is always free
-    assert_ne!(down.status, BindStatus::Upstream, "Ports are being bound in a non topological order");
 
     {
         let mut upclass = up.cell.lock().unwrap();
-        let mut downclass = down.cell.lock().unwrap();
+        let downclass = down.cell.lock().unwrap();
 
         // todo we need to make sure that this merge preserves the toposort, eg removes duplicates
-        (&mut upclass.downstream).append(&mut downclass.downstream);
+        (&mut upclass.downstream).extend(&downclass.downstream);
     }
 
     // this is the reason we need a topo ordering, see also tests
