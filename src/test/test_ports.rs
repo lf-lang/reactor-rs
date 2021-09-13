@@ -25,16 +25,20 @@
 use crate::*;
 use super::testutil::*;
 
+fn new_port() -> Port<i32> {
+    Port::<i32>::new()
+}
+
 #[test]
 fn a_port_is_initially_empty() {
-    let port = Port::<i32>::new();
+    let port = new_port();
     assert_eq!(None, port.get()); // default value?
 }
 
 #[test]
 fn binding_two_ports_should_let_values_be_read() {
-    let mut upstream = Port::<i32>::new();
-    let mut downstream = Port::<i32>::new();
+    let mut upstream = new_port();
+    let mut downstream = new_port();
 
     assert_eq!(None, downstream.get());
 
@@ -49,9 +53,9 @@ fn binding_two_ports_should_let_values_be_read() {
 
 #[test]
 fn a_port_can_be_upstream_of_several_ports() {
-    let mut upstream = Port::<i32>::new();
-    let mut d1 = Port::<i32>::new();
-    let mut d2 = Port::<i32>::new();
+    let mut upstream = new_port();
+    let mut d1 = new_port();
+    let mut d2 = new_port();
 
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
@@ -75,9 +79,9 @@ fn a_port_can_be_upstream_of_several_ports() {
 
 #[test]
 fn transitive_binding_should_let_values_flow() {
-    let mut upstream = Port::<i32>::new();
-    let mut d1 = Port::<i32>::new();
-    let mut d2 = Port::<i32>::new();
+    let mut upstream = new_port();
+    let mut d1 = new_port();
+    let mut d2 = new_port();
 
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
@@ -103,11 +107,11 @@ fn transitive_binding_should_let_values_flow() {
 
 #[test]
 fn transitive_binding_in_topo_order_is_ok() {
-    let mut upstream = Port::<i32>::new();
-    let mut d1 = Port::<i32>::new();
-    let mut d2 = Port::<i32>::new();
-    let mut b1 = Port::<i32>::new();
-    let mut b2 = Port::<i32>::new();
+    let mut upstream = new_port();
+    let mut d1 = new_port();
+    let mut d2 = new_port();
+    let mut b1 = new_port();
+    let mut b2 = new_port();
 
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
@@ -147,9 +151,9 @@ fn transitive_binding_in_topo_order_is_ok() {
 #[test]
 #[should_panic]
 fn transitive_binding_in_non_topo_order_panics() {
-    let mut a = Port::<i32>::new();
-    let mut b = Port::<i32>::new();
-    let mut c = Port::<i32>::new();
+    let mut a = new_port();
+    let mut b = new_port();
+    let mut c = new_port();
 
     bind_ports(&mut b, &mut c);
     bind_ports(&mut a, &mut b);

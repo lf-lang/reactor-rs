@@ -26,7 +26,7 @@ use std::cell::RefCell;
 use std::fmt::{Debug, Formatter};
 use std::sync::{Arc, Mutex};
 
-use crate::ReactionSet;
+use crate::{ReactionSet, GlobalId, GloballyIdentified};
 
 /// A read-only reference to a port.
 #[repr(transparent)]
@@ -120,7 +120,7 @@ impl<T> Port<T> {
     }
 
     #[cfg(test)]
-    pub fn new_for_test(label: &'static str) -> Port<T> {
+    pub fn new_for_test(label: &'static str) -> Self {
         Self::new_impl(Some(label))
     }
 
@@ -172,6 +172,11 @@ impl<T> Debug for Port<T> {
     }
 }
 
+impl<T> GloballyIdentified for Port<T> {
+    fn get_id(&self) -> GlobalId {
+        todo!("unimplemented")
+    }
+}
 
 
 /// Make the downstream port accept values from the upstream port.

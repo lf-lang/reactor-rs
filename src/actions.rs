@@ -28,7 +28,7 @@ use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
 use crate::ActionPresence::NotPresent;
-use crate::MicroStep;
+use crate::{MicroStep, GloballyIdentified, GlobalId};
 
 use super::{LogicalInstant, Named, ReactionSet};
 
@@ -144,6 +144,12 @@ impl<K, T: Clone> Named for Action<K, T> {
 impl<K, T: Clone> Display for Action<K, T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         <_ as Display>::fmt(&self.name(), f)
+    }
+}
+
+impl<K, T: Clone> GloballyIdentified for Action<K, T> {
+    fn get_id(&self) -> GlobalId {
+        todo!("unimplemented")
     }
 }
 

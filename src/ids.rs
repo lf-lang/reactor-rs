@@ -30,6 +30,7 @@ use std::iter::FromIterator;
 // private implementation types
 type ReactionIdImpl = u16;
 type ReactorIdImpl = u16;
+pub(in crate) type GlobalIdImpl = u32;
 
 define_index_type! {
     /// Type of a local reaction ID
@@ -85,6 +86,7 @@ define_index_type! {
     DEFAULT = Self::new(0);
 }
 
+// fixme this is a dup of GlobalId
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
@@ -109,3 +111,36 @@ impl Display for GlobalReactionId {
 /// todo ensure it is toposorted
 pub type ReactionSet = Vec<GlobalReactionId>;
 
+
+/// Identifies a component of a reactor using the ID of its container
+/// and a local component ID.
+#[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
+pub struct GlobalId {
+    pub(in crate) container: ReactorId,
+    pub(in crate) local: LocalReactionId,
+}
+
+
+impl GlobalId {
+    pub fn new(container: ReactorId, local: LocalReactionId) -> Self {
+        Self { container, local }
+    }
+
+    pub(in crate) fn as_u32(&self) -> GlobalIdImpl {
+        unsafe {
+            std::mem::transmute_copy(&self)
+        }
+        //(self.container._raw as u32) << 16 | self.local._raw
+    }
+}
+
+impl Display for GlobalId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{}/{}", self.container, self.local)
+    }
+}
+
+
+pub(in crate) trait GloballyIdentified {
+    fn get_id(&self) -> GlobalId;
+}
