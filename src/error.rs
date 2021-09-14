@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, Debug};
 
 use crate::PortId;
 
@@ -10,13 +10,18 @@ pub enum AssemblyError {
     CannotBind(PortId, PortId),
     CannotSet(PortId),
 }
-
-impl Display for AssemblyError {
+impl Debug for AssemblyError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             AssemblyError::CyclicDependency(upstream, downstream) => write!(f, "Port {} is already in the downstream of port {}", upstream, downstream),
             AssemblyError::CannotBind(upstream, downstream) => write!(f, "Cannot bind {} to {}, downstream is already bound", upstream, downstream),
             AssemblyError::CannotSet(port) => write!(f, "Cannot set {} explicitly as it is bound", port),
         }
+    }
+}
+
+impl Display for AssemblyError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
     }
 }

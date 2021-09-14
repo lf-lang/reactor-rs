@@ -51,6 +51,9 @@ pub use std::time::Duration;
 
 #[macro_use]
 extern crate log;
+#[cfg(test)]
+#[macro_use]
+extern crate assert_matches;
 
 #[macro_use]
 extern crate index_vec;

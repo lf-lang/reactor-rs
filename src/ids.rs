@@ -96,7 +96,7 @@ impl ReactorId {
 // fixme this is a dup of GlobalId
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
-#[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
+#[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Copy, Clone)]
 pub struct GlobalReactionId {
     pub(in crate) container: ReactorId,
     pub(in crate) local: LocalReactionId,
@@ -109,9 +109,15 @@ impl GlobalReactionId {
     }
 }
 
-impl Display for GlobalReactionId {
+impl Debug for GlobalReactionId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "{}/{}", self.container, self.local)
+    }
+}
+
+impl Display for GlobalReactionId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        Debug::fmt(self, f)
     }
 }
 

@@ -25,9 +25,8 @@
 
 
 use petgraph::graph::{DiGraph, NodeIndex};
-use crate::{GlobalId, Port, GloballyIdentified, Action, LogicalAction, PhysicalAction, GlobalReactionId, GlobalIdImpl};
 
-
+use crate::{GlobalId, GlobalIdImpl, GloballyIdentified, LogicalAction, PhysicalAction, Port};
 
 enum GraphNode {
     Port { id: GlobalId },

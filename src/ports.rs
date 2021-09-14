@@ -22,15 +22,15 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::cell::RefCell;
+use std::borrow::Borrow;
+use std::cell::{Ref, RefCell, RefMut};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use crate::{GlobalId, GloballyIdentified, ReactionSet, AssemblyError, PortId};
-use std::borrow::Borrow;
-use std::ops::DerefMut;
+use crate::{AssemblyError, GlobalId, GloballyIdentified, PortId, ReactionSet};
 
 /// A read-only reference to a port.
 #[repr(transparent)]
@@ -53,9 +53,7 @@ impl<'a, T> ReadablePort<'a, T> {
     /// Copies the value out, see [super::ReactionCtx::use_ref]
     #[inline(always)]
     pub(in crate) fn use_ref<O>(&self, action: impl FnOnce(&T) -> O ) -> Option<O> {
-        let lock = self.port.cell.lock().unwrap();
-        let deref = lock.cell.borrow();
-        deref.as_ref().map(action)
+        self.port.use_ref(|opt| opt.as_ref().map(action))
     }
 }
 
@@ -73,7 +71,7 @@ impl<'a, T> WritablePort<'a, T> {
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
     pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ReactionSet)) {
-        self.port.set_impl(v, process_deps)
+        self.port.set_impl(Some(v), process_deps)
     }
 
 }
@@ -98,7 +96,6 @@ impl<'a, T> WritablePort<'a, T> {
 ///
 ///
 pub struct Port<T> {
-    cell: Arc<Mutex<PortCell<T>>>,
     debug_label: &'static str,
     id: GlobalId,
     upstream_binding: Rc<RefCell<Binding<T>>>,
@@ -119,7 +116,6 @@ impl<T> Port<T> {
     fn new_impl(id: GlobalId, name: Option<&'static str>) -> Port<T> {
         Port {
             id,
-            cell: Default::default(),
             debug_label: name.unwrap_or("<missing label>"),
             upstream_binding: Rc::new(RefCell::new(Binding(BindStatus::Free, Default::default()))),
         }
@@ -127,7 +123,19 @@ impl<T> Port<T> {
 
     #[inline]
     pub(in crate) fn get(&self) -> Option<T> where T: Copy {
-        self.cell.lock().unwrap().cell.borrow().clone()
+        self.use_ref(Option::<T>::clone)
+    }
+
+    #[inline]
+    pub(in crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
+        let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
+        let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
+        let binding: &Binding<T> = cell_ref.deref();
+        let Binding(_, class) = binding;
+        let class_cell: &PortCell<T> = Rc::borrow(class);
+        let cell_borrow: &Ref<Option<T>> = &class_cell.cell.borrow();
+
+        f(cell_borrow.deref())
     }
 
     fn bind_status(&self) -> BindStatus {
@@ -140,13 +148,19 @@ impl<T> Port<T> {
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
     #[inline]
-    pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ReactionSet)) {
-        debug_assert_ne!(self.bind_status(), BindStatus::Bound, "Bound port cannot be set");
+    pub(in crate) fn set_impl(&mut self, new_value: Option<T>, process_deps: impl FnOnce(&ReactionSet)) {
+        debug_assert_ne!(self.bind_status(), BindStatus::Bound, "Cannot set a bound port ({})", self.id);
 
-        let guard = self.cell.lock().unwrap();
-        *(*guard).cell.borrow_mut() = Some(v);
+        let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
+        let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
+        // let binding: &Binding<T> = cell_ref.deref();
 
-        process_deps(&guard.triggered_reactions);
+        let Binding(_, class) = cell_ref.deref();
+
+        let class_cell: &PortCell<T> = Rc::borrow(class);
+
+        class_cell.cell.replace(new_value);
+        process_deps(&class_cell.triggered_reactions.borrow());
     }
 
     /// Called at the end of a tag.
@@ -155,20 +169,23 @@ impl<T> Port<T> {
         // If this port is bound, then some other port has
         // a reference to the same cell but is not bound.
         if self.bind_status() != BindStatus::Bound {
-            *self.cell.lock().unwrap().cell.borrow_mut() = None;
+            self.set_impl(None, |_| {})
         }
     }
 
     /// Only for glue code during assembly.
     pub fn set_downstream(&mut self, r: ReactionSet) {
-        let mut class = self.cell.lock().unwrap();
-        class.triggered_reactions = r;
+        let binding = (*self.upstream_binding).borrow();
+        let Binding(_, class) = binding.deref();
+        *class.triggered_reactions.borrow_mut() = r;
     }
 
     #[cfg(test)]
     pub(in crate) fn get_downstream_deps(&self) -> ReactionSet {
-        let class = self.cell.lock().unwrap();
-        class.triggered_reactions.clone()
+        let binding = (*self.upstream_binding).borrow();
+        let Binding(_, class) = binding.deref();
+        let triggered = class.triggered_reactions.borrow();
+        triggered.clone()
     }
 
     fn forward_to(&mut self, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
@@ -221,38 +238,6 @@ pub fn bind_ports<T>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), Assembl
     up.forward_to(down)
 }
 
-/*
-    pub(in super) fn forward_to(&self, downstream: &Port<T>) -> Result<(), AssemblyError> {
-        let mut mut_downstream_cell = (&downstream.upstream_binding).borrow_mut();
-        let (downstream_status, ref downstream_class) = *mut_downstream_cell;
-
-        match downstream_status {
-            #[cold] BindStatus::PortBound => Err(AssemblyError::InvalidBinding(String::from("Downstream is already bound to another port"),
-                                                                               self.global_id().clone(),
-                                                                               downstream.global_id().clone())),
-            // #[cold] BindStatus::DependencyBound => Err(AssemblyError::InvalidBinding("Port {} receives values from a reaction", self.global_id().clone(), downstream.global_id().clone())),
-            BindStatus::Unbound => {
-                let mut self_cell = self.upstream_binding.borrow_mut();
-                let (_, my_class) = self_cell.deref_mut();
-
-                my_class.downstreams.borrow_mut().insert(
-                    downstream.id.clone(),
-                    Rc::clone(&downstream.upstream_binding),
-                );
-
-                let new_binding = (BindStatus::PortBound, Rc::clone(&my_class));
-
-                downstream_class.check_cycle(&self.id, &downstream.id)?;
-
-                downstream_class.set_upstream(my_class);
-                *mut_downstream_cell.deref_mut() = new_binding;
-
-                Ok(())
-            }
-        }
-    }
-
- */
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 enum BindStatus {
@@ -282,7 +267,7 @@ struct PortCell<T> {
     /// Cell for the value.
     cell: RefCell<Option<T>>,
     /// The set of reactions which are scheduled when this cell is set.
-    triggered_reactions: ReactionSet,
+    triggered_reactions: RefCell<ReactionSet>,
 
     /// This is the set of ports that are "forwarded to".
     /// When you bind 2 ports A -> B, then the binding of B
