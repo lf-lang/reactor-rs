@@ -28,7 +28,7 @@ use std::sync::{Arc, Mutex};
 
 pub use scheduler_impl::*;
 pub use context::*;
-pub(in self) use depgraph::*;
+
 pub(in self) use event_queue::*;
 
 use crate::{LogicalInstant, GlobalReactionId};

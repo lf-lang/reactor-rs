@@ -86,6 +86,13 @@ define_index_type! {
     DEFAULT = Self::new(0);
 }
 
+impl ReactorId {
+    // a const fn to be able to use this in const context
+    pub const fn new_const(u: ReactionIdImpl) -> Self {
+        Self { _raw: u }
+    }
+}
+
 // fixme this is a dup of GlobalId
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
@@ -132,6 +139,17 @@ impl GlobalId {
         }
         //(self.container._raw as u32) << 16 | self.local._raw
     }
+    #[cfg(test)]
+    pub const fn next_id(&self) -> GlobalId {
+        Self { container: self.container, local: LocalReactionId::new_const(self.local._raw + 1) }
+    }
+    #[cfg(test)]
+    pub const fn first_id() -> GlobalId {
+        GlobalId {
+            container: ReactorId::new_const(0),
+            local: LocalReactionId::new_const(0),
+        }
+    }
 }
 
 impl Display for GlobalId {
@@ -144,3 +162,6 @@ impl Display for GlobalId {
 pub(in crate) trait GloballyIdentified {
     fn get_id(&self) -> GlobalId;
 }
+
+
+pub type PortId = GlobalId;

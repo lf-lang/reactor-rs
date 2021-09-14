@@ -25,8 +25,17 @@
 use crate::*;
 use super::testutil::*;
 
+static mut DUMMY_ID: GlobalId = GlobalId::first_id();
+
+
 fn new_port() -> Port<i32> {
-    Port::<i32>::new()
+    let id = unsafe {
+        let i = DUMMY_ID;
+        DUMMY_ID = DUMMY_ID.next_id();
+        i
+    };
+
+    Port::<i32>::new(id)
 }
 
 #[test]
@@ -161,8 +170,8 @@ fn transitive_binding_in_non_topo_order_panics() {
 
 #[test]
 fn dependencies_are_adopted_by_upstream_when_binding() {
-    let mut up = Port::<i32>::labeled("up");
-    let mut down = Port::<i32>::labeled("down");
+    let mut up = new_port();
+    let mut down = new_port();
 
     let container = ReactorId::new(0);
 
@@ -179,8 +188,8 @@ fn dependencies_are_adopted_by_upstream_when_binding() {
 #[test]
 #[should_panic]
 fn repeated_binding_panics() {
-    let mut upstream = Port::<i32>::labeled("up");
-    let mut downstream = Port::<i32>::labeled("down");
+    let mut upstream = new_port();
+    let mut downstream = new_port();
 
     bind_ports(&mut upstream, &mut downstream);
     bind_ports(&mut upstream, &mut downstream);

@@ -23,10 +23,14 @@
  */
 
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use crate::{ReactionSet, GlobalId, GloballyIdentified};
+use crate::{GlobalId, GloballyIdentified, ReactionSet, AssemblyError, PortId};
+use std::borrow::Borrow;
+use std::ops::DerefMut;
 
 /// A read-only reference to a port.
 #[repr(transparent)]
@@ -36,7 +40,7 @@ pub struct ReadablePort<'a, T> {
 
 impl<'a, T> ReadablePort<'a, T> {
     #[inline(always)]
-   pub fn new(port: &'a Port<T>) -> Self {
+    pub fn new(port: &'a Port<T>) -> Self {
         Self { port }
     }
 
@@ -96,32 +100,29 @@ impl<'a, T> WritablePort<'a, T> {
 pub struct Port<T> {
     cell: Arc<Mutex<PortCell<T>>>,
     debug_label: &'static str,
-    status: BindStatus,
+    id: GlobalId,
+    upstream_binding: Rc<RefCell<Binding<T>>>,
 }
 
 impl<T> Port<T> {
     /// Create a new port
-    pub fn new() -> Self {
-        Self::new_impl(None)
+    pub fn new(id: GlobalId) -> Self {
+        Self::new_impl(id, None)
     }
 
     /// Create a new port with the given label
-    pub fn labeled(label: &'static str) -> Self {
-        Self::new_impl(Some(label))
+    pub fn labeled(label: &'static str, id: GlobalId) -> Self {
+        Self::new_impl(id, Some(label))
     }
 
     // private
-    fn new_impl(name: Option<&'static str>) -> Port<T> {
+    fn new_impl(id: GlobalId, name: Option<&'static str>) -> Port<T> {
         Port {
+            id,
             cell: Default::default(),
             debug_label: name.unwrap_or("<missing label>"),
-            status: BindStatus::Free,
+            upstream_binding: Rc::new(RefCell::new(Binding(BindStatus::Free, Default::default()))),
         }
-    }
-
-    #[cfg(test)]
-    pub fn new_for_test(label: &'static str) -> Self {
-        Self::new_impl(Some(label))
     }
 
     #[inline]
@@ -129,17 +130,23 @@ impl<T> Port<T> {
         self.cell.lock().unwrap().cell.borrow().clone()
     }
 
+    fn bind_status(&self) -> BindStatus {
+        let binding: &RefCell<Binding<T>> = Rc::borrow(&self.upstream_binding);
+        let Binding(status, _) = *binding.borrow();
+        status
+    }
+
     /// Set the value, see [super::ReactionCtx::set]
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
     #[inline]
     pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ReactionSet)) {
-        assert_ne!(self.status, BindStatus::Bound, "Bound port cannot be bound");
+        debug_assert_ne!(self.bind_status(), BindStatus::Bound, "Bound port cannot be set");
 
         let guard = self.cell.lock().unwrap();
         *(*guard).cell.borrow_mut() = Some(v);
 
-        process_deps(&guard.downstream);
+        process_deps(&guard.triggered_reactions);
     }
 
     /// Called at the end of a tag.
@@ -147,7 +154,7 @@ impl<T> Port<T> {
     pub(in crate) fn clear_value(&mut self) {
         // If this port is bound, then some other port has
         // a reference to the same cell but is not bound.
-        if self.status != BindStatus::Bound {
+        if self.bind_status() != BindStatus::Bound {
             *self.cell.lock().unwrap().cell.borrow_mut() = None;
         }
     }
@@ -155,20 +162,45 @@ impl<T> Port<T> {
     /// Only for glue code during assembly.
     pub fn set_downstream(&mut self, r: ReactionSet) {
         let mut class = self.cell.lock().unwrap();
-        class.downstream = r;
+        class.triggered_reactions = r;
     }
 
     #[cfg(test)]
     pub(in crate) fn get_downstream_deps(&self) -> ReactionSet {
         let class = self.cell.lock().unwrap();
-        class.downstream.clone()
+        class.triggered_reactions.clone()
+    }
+
+    fn forward_to(&mut self, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
+        let mut mut_downstream_cell = (&downstream.upstream_binding).borrow_mut();
+        let Binding(downstream_status, ref downstream_class) = *mut_downstream_cell;
+
+        if downstream_status == BindStatus::Bound {
+            return Err(AssemblyError::CannotBind(self.id, downstream.id))
+        }
+        assert_ne!(downstream_status, BindStatus::Bound, "Downstream port cannot be bound a second time");
+        let mut self_cell = self.upstream_binding.borrow_mut();
+        let Binding(_, my_class) = self_cell.deref_mut();
+
+        my_class.downstreams.borrow_mut().insert(
+            downstream.id.clone(),
+            Rc::clone(&downstream.upstream_binding),
+        );
+
+        let new_binding = Binding(BindStatus::Bound, Rc::clone(&my_class));
+
+        downstream_class.check_cycle(&self.id, &downstream.id)?;
+
+        downstream_class.set_upstream(my_class);
+        *mut_downstream_cell.deref_mut() = new_binding;
+        Ok(())
     }
 }
 
 
 impl<T> Debug for Port<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.debug_label.fmt(f)
+        write!(f, "{}", self.debug_label)
     }
 }
 
@@ -180,56 +212,47 @@ impl<T> GloballyIdentified for Port<T> {
 
 
 /// Make the downstream port accept values from the upstream port.
-/// For this to work this function must be called in topological
-/// order between bound ports
-/// Eg
-/// ```text
-/// a_out -> b_in -> b_out -> c_in;
-///                  b_out -> d_in;
-/// ```
-///
-/// Must be translated as
-///
-/// ```
-///
-/// # fn main() {
-/// # use reactor_rt::{Port, bind_ports};
-/// # let mut a_out = Port::<i32>::new();
-/// # let mut b_out = Port::<i32>::new();
-/// # let mut b_in = Port::<i32>::new();
-/// # let mut c_in = Port::<i32>::new();
-/// # let mut d_in = Port::<i32>::new();
-/// bind_ports(&mut a_out, &mut b_in);
-/// bind_ports(&mut b_in, &mut b_out);
-/// bind_ports(&mut b_out, &mut d_in);
-/// bind_ports(&mut b_out, &mut c_in);
-/// # }
-/// ```
-///
-/// Also the edges must be that of a transitive reduction of
-/// the graph, as the down port is destroyed. These responsibilities
-/// are shifted onto the code generator.
 ///
 /// ### Panics
 ///
 /// If the downstream port was already bound to some other port.
 ///
-pub fn bind_ports<T>(up: &mut Port<T>, mut down: &mut Port<T>) {
-    assert_ne!(down.status, BindStatus::Bound, "Downstream port cannot be bound a second time");
+pub fn bind_ports<T>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), AssemblyError> {
+    up.forward_to(down)
+}
 
-    {
-        let mut upclass = up.cell.lock().unwrap();
-        let downclass = down.cell.lock().unwrap();
+/*
+    pub(in super) fn forward_to(&self, downstream: &Port<T>) -> Result<(), AssemblyError> {
+        let mut mut_downstream_cell = (&downstream.upstream_binding).borrow_mut();
+        let (downstream_status, ref downstream_class) = *mut_downstream_cell;
 
-        // todo we need to make sure that this merge preserves the toposort, eg removes duplicates
-        (&mut upclass.downstream).extend(&downclass.downstream);
+        match downstream_status {
+            #[cold] BindStatus::PortBound => Err(AssemblyError::InvalidBinding(String::from("Downstream is already bound to another port"),
+                                                                               self.global_id().clone(),
+                                                                               downstream.global_id().clone())),
+            // #[cold] BindStatus::DependencyBound => Err(AssemblyError::InvalidBinding("Port {} receives values from a reaction", self.global_id().clone(), downstream.global_id().clone())),
+            BindStatus::Unbound => {
+                let mut self_cell = self.upstream_binding.borrow_mut();
+                let (_, my_class) = self_cell.deref_mut();
+
+                my_class.downstreams.borrow_mut().insert(
+                    downstream.id.clone(),
+                    Rc::clone(&downstream.upstream_binding),
+                );
+
+                let new_binding = (BindStatus::PortBound, Rc::clone(&my_class));
+
+                downstream_class.check_cycle(&self.id, &downstream.id)?;
+
+                downstream_class.set_upstream(my_class);
+                *mut_downstream_cell.deref_mut() = new_binding;
+
+                Ok(())
+            }
+        }
     }
 
-    // this is the reason we need a topo ordering, see also tests
-    down.cell = up.cell.clone();
-    down.status = BindStatus::Bound;
-    up.status = BindStatus::Upstream;
-}
+ */
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 enum BindStatus {
@@ -244,20 +267,67 @@ enum BindStatus {
     Bound,
 }
 
+impl Default for BindStatus {
+    fn default() -> Self {
+        Self::Free
+    }
+}
+
+#[derive(Default)]
+struct Binding<T>(BindStatus, Rc<PortCell<T>>);
+
 
 /// This is the internal cell type that is shared by ports.
 struct PortCell<T> {
     /// Cell for the value.
     cell: RefCell<Option<T>>,
     /// The set of reactions which are scheduled when this cell is set.
-    downstream: ReactionSet,
+    triggered_reactions: ReactionSet,
+
+    /// This is the set of ports that are "forwarded to".
+    /// When you bind 2 ports A -> B, then the binding of B
+    /// is updated to point to the equiv class of A. The downstream
+    /// field of that equiv class is updated to contain B.
+    ///
+    /// Why?
+    /// When you have bound eg A -> B and *then* bind U -> A,
+    /// then both the equiv class of A and B (the downstream of A)
+    /// need to be updated to point to the equiv class of U
+    ///
+    /// Coincidentally, this means we can track transitive
+    /// cyclic port dependencies:
+    /// - say you have bound A -> B, then B -> C
+    /// - so all three refer to the equiv class of A, whose downstream is now {B, C}
+    /// - if you then try binding C -> A, then we can know
+    /// that C is in the downstream of A, indicating that there is a cycle.
+    downstreams: RefCell<HashMap<PortId, Rc<RefCell<Binding<T>>>>>,
+}
+
+impl<T> PortCell<T> {
+    fn check_cycle(&self, upstream_id: &PortId, downstream_id: &PortId) -> Result<(), AssemblyError> {
+        if (&*self.downstreams.borrow()).contains_key(upstream_id) {
+            Err(AssemblyError::CyclicDependency(*upstream_id, *downstream_id))
+        } else {
+            Ok(())
+        }
+    }
+
+    /// This updates all downstreams to point to the given equiv class instead of `self`
+    fn set_upstream(&self, new_binding: &Rc<PortCell<T>>) {
+        for (_, cell_rc) in &*self.downstreams.borrow() {
+            let cell: &RefCell<Binding<T>> = Rc::borrow(cell_rc);
+            let mut ref_mut = cell.borrow_mut();
+            *ref_mut.deref_mut() = Binding(ref_mut.0, Rc::clone(new_binding));
+        }
+    }
 }
 
 impl<T> Default for PortCell<T> {
     fn default() -> Self {
         PortCell {
             cell: Default::default(),
-            downstream: Default::default(),
+            triggered_reactions: Default::default(),
+            downstreams: Default::default(),
         }
     }
 }

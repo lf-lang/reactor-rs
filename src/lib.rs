@@ -32,6 +32,7 @@ mod time;
 mod timers;
 mod util;
 mod ids;
+mod error;
 
 pub use self::actions::*;
 pub use self::timers::*;
@@ -41,6 +42,7 @@ pub use self::scheduler::*;
 pub use self::time::*;
 pub use self::util::*;
 pub use self::ids::*;
+pub use self::error::*;
 
 // reexport those to complement our LogicalInstant
 pub use std::time::Instant as PhysicalInstant;
