@@ -28,10 +28,12 @@ use petgraph::graph::{DiGraph, NodeIndex};
 
 use crate::{GlobalId, GlobalIdImpl, GloballyIdentified, LogicalAction, PhysicalAction, Port};
 
+type GraphId = NodeIndex<u32>;
+
 enum GraphNode {
-    Port { id: GlobalId },
-    Action { id: GlobalId },
-    Reaction { id: GlobalId },
+    Port(GlobalId),
+    Action(GlobalId),
+    Reaction(GlobalId),
 }
 
 struct DepGraph {
@@ -39,26 +41,29 @@ struct DepGraph {
     graph: DiGraph<GraphNode, (), GlobalIdImpl>,
 }
 
-pub struct ReactionIx(NodeIndex);
+pub struct ReactionIx(GraphId);
 
 /// Index of a port or action in the graph
-pub struct ComponentIx(NodeIndex);
+pub struct ComponentIx(GraphId);
 
 impl DepGraph {
     fn record_port<T>(&mut self, item: Port<T>) -> ComponentIx {
-        let ix = self.graph.add_node(GraphNode::Port { id: item.get_id() });
+        let ix = self.graph.add_node(GraphNode::Port(item.get_id()));
         ComponentIx(ix)
     }
+
     fn record_laction<T: Clone>(&mut self, item: LogicalAction<T>) -> ComponentIx {
-        let ix = self.graph.add_node(GraphNode::Action { id: item.get_id() });
+        let ix = self.graph.add_node(GraphNode::Action(item.get_id()));
         ComponentIx(ix)
     }
+
     fn record_paction<T: Clone>(&mut self, item: PhysicalAction<T>) -> ComponentIx {
-        let ix = self.graph.add_node(GraphNode::Action { id: item.get_id() });
+        let ix = self.graph.add_node(GraphNode::Action(item.get_id()));
         ComponentIx(ix)
     }
+
     fn record_reaction<T>(&mut self, id: GlobalId) -> ReactionIx {
-        let ix = self.graph.add_node(GraphNode::Reaction { id });
+        let ix = self.graph.add_node(GraphNode::Reaction(id));
         ReactionIx(ix)
     }
 

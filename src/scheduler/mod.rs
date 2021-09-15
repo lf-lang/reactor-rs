@@ -28,6 +28,7 @@ use std::sync::{Arc, Mutex};
 
 pub use scheduler_impl::*;
 pub use context::*;
+pub use assembly::*;
 
 pub(in self) use event_queue::*;
 
@@ -49,6 +50,7 @@ mod context;
 mod scheduler_impl;
 mod event_queue;
 mod depgraph;
+mod assembly;
 
 
 #[inline]
