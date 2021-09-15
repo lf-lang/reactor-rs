@@ -131,45 +131,48 @@ pub type ReactionSet = Vec<GlobalReactionId>;
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
+#[repr(transparent)]
 pub struct GlobalId {
-    pub(in crate) container: ReactorId,
-    pub(in crate) local: LocalReactionId,
+    _raw: GlobalIdImpl,
 }
 
 
 impl GlobalId {
     pub fn new(container: ReactorId, local: LocalReactionId) -> Self {
-        Self { container, local }
+        let _raw: GlobalIdImpl = (container._raw as GlobalIdImpl) << ReactionIdImpl::BITS | (local._raw as GlobalIdImpl);
+        Self { _raw }
     }
 
-    pub(in crate) fn as_u32(&self) -> GlobalIdImpl {
-        unsafe {
-            std::mem::transmute_copy(&self)
-        }
-        //(self.container._raw as u32) << 16 | self.local._raw
-    }
     pub(in crate) fn as_usize(&self) -> usize {
+        // safety: we use repr(transparent)
         unsafe {
-            std::mem::transmute_copy::<Self, u32>(&self) as usize
+            std::mem::transmute_copy::<Self, GlobalIdImpl>(&self) as usize
         }
-        //(self.container._raw as u32) << 16 | self.local._raw
     }
     #[cfg(test)]
     pub const fn next_id(&self) -> GlobalId {
-        Self { container: self.container, local: LocalReactionId::new_const(self.local._raw + 1) }
+        // todo check overflow
+        assert_ne!(self.local, 0xffff, "Overflow while allocating next id");
+        Self { _raw: self._raw + 1 }
     }
+
     #[cfg(test)]
     pub const fn first_id() -> GlobalId {
-        GlobalId {
-            container: ReactorId::new_const(0),
-            local: LocalReactionId::new_const(0),
-        }
+        GlobalId { _raw: 0 }
+    }
+
+    fn container(&self) -> u16 {
+        (self._raw >> 16) as u16
+    }
+
+    fn local(&self) -> u16 {
+        (self._raw & 0xffff) as u16
     }
 }
 
 impl Display for GlobalId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}/{}", self.container, self.local)
+        write!(f, "{}/{}", self.container(), self.local())
     }
 }
 

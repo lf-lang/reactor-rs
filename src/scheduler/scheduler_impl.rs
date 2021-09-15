@@ -91,21 +91,36 @@ pub struct SyncScheduler {
 pub struct AssemblyCtx<'x> {
     scheduler: &'x mut SyncScheduler,
     /// Constant id of the reactor currently being built.
-    reactor_id: ReactorId,
+    reactor_id: Option<ReactorId>,
     /// Next ID of the local reactor.
     cur_local: LocalReactionId,
 
 }
 
 impl<'x> AssemblyCtx<'x> {
+
     /// The ID of the reactor being built.
+    ///
+    /// ### Panics
+    /// If fix_cur_id has not been called.
     pub fn get_id(&self) -> ReactorId {
-        self.reactor_id
+        self.reactor_id.unwrap_or_else(|| panic!("fix_cur_id has not been called"))
+    }
+
+    /// Note: this needs to be called after all children reactors
+    /// have been built, as they're pushed into the global reactor
+    /// vec before their parent. So the ID of the parent needs to
+    /// be fixed only after all descendants have been built.
+    pub fn fix_cur_id(&mut self) -> ReactorId {
+        let id = self.scheduler.reactor_id;
+        self.reactor_id = Some(id);
+        self.scheduler.reactor_id += 1;
+        id
     }
 
     /// Create and return a new global id for a new component.
     pub fn next_comp_id(&mut self, debug_name: &'static str) -> GlobalId {
-        let id = GlobalId::new(self.reactor_id, self.cur_local);
+        let id = GlobalId::new(self.get_id(), self.cur_local);
 
         self.scheduler.id_registry.record(id, debug_name);
 
@@ -130,9 +145,7 @@ impl<'x> AssemblyCtx<'x> {
     }
 
     fn new(scheduler: &'x mut SyncScheduler) -> Self {
-        let reactor_id = scheduler.reactor_id;
-        scheduler.reactor_id += 1;
-        Self { scheduler, reactor_id, cur_local: LocalReactionId::ZERO }
+        Self { scheduler, reactor_id: None, cur_local: LocalReactionId::ZERO }
     }
 }
 
