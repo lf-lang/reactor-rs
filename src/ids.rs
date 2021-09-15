@@ -26,6 +26,7 @@
 use std::fmt::{Display, Formatter, Result, Debug};
 use bit_set::BitSet;
 use std::iter::FromIterator;
+use std::collections::HashMap;
 
 // private implementation types
 type ReactionIdImpl = u16;
@@ -183,21 +184,21 @@ pub type PortId = GlobalId;
 /// Stores a mapping from global Id
 ///
 pub struct IdRegistry {
-    debug_ids: Vec<&'static str>,
+    debug_ids: HashMap<GlobalId, &'static str>,
 }
 
 impl IdRegistry {
     pub fn new() -> Self {
-        IdRegistry { debug_ids: Vec::new() }
+        IdRegistry { debug_ids: Default::default() }
     }
 
     pub fn get_debug_label(&self, id: GlobalId) -> &'static str {
-        self.debug_ids[id.as_u32() as usize]
+        self.debug_ids.get(&id).unwrap()
     }
 
     pub(in super) fn record(&mut self, id: GlobalId, name: &'static str) {
-        assert_eq!(id.as_usize(), self.debug_ids.len());
-        self.debug_ids.push(name)
+        let existing = self.debug_ids.insert(id, name);
+        debug_assert!(existing.is_none())
     }
 }
 
