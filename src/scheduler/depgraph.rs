@@ -24,46 +24,60 @@
 
 
 
+use std::collections::HashMap;
+use std::default::Default;
+
 use petgraph::graph::{DiGraph, NodeIndex};
 
 use crate::{GlobalId, GlobalIdImpl, GloballyIdentified, LogicalAction, PhysicalAction, Port};
 
 type GraphIx = NodeIndex<u32>;
 
-enum GraphNode {
-    Port(GlobalId),
-    Action(GlobalId),
-    Reaction(GlobalId),
+enum NodeKind {
+    Port,
+    Action,
+    Reaction,
 }
 
-struct DepGraph {
+/// Weight of graph nodes.
+struct GraphNode {
+    kind: NodeKind,
+    id: GlobalId, // is this necessary? probs
+}
+
+#[derive(Default)]
+pub(in super) struct DepGraph {
     // Edges are forward data flow
     graph: DiGraph<GraphNode, (), GlobalIdImpl>,
+
+    ix_by_id: HashMap<GlobalId, GraphIx>,
 }
 
 pub struct ReactionIx(GraphIx);
+
 /// Index of a port or action in the graph
 pub struct ComponentIx(GraphIx);
 
 impl DepGraph {
-    fn record_port<T>(&mut self, item: Port<T>) -> ComponentIx {
-        let ix = self.graph.add_node(GraphNode::Port(item.get_id()));
-        ComponentIx(ix)
+    pub(in super) fn record_port(&mut self, id: GlobalId) {
+        self.record(id, NodeKind::Port);
     }
 
-    fn record_laction<T: Clone>(&mut self, item: LogicalAction<T>) -> ComponentIx {
-        let ix = self.graph.add_node(GraphNode::Action(item.get_id()));
-        ComponentIx(ix)
+    pub(in super) fn record_laction(&mut self, id: GlobalId) {
+        self.record(id, NodeKind::Action);
     }
 
-    fn record_paction<T: Clone>(&mut self, item: PhysicalAction<T>) -> ComponentIx {
-        let ix = self.graph.add_node(GraphNode::Action(item.get_id()));
-        ComponentIx(ix)
+    pub(in super) fn record_paction(&mut self, id: GlobalId) {
+        self.record(id, NodeKind::Action);
     }
 
-    fn record_reaction<T>(&mut self, id: GlobalId) -> ReactionIx {
-        let ix = self.graph.add_node(GraphNode::Reaction(id));
-        ReactionIx(ix)
+    pub(in super) fn record_reaction(&mut self, id: GlobalId) {
+        self.record(id, NodeKind::Reaction);
+    }
+
+    fn record(&mut self, id: GlobalId, kind: NodeKind) {
+        let ix = self.graph.add_node(GraphNode { kind, id });
+        self.ix_by_id.insert(id, ix);
     }
 
     fn triggers_reaction<T>(&mut self, trigger: ComponentIx, reaction: ReactionIx) {
@@ -72,11 +86,5 @@ impl DepGraph {
 
     fn reaction_effects<T>(&mut self, reaction: ReactionIx, trigger: ComponentIx) {
         self.graph.add_edge(trigger.0, reaction.0, ());
-    }
-
-    fn new() -> Self {
-        Self {
-            graph: DiGraph::new()
-        }
     }
 }

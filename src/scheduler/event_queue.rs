@@ -1,5 +1,5 @@
 
-use crate::{ReactorId, ReactionSet, LogicalInstant, LocalizedReactionSet};
+use crate::{ReactorId, LocalReactionId, ReactionSet, LogicalInstant, LocalizedReactionSet};
 use itertools::Itertools;
 use std::cmp::Reverse;
 use smallvec::SmallVec;
@@ -29,7 +29,7 @@ impl TagExecutionPlan {
 
     /// Merge the new reactions into this plan.
     pub fn accept(&mut self, new_reactions: ReactionSet) {
-        for (key, group) in &new_reactions.into_iter().group_by(|id| id.container) {
+        for (key, group) in &new_reactions.into_iter().group_by(|id| id.0.container()) {
             match self.vec.get_mut(key.index()) {
                 None | Some(None) => {
                     // need to insert None
@@ -37,13 +37,13 @@ impl TagExecutionPlan {
                         self.vec.resize_with(key.index() + 1, || None);
                     }
 
-                    let new_bs: LocalizedReactionSet = group.map(|it| it.local).collect();
+                    let new_bs: LocalizedReactionSet = group.map(|it| it.0.local()).collect();
                     self.is_empty &= new_bs.is_empty();
                     self.vec[key.index()] = Some(new_bs);
                 }
                 Some(Some(set)) => {
                     group.for_each(|g| {
-                        set.insert(g.local);
+                        set.insert(g.0.local());
                     });
                     self.is_empty &= set.is_empty();
                 }

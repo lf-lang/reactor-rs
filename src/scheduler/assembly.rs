@@ -23,15 +23,39 @@
  */
 
 use crate::*;
+use crate::scheduler::depgraph::DepGraph;
+use index_vec::IndexVec;
+
+
+pub(in super) struct RootAssembler {
+    reactor_id: ReactorId,
+    graph: DepGraph,
+    reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
+    id_registry: IdRegistry,
+}
+
+impl Default for RootAssembler {
+    fn default() -> Self {
+        Self {
+            reactor_id: ReactorId::new(0),
+            graph: Default::default(),
+            id_registry: Default::default(),
+            reactors: Default::default(),
+        }
+    }
+}
+
 
 /// Helper struct to assemble reactors during initialization.
 /// One assembly context is used per reactor, they can't be shared.
 pub struct AssemblyCtx<'x> {
-    scheduler: &'x mut SyncScheduler,
+    globals: &'x mut RootAssembler,
     /// Constant id of the reactor currently being built.
     reactor_id: Option<ReactorId>,
-    /// Next ID of the local reactor.
+    /// Next local ID for components != reactions
     cur_local: LocalReactionId,
+    /// Next ID for a reaction
+    cur_reaction: LocalReactionId,
 }
 
 impl<'x> AssemblyCtx<'x> {
@@ -48,10 +72,44 @@ impl<'x> AssemblyCtx<'x> {
     /// vec before their parent. So the ID of the parent needs to
     /// be fixed only after all descendants have been built.
     pub fn fix_cur_id(&mut self) -> ReactorId {
-        let id = self.scheduler.reactor_id;
+        let id = self.globals.reactor_id;
         self.reactor_id = Some(id);
-        self.scheduler.reactor_id += 1;
+        self.globals.reactor_id += 1;
         id
+    }
+
+    pub fn new_port<T>(&mut self, lf_name: &'static str) -> Port<T> {
+        let id = self.next_comp_id(Some(lf_name));
+        self.globals.graph.record_port(id);
+        Port::new(id)
+    }
+
+    pub fn new_logical_action<T: Clone>(&mut self,
+                                        lf_name: &'static str,
+                                        min_delay: Option<Duration>) -> LogicalAction<T> {
+        let id = self.next_comp_id(Some(lf_name));
+        self.globals.graph.record_laction(id);
+        LogicalAction::new(id, min_delay)
+    }
+
+    pub fn new_physical_action<T: Clone>(&mut self,
+                                         lf_name: &'static str,
+                                         min_delay: Option<Duration>) -> PhysicalAction<T> {
+        let id = self.next_comp_id(Some(lf_name));
+        self.globals.graph.record_paction(id);
+        PhysicalAction::new(id, min_delay)
+    }
+
+    pub fn new_timer(&mut self, lf_name: &'static str, offset: Duration, period: Duration) -> Timer {
+        let id = self.next_comp_id(Some(lf_name));
+        self.globals.graph.record_paction(id);
+        Timer::new(id, offset, period)
+    }
+
+    pub fn new_reaction(&mut self, lf_name: Option<&'static str>) -> GlobalReactionId {
+        let id = self.next_comp_id(lf_name);
+        self.globals.graph.record_reaction(id);
+        GlobalReactionId(id)
     }
 
     /// Create and return a new global id for a new component.
@@ -59,33 +117,40 @@ impl<'x> AssemblyCtx<'x> {
     /// ### Panics
     ///
     /// See [get_id].
-    pub fn next_comp_id(&mut self, debug_name: &'static str) -> GlobalId {
+    pub fn next_comp_id(&mut self, debug_name: Option<&'static str>) -> GlobalId {
         let id = GlobalId::new(self.get_id(), self.cur_local);
-        self.scheduler.id_registry.record(id, debug_name);
+        if let Some(label) = debug_name {
+            self.globals.id_registry.record(id, label);
+        }
         self.cur_local += 1;
         id
     }
 
     /// Register a child reactor.
     pub fn register_reactor<S: ReactorInitializer + 'static>(&mut self, child: S) {
-        let vec_id = self.scheduler.reactors.push(Box::new(child));
-        debug_assert_eq!(self.scheduler.reactors[vec_id].id(), vec_id, "Improper initialization order!");
+        let vec_id = self.globals.reactors.push(Box::new(child));
+        debug_assert_eq!(self.globals.reactors[vec_id].id(), vec_id, "Improper initialization order!");
     }
 
     /// Assemble a child reactor. The child needs to be registered
     /// using [register_reactor] later.
     #[inline]
     pub fn assemble_sub<S: ReactorInitializer>(&mut self, args: S::Params) -> S {
-        AssemblyCtx::assemble_impl(&mut self.scheduler, args)
+        AssemblyCtx::assemble_impl(&mut self.globals, args)
     }
 
     #[inline]
-    fn assemble_impl<S: ReactorInitializer>(scheduler: &mut SyncScheduler, args: S::Params) -> S {
-        let mut sub = AssemblyCtx::new(scheduler);
+    fn assemble_impl<S: ReactorInitializer>(globals: &mut RootAssembler, args: S::Params) -> S {
+        let mut sub = AssemblyCtx::new::<S>(globals);
         S::assemble(args, &mut sub)
     }
 
-    pub(in super) fn new(scheduler: &'x mut SyncScheduler) -> Self {
-        Self { scheduler, reactor_id: None, cur_local: LocalReactionId::ZERO }
+    pub(in super) fn new<S: ReactorInitializer>(globals: &'x mut RootAssembler) -> Self {
+        Self {
+            globals,
+            reactor_id: None,
+            cur_local: S::MAX_REACTION_ID,
+            cur_reaction: LocalReactionId::ZERO,
+        }
     }
 }

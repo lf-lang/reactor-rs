@@ -100,21 +100,18 @@ impl ReactorId {
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Copy, Clone)]
-pub struct GlobalReactionId {
-    pub(in crate) container: ReactorId,
-    pub(in crate) local: LocalReactionId,
-}
+pub struct GlobalReactionId(pub(in crate) GlobalId);
 
 
 impl GlobalReactionId {
     pub fn new(container: ReactorId, local: LocalReactionId) -> Self {
-        Self { container, local }
+        Self(GlobalId::new(container, local))
     }
 }
 
 impl Debug for GlobalReactionId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}/{}", self.container, self.local)
+        write!(f, "{:?}", self.0)
     }
 }
 
@@ -157,12 +154,12 @@ impl GlobalId {
         GlobalId { _raw: 0 }
     }
 
-    fn container(&self) -> u16 {
-        (self._raw >> 16) as u16
+    pub(in crate) fn container(&self) -> ReactorId {
+        ReactorId::new_const((self._raw >> 16) as u16)
     }
 
-    fn local(&self) -> u16 {
-        (self._raw & 0xffff) as u16
+    pub(in crate) fn local(&self) -> LocalReactionId {
+        LocalReactionId::new((self._raw & 0xffff) as u16 as usize)
     }
 }
 
@@ -191,8 +188,8 @@ impl IdRegistry {
         IdRegistry { debug_ids: Default::default() }
     }
 
-    pub fn get_debug_label(&self, id: GlobalId) -> &'static str {
-        self.debug_ids.get(&id).unwrap()
+    pub fn get_debug_label(&self, id: GlobalId) -> Option<&'static str> {
+        self.debug_ids.get(&id).map(|it| *it)
     }
 
     pub(in super) fn record(&mut self, id: GlobalId, name: &'static str) {

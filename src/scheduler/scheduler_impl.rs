@@ -89,7 +89,8 @@ pub struct SyncScheduler {
 impl SyncScheduler {
     pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
         let mut scheduler = Self::new(options);
-        let mut assembler = AssemblyCtx::new(&mut scheduler);
+        let mut root_assembler = RootAssembler::default();
+        let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler);
 
         let main_reactor = R::assemble(args, &mut assembler);
         assembler.register_reactor(main_reactor);
