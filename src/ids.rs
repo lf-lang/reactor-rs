@@ -40,6 +40,8 @@ define_index_type! {
 }
 
 impl LocalReactionId {
+    pub const ZERO: LocalReactionId = LocalReactionId::new_const(0);
+
     // a const fn to be able to use this in const context
     pub const fn new_const(u: ReactionIdImpl) -> Self {
         Self { _raw: u }
@@ -145,6 +147,12 @@ impl GlobalId {
         }
         //(self.container._raw as u32) << 16 | self.local._raw
     }
+    pub(in crate) fn as_usize(&self) -> usize {
+        unsafe {
+            std::mem::transmute_copy::<Self, u32>(&self) as usize
+        }
+        //(self.container._raw as u32) << 16 | self.local._raw
+    }
     #[cfg(test)]
     pub const fn next_id(&self) -> GlobalId {
         Self { container: self.container, local: LocalReactionId::new_const(self.local._raw + 1) }
@@ -171,3 +179,31 @@ pub(in crate) trait GloballyIdentified {
 
 
 pub type PortId = GlobalId;
+
+/// Stores a mapping from global Id
+///
+pub struct IdRegistry {
+    debug_ids: Vec<&'static str>,
+}
+
+impl IdRegistry {
+    pub fn new() -> Self {
+        IdRegistry { debug_ids: Vec::new() }
+    }
+
+    pub fn get_debug_label(&self, id: GlobalId) -> &'static str {
+        self.debug_ids[id.as_u32() as usize]
+    }
+
+    pub(in super) fn record(&mut self, id: GlobalId, name: &'static str) {
+        assert_eq!(id.as_usize(), self.debug_ids.len());
+        self.debug_ids.push(name)
+    }
+}
+
+
+impl Default for IdRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}

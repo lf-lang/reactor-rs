@@ -33,7 +33,7 @@ use super::*;
 /// A timer is conceptually a logical action that re-schedules
 /// itself periodically.
 pub struct Timer {
-    name: &'static str,
+    id: GlobalId,
 
     /// Minimal duration after the start of the program after
     /// which the timer starts to trigger.
@@ -48,18 +48,12 @@ pub struct Timer {
 }
 
 
-impl Named for Timer {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-}
-
 impl Timer {
-    pub fn new(name: &'static str, offset: Duration, period: Duration) -> Self {
+    pub fn new(id: GlobalId, offset: Duration, period: Duration) -> Self {
         Self {
             offset,
             period,
-            name,
+            id,
             downstream: Default::default(),
         }
     }
@@ -75,5 +69,11 @@ impl Timer {
     #[inline]
     pub fn is_periodic(&self) -> bool {
         !self.period.is_zero()
+    }
+}
+
+impl GloballyIdentified for Timer {
+    fn get_id(&self) -> GlobalId {
+        self.id
     }
 }

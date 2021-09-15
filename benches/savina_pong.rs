@@ -190,7 +190,7 @@ mod reactors {
             };
 
             // assemble self
-            let mut _self = Self::user_assemble(assembler.get_next_id(), args);
+            let mut _self = Self::user_assemble(assembler.get_id(), args);
 
             let react_0 = GlobalReactionId::new(_self.id(), LocalReactionId::new(0));
             let react_1 = GlobalReactionId::new(_self.id(), LocalReactionId::new(1));
@@ -347,7 +347,7 @@ mod reactors {
             };
 
             // assemble self
-            let mut _self = Self::user_assemble(assembler.get_next_id(), args);
+            let mut _self = Self::user_assemble(assembler.get_id(), args);
 
             let react_0 = GlobalReactionId::new(_self.id(), LocalReactionId::new(0));
             let react_1 = GlobalReactionId::new(_self.id(), LocalReactionId::new(1));
@@ -485,7 +485,7 @@ mod reactors {
             };
 
             // assemble self
-            let mut _self = Self::user_assemble(assembler.get_next_id(), args);
+            let mut _self = Self::user_assemble(assembler.get_id(), args);
 
 
 

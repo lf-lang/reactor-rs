@@ -82,20 +82,35 @@ pub struct SyncScheduler {
     /// All reactors.
     reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
     reactor_id: ReactorId,
+
+    id_registry: IdRegistry
 }
 
 /// Helper struct to assemble reactors during initialization.
+/// One assembly context is used per reactor, they can't be shared.
 pub struct AssemblyCtx<'x> {
     scheduler: &'x mut SyncScheduler,
+    /// Constant id of the reactor currently being built.
+    reactor_id: ReactorId,
+    /// Next ID of the local reactor.
+    cur_local: LocalReactionId,
+
 }
 
 impl<'x> AssemblyCtx<'x> {
-    #[inline]
-    //noinspection RsSelfConvention
-    pub fn get_next_id(&mut self) -> ReactorId {
-        let cur = self.scheduler.reactor_id;
-        self.scheduler.reactor_id += 1;
-        cur
+    /// The ID of the reactor being built.
+    pub fn get_id(&self) -> ReactorId {
+        self.reactor_id
+    }
+
+    /// Create and return a new global id for a new component.
+    pub fn next_comp_id(&mut self, debug_name: &'static str) -> GlobalId {
+        let id = GlobalId::new(self.reactor_id, self.cur_local);
+
+        self.scheduler.id_registry.record(id, debug_name);
+
+        self.cur_local += 1;
+        id
     }
 
     pub fn register_reactor<S: ReactorInitializer + 'static>(&mut self, child: S) {
@@ -110,15 +125,21 @@ impl<'x> AssemblyCtx<'x> {
 
     #[inline]
     fn assemble_impl<S: ReactorInitializer>(scheduler: &mut SyncScheduler, args: S::Params) -> S {
-        let mut sub = AssemblyCtx { scheduler };
+        let mut sub = AssemblyCtx::new(scheduler);
         S::assemble(args, &mut sub)
+    }
+
+    fn new(scheduler: &'x mut SyncScheduler) -> Self {
+        let reactor_id = scheduler.reactor_id;
+        scheduler.reactor_id += 1;
+        Self { scheduler, reactor_id, cur_local: LocalReactionId::ZERO }
     }
 }
 
 impl SyncScheduler {
     pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
         let mut scheduler = Self::new(options);
-        let mut assembler = AssemblyCtx { scheduler: &mut scheduler };
+        let mut assembler = AssemblyCtx::new(&mut scheduler);
 
         let main_reactor = R::assemble(args, &mut assembler);
         assembler.register_reactor(main_reactor);
@@ -142,6 +163,7 @@ impl SyncScheduler {
             options,
             reactors: <_>::default(),
             reactor_id: <_>::default(),
+            id_registry: <_>::default(),
         }
     }
 

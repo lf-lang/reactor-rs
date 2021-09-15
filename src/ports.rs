@@ -23,12 +23,12 @@
  */
 
 use std::borrow::Borrow;
-use std::cell::{Ref, RefCell, RefMut};
+use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+
 
 use crate::{AssemblyError, GlobalId, GloballyIdentified, PortId, ReactionSet};
 
@@ -96,7 +96,6 @@ impl<'a, T> WritablePort<'a, T> {
 ///
 ///
 pub struct Port<T> {
-    debug_label: &'static str,
     id: GlobalId,
     upstream_binding: Rc<RefCell<Binding<T>>>,
 }
@@ -104,19 +103,8 @@ pub struct Port<T> {
 impl<T> Port<T> {
     /// Create a new port
     pub fn new(id: GlobalId) -> Self {
-        Self::new_impl(id, None)
-    }
-
-    /// Create a new port with the given label
-    pub fn labeled(label: &'static str, id: GlobalId) -> Self {
-        Self::new_impl(id, Some(label))
-    }
-
-    // private
-    fn new_impl(id: GlobalId, name: Option<&'static str>) -> Port<T> {
-        Port {
+        Self {
             id,
-            debug_label: name.unwrap_or("<missing label>"),
             upstream_binding: Rc::new(RefCell::new(Binding(BindStatus::Free, Default::default()))),
         }
     }
@@ -217,13 +205,13 @@ impl<T> Port<T> {
 
 impl<T> Debug for Port<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.debug_label)
+        write!(f, "{}", self.id)
     }
 }
 
 impl<T> GloballyIdentified for Port<T> {
     fn get_id(&self) -> GlobalId {
-        todo!("unimplemented")
+        self.id
     }
 }
 
@@ -243,8 +231,10 @@ pub fn bind_ports<T>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), Assembl
 enum BindStatus {
     /// A bindable port is also writable explicitly (with set)
     Free,
-    /// Means that this port is the upstream of some bound port.
-    Upstream,
+
+    // Means that this port is the upstream of some bound port.
+    // Upstream,
+
     /// A bound port cannot be written to explicitly. For a
     /// set of ports bound together, there is a single cell,
     /// and a single writable port through which values are

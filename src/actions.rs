@@ -27,10 +27,10 @@ use std::fmt::*;
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
+use crate::{GlobalId, GloballyIdentified, MicroStep};
 use crate::ActionPresence::NotPresent;
-use crate::{MicroStep, GloballyIdentified, GlobalId};
 
-use super::{LogicalInstant, Named, ReactionSet};
+use super::{LogicalInstant, ReactionSet};
 
 #[doc(hidden)]
 pub struct Logical;
@@ -44,11 +44,11 @@ pub type PhysicalAction<T> = Action<Physical, T>;
 pub struct Action<Kind, T: Clone> {
     pub min_delay: Duration,
     pub(in super) downstream: ReactionSet,
-    name: &'static str,
+    id: GlobalId,
     is_logical: bool,
     _logical: PhantomData<Kind>,
     // This is only used for an action scheduled with zero delay 
-    values: ValueMap<T>
+    values: ValueMap<T>,
 }
 
 impl<K, T: Clone> Action<K, T> {
@@ -108,15 +108,14 @@ impl<K, T: Clone> Action<K, T> {
         }
     }
 
-    fn new_impl(
-        min_delay: Option<Duration>,
-        is_logical: bool,
-        name: &'static str) -> Self {
+    fn new_impl(id: GlobalId,
+                min_delay: Option<Duration>,
+                is_logical: bool) -> Self {
         Action {
             min_delay: min_delay.unwrap_or(Duration::new(0, 0)),
             is_logical,
             downstream: Default::default(),
-            name,
+            id,
             _logical: PhantomData,
             values: Default::default(),
         }
@@ -124,32 +123,20 @@ impl<K, T: Clone> Action<K, T> {
 }
 
 impl<T: Clone> LogicalAction<T> {
-    pub fn new(name: &'static str, min_delay: Option<Duration>) -> Self {
-        Self::new_impl(min_delay, true, name)
+    pub fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
+        Self::new_impl(id, min_delay, true)
     }
 }
 
 impl<T: Clone> PhysicalAction<T> {
-    pub fn new(name: &'static str, min_delay: Option<Duration>) -> Self {
-        Self::new_impl(min_delay, false, name)
-    }
-}
-
-impl<K, T: Clone> Named for Action<K, T> {
-    fn name(&self) -> &'static str {
-        self.name
-    }
-}
-
-impl<K, T: Clone> Display for Action<K, T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        <_ as Display>::fmt(&self.name(), f)
+    pub fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
+        Self::new_impl(id, min_delay, false)
     }
 }
 
 impl<K, T: Clone> GloballyIdentified for Action<K, T> {
     fn get_id(&self) -> GlobalId {
-        todo!("unimplemented")
+        self.id
     }
 }
 

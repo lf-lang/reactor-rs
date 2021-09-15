@@ -73,7 +73,7 @@ impl ::reactor_rt::ReactorInitializer for MinimalDispatcher {
 
 
         // assemble self
-        let mut _self = Self::user_assemble(assembler.get_next_id(), args);
+        let mut _self = Self::user_assemble(assembler.get_id(), args);
 
         let react_0 = GlobalReactionId::new(_self.id(), 0.into());
 
