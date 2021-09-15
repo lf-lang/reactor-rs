@@ -1,5 +1,5 @@
 
-use crate::{ReactorId, LocalReactionId, ReactionSet, LogicalInstant, LocalizedReactionSet};
+use crate::{ReactorId, ReactionSet, LogicalInstant, LocalizedReactionSet};
 use itertools::Itertools;
 use std::cmp::Reverse;
 use smallvec::SmallVec;

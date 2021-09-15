@@ -29,7 +29,7 @@ use std::default::Default;
 
 use petgraph::graph::{DiGraph, NodeIndex};
 
-use crate::{GlobalId, GlobalIdImpl, GloballyIdentified, LogicalAction, PhysicalAction, Port};
+use crate::{GlobalId, GlobalIdImpl};
 
 type GraphIx = NodeIndex<u32>;
 
