@@ -131,7 +131,6 @@ pub type ReactionSet = Vec<GlobalReactionId>;
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
-#[repr(transparent)]
 pub struct GlobalId {
     _raw: GlobalIdImpl,
 }
@@ -144,10 +143,7 @@ impl GlobalId {
     }
 
     pub(in crate) fn as_usize(&self) -> usize {
-        // safety: we use repr(transparent)
-        unsafe {
-            std::mem::transmute_copy::<Self, GlobalIdImpl>(&self) as usize
-        }
+        self._raw as usize
     }
     #[cfg(test)]
     pub const fn next_id(&self) -> GlobalId {

@@ -28,7 +28,7 @@ use petgraph::graph::{DiGraph, NodeIndex};
 
 use crate::{GlobalId, GlobalIdImpl, GloballyIdentified, LogicalAction, PhysicalAction, Port};
 
-type GraphId = NodeIndex<u32>;
+type GraphIx = NodeIndex<u32>;
 
 enum GraphNode {
     Port(GlobalId),
@@ -41,10 +41,9 @@ struct DepGraph {
     graph: DiGraph<GraphNode, (), GlobalIdImpl>,
 }
 
-pub struct ReactionIx(GraphId);
-
+pub struct ReactionIx(GraphIx);
 /// Index of a port or action in the graph
-pub struct ComponentIx(GraphId);
+pub struct ComponentIx(GraphIx);
 
 impl DepGraph {
     fn record_port<T>(&mut self, item: Port<T>) -> ComponentIx {
