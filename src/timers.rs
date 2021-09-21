@@ -72,8 +72,8 @@ impl Timer {
     }
 }
 
-impl GloballyIdentified for Timer {
-    fn get_id(&self) -> GlobalId {
-        self.id
+impl TriggerLike for Timer {
+    fn get_id(&self) -> TriggerId {
+        TriggerId(self.id)
     }
 }

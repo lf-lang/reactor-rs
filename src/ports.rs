@@ -30,7 +30,7 @@ use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 
-use crate::{AssemblyError, GlobalId, GloballyIdentified, PortId, ReactionSet};
+use crate::{AssemblyError, GlobalId, PortId, ReactionSet, TriggerLike, TriggerId};
 
 /// A read-only reference to a port.
 #[repr(transparent)]
@@ -209,9 +209,9 @@ impl<T> Debug for Port<T> {
     }
 }
 
-impl<T> GloballyIdentified for Port<T> {
-    fn get_id(&self) -> GlobalId {
-        self.id
+impl<T> TriggerLike for Port<T> {
+    fn get_id(&self) -> TriggerId {
+        TriggerId(self.id)
     }
 }
 

@@ -96,30 +96,37 @@ impl ReactorId {
     }
 }
 
-// fixme this is a dup of GlobalId
-/// Identifies a component of a reactor using the ID of its container
-/// and a local component ID.
-#[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Copy, Clone)]
-pub struct GlobalReactionId(pub(in crate) GlobalId);
+macro_rules! global_id_newtype {
+    ($id:ident) => {
+        #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Copy, Clone)]
+        pub struct $id(pub(in crate) GlobalId);
 
+        impl $id {
+            pub fn new(container: $crate::ReactorId, local: $crate::LocalReactionId) -> Self {
+                Self($crate::GlobalId::new(container, local))
+            }
+        }
 
-impl GlobalReactionId {
-    pub fn new(container: ReactorId, local: LocalReactionId) -> Self {
-        Self(GlobalId::new(container, local))
-    }
+        impl Debug for $id {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                write!(f, "{:?}", self.0)
+            }
+        }
+
+        impl Display for $id {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                Debug::fmt(self, f)
+            }
+        }
+    };
 }
 
-impl Debug for GlobalReactionId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{:?}", self.0)
-    }
-}
+// Identifies a component of a reactor using the ID of its container
+// and a local component ID.
+global_id_newtype!(GlobalReactionId);
 
-impl Display for GlobalReactionId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        Debug::fmt(self, f)
-    }
-}
+// Identifies a trigger (port, action, timer)
+global_id_newtype!(TriggerId);
 
 /// todo ensure it is toposorted
 pub type ReactionSet = Vec<GlobalReactionId>;
@@ -172,6 +179,10 @@ impl Display for GlobalId {
 
 pub(in crate) trait GloballyIdentified {
     fn get_id(&self) -> GlobalId;
+}
+
+pub trait TriggerLike {
+    fn get_id(&self) -> TriggerId;
 }
 
 

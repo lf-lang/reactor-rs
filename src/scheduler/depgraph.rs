@@ -29,7 +29,7 @@ use std::default::Default;
 
 use petgraph::graph::{DiGraph, NodeIndex};
 
-use crate::{GlobalId, GlobalIdImpl, LocalizedReactionSet, ReactorId};
+use crate::*;
 
 type GraphIx = NodeIndex<u32>;
 
@@ -82,19 +82,42 @@ impl DepGraph {
         self.record(id, NodeKind::Reaction);
     }
 
-    // these are public and used within reactor construction methods
+    pub fn triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
+        // trigger -> reaction
+        self.graph.add_edge(
+            self.get_ix(trigger.0),
+            self.get_ix(reaction.0),
+            ()
+        );
+    }
+
+    pub fn reaction_effects(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
+        // reaction -> trigger
+        self.graph.add_edge(
+            self.get_ix(reaction.0),
+            self.get_ix(trigger.0),
+            ()
+        );
+    }
+
+    pub fn reaction_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
+        // trigger -> reaction
+        // todo
+        // self.graph.add_edge(
+        //     self.get_ix(trigger.0),
+        //     self.get_ix(reaction.0),
+        //     ()
+        // );
+    }
+
+    fn get_ix(&self, id: GlobalId) -> GraphIx {
+        *self.ix_by_id.get(&id).unwrap()
+    }
+
 
     fn record(&mut self, id: GlobalId, kind: NodeKind) {
         let ix = self.graph.add_node(GraphNode { kind, id });
         self.ix_by_id.insert(id, ix);
-    }
-
-    fn triggers_reaction<T>(&mut self, trigger: ComponentIx, reaction: ReactionIx) {
-        self.graph.add_edge(trigger.0, reaction.0, ());
-    }
-
-    fn reaction_effects<T>(&mut self, reaction: ReactionIx, trigger: ComponentIx) {
-        self.graph.add_edge(trigger.0, reaction.0, ());
     }
 }
 

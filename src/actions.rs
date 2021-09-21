@@ -27,7 +27,7 @@ use std::fmt::*;
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
-use crate::{GlobalId, GloballyIdentified, MicroStep};
+use crate::*;
 use crate::ActionPresence::NotPresent;
 
 use super::{LogicalInstant, ReactionSet};
@@ -134,9 +134,9 @@ impl<T: Clone> PhysicalAction<T> {
     }
 }
 
-impl<K, T: Clone> GloballyIdentified for Action<K, T> {
-    fn get_id(&self) -> GlobalId {
-        self.id
+impl<K, T: Clone> TriggerLike for Action<K, T> {
+    fn get_id(&self) -> TriggerId {
+        TriggerId(self.id)
     }
 }
 

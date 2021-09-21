@@ -116,6 +116,18 @@ impl<'x> AssemblyCtx<'x> {
         GlobalReactionId(id)
     }
 
+    pub fn declare_triggers(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
+        self.globals.graph.triggers_reaction(trigger, reaction)
+    }
+
+    pub fn declare_effects(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
+        self.globals.graph.reaction_effects(reaction, trigger)
+    }
+
+    pub fn declare_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
+        self.globals.graph.reaction_effects(reaction, trigger)
+    }
+
     /// Create and return a new global id for a new component.
     /// Note: reactions don't share the same namespace as components.
     ///
