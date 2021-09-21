@@ -29,7 +29,7 @@ use std::default::Default;
 
 use petgraph::graph::{DiGraph, NodeIndex};
 
-use crate::{GlobalId, GlobalIdImpl};
+use crate::{GlobalId, GlobalIdImpl, LocalizedReactionSet, ReactorId};
 
 type GraphIx = NodeIndex<u32>;
 
@@ -45,11 +45,18 @@ struct GraphNode {
     id: GlobalId, // is this necessary? probs
 }
 
+/// Dependency graph representing "instantaneous" dependencies,
+/// ie read- and write-dependencies of reactions to ports, and
+/// their trigger dependencies. This is a DAG.
 #[derive(Default)]
 pub(in super) struct DepGraph {
-    // Edges are forward data flow
+
+    /// Edges are forward data flow
+    /// Ie, a reaction R having a trigger dependency on a port P
+    /// is represented as an edge P -> R.
     graph: DiGraph<GraphNode, (), GlobalIdImpl>,
 
+    /// Maps global IDs back to graph indices.
     ix_by_id: HashMap<GlobalId, GraphIx>,
 }
 
@@ -75,6 +82,8 @@ impl DepGraph {
         self.record(id, NodeKind::Reaction);
     }
 
+    // these are public and used within reactor construction methods
+
     fn record(&mut self, id: GlobalId, kind: NodeKind) {
         let ix = self.graph.add_node(GraphNode { kind, id });
         self.ix_by_id.insert(id, ix);
@@ -87,4 +96,22 @@ impl DepGraph {
     fn reaction_effects<T>(&mut self, reaction: ReactionIx, trigger: ComponentIx) {
         self.graph.add_edge(trigger.0, reaction.0, ());
     }
+}
+
+
+
+
+type Layer = Vec<(ReactorId, LocalizedReactionSet)>;
+
+/// A set of reactions ordered by relative dependency.
+/// TODO this is relevant for parallel execution of reactions.
+struct ExecutableReactions {
+
+    /// An ordered list of layers to execute.
+    ///
+    /// It must by construction be the case that a reaction
+    /// in layer `i` has no dependency on reactions in layers `j >= i`.
+    /// This way, the execution of reactions in the same layer
+    /// may be parallelized.
+    layers: Vec<Layer>,
 }

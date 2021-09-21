@@ -6,6 +6,11 @@ use smallvec::SmallVec;
 
 
 /// A set of reactions to execute at a particular tag.
+/// The key characteristic of instances is
+/// 1. they may be merged together.
+/// 2. merging two plans eliminates duplicates
+///
+/// TODO this should be the hairy
 pub(in crate) struct TagExecutionPlan {
     /// Tag at which this must be executed.
     pub tag: LogicalInstant,
