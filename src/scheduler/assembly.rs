@@ -32,6 +32,7 @@ pub(in super) struct RootAssembler {
     graph: DepGraph,
     reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
     id_registry: IdRegistry,
+    reaction_labels: IdRegistry,
 }
 
 impl Default for RootAssembler {
@@ -40,6 +41,7 @@ impl Default for RootAssembler {
             reactor_id: ReactorId::new(0),
             graph: Default::default(),
             id_registry: Default::default(),
+            reaction_labels: Default::default(),
             reactors: Default::default(),
         }
     }
@@ -107,22 +109,36 @@ impl<'x> AssemblyCtx<'x> {
     }
 
     pub fn new_reaction(&mut self, lf_name: Option<&'static str>) -> GlobalReactionId {
-        let id = self.next_comp_id(lf_name);
+        let id = self.next_comp_id_impl(lf_name,
+                                        |ich| &mut ich.cur_reaction,
+                                        |ich| &mut ich.globals.reaction_labels);
         self.globals.graph.record_reaction(id);
         GlobalReactionId(id)
     }
 
     /// Create and return a new global id for a new component.
+    /// Note: reactions don't share the same namespace as components.
     ///
     /// ### Panics
     ///
     /// See [get_id].
     pub fn next_comp_id(&mut self, debug_name: Option<&'static str>) -> GlobalId {
-        let id = GlobalId::new(self.get_id(), self.cur_local);
+        self.next_comp_id_impl(debug_name,
+                               |ich| &mut ich.cur_local,
+                               |ich| &mut ich.globals.id_registry)
+    }
+
+    #[inline]
+    fn next_comp_id_impl(&mut self,
+                         debug_name: Option<&'static str>,
+                         namespace: impl Fn(&mut Self) -> &mut LocalReactionId,
+                         id_registry: impl FnOnce(&mut Self) -> &mut IdRegistry,
+    ) -> GlobalId {
+        let id = GlobalId::new(self.get_id(), *namespace(self));
         if let Some(label) = debug_name {
-            self.globals.id_registry.record(id, label);
+            id_registry(self).record(id, label);
         }
-        self.cur_local += 1;
+        *namespace(self) += 1;
         id
     }
 
