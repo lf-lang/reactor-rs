@@ -134,8 +134,8 @@ impl<'x> AssemblyCtx<'x> {
         self.globals.graph.triggers_reaction(trigger, reaction)
     }
 
-    pub fn declare_effects(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
-        self.globals.graph.reaction_effects(reaction, trigger)
+    pub fn effects_port<T>(&mut self, reaction: GlobalReactionId, port: &Port<T>) {
+        self.globals.graph.reaction_effects(reaction, port.get_id())
     }
 
     pub fn declare_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
