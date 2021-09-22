@@ -86,8 +86,8 @@ impl DepGraph {
         self.record(id, NodeKind::Action);
     }
 
-    pub(in super) fn record_reaction(&mut self, id: GlobalId) {
-        self.record(id, NodeKind::Reaction);
+    pub(in super) fn record_reaction(&mut self, id: GlobalReactionId) {
+        self.record(id.0, NodeKind::Reaction);
     }
 
     pub fn action_triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
@@ -135,7 +135,7 @@ impl DepGraph {
         );
     }
 
-    pub fn reaction_priority<K, T>(&mut self, n: GlobalReactionId, m: GlobalReactionId) {
+    pub fn reaction_priority(&mut self, n: GlobalReactionId, m: GlobalReactionId) {
         // trigger -> reaction
         self.graph.add_edge(
             self.get_ix(n.0),

@@ -33,6 +33,8 @@ extern crate itertools;
 extern crate log;
 #[macro_use]
 extern crate smallvec;
+#[macro_use]
+extern crate array_macro;
 
 pub use std::time::Duration;
 // reexport those to complement our LogicalInstant

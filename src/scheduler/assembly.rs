@@ -56,8 +56,7 @@ pub struct AssemblyCtx<'x> {
     reactor_id: Option<ReactorId>,
     /// Next local ID for components != reactions
     cur_local: LocalReactionId,
-    /// Next ID for a reaction
-    cur_reaction: LocalReactionId,
+    reactions_done: bool
 }
 
 impl<'x> AssemblyCtx<'x> {
@@ -108,12 +107,25 @@ impl<'x> AssemblyCtx<'x> {
         Timer::new(id, offset, period)
     }
 
-    pub fn new_reaction(&mut self, lf_name: Option<&'static str>) -> GlobalReactionId {
-        let id = self.next_comp_id_impl(lf_name,
-                                        |ich| &mut ich.cur_reaction,
-                                        |ich| &mut ich.globals.reaction_labels);
-        self.globals.graph.record_reaction(id);
-        GlobalReactionId(id)
+    /// Create N reactions
+    pub fn new_reactions<const N: usize>(&mut self) -> [GlobalReactionId; N] {
+        assert!(!self.reactions_done);
+        self.reactions_done = true;
+
+        let result = array![i => GlobalReactionId::new(self.get_id(), LocalReactionId::new(i)); N];
+
+        let mut prev = Option::<GlobalReactionId>::None;
+        for r in result.iter().cloned() {
+            self.globals.graph.record_reaction(r);
+            if let Some(prev) = prev {
+                // Add an edge that represents that the
+                // previous reaction takes precedence
+                self.globals.graph.reaction_priority(prev, r);
+            }
+            prev = Some(r);
+        }
+
+        result
     }
 
     pub fn declare_triggers(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
@@ -178,7 +190,7 @@ impl<'x> AssemblyCtx<'x> {
             globals,
             reactor_id: None,
             cur_local: S::MAX_REACTION_ID,
-            cur_reaction: LocalReactionId::ZERO,
+            reactions_done: false
         }
     }
 }
