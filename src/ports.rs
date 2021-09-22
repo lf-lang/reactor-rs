@@ -281,7 +281,7 @@ struct PortCell<T> {
 impl<T> PortCell<T> {
     fn check_cycle(&self, upstream_id: &PortId, downstream_id: &PortId) -> Result<(), AssemblyError> {
         if (&*self.downstreams.borrow()).contains_key(upstream_id) {
-            Err(AssemblyError::CyclicDependency(*upstream_id, *downstream_id))
+            Err(AssemblyError::CyclicPortDependency(*upstream_id, *downstream_id))
         } else {
             Ok(())
         }

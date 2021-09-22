@@ -24,9 +24,10 @@
 
 
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::default::Default;
 
+use index_vec::IdxSliceIndex;
 use petgraph::graph::{DiGraph, NodeIndex};
 
 use crate::*;
@@ -50,11 +51,18 @@ struct GraphNode {
 /// their trigger dependencies. This is a DAG.
 #[derive(Default)]
 pub(in super) struct DepGraph {
-
     /// Edges are forward data flow
     /// Ie, a reaction R having a trigger dependency on a port P
     /// is represented as an edge P -> R.
-    graph: DiGraph<GraphNode, (), GlobalIdImpl>,
+    ///
+    /// There are several kind of edges:
+    /// - reaction n -> reaction m: means n has higher priority
+    /// than m, only filled in for reactions of the same reactor.
+    /// - reaction -> port/action: the reaction effects the port/action
+    /// - port/action -> reaction: the port/action triggers the reaction
+    ///
+    ///
+    graph: DiGraph<GraphNode, EdgeWeight, GlobalIdImpl>,
 
     /// Maps global IDs back to graph indices.
     ix_by_id: HashMap<GlobalId, GraphIx>,
@@ -82,12 +90,75 @@ impl DepGraph {
         self.record(id, NodeKind::Reaction);
     }
 
+    pub fn action_triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
+        // trigger -> reaction
+        self.graph.add_edge(
+            self.get_ix(trigger.0),
+            self.get_ix(reaction.0),
+            EdgeWeight::Default,
+        );
+    }
+
+    pub fn port_triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
+        // trigger -> reaction
+        self.graph.add_edge(
+            self.get_ix(trigger.0),
+            self.get_ix(reaction.0),
+            EdgeWeight::Default,
+        );
+    }
+
+    pub fn reaction_uses_port<T>(&mut self, trigger: &Port<T>, reaction: GlobalReactionId) {
+        // trigger -> reaction
+        self.graph.add_edge(
+            self.get_ix(trigger.get_id().0),
+            self.get_ix(reaction.0),
+            EdgeWeight::Default,
+        );
+    }
+
+    pub fn reaction_affects_port<T>(&mut self, reaction: GlobalReactionId, trigger: &Port<T>) {
+        // trigger -> reaction
+        self.graph.add_edge(
+            self.get_ix(trigger.get_id().0),
+            self.get_ix(reaction.0),
+            EdgeWeight::Default,
+        );
+    }
+
+    pub fn reaction_affects_action<K, T: Clone>(&mut self, reaction: GlobalReactionId, trigger: &Action<K, T>) {
+        // trigger -> reaction
+        self.graph.add_edge(
+            self.get_ix(trigger.get_id().0),
+            self.get_ix(reaction.0),
+            EdgeWeight::Default,
+        );
+    }
+
+    pub fn reaction_priority<K, T>(&mut self, n: GlobalReactionId, m: GlobalReactionId) {
+        // trigger -> reaction
+        self.graph.add_edge(
+            self.get_ix(n.0),
+            self.get_ix(m.0),
+            EdgeWeight::Default,
+        );
+    }
+
+    pub fn port_bind<T>(&mut self, p1: &Port<T>, p2: &Port<T>) {
+        // upstream (settable) -> downstream (bound)
+        self.graph.add_edge(
+            self.get_ix(p1.get_id().0),
+            self.get_ix(p2.get_id().0),
+            EdgeWeight::Default,
+        );
+    }
+
     pub fn triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
         // trigger -> reaction
         self.graph.add_edge(
             self.get_ix(trigger.0),
             self.get_ix(reaction.0),
-            ()
+            EdgeWeight::Default,
         );
     }
 
@@ -96,18 +167,17 @@ impl DepGraph {
         self.graph.add_edge(
             self.get_ix(reaction.0),
             self.get_ix(trigger.0),
-            ()
+            EdgeWeight::Default
         );
     }
 
     pub fn reaction_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
         // trigger -> reaction
-        // todo
-        // self.graph.add_edge(
-        //     self.get_ix(trigger.0),
-        //     self.get_ix(reaction.0),
-        //     ()
-        // );
+        self.graph.add_edge(
+            self.get_ix(trigger.0),
+            self.get_ix(reaction.0),
+            EdgeWeight::Use,
+        );
     }
 
     fn get_ix(&self, id: GlobalId) -> GraphIx {
@@ -121,20 +191,105 @@ impl DepGraph {
     }
 }
 
+enum EdgeWeight {
+    /// Default semantics for this edge (determined by the
+    /// kind of source and target vertex). This only makes a
+    /// difference for edges from a port/action to a reaction:
+    /// if they're labeled `Default`, they're trigger dependencies,
+    /// otherwise use dependencies.
+    Default,
+    ///
+    Use,
+}
+
+/// Pre-calculated dependency information,
+/// using the dependency graph
+struct DependencyInfo {
+    /// Maps each trigger to the set of reactions that need
+    /// to be scheduled when it is triggered.
+    trigger_to_plan: HashMap<TriggerId, ExecutableReactions>,
+
+    /// The level of each reaction.
+    layer_numbers: HashMap<GlobalReactionId, usize>,
+}
+
+impl DependencyInfo {
+    fn new(DepGraph { graph, ix_by_id }: DepGraph) -> Result<Self, AssemblyError> {
+        let trigger_to_plan = HashMap::<TriggerId, ExecutableReactions>::new();
+
+        // We need to number reactions by layer.
+    }
+
+    /// Append a reaction to the given reaction collection
+    fn augment(&self,
+               ExecutableReactions(layers): &mut ExecutableReactions,
+               reaction: GlobalReactionId,
+    ) {
+        let ix = self.layer_numbers.get(&reaction).copied().unwrap();
+
+        if let Some(layer) = layers.get_mut(ix) {
+            layer.insert(reaction);
+        } else {
+            debug_assert!(ix >= layers.len());
+            let new_layer_count = ix - layers.len() + 1; // len 0, ix 0 => 1 new layer
+            layers.reserve(new_layer_count);
+
+            // add a bunch of empty layers to fill holes
+            for _ in 1..new_layer_count { // new_layer_count - 1 iterations
+                layers.push(Default::default());
+            }
+            let mut new_layer: Layer = Default::default();
+            new_layer.insert(reaction);
+            layers.push(new_layer);
+        }
+    }
+
+    /// Merge the second set of reactions into the first.
+    fn merge(&self,
+             ExecutableReactions(dst): &mut ExecutableReactions,
+             ExecutableReactions(mut src): ExecutableReactions) {
+        let new_layers = src.len() - dst.len();
+        if new_layers > 0 {
+            dst.reserve(new_layers);
+        }
+
+        let dst_end = dst.len();
+
+        for (i, src_layer) in src.drain(..).enumerate() {
+            if i > dst_end {
+                debug_assert_eq!(i, dst.len());
+                dst.push(src_layer);
+            } else {
+                // merge into existing layer
+                // note that we could probs replace get_mut(i).unwrap() with (unsafe) get_unchecked_mut(i)
+                let dst_layer = dst.get_mut(i).unwrap();
+                dst_layer.extend(src_layer);
+            }
+        }
+    }
+}
 
 
-
-type Layer = Vec<(ReactorId, LocalizedReactionSet)>;
+type Layer = HashSet<GlobalReactionId>;
 
 /// A set of reactions ordered by relative dependency.
 /// TODO this is relevant for parallel execution of reactions.
-struct ExecutableReactions {
-
+struct ExecutableReactions(
     /// An ordered list of layers to execute.
     ///
     /// It must by construction be the case that a reaction
     /// in layer `i` has no dependency on reactions in layers `j >= i`.
     /// This way, the execution of reactions in the same layer
     /// may be parallelized.
-    layers: Vec<Layer>,
+    Vec<Layer>
+);
+
+impl ExecutableReactions {
+    /// Clear the individual layers, retains the allocation
+    /// for the layer vector.
+    pub fn clear(&mut self) {
+        for mut layer in self.0 {
+            layer.clear()
+        }
+    }
 }
