@@ -51,18 +51,20 @@ struct GraphNode {
 /// their trigger dependencies. This is a DAG.
 #[derive(Default)]
 pub(in super) struct DepGraph {
-    /// Edges are forward data flow
-    /// Ie, a reaction R having a trigger dependency on a port P
-    /// is represented as an edge P -> R.
+    /// Instantaneous data flow. Must be acyclic. Edges from
+    /// reactions to actions are not represented, as they are
+    /// not actually a data dependency that could cause a
+    /// scheduling conflict. Conveniently those edges are the
+    /// only way control flow may be cyclic in the reactor model,
+    /// so a stock check for cycles can be used.
     ///
     /// There are several kind of edges:
+    /// - reaction -> port: the reaction effects the port/action
+    /// - port/action -> reaction: the port/action triggers the reaction
+    /// - port -> port: a binding of a port to another
     /// - reaction n -> reaction m: means n has higher priority
     /// than m, only filled in for reactions of the same reactor.
-    /// - reaction -> port/action: the reaction effects the port/action
-    /// - port/action -> reaction: the port/action triggers the reaction
-    ///
-    ///
-    graph: DiGraph<GraphNode, EdgeWeight, GlobalIdImpl>,
+    dataflow: DiGraph<GraphNode, EdgeWeight, GlobalIdImpl>,
 
     /// Maps global IDs back to graph indices.
     ix_by_id: HashMap<GlobalId, GraphIx>,
@@ -92,7 +94,7 @@ impl DepGraph {
 
     pub fn action_triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
         // trigger -> reaction
-        self.graph.add_edge(
+        self.dataflow.add_edge(
             self.get_ix(trigger.0),
             self.get_ix(reaction.0),
             EdgeWeight::Default,
@@ -101,7 +103,7 @@ impl DepGraph {
 
     pub fn port_triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
         // trigger -> reaction
-        self.graph.add_edge(
+        self.dataflow.add_edge(
             self.get_ix(trigger.0),
             self.get_ix(reaction.0),
             EdgeWeight::Default,
@@ -110,7 +112,7 @@ impl DepGraph {
 
     pub fn reaction_uses_port<T>(&mut self, trigger: &Port<T>, reaction: GlobalReactionId) {
         // trigger -> reaction
-        self.graph.add_edge(
+        self.dataflow.add_edge(
             self.get_ix(trigger.get_id().0),
             self.get_ix(reaction.0),
             EdgeWeight::Default,
@@ -119,7 +121,7 @@ impl DepGraph {
 
     pub fn reaction_affects_port<T>(&mut self, reaction: GlobalReactionId, trigger: &Port<T>) {
         // trigger -> reaction
-        self.graph.add_edge(
+        self.dataflow.add_edge(
             self.get_ix(trigger.get_id().0),
             self.get_ix(reaction.0),
             EdgeWeight::Default,
@@ -128,7 +130,7 @@ impl DepGraph {
 
     pub fn reaction_affects_action<K, T: Clone>(&mut self, reaction: GlobalReactionId, trigger: &Action<K, T>) {
         // trigger -> reaction
-        self.graph.add_edge(
+        self.dataflow.add_edge(
             self.get_ix(trigger.get_id().0),
             self.get_ix(reaction.0),
             EdgeWeight::Default,
@@ -137,7 +139,7 @@ impl DepGraph {
 
     pub fn reaction_priority(&mut self, n: GlobalReactionId, m: GlobalReactionId) {
         // trigger -> reaction
-        self.graph.add_edge(
+        self.dataflow.add_edge(
             self.get_ix(n.0),
             self.get_ix(m.0),
             EdgeWeight::Default,
@@ -146,7 +148,7 @@ impl DepGraph {
 
     pub fn port_bind<T>(&mut self, p1: &Port<T>, p2: &Port<T>) {
         // upstream (settable) -> downstream (bound)
-        self.graph.add_edge(
+        self.dataflow.add_edge(
             self.get_ix(p1.get_id().0),
             self.get_ix(p2.get_id().0),
             EdgeWeight::Default,
@@ -155,7 +157,7 @@ impl DepGraph {
 
     pub fn triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
         // trigger -> reaction
-        self.graph.add_edge(
+        self.dataflow.add_edge(
             self.get_ix(trigger.0),
             self.get_ix(reaction.0),
             EdgeWeight::Default,
@@ -164,7 +166,7 @@ impl DepGraph {
 
     pub fn reaction_effects(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
         // reaction -> trigger
-        self.graph.add_edge(
+        self.dataflow.add_edge(
             self.get_ix(reaction.0),
             self.get_ix(trigger.0),
             EdgeWeight::Default
@@ -173,7 +175,7 @@ impl DepGraph {
 
     pub fn reaction_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
         // trigger -> reaction
-        self.graph.add_edge(
+        self.dataflow.add_edge(
             self.get_ix(trigger.0),
             self.get_ix(reaction.0),
             EdgeWeight::Use,
@@ -186,7 +188,7 @@ impl DepGraph {
 
 
     fn record(&mut self, id: GlobalId, kind: NodeKind) {
-        let ix = self.graph.add_node(GraphNode { kind, id });
+        let ix = self.dataflow.add_node(GraphNode { kind, id });
         self.ix_by_id.insert(id, ix);
     }
 }
@@ -214,7 +216,7 @@ struct DependencyInfo {
 }
 
 impl DependencyInfo {
-    fn new(DepGraph { graph: _, ix_by_id: _ }: DepGraph) -> Result<Self, AssemblyError> {
+    fn new(DepGraph { dataflow, ix_by_id }: DepGraph) -> Result<Self, AssemblyError> {
         let _trigger_to_plan = HashMap::<TriggerId, ExecutableReactions>::new();
 
         // We need to number reactions by layer.
