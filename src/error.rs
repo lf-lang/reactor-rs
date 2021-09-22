@@ -1,4 +1,4 @@
-use std::fmt::{Display, Formatter, Debug};
+use std::fmt::{Debug, Display, Formatter};
 
 use crate::PortId;
 

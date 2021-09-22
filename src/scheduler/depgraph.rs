@@ -214,10 +214,11 @@ struct DependencyInfo {
 }
 
 impl DependencyInfo {
-    fn new(DepGraph { graph, ix_by_id }: DepGraph) -> Result<Self, AssemblyError> {
-        let trigger_to_plan = HashMap::<TriggerId, ExecutableReactions>::new();
+    fn new(DepGraph { graph: _, ix_by_id: _ }: DepGraph) -> Result<Self, AssemblyError> {
+        let _trigger_to_plan = HashMap::<TriggerId, ExecutableReactions>::new();
 
         // We need to number reactions by layer.
+        todo!()
     }
 
     /// Append a reaction to the given reaction collection
@@ -288,7 +289,7 @@ impl ExecutableReactions {
     /// Clear the individual layers, retains the allocation
     /// for the layer vector.
     pub fn clear(&mut self) {
-        for mut layer in self.0 {
+        for layer in &mut self.0 {
             layer.clear()
         }
     }

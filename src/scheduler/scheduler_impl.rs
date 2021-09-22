@@ -29,14 +29,12 @@
 use std::ops::Deref;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
-
+use index_vec::IndexVec;
 
 use crate::*;
-
-use super::*;
-use index_vec::IndexVec;
 use crate::CleanupCtx;
 
+use super::*;
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,

@@ -25,9 +25,6 @@
 
 use std::fmt::{Display, Formatter};
 
-
-
-
 /// A type whose instances have statically known names
 pub trait Named {
     fn name(&self) -> &'static str;

@@ -23,6 +23,31 @@
  */
 
 #[cfg(test)]
+#[macro_use]
+extern crate assert_matches;
+extern crate bit_set;
+#[macro_use]
+extern crate index_vec;
+extern crate itertools;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate smallvec;
+
+pub use std::time::Duration;
+// reexport those to complement our LogicalInstant
+pub use std::time::Instant as PhysicalInstant;
+
+pub use self::actions::*;
+pub use self::error::*;
+pub use self::ids::*;
+pub use self::ports::*;
+pub use self::scheduler::*;
+pub use self::time::*;
+pub use self::timers::*;
+pub use self::util::*;
+
+#[cfg(test)]
 pub mod test;
 
 mod scheduler;
@@ -33,34 +58,6 @@ mod timers;
 mod util;
 mod ids;
 mod error;
-
-pub use self::actions::*;
-pub use self::timers::*;
-pub use self::ports::*;
-
-pub use self::scheduler::*;
-pub use self::time::*;
-pub use self::util::*;
-pub use self::ids::*;
-pub use self::error::*;
-
-// reexport those to complement our LogicalInstant
-pub use std::time::Instant as PhysicalInstant;
-pub use std::time::Duration;
-
-
-#[macro_use]
-extern crate log;
-#[cfg(test)]
-#[macro_use]
-extern crate assert_matches;
-
-#[macro_use]
-extern crate index_vec;
-extern crate itertools;
-extern crate bit_set;
-#[macro_use]
-extern crate smallvec;
 
 /// Wrapper around the user struct for safe dispatch.
 ///

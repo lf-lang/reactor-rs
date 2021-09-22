@@ -29,7 +29,6 @@
 
 use super::*;
 
-
 /// A timer is conceptually a logical action that re-schedules
 /// itself periodically.
 pub struct Timer {

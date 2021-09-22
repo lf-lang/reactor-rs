@@ -1,9 +1,10 @@
+use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashSet;
 use std::sync::mpsc::Sender;
 
 use crate::*;
+
 use super::*;
-use std::borrow::{Borrow, BorrowMut};
 
 /// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.

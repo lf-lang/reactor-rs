@@ -22,10 +22,12 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use ActionPresence::{NotPresent, Present};
+
 use crate::*;
+
 #[allow(unused)]
 use super::testutil::*;
-use ActionPresence::{NotPresent, Present};
 
 #[test]
 fn a_value_map_should_be_able_to_store_a_value() {

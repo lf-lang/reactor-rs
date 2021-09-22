@@ -26,14 +26,12 @@
 use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 
-pub use scheduler_impl::*;
-pub use context::*;
 pub use assembly::*;
-
+pub use context::*;
 pub(in self) use event_queue::*;
+pub use scheduler_impl::*;
 
-use crate::{LogicalInstant, GlobalReactionId};
-
+use crate::{GlobalReactionId, LogicalInstant};
 
 /// The internal cell type used to store a thread-safe mutable logical time value.
 type TimeCell = Arc<Mutex<Cell<LogicalInstant>>>;

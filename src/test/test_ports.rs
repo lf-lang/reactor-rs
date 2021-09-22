@@ -23,6 +23,7 @@
  */
 
 use crate::*;
+
 use super::testutil::*;
 
 static mut DUMMY_ID: GlobalId = GlobalId::first_id();

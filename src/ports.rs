@@ -29,8 +29,7 @@ use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-
-use crate::{AssemblyError, GlobalId, PortId, ReactionSet, TriggerLike, TriggerId};
+use crate::{AssemblyError, GlobalId, PortId, ReactionSet, TriggerId, TriggerLike};
 
 /// A read-only reference to a port.
 #[repr(transparent)]
@@ -281,7 +280,7 @@ struct PortCell<T> {
 impl<T> PortCell<T> {
     fn check_cycle(&self, upstream_id: &PortId, downstream_id: &PortId) -> Result<(), AssemblyError> {
         if (&*self.downstreams.borrow()).contains_key(upstream_id) {
-            Err(AssemblyError::CyclicPortDependency(*upstream_id, *downstream_id))
+            Err(AssemblyError::CyclicDependency(*upstream_id, *downstream_id))
         } else {
             Ok(())
         }

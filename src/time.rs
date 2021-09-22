@@ -25,9 +25,7 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Add;
 
-
 use super::{Duration, PhysicalInstant};
-
 
 /// A point on the logical timeline.
 ///

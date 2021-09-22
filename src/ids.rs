@@ -23,10 +23,11 @@
  */
 
 
-use std::fmt::{Display, Formatter, Result, Debug};
-use bit_set::BitSet;
-use std::iter::FromIterator;
 use std::collections::HashMap;
+use std::fmt::{Debug, Display, Formatter, Result};
+use std::iter::FromIterator;
+
+use bit_set::BitSet;
 
 // private implementation types
 type ReactionIdImpl = u16;
@@ -149,10 +150,11 @@ impl GlobalId {
     pub(in crate) fn as_usize(&self) -> usize {
         self._raw as usize
     }
+
     #[cfg(test)]
-    pub const fn next_id(&self) -> GlobalId {
+    pub fn next_id(&self) -> GlobalId {
         // todo check overflow
-        assert_ne!(self.local, 0xffff, "Overflow while allocating next id");
+        assert_ne!(self.local(), 0xffff, "Overflow while allocating next id");
         Self { _raw: self._raw + 1 }
     }
 
@@ -161,12 +163,12 @@ impl GlobalId {
         GlobalId { _raw: 0 }
     }
 
-    pub(in crate) fn container(&self) -> ReactorId {
+    pub(in crate) const fn container(&self) -> ReactorId {
         ReactorId::new_const((self._raw >> 16) as u16)
     }
 
-    pub(in crate) fn local(&self) -> LocalReactionId {
-        LocalReactionId::new((self._raw & 0xffff) as u16 as usize)
+    pub(in crate) const fn local(&self) -> LocalReactionId {
+        LocalReactionId::new_const((self._raw & 0xffff) as u16)
     }
 }
 

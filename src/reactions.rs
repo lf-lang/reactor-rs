@@ -26,5 +26,5 @@ use std::cmp::Ordering;
 use std::fmt::*;
 use std::hash::{Hash, Hasher};
 
-
 use crate::{GlobalReactionId, LocalReactionId, ReactionCtx, ReactorId};
+

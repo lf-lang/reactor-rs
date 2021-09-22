@@ -1,9 +1,9 @@
-
-use crate::{ReactorId, ReactionSet, LogicalInstant, LocalizedReactionSet};
-use itertools::Itertools;
 use std::cmp::Reverse;
+
+use itertools::Itertools;
 use smallvec::SmallVec;
 
+use crate::{LocalizedReactionSet, LogicalInstant, ReactionSet, ReactorId};
 
 /// A set of reactions to execute at a particular tag.
 /// The key characteristic of instances is

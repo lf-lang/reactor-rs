@@ -22,10 +22,10 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use crate::*;
-use crate::scheduler::depgraph::DepGraph;
 use index_vec::IndexVec;
 
+use crate::*;
+use crate::scheduler::depgraph::DepGraph;
 
 pub(in super) struct RootAssembler {
     reactor_id: ReactorId,
