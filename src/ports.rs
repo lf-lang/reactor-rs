@@ -221,7 +221,7 @@ impl<T> TriggerLike for Port<T> {
 ///
 /// If the downstream port was already bound to some other port.
 ///
-pub fn bind_ports<T>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), AssemblyError> {
+pub(in crate) fn bind_ports<T>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), AssemblyError> {
     up.forward_to(down)
 }
 

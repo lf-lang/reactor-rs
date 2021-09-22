@@ -128,6 +128,8 @@ impl<'x> AssemblyCtx<'x> {
         result
     }
 
+    // register dependencies between components
+
     pub fn declare_triggers(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
         self.globals.graph.triggers_reaction(trigger, reaction)
     }
@@ -140,29 +142,23 @@ impl<'x> AssemblyCtx<'x> {
         self.globals.graph.reaction_effects(reaction, trigger)
     }
 
+    pub fn bind_ports<T>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) {
+        crate::bind_ports(upstream, downstream);
+        self.globals.graph.port_bind(upstream, downstream);
+    }
+
     /// Create and return a new global id for a new component.
     /// Note: reactions don't share the same namespace as components.
     ///
     /// ### Panics
     ///
     /// See [get_id].
-    pub fn next_comp_id(&mut self, debug_name: Option<&'static str>) -> GlobalId {
-        self.next_comp_id_impl(debug_name,
-                               |ich| &mut ich.cur_local,
-                               |ich| &mut ich.globals.id_registry)
-    }
-
-    #[inline]
-    fn next_comp_id_impl(&mut self,
-                         debug_name: Option<&'static str>,
-                         namespace: impl Fn(&mut Self) -> &mut LocalReactionId,
-                         id_registry: impl FnOnce(&mut Self) -> &mut IdRegistry,
-    ) -> GlobalId {
-        let id = GlobalId::new(self.get_id(), *namespace(self));
+    fn next_comp_id(&mut self, debug_name: Option<&'static str>) -> GlobalId {
+        let id = GlobalId::new(self.get_id(), self.cur_local);
         if let Some(label) = debug_name {
-            id_registry(self).record(id, label);
+            self.globals.id_registry.record(id, label);
         }
-        *namespace(self) += 1;
+        self.cur_local += 1;
         id
     }
 

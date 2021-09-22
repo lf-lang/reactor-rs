@@ -92,51 +92,6 @@ impl DepGraph {
         self.record(id.0, NodeKind::Reaction);
     }
 
-    pub fn action_triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
-        // trigger -> reaction
-        self.dataflow.add_edge(
-            self.get_ix(trigger.0),
-            self.get_ix(reaction.0),
-            EdgeWeight::Default,
-        );
-    }
-
-    pub fn port_triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
-        // trigger -> reaction
-        self.dataflow.add_edge(
-            self.get_ix(trigger.0),
-            self.get_ix(reaction.0),
-            EdgeWeight::Default,
-        );
-    }
-
-    pub fn reaction_uses_port<T>(&mut self, trigger: &Port<T>, reaction: GlobalReactionId) {
-        // trigger -> reaction
-        self.dataflow.add_edge(
-            self.get_ix(trigger.get_id().0),
-            self.get_ix(reaction.0),
-            EdgeWeight::Default,
-        );
-    }
-
-    pub fn reaction_affects_port<T>(&mut self, reaction: GlobalReactionId, trigger: &Port<T>) {
-        // trigger -> reaction
-        self.dataflow.add_edge(
-            self.get_ix(trigger.get_id().0),
-            self.get_ix(reaction.0),
-            EdgeWeight::Default,
-        );
-    }
-
-    pub fn reaction_affects_action<K, T: Clone>(&mut self, reaction: GlobalReactionId, trigger: &Action<K, T>) {
-        // trigger -> reaction
-        self.dataflow.add_edge(
-            self.get_ix(trigger.get_id().0),
-            self.get_ix(reaction.0),
-            EdgeWeight::Default,
-        );
-    }
-
     pub fn reaction_priority(&mut self, n: GlobalReactionId, m: GlobalReactionId) {
         // trigger -> reaction
         self.dataflow.add_edge(
