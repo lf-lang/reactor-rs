@@ -93,6 +93,10 @@ impl SyncScheduler {
         let main_reactor = R::assemble(args, &mut assembler);
         assembler.register_reactor(main_reactor);
 
+        #[cfg(debug_assertions)] { root_assembler.graph.eprint_dot(); }
+
+        scheduler.reactors = root_assembler.reactors;
+
         scheduler.startup();
         scheduler.launch_event_loop()
     }

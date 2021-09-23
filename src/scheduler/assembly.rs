@@ -28,9 +28,14 @@ use crate::*;
 use crate::scheduler::depgraph::DepGraph;
 
 pub(in super) struct RootAssembler {
+    /// ID of the next reactor to assign
     reactor_id: ReactorId,
-    graph: DepGraph,
-    reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
+    /// All registered reactors
+    pub(crate) reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
+
+    /// Dependency graph
+    pub(in super) graph: DepGraph,
+
     id_registry: IdRegistry,
     reaction_labels: IdRegistry,
 }

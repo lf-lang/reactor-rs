@@ -31,9 +31,12 @@ use index_vec::IdxSliceIndex;
 use petgraph::graph::{DiGraph, NodeIndex};
 
 use crate::*;
+use petgraph::dot::{Dot, Config};
+use std::fmt::{Debug, Formatter};
 
 type GraphIx = NodeIndex<u32>;
 
+#[derive(Debug, Eq, PartialEq, Hash)]
 enum NodeKind {
     Port,
     Action,
@@ -75,7 +78,21 @@ pub struct ReactionIx(GraphIx);
 /// Index of a port or action in the graph
 pub struct ComponentIx(GraphIx);
 
+impl Debug for GraphNode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}({:?})", self.kind, self.id)
+    }
+}
+
 impl DepGraph {
+
+    /// Print a dot representation of the graph onto stderr.
+    #[cfg(debug_assertions)]
+    pub fn eprint_dot(&self) {
+        let dot = Dot::with_config(&self.dataflow, &[Config::EdgeNoLabel]);
+        eprintln!("{:?}", dot)
+    }
+
     pub(in super) fn record_port(&mut self, id: GlobalId) {
         self.record(id, NodeKind::Port);
     }
@@ -148,6 +165,7 @@ impl DepGraph {
     }
 }
 
+#[derive(Debug)]
 enum EdgeWeight {
     /// Default semantics for this edge (determined by the
     /// kind of source and target vertex). This only makes a
