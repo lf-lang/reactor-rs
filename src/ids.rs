@@ -92,7 +92,7 @@ define_index_type! {
 
 impl ReactorId {
     // a const fn to be able to use this in const context
-    pub const fn new_const(u: ReactionIdImpl) -> Self {
+    pub const fn new_const(u: ReactorIdImpl) -> Self {
         Self { _raw: u }
     }
 }

@@ -36,7 +36,7 @@ pub(in super) struct RootAssembler {
     /// Dependency graph
     pub(in super) graph: DepGraph,
 
-    id_registry: IdRegistry,
+    pub(crate) id_registry: IdRegistry,
     reaction_labels: IdRegistry,
 }
 

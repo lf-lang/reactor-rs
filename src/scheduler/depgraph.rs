@@ -33,6 +33,7 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use crate::*;
 use petgraph::dot::{Dot, Config};
 use std::fmt::{Debug, Formatter, Display};
+use crate::scheduler::depgraph::NodeKind::Reaction;
 
 type GraphIx = NodeIndex<u32>;
 
@@ -87,10 +88,33 @@ impl Debug for GraphNode {
 impl DepGraph {
 
     /// Print a dot representation of the graph onto stderr.
-    #[cfg(debug_assertions)]
-    pub fn eprintln_dot(&self) {
+    #[cfg(feature = "graph-dump")]
+    pub fn eprintln_dot(&self, id_registry: &IdRegistry) {
+        use regex::{Regex, Captures};
+
         let dot = Dot::with_config(&self.dataflow, &[Config::EdgeNoLabel]);
-        eprintln!("{:?}", dot)
+
+        let re = Regex::new(r"(Reaction|Action|Port)\((\d++)/(\d++)\)").unwrap();
+
+        let formatted = format!("{:?}", dot);
+        let replaced = re.replace_all(formatted.as_str(), |captures: &Captures| {
+            let kind = captures.get(1).unwrap().as_str();
+            let reactor_number = ReactorId::new_const(captures.get(2).unwrap().as_str().parse().unwrap());
+            let component_number = LocalReactionId::new_const(captures.get(3).unwrap().as_str().parse().unwrap());
+
+            if kind != "Reaction" {
+                let comp_id = GlobalId::new(reactor_number, component_number);
+                if let Some(nice_name) = id_registry.get_debug_label(comp_id) {
+                    format!("{}({}/{})", kind, comp_id.container(), nice_name)
+                } else {
+                    captures.get(0).unwrap().as_str().to_owned()
+                }
+            } else {
+                captures.get(0).unwrap().as_str().to_owned()
+            }
+        });
+
+        eprintln!("{}", replaced);
     }
 
     pub(in super) fn record_port(&mut self, id: GlobalId) {

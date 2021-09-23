@@ -93,8 +93,8 @@ impl SyncScheduler {
         let main_reactor = R::assemble(args, &mut assembler);
         assembler.register_reactor(main_reactor);
 
-        #[cfg(debug_assertions)] {
-            root_assembler.graph.eprintln_dot();
+        #[cfg(feature = "graph-dump")] {
+            root_assembler.graph.eprintln_dot(&root_assembler.id_registry);
         }
 
         scheduler.reactors = root_assembler.reactors;
