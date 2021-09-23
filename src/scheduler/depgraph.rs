@@ -32,7 +32,7 @@ use petgraph::graph::{DiGraph, NodeIndex};
 
 use crate::*;
 use petgraph::dot::{Dot, Config};
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Formatter, Display};
 
 type GraphIx = NodeIndex<u32>;
 
@@ -80,7 +80,7 @@ pub struct ComponentIx(GraphIx);
 
 impl Debug for GraphNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}({:?})", self.kind, self.id)
+        write!(f, "{:?}({})", self.kind, self.id)
     }
 }
 
@@ -88,7 +88,7 @@ impl DepGraph {
 
     /// Print a dot representation of the graph onto stderr.
     #[cfg(debug_assertions)]
-    pub fn eprint_dot(&self) {
+    pub fn eprintln_dot(&self) {
         let dot = Dot::with_config(&self.dataflow, &[Config::EdgeNoLabel]);
         eprintln!("{:?}", dot)
     }
