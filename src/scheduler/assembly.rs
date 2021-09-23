@@ -144,7 +144,7 @@ impl<'x> AssemblyCtx<'x> {
     }
 
     pub fn declare_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
-        self.globals.graph.reaction_effects(reaction, trigger)
+        self.globals.graph.reaction_uses(reaction, trigger)
     }
 
     pub fn bind_ports<T>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) {
