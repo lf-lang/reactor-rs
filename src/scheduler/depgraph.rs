@@ -25,14 +25,17 @@
 
 
 use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::Entry;
 use std::default::Default;
+use std::fmt::{Debug, Display, Formatter};
 
 use index_vec::IdxSliceIndex;
+use petgraph::Direction::{Incoming, Outgoing};
+use petgraph::dot::{Config, Dot};
 use petgraph::graph::{DiGraph, NodeIndex};
+use petgraph::visit::EdgeRef;
 
 use crate::*;
-use petgraph::dot::{Dot, Config};
-use std::fmt::{Debug, Formatter, Display};
 use crate::scheduler::depgraph::NodeKind::Reaction;
 
 type GraphIx = NodeIndex<u32>;
@@ -49,6 +52,8 @@ struct GraphNode {
     kind: NodeKind,
     id: GlobalId, // is this necessary? probs
 }
+
+type DepGraphImpl = DiGraph<GraphNode, EdgeWeight, GlobalIdImpl>;
 
 /// Dependency graph representing "instantaneous" dependencies,
 /// ie read- and write-dependencies of reactions to ports, and
@@ -68,7 +73,7 @@ pub(in super) struct DepGraph {
     /// - port -> port: a binding of a port to another
     /// - reaction n -> reaction m: means n has higher priority
     /// than m, only filled in for reactions of the same reactor.
-    dataflow: DiGraph<GraphNode, EdgeWeight, GlobalIdImpl>,
+    dataflow: DepGraphImpl,
 
     /// Maps global IDs back to graph indices.
     ix_by_id: HashMap<GlobalId, GraphIx>,
@@ -209,15 +214,56 @@ struct DependencyInfo {
     trigger_to_plan: HashMap<TriggerId, ExecutableReactions>,
 
     /// The level of each reaction.
-    layer_numbers: HashMap<GlobalReactionId, usize>,
+    layer_numbers: HashMap<GlobalReactionId, u32>,
 }
 
 impl DependencyInfo {
     fn new(DepGraph { dataflow, ix_by_id }: DepGraph) -> Result<Self, AssemblyError> {
-        let _trigger_to_plan = HashMap::<TriggerId, ExecutableReactions>::new();
+        if petgraph::algo::is_cyclic_directed(&dataflow) {
+            return Err(AssemblyError::CyclicDependencyGraph);
+        }
 
-        // We need to number reactions by layer.
-        todo!()
+        let trigger_to_plan = todo!();
+
+        let layer_numbers = Self::number_reactions_by_layer(&dataflow);
+
+        Ok(DependencyInfo { trigger_to_plan, layer_numbers })
+    }
+
+    fn number_reactions_by_layer(dataflow: &DepGraphImpl) -> HashMap<GlobalReactionId, u32> {
+        // note: this will infinitely recurse with a cyclic graph
+        let mut layer_numbers = HashMap::<GlobalReactionId, u32>::new();
+        let mut todo = Self::get_roots(&dataflow);
+        let mut todo_next = Vec::new();
+        let mut cur_layer: u32 = 0;
+        while !todo.is_empty() {
+            for ix in todo.drain(..) {
+                let id = dataflow.node_weight(ix).unwrap().id;
+                if let Entry::Vacant(v) = layer_numbers.entry(GlobalReactionId(id)) {
+                    // if entry is occupied, then it already has its correct minimal layer number
+                    v.insert(cur_layer);
+                }
+                for out_edge in dataflow.edges_directed(ix, Outgoing) {
+                    todo_next.push(out_edge.target())
+                }
+            }
+            cur_layer += 1;
+            std::mem::swap(&mut todo, &mut todo_next)
+        }
+        layer_numbers
+    }
+
+    /// Returns the roots of the graph
+    fn get_roots(graph: &DepGraphImpl) -> Vec<GraphIx> {
+        let mut result = Vec::new();
+        for node in graph.node_indices() {
+            // no incoming edge?
+            if graph.edges_directed(node, Incoming).next().is_none() {
+                result.push(node);
+            }
+        }
+
+        result
     }
 
     /// Append a reaction to the given reaction collection
@@ -225,7 +271,7 @@ impl DependencyInfo {
                ExecutableReactions(layers): &mut ExecutableReactions,
                reaction: GlobalReactionId,
     ) {
-        let ix = self.layer_numbers.get(&reaction).copied().unwrap();
+        let ix = self.layer_numbers.get(&reaction).copied().unwrap() as usize;
 
         if let Some(layer) = layers.get_mut(ix) {
             layer.insert(reaction);
@@ -278,9 +324,12 @@ struct ExecutableReactions(
     /// An ordered list of layers to execute.
     ///
     /// It must by construction be the case that a reaction
-    /// in layer `i` has no dependency on reactions in layers `j >= i`.
+    /// in layer `i` has no dependency(1) on reactions in layers `j >= i`.
     /// This way, the execution of reactions in the same layer
     /// may be parallelized.
+    ///
+    /// (1) a reaction n has a dependency on another m if m
+    /// is in the predecessors of n in the dependency graph
     Vec<Layer>
 );
 
