@@ -34,8 +34,3 @@ graph-dump=["regex"]
 [[bench]]
 name = "savina_pong"
 harness = false
-
-
-[[bin]]
-name = "minimal"
-path = "examples/Minimal/src/main.rs"
