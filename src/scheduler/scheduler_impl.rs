@@ -67,7 +67,7 @@ pub struct SyncScheduler<'x> {
     tx: Sender<Event<'x>>,
 
     /// A queue of pending events.
-    event_queue: EventQueue,
+    event_queue: EventQueue<'x>,
 
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
@@ -103,7 +103,7 @@ impl<'x> SyncScheduler<'x> {
         // collect dependency information
         let dependency_info = DependencyInfo::new(graph).unwrap();
 
-        let mut scheduler = Self::new(options, reactors, dependency_info);
+        let mut scheduler = SyncScheduler::new(options, reactors, &dependency_info);
 
         scheduler.startup();
         scheduler.launch_event_loop()
@@ -194,11 +194,10 @@ impl<'x> SyncScheduler<'x> {
 
 // note: we can't use a method because sometimes it would self.push_event because it would borrow self twice...
 macro_rules! push_event {
-        ($_self:expr, $evt:expr, $time:expr) => {{
+        ($ich:expr, $evt:expr) => {{
             let evt = $evt;
-            let process_at = $time;
-            trace!("Pushing {}", $_self.display_event(&evt, process_at));
-            $_self.event_queue.insert(process_at, &$_self.dataflow, evt.todo);
+            trace!("Pushing {}", $ich.display_event(&evt, evt.tag));
+            $ich.event_queue.insert(evt.tag, &$ich.dataflow, evt.reactions);
         }};
     }
 
@@ -212,8 +211,8 @@ impl<'x> SyncScheduler<'x> {
          ************************************************/
         loop {
             // flush pending events, this doesn't block
-            for ScheduledEvent(evt, process_at) in self.rx.try_iter() {
-                push_event!(self, evt, process_at);
+            for evt in self.rx.try_iter() {
+                push_event!(self, evt);
             }
 
             if let Some(plan) = self.event_queue.take_earliest() {
@@ -224,9 +223,9 @@ impl<'x> SyncScheduler<'x> {
                 // execute the wave for this event.
                 trace!("Processing event for tag {}", self.display_tag(plan.tag));
                 self.step(plan);
-
-            } else if let Some(ScheduledEvent(evt, process_at)) = self.receive_event() { // this may block
-                push_event!(self, evt, process_at);
+            } else if let Some(evt) = self.receive_event() {
+                // this may block
+                push_event!(self, evt);
                 continue;
             } else {
                 // all senders have hung up, or timeout
@@ -250,19 +249,19 @@ impl<'x> SyncScheduler<'x> {
         self.shutdown_time.map(|shutdown_t| shutdown_t < t).unwrap_or(false)
     }
 
-    fn receive_event(&mut self) -> Option<ScheduledEvent> {
+    fn receive_event(&mut self) -> Option<Event<'x>> {
         let now = PhysicalInstant::now();
         //fixme keepalive doesn't work as in C
         // if self.options.keep_alive {
-            if let Some(shutdown_t) = self.shutdown_time {
-                if now < shutdown_t.instant {
-                    // we don't have to shutdown yet, so we can wait
-                    let timeout = shutdown_t.instant.duration_since(now);
+        if let Some(shutdown_t) = self.shutdown_time {
+            if now < shutdown_t.instant {
+                // we don't have to shutdown yet, so we can wait
+                let timeout = shutdown_t.instant.duration_since(now);
 
-                    trace!("Will wait for next event {} ns", timeout.as_nanos());
+                trace!("Will wait for next event {} ns", timeout.as_nanos());
 
-                    return self.rx.recv_timeout(timeout).ok();
-                }
+                return self.rx.recv_timeout(timeout).ok();
+            }
             // }
         }
         None
@@ -276,7 +275,7 @@ impl<'x> SyncScheduler<'x> {
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
 
         let wave = self.new_wave(time);
-        self.consume_wave(wave, plan.reactions);
+        self.consume_wave(wave, plan.reactions.into_owned());
     }
 
     fn catch_up_physical_time(up_to_time: LogicalInstant) -> LogicalInstant {
@@ -311,7 +310,7 @@ impl<'x> SyncScheduler<'x> {
     }
 
     fn display_event(&self, evt: &Event, process_at: LogicalInstant) -> String {
-        format!("Event(at {}: run {})", self.display_tag(process_at), CommaList(&evt.todo))
+        format!("Event(at {}: run {:?})", self.display_tag(process_at), evt.reactions)
     }
 }
 
@@ -324,15 +323,15 @@ pub struct StartupCtx<'a, 'x> {
 
 impl<'a, 'x> StartupCtx<'a, 'x> {
     #[inline]
-    pub fn enqueue(&mut self, reactions: &'x ExecutableReactions) {
-        self.ctx.enqueue_now(reactions)
+    pub fn enqueue(&mut self, reactions: Vec<GlobalReactionId>) {
+        self.ctx.enqueue_now(Cow::Owned(self.ctx.make_executable(reactions)))
     }
 
     pub fn start_timer(&mut self, t: &Timer) {
         let downstream = self.ctx.reactions_triggered_by(t.get_id());
         if t.offset.is_zero() {
             // no offset
-            self.ctx.enqueue_now(downstream)
+            self.ctx.enqueue_now(Cow::Borrowed(downstream))
         } else {
             self.ctx.enqueue_later(downstream, self.ctx.get_logical_time() + t.offset)
         }

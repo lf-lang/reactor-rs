@@ -74,7 +74,7 @@ impl<'x> ReactionCtx<'_, 'x> {
         //  This is why I added a set to patch it
         let port = port.borrow_mut();
         port.set_impl(value);
-        self.enqueue_now(self.reactions_triggered_by(port.get_id()))
+        self.enqueue_now(Cow::Borrowed(self.reactions_triggered_by(port.get_id())))
     }
 
     /// Get the value of an action at this logical time.
@@ -149,11 +149,19 @@ impl<'x> ReactionCtx<'_, 'x> {
     }
 
     #[inline]
-    pub(in crate) fn enqueue_now(&mut self, downstream: &'x ExecutableReactions) {
-        self.wave.dataflow.merge(&mut self.do_next, downstream);
+    pub(in crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions>) {
+        self.wave.dataflow.merge(&mut self.do_next, downstream.as_ref());
     }
 
-    pub(in crate) fn reactions_triggered_by(&mut self, trigger: TriggerId) -> &'x ExecutableReactions {
+    pub(in crate) fn make_executable(&self, reactions: Vec<GlobalReactionId>) -> ExecutableReactions {
+        let mut result = ExecutableReactions::new();
+        for r in reactions {
+            self.wave.dataflow.augment(&mut result, r)
+        }
+        result
+    }
+
+    pub(in crate) fn reactions_triggered_by(&self, trigger: TriggerId) -> &'x ExecutableReactions {
         self.wave.dataflow.reactions_triggered_by(&trigger)
     }
 

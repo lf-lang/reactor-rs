@@ -374,7 +374,7 @@ type Layer = HashSet<GlobalReactionId>;
 
 /// A set of reactions ordered by relative dependency.
 #[derive(Clone, Debug)]
-pub(in super) struct ExecutableReactions(
+pub(in crate) struct ExecutableReactions(
     /// An ordered list of layers to execute.
     ///
     /// It must by construction be the case that a reaction

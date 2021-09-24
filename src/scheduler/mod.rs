@@ -23,6 +23,7 @@
  */
 
 
+use std::borrow::Cow;
 use std::cell::Cell;
 use std::sync::{Arc, Mutex};
 
@@ -32,8 +33,8 @@ pub(in self) use event_queue::*;
 pub use scheduler_impl::*;
 
 use crate::{GlobalReactionId, LogicalInstant};
+
 use self::depgraph::ExecutableReactions;
-use std::borrow::Cow;
 
 /// The internal cell type used to store a thread-safe mutable logical time value.
 type TimeCell = Arc<Mutex<Cell<LogicalInstant>>>;
