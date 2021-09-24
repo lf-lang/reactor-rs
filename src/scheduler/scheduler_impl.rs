@@ -79,7 +79,6 @@ pub struct SyncScheduler {
 
     /// All reactors.
     pub(in super) reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
-    pub(in super) reactor_id: ReactorId,
 
     pub(in super) id_registry: IdRegistry
 }
@@ -90,7 +89,7 @@ impl SyncScheduler {
         let mut root_assembler = RootAssembler::default();
         let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler);
 
-        let main_reactor = R::assemble(args, &mut assembler);
+        let main_reactor = R::assemble(args, &mut assembler).unwrap();
         assembler.register_reactor(main_reactor);
 
         #[cfg(feature = "graph-dump")] {
@@ -117,7 +116,6 @@ impl SyncScheduler {
             shutdown_time: None,
             options,
             reactors: <_>::default(),
-            reactor_id: <_>::default(),
             id_registry: <_>::default(),
         }
     }

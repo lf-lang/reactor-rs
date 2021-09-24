@@ -114,12 +114,13 @@ impl<'x> AssemblyCtx<'x> {
 
     /// Create N reactions
     pub fn new_reactions<const N: usize>(&mut self) -> [GlobalReactionId; N] {
-        assert!(!self.reactions_done);
+        assert_eq!(self.cur_local, LocalReactionId::ZERO, "Reactions should be declared before other components");
+        assert!(!self.reactions_done, "May only create reactions once");
         self.reactions_done = true;
 
         let result = array![i => GlobalReactionId::new(self.get_id(), LocalReactionId::new(i)); N];
 
-        let mut prev = Option::<GlobalReactionId>::None;
+        let mut prev: Option<GlobalReactionId> = None;
         for r in result.iter().cloned() {
             self.globals.graph.record_reaction(r);
             if let Some(prev) = prev {
@@ -130,26 +131,31 @@ impl<'x> AssemblyCtx<'x> {
             prev = Some(r);
         }
 
+        self.cur_local += N;
         result
     }
 
     // register dependencies between components
 
-    pub fn declare_triggers(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
-        self.globals.graph.triggers_reaction(trigger, reaction)
+    pub fn declare_triggers(&mut self, trigger: TriggerId, reaction: GlobalReactionId) -> Result<(), AssemblyError> {
+        self.globals.graph.triggers_reaction(trigger, reaction);
+        Ok(())
     }
 
-    pub fn effects_port<T>(&mut self, reaction: GlobalReactionId, port: &Port<T>) {
-        self.globals.graph.reaction_effects(reaction, port.get_id())
+    pub fn effects_port<T>(&mut self, reaction: GlobalReactionId, port: &Port<T>) -> Result<(), AssemblyError> {
+        self.globals.graph.reaction_effects(reaction, port.get_id());
+        Ok(())
     }
 
-    pub fn declare_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
-        self.globals.graph.reaction_uses(reaction, trigger)
+    pub fn declare_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> Result<(), AssemblyError> {
+        self.globals.graph.reaction_uses(reaction, trigger);
+        Ok(())
     }
 
-    pub fn bind_ports<T>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) {
-        crate::bind_ports(upstream, downstream);
+    pub fn bind_ports<T>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
+        crate::bind_ports(upstream, downstream)?;
         self.globals.graph.port_bind(upstream, downstream);
+        Ok(())
     }
 
     /// Create and return a new global id for a new component.
@@ -176,13 +182,8 @@ impl<'x> AssemblyCtx<'x> {
     /// Assemble a child reactor. The child needs to be registered
     /// using [register_reactor] later.
     #[inline]
-    pub fn assemble_sub<S: ReactorInitializer>(&mut self, args: S::Params) -> S {
-        AssemblyCtx::assemble_impl(&mut self.globals, args)
-    }
-
-    #[inline]
-    fn assemble_impl<S: ReactorInitializer>(globals: &mut RootAssembler, args: S::Params) -> S {
-        let mut sub = AssemblyCtx::new::<S>(globals);
+    pub fn assemble_sub<S: ReactorInitializer>(&mut self, args: S::Params) -> Result<S, AssemblyError> {
+        let mut sub = AssemblyCtx::new::<S>(&mut self.globals);
         S::assemble(args, &mut sub)
     }
 

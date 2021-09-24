@@ -29,14 +29,11 @@ use std::collections::hash_map::Entry;
 use std::default::Default;
 use std::fmt::{Debug, Formatter};
 
-use index_vec::IdxSliceIndex;
 use petgraph::Direction::{Incoming, Outgoing};
-use petgraph::dot::{Config, Dot};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 
 use crate::*;
-use crate::scheduler::depgraph::NodeKind::Reaction;
 
 type GraphIx = NodeIndex<u32>;
 
@@ -79,11 +76,6 @@ pub(in super) struct DepGraph {
     ix_by_id: HashMap<GlobalId, GraphIx>,
 }
 
-pub struct ReactionIx(GraphIx);
-
-/// Index of a port or action in the graph
-pub struct ComponentIx(GraphIx);
-
 impl Debug for GraphNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}({})", self.kind, self.id)
@@ -96,6 +88,8 @@ impl DepGraph {
     #[cfg(feature = "graph-dump")]
     pub fn eprintln_dot(&self, id_registry: &IdRegistry) {
         use regex::{Regex, Captures};
+        use petgraph::dot::{Config, Dot};
+        use NodeKind::Reaction;
 
         let dot = Dot::with_config(&self.dataflow, &[Config::EdgeNoLabel]);
 
@@ -188,8 +182,13 @@ impl DepGraph {
 
 
     fn record(&mut self, id: GlobalId, kind: NodeKind) {
-        let ix = self.dataflow.add_node(GraphNode { kind, id });
-        self.ix_by_id.insert(id, ix);
+        match self.ix_by_id.entry(id) {
+            Entry::Occupied(_) => panic!("Duplicate id {:?}", id),
+            Entry::Vacant(v) => {
+                let ix = self.dataflow.add_node(GraphNode { kind, id });
+                v.insert(ix);
+            }
+        }
     }
 }
 
@@ -277,10 +276,10 @@ impl DependencyInfo {
             layers.reserve(new_layer_count);
 
             // add a bunch of empty layers to fill holes
-            for _ in 1..new_layer_count { // new_layer_count - 1 iterations
+            for _ in 1..new_layer_count { // (new_layer_count - 1) iterations
                 layers.push(Default::default());
             }
-            let mut new_layer: Layer = Default::default();
+            let mut new_layer: Layer = HashSet::with_capacity(2);
             new_layer.insert(reaction);
             layers.push(new_layer);
         }
@@ -342,7 +341,6 @@ impl ExecutableReactions {
 
 #[cfg(test)]
 pub mod test {
-    use crate::*;
 
     use super::*;
 

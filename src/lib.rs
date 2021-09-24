@@ -80,7 +80,7 @@ pub trait ReactorInitializer: ReactorBehavior {
     /// uninitialized dependencies & make state variables assume
     /// their default values, or else, a value taken from the params.
     fn assemble(args: Self::Params, assembler: &mut AssemblyCtx)
-                -> Self where Self: Sized;
+                -> Result<Self, AssemblyError> where Self: Sized;
 
 }
 
