@@ -155,7 +155,7 @@ pub type PortId = GlobalId;
 
 /// Stores a mapping from global Id
 ///
-pub struct IdRegistry {
+pub(in crate) struct IdRegistry {
     debug_ids: HashMap<GlobalId, &'static str>,
 }
 

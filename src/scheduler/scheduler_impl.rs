@@ -22,11 +22,9 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/// Home of the scheduler component.
-///
+//! Home of the scheduler component.
 
 
-use std::ops::Deref;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 use index_vec::IndexVec;
@@ -159,7 +157,7 @@ impl<'x> SyncScheduler<'x> {
         let mut wave = self.new_wave(time);
         let mut ctx = StartupCtx { ctx: wave.new_ctx() };
         for reactor in &self.reactors {
-            enqueue_fun(reactor.deref(), &mut ctx);
+            enqueue_fun(reactor.as_ref(), &mut ctx);
         }
         // now execute all reactions that were scheduled
         let todo = ctx.ctx.do_next;

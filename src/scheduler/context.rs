@@ -356,13 +356,13 @@ impl<'x> ReactionWave<'x> {
         loop {
             let mut progress = false;
 
-            for (layer_no, global_ids) in todo.batches() {
+            for (layer_no, reactions) in todo.batches() {
                 progress = true;
 
                 debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected");
                 max_layer = max(max_layer, layer_no);
 
-                for reaction_id in global_ids.iter() {
+                for reaction_id in reactions {
                     if executed.insert(*reaction_id) {// todo get rid of this
 
                         let reactor = &mut reactors[reaction_id.0.container()];
