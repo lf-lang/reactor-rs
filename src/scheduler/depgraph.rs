@@ -27,7 +27,7 @@
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
 use std::default::Default;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Debug, Formatter};
 
 use index_vec::IdxSliceIndex;
 use petgraph::Direction::{Incoming, Outgoing};
@@ -139,7 +139,6 @@ impl DepGraph {
     }
 
     pub fn reaction_priority(&mut self, n: GlobalReactionId, m: GlobalReactionId) {
-        // trigger -> reaction
         self.dataflow.add_edge(
             self.get_ix(n.0),
             self.get_ix(m.0),
@@ -194,6 +193,38 @@ impl DepGraph {
     }
 }
 
+impl DepGraph {
+    pub(in self) fn number_reactions_by_layer(&self) -> HashMap<GlobalReactionId, u32> {
+        // note: this will infinitely recurse with a cyclic graph
+        let mut layer_numbers = HashMap::<GlobalReactionId, u32>::new();
+        let mut todo = self.get_roots();
+        let mut todo_next = Vec::new();
+        let mut cur_layer: u32 = 0;
+        while !todo.is_empty() {
+            for ix in todo.drain(..) {
+                let id = self.dataflow.node_weight(ix).unwrap().id;
+                if let Entry::Vacant(v) = layer_numbers.entry(GlobalReactionId(id)) {
+                    // if entry is occupied, then it already has its correct minimal layer number
+                    v.insert(cur_layer);
+                }
+                for out_edge in self.dataflow.edges_directed(ix, Outgoing) {
+                    todo_next.push(out_edge.target())
+                }
+            }
+            cur_layer += 1;
+            std::mem::swap(&mut todo, &mut todo_next)
+        }
+        layer_numbers
+    }
+
+    /// Returns the roots of the graph
+    pub(in self) fn get_roots(&self) -> Vec<GraphIx> {
+        self.dataflow.node_indices()
+            .filter(|node| self.dataflow.edges_directed(*node, Incoming).next().is_none())
+            .collect()
+    }
+}
+
 #[derive(Debug)]
 enum EdgeWeight {
     /// Default semantics for this edge (determined by the
@@ -218,53 +249,18 @@ struct DependencyInfo {
 }
 
 impl DependencyInfo {
-    fn new(DepGraph { dataflow, ix_by_id }: DepGraph) -> Result<Self, AssemblyError> {
-        if petgraph::algo::is_cyclic_directed(&dataflow) {
+    fn new(graph: DepGraph) -> Result<Self, AssemblyError> {
+        if petgraph::algo::is_cyclic_directed(&graph.dataflow) {
             return Err(AssemblyError::CyclicDependencyGraph);
         }
 
         let trigger_to_plan = todo!();
 
-        let layer_numbers = Self::number_reactions_by_layer(&dataflow);
+        let layer_numbers = graph.number_reactions_by_layer();
 
         Ok(DependencyInfo { trigger_to_plan, layer_numbers })
     }
 
-    fn number_reactions_by_layer(dataflow: &DepGraphImpl) -> HashMap<GlobalReactionId, u32> {
-        // note: this will infinitely recurse with a cyclic graph
-        let mut layer_numbers = HashMap::<GlobalReactionId, u32>::new();
-        let mut todo = Self::get_roots(&dataflow);
-        let mut todo_next = Vec::new();
-        let mut cur_layer: u32 = 0;
-        while !todo.is_empty() {
-            for ix in todo.drain(..) {
-                let id = dataflow.node_weight(ix).unwrap().id;
-                if let Entry::Vacant(v) = layer_numbers.entry(GlobalReactionId(id)) {
-                    // if entry is occupied, then it already has its correct minimal layer number
-                    v.insert(cur_layer);
-                }
-                for out_edge in dataflow.edges_directed(ix, Outgoing) {
-                    todo_next.push(out_edge.target())
-                }
-            }
-            cur_layer += 1;
-            std::mem::swap(&mut todo, &mut todo_next)
-        }
-        layer_numbers
-    }
-
-    /// Returns the roots of the graph
-    fn get_roots(graph: &DepGraphImpl) -> Vec<GraphIx> {
-        let mut result = Vec::new();
-        for node in graph.node_indices() {
-            // no incoming edge?
-            if graph.edges_directed(node, Incoming).next().is_none() {
-                result.push(node);
-            }
-        }
-
-        result
-    }
 
     /// Append a reaction to the given reaction collection
     fn augment(&self,
@@ -340,5 +336,38 @@ impl ExecutableReactions {
         for layer in &mut self.0 {
             layer.clear()
         }
+    }
+}
+
+
+#[cfg(test)]
+pub mod test {
+    use crate::*;
+
+    use super::*;
+
+    #[test]
+    fn test_graph() {
+        let mut graph = DepGraph::default();
+        let r1 = ReactorId::new(0);
+        let n1 = GlobalReactionId::new(r1, LocalReactionId::new(0));
+        let n2 = GlobalReactionId::new(r1, LocalReactionId::new(1));
+
+        let p0 = TriggerId::new(r1, LocalReactionId::new(3));
+
+        graph.record_reaction(n1);
+        graph.record_reaction(n2);
+        graph.record_port(p0.0);
+
+        // n1 > n2
+        graph.reaction_priority(n1, n2);
+
+        graph.reaction_effects(n1, p0);
+        graph.triggers_reaction(p0, n2);
+
+
+        let roots = graph.get_roots();
+        // graph.eprintln_dot(&IdRegistry::default());
+        assert_eq!(roots, vec![graph.get_ix(n1.0)]);
     }
 }

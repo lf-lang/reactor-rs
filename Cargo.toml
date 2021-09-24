@@ -26,6 +26,7 @@ branch = "const-fns"
 criterion = "0.3"
 env_logger = "0.9"
 assert_matches = "1.5.0"
+regex = { version = "1" }
 
 [features]
 # dump the graph to a DOT representation
