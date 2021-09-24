@@ -83,7 +83,7 @@ macro_rules! global_id_newtype {
 
         impl Display for $id {
             fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-                Debug::fmt(self, f)
+                write!(f, "{}", self.0)
             }
         }
     };

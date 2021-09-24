@@ -3,7 +3,7 @@ use std::cmp::max;
 use std::collections::HashSet;
 use std::sync::mpsc::Sender;
 
-use index_vec::IndexVec;
+
 
 use crate::*;
 use crate::scheduler::depgraph::{DependencyInfo, ExecutableReactions};
@@ -343,41 +343,48 @@ impl<'x> ReactionWave<'x> {
     ///
     /// Returns whether some reaction called [ReactionCtx#request_stop]
     /// or not.
-    pub fn consume(mut self,
-                   reactors: &mut IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
-                   mut todo: ExecutableReactions) -> WaveResult {
-        let mut executed: HashSet<GlobalReactionId> = HashSet::new();// todo get rid of this
-        let mut requested_stop = false;
-        let mut ctx = self.new_ctx();
+    pub fn consume(mut self, scheduler: &mut SyncScheduler<'x>, mut todo: ExecutableReactions) -> WaveResult {
 
+        // set of reactions that have been executed
+        let mut executed: HashSet<GlobalReactionId> = HashSet::new();
         // The maximum layer number we've seen as of now.
         // This must be increasing monotonically.
         let mut max_layer = 0usize;
+
+        let mut requested_stop = false;
+        let mut ctx = self.new_ctx();
         loop {
             let mut progress = false;
 
             for (layer_no, reactions) in todo.batches() {
                 progress = true;
 
-                debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected");
-                max_layer = max(max_layer, layer_no);
-
                 for reaction_id in reactions {
-                    if executed.insert(*reaction_id) {// todo get rid of this
+                    let reactor = scheduler.get_reactor_mut(reaction_id.0.container());
+                    trace!("  - Executing {}", reaction_id);
 
-                        let reactor = &mut reactors[reaction_id.0.container()];
-                        trace!("  - Executing {}", reaction_id);
-                        // this may append new elements into the queue,
-                        // which is why we can't use an iterator
-                        reactor.react_erased(&mut ctx, reaction_id.0.local());
-                        requested_stop |= ctx.requested_stop;
+                    // this may append new elements into the queue,
+                    // which is why we can't use an iterator
+                    reactor.react_erased(&mut ctx, reaction_id.0.local());
+                    requested_stop |= ctx.requested_stop;
+
+                    if cfg!(debug_assertions) {
+                        assert!(executed.insert(*reaction_id), "Duplicate reaction");
                     }
+                }
+
+
+                if cfg!(debug_assertions) {
+                    debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected {} < {}", layer_no, max_layer);
+                    max_layer = max(max_layer, layer_no);
                 }
             }
 
+            todo.clear();
+
             if !progress {
                 // no new batch, we're done
-                break
+                break;
             }
 
             // doing this lets us reuse the allocations of these vectors

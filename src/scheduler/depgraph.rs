@@ -398,9 +398,7 @@ impl ExecutableReactions {
     /// Clear the individual layers, retains the allocation
     /// for the layer vector.
     pub fn clear(&mut self) {
-        for layer in &mut self.0 {
-            layer.clear()
-        }
+        self.0.iter_mut().for_each(|l| l.clear())
     }
 
     /// Returns an iterator which associates batches of reactions

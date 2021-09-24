@@ -165,9 +165,9 @@ impl<'x> SyncScheduler<'x> {
         self.consume_wave(wave, todo)
     }
 
-    fn consume_wave(&mut self, wave: ReactionWave, plan: ExecutableReactions) {
+    fn consume_wave(&mut self, wave: ReactionWave<'x>, plan: ExecutableReactions) {
         let logical_time = wave.logical_time;
-        match wave.consume(&mut self.reactors, plan) {
+        match wave.consume( self, plan) {
             WaveResult::Continue => {}
             WaveResult::StopRequested => {
                 let time = logical_time.next_microstep();
@@ -184,10 +184,10 @@ impl<'x> SyncScheduler<'x> {
             reactor.cleanup_tag(&ctx)
         }
     }
-    //
-    // pub(in super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut Box<dyn ReactorBehavior> {
-    //     self.reactors.get_mut(id).unwrap()
-    // }
+
+    pub(in super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut Box<dyn ReactorBehavior> {
+        &mut self.reactors[id]
+    }
 }
 
 // note: we can't use a method because sometimes it would self.push_event because it would borrow self twice...
