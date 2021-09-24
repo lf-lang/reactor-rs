@@ -270,9 +270,8 @@ impl ReactionLayerInfo {
     fn merge(&self,
              ExecutableReactions(dst): &mut ExecutableReactions,
              ExecutableReactions(src): &ExecutableReactions) {
-        let new_layers = src.len() - dst.len();
-        if new_layers > 0 {
-            dst.reserve(new_layers);
+        if src.len() > dst.len() {
+            dst.reserve(src.len() - dst.len());
         }
 
         let dst_end = dst.len();
