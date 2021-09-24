@@ -287,7 +287,7 @@ mod reactors {
             fn react_1(&mut self,
                        #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                        #[allow(unused)] params: &PingParams,
-                       receive: ::reactor_rt::ReadablePort<u32>,
+                       _receive: ::reactor_rt::ReadablePort<u32>,
                        #[allow(unused_mut)] mut serve: &mut ::reactor_rt::LogicalAction<()>,) {
                 if self.pingsLeft > 0 {
                     ctx.schedule(serve, Asap);

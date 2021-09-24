@@ -35,6 +35,7 @@ use crate::*;
 use crate::CleanupCtx;
 
 use super::*;
+use crate::scheduler::depgraph::DependencyInfo;
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,
@@ -77,6 +78,8 @@ pub struct SyncScheduler {
     shutdown_time: Option<LogicalInstant>,
     options: SchedulerOptions,
 
+    dependency_info: DependencyInfo,
+
     /// All reactors.
     pub(in super) reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
 
@@ -85,7 +88,6 @@ pub struct SyncScheduler {
 
 impl SyncScheduler {
     pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
-        let mut scheduler = Self::new(options);
         let mut root_assembler = RootAssembler::default();
         let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler);
 
@@ -96,7 +98,12 @@ impl SyncScheduler {
             root_assembler.graph.eprintln_dot(&root_assembler.id_registry);
         }
 
-        scheduler.reactors = root_assembler.reactors;
+        let RootAssembler { graph, reactors, .. } = root_assembler;
+
+        // collect dependency information
+        let dependency_info = DependencyInfo::new(graph).unwrap();
+
+        let mut scheduler = Self::new(options, reactors, dependency_info);
 
         scheduler.startup();
         scheduler.launch_event_loop()
@@ -105,7 +112,9 @@ impl SyncScheduler {
     /// Creates a new scheduler. An empty scheduler doesn't
     /// do anything unless some events are pushed to the queue.
     /// See [Self::launch_async].
-    fn new(options: SchedulerOptions) -> Self {
+    fn new(options: SchedulerOptions,
+           reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
+           dependency_info: DependencyInfo) -> Self {
         let (sender, receiver) = channel::<ScheduledEvent>();
         Self {
             latest_logical_time: Arc::new(Mutex::new(Cell::new(LogicalInstant::now()))),
@@ -115,7 +124,8 @@ impl SyncScheduler {
             initial_time: None,
             shutdown_time: None,
             options,
-            reactors: <_>::default(),
+            dependency_info,
+            reactors,
             id_registry: <_>::default(),
         }
     }

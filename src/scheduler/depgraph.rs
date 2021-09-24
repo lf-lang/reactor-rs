@@ -236,31 +236,12 @@ enum EdgeWeight {
     Use,
 }
 
-/// Pre-calculated dependency information,
-/// using the dependency graph
-struct DependencyInfo {
-    /// Maps each trigger to the set of reactions that need
-    /// to be scheduled when it is triggered.
-    trigger_to_plan: HashMap<TriggerId, ExecutableReactions>,
-
+struct ReactionLayerInfo {
     /// The level of each reaction.
     layer_numbers: HashMap<GlobalReactionId, u32>,
 }
 
-impl DependencyInfo {
-    fn new(graph: DepGraph) -> Result<Self, AssemblyError> {
-        if petgraph::algo::is_cyclic_directed(&graph.dataflow) {
-            return Err(AssemblyError::CyclicDependencyGraph);
-        }
-
-        let trigger_to_plan = todo!();
-
-        let layer_numbers = graph.number_reactions_by_layer();
-
-        Ok(DependencyInfo { trigger_to_plan, layer_numbers })
-    }
-
-
+impl ReactionLayerInfo {
     /// Append a reaction to the given reaction collection
     fn augment(&self,
                ExecutableReactions(layers): &mut ExecutableReactions,
@@ -310,12 +291,79 @@ impl DependencyInfo {
     }
 }
 
+/// Pre-calculated dependency information,
+/// using the dependency graph
+pub(in super) struct DependencyInfo {
+    /// Maps each trigger to the set of reactions that need
+    /// to be scheduled when it is triggered.
+    trigger_to_plan: HashMap<TriggerId, ExecutableReactions>,
+
+    layer_info: ReactionLayerInfo,
+}
+
+impl DependencyInfo {
+    pub fn new(mut graph: DepGraph) -> Result<Self, AssemblyError> {
+        if petgraph::algo::is_cyclic_directed(&graph.dataflow) {
+            return Err(AssemblyError::CyclicDependencyGraph);
+        }
+
+        let layer_info = ReactionLayerInfo { layer_numbers: graph.number_reactions_by_layer() };
+        let trigger_to_plan = Self::collect_trigger_to_plan(&mut graph, &layer_info);
+
+        Ok(DependencyInfo { trigger_to_plan, layer_info })
+    }
+
+    fn collect_trigger_to_plan(DepGraph { dataflow, .. }: &mut DepGraph,
+                               layer_info: &ReactionLayerInfo) -> HashMap<TriggerId, ExecutableReactions> {
+        let mut h = HashMap::with_capacity(dataflow.node_count() / 2);
+
+        let triggers: Vec<_> = dataflow.node_indices().filter(|ix| dataflow[*ix].kind != NodeKind::Reaction).collect();
+
+        for trigger in triggers {
+            let mut reactions = ExecutableReactions::new();
+            Self::collect_reactions_rec(&dataflow, trigger, layer_info, &mut reactions);
+            h.insert(TriggerId(dataflow[trigger].id), reactions);
+        }
+
+        h
+    }
+
+    fn collect_reactions_rec(dataflow: &DepGraphImpl,
+                             trigger: GraphIx,
+                             layer_info: &ReactionLayerInfo,
+                             reactions: &mut ExecutableReactions) {
+        for downstr in dataflow.edges_directed(trigger, Outgoing) {
+            let node = &dataflow[downstr.target()];
+            match node.kind {
+                NodeKind::Port => {
+                    // this is necessarily a port->port binding
+                    Self::collect_reactions_rec(dataflow, downstr.target(), layer_info, reactions)
+                }
+                NodeKind::Reaction => {
+                    layer_info.augment(reactions, GlobalReactionId(node.id))
+                }
+                NodeKind::Action => {}
+            }
+        }
+    }
+
+
+    /// Append a reaction to the given reaction collection
+    pub fn augment(&self, reactions: &mut ExecutableReactions, reaction: GlobalReactionId) {
+        self.layer_info.augment(reactions, reaction)
+    }
+
+    /// Merge the second set of reactions into the first.
+    pub fn merge(&self, dst: &mut ExecutableReactions, src: ExecutableReactions) {
+        self.layer_info.merge(dst, src)
+    }
+}
+
 
 type Layer = HashSet<GlobalReactionId>;
 
 /// A set of reactions ordered by relative dependency.
-/// TODO this is relevant for parallel execution of reactions.
-struct ExecutableReactions(
+pub(in super) struct ExecutableReactions(
     /// An ordered list of layers to execute.
     ///
     /// It must by construction be the case that a reaction
@@ -325,10 +373,18 @@ struct ExecutableReactions(
     ///
     /// (1) a reaction n has a dependency on another m if m
     /// is in the predecessors of n in the dependency graph
+    ///
+    /// Note that by construction, no two reactions in the same
+    /// layer may belong to the same reactor, as all of them
+    /// are ordered by priority edges.
     Vec<Layer>
 );
 
 impl ExecutableReactions {
+    fn new() -> Self {
+        Self(Vec::new())
+    }
+
     /// Clear the individual layers, retains the allocation
     /// for the layer vector.
     pub fn clear(&mut self) {
@@ -345,7 +401,7 @@ pub mod test {
     use super::*;
 
     #[test]
-    fn test_graph() {
+    fn test_roots() {
         let mut graph = DepGraph::default();
         let r1 = ReactorId::new(0);
         let n1 = GlobalReactionId::new(r1, LocalReactionId::new(0));
