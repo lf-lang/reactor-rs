@@ -269,7 +269,7 @@ impl ReactionLayerInfo {
     /// Merge the second set of reactions into the first.
     fn merge(&self,
              ExecutableReactions(dst): &mut ExecutableReactions,
-             ExecutableReactions(mut src): ExecutableReactions) {
+             ExecutableReactions(src): &ExecutableReactions) {
         let new_layers = src.len() - dst.len();
         if new_layers > 0 {
             dst.reserve(new_layers);
@@ -277,10 +277,10 @@ impl ReactionLayerInfo {
 
         let dst_end = dst.len();
 
-        for (i, src_layer) in src.drain(..).enumerate() {
+        for (i, src_layer) in src.iter().enumerate() {
             if i > dst_end {
                 debug_assert_eq!(i, dst.len());
-                dst.push(src_layer);
+                dst.push(src_layer.clone());
             } else {
                 // merge into existing layer
                 // note that we could probs replace get_mut(i).unwrap() with (unsafe) get_unchecked_mut(i)
@@ -391,7 +391,7 @@ pub(in super) struct ExecutableReactions(
 );
 
 impl ExecutableReactions {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self(Vec::new())
     }
 
@@ -401,6 +401,12 @@ impl ExecutableReactions {
         for layer in &mut self.0 {
             layer.clear()
         }
+    }
+
+    /// Returns an iterator which associates batches of reactions
+    /// with their layer.
+    pub fn batches(&self) -> impl Iterator<Item=(usize, HashSet<GlobalReactionId>)> {
+        self.0.iter().filter(|it| !it.is_empty()).enumerate()
     }
 }
 

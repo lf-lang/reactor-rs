@@ -5,6 +5,8 @@ use std::sync::mpsc::Sender;
 use crate::*;
 
 use super::*;
+use crate::scheduler::depgraph::ExecutableReactions;
+use std::cmp::max;
 
 /// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
@@ -24,7 +26,7 @@ pub struct ReactionCtx<'a> {
     /// This is mutable: if a reaction sets a port, then the
     /// downstream of that port is inserted in order into this
     /// queue.
-    pub(in super) do_next: TagExecutionPlan,
+    pub(in super) do_next: ExecutableReactions,
 
     /// Whether some reaction has called [Self::request_stop].
     requested_stop: bool,
@@ -299,7 +301,7 @@ impl ReactionWave {
     #[inline]
     pub fn new_ctx(&mut self) -> ReactionCtx {
         ReactionCtx {
-            do_next: TagExecutionPlan::new_empty(self.logical_time),
+            do_next: ExecutableReactions::new(),
             wave: self,
             requested_stop: false,
         }
@@ -307,35 +309,47 @@ impl ReactionWave {
 
     /// Execute the wave until completion.
     /// The parameter is the list of reactions to start with.
-    /// Todo topological info to split into independent subgraphs
     ///
     /// Returns whether some reaction called [ReactionCtx#request_stop]
     /// or not.
-    pub fn consume(mut self, scheduler: &mut SyncScheduler, mut todo: TagExecutionPlan) -> WaveResult {
+    pub fn consume(mut self, scheduler: &mut SyncScheduler, mut todo: ExecutableReactions) -> WaveResult {
         // We can share it, to reuse the allocation of the do_next buffer
-        // reactions that have already been processed.
-        // In some situations (diamonds) this is necessary.
-        // Possibly with more static information we can avoid that.
-        let mut done: HashSet<GlobalReactionId> = HashSet::new();
+        let mut executed: HashSet<GlobalReactionId> = HashSet::new();// todo get rid of this
         let mut requested_stop = false;
         let mut ctx = self.new_ctx();
 
-        while !todo.is_empty() {
-            for Batch(reactor_id, local_ids) in todo.drain() {
-                let reactor = scheduler.get_reactor_mut(reactor_id);
-                for reaction_id in local_ids.iter() {
-                    let global = GlobalReactionId::new(reactor_id, reaction_id);
-                    if done.insert(global) {
-                        trace!("  - Executing {}", global);
+        // The maximum layer number we've seen as of now.
+        // This must be increasing monotonically.
+        let mut max_layer = 0usize;
+        loop {
+            let mut progress = false;
+
+            for (layer_no, global_ids) in todo.batches() {
+                progress = true;
+
+                debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected");
+                max_layer = max(max_layer, layer_no);
+
+                for reaction_id in global_ids.iter() {
+                    if executed.insert(*reaction_id) {// todo get rid of this
+
+                        let reactor = scheduler.get_reactor_mut(reaction_id.0.container());
+                        trace!("  - Executing {}", reaction_id);
                         // this may append new elements into the queue,
                         // which is why we can't use an iterator
-                        reactor.react_erased(&mut ctx, reaction_id);
+                        reactor.react_erased(&mut ctx, reaction_id.0.local());
                         requested_stop |= ctx.requested_stop;
                     }
                 }
             }
 
+            if !progress {
+                // no new batch, we're done
+                break
+            }
+
             // doing this lets us reuse the allocations of these vectors
+            // todo this actually copies bytes, we just want to swap pointers inside the variable!
             std::mem::swap(&mut ctx.do_next, &mut todo);
         }
 
