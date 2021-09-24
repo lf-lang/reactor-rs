@@ -97,19 +97,19 @@ impl DepGraph {
 
         let formatted = format!("{:?}", dot);
         let replaced = re.replace_all(formatted.as_str(), |captures: &Captures| {
-            let kind = captures.get(1).unwrap().as_str();
-            let reactor_number = ReactorId::new_const(captures.get(2).unwrap().as_str().parse().unwrap());
-            let component_number = LocalReactionId::new_const(captures.get(3).unwrap().as_str().parse().unwrap());
+            let kind = captures[1].as_str();
+            let reactor_number = ReactorId::new_const(captures[2].as_str().parse().unwrap());
+            let component_number = LocalReactionId::new_const(captures[3].as_str().parse().unwrap());
 
             if kind != "Reaction" {
                 let comp_id = GlobalId::new(reactor_number, component_number);
                 if let Some(nice_name) = id_registry.get_debug_label(comp_id) {
                     format!("{}({}/{})", kind, comp_id.container(), nice_name)
                 } else {
-                    captures.get(0).unwrap().as_str().to_owned()
+                    captures[0].as_str().to_owned()
                 }
             } else {
-                captures.get(0).unwrap().as_str().to_owned()
+                captures[0].as_str().to_owned()
             }
         });
 
@@ -177,7 +177,7 @@ impl DepGraph {
     }
 
     fn get_ix(&self, id: GlobalId) -> GraphIx {
-        *self.ix_by_id.get(&id).unwrap()
+        self.ix_by_id[&id]
     }
 
 
@@ -356,6 +356,16 @@ impl DependencyInfo {
     /// Merge the second set of reactions into the first.
     pub fn merge(&self, dst: &mut ExecutableReactions, src: ExecutableReactions) {
         self.layer_info.merge(dst, src)
+    }
+
+    /// Returns the set of reactions that needs to be scheduled
+    /// when the given trigger is triggered.
+    ///
+    /// # Panics
+    ///
+    /// If the trigger id is not registered
+    pub fn reactions_triggered_by(&self, trigger: &TriggerId) -> &ExecutableReactions {
+        self.trigger_to_plan.get(trigger).expect("trigger was not registered??")
     }
 }
 
