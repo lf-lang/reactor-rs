@@ -39,7 +39,7 @@ use std::borrow::Cow;
 type TimeCell = Arc<Mutex<Cell<LogicalInstant>>>;
 
 /// A simple tuple of (expected processing time, reactions to execute).
-#[derive(Eq, PartialEq, Hash, Debug)]
+#[derive(Debug)]
 pub(in self) struct Event<'x> {
     pub(in self) reactions: Cow<'x, ExecutableReactions>,
     pub(in self) tag: LogicalInstant,

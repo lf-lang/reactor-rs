@@ -19,9 +19,9 @@ use super::*;
 // ReactionCtx is an API built around a ReactionWave. A single
 // ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&mut).
-pub struct ReactionCtx<'a> {
+pub struct ReactionCtx<'a, 'x> {
     /// The reaction wave for the current tag.
-    wave: &'a mut ReactionWave,
+    wave: &'a mut ReactionWave<'x>,
 
     /// Remaining reactions to execute before the wave dies.
     ///
@@ -32,11 +32,9 @@ pub struct ReactionCtx<'a> {
 
     /// Whether some reaction has called [Self::request_stop].
     requested_stop: bool,
-
-    dataflow: &'a DependencyInfo,
 }
 
-impl ReactionCtx<'_> {
+impl<'x> ReactionCtx<'_, 'x> {
     /// Returns the current value of a port at this logical time.
     /// If the value is absent, [Option::None] is returned.
     ///
@@ -74,7 +72,9 @@ impl ReactionCtx<'_> {
         // TODO topology information & deduplication
         //  Eg for a diamond situation this will execute reactions several times...
         //  This is why I added a set to patch it
-        port.borrow_mut().set_impl(value, |downstream| self.enqueue_now(downstream));
+        let port = port.borrow_mut();
+        port.set_impl(value);
+        self.enqueue_now(self.reactions_triggered_by(port.get_id()))
     }
 
     /// Get the value of an action at this logical time.
@@ -126,7 +126,8 @@ impl ReactionCtx<'_> {
     fn schedule_impl<K, T: Clone>(&mut self, action: &mut Action<K, T>, value: Option<T>, offset: Offset) {
         let eta = action.make_eta(self.wave.logical_time, offset.to_duration());
         action.schedule_future_value(eta, value);
-        self.enqueue_later(&action.downstream, eta);
+        let downstream = self.wave.dataflow.reactions_triggered_by(&action.get_id());
+        self.enqueue_later(downstream, eta);
     }
 
     // todo hide this better
@@ -136,19 +137,24 @@ impl ReactionCtx<'_> {
     #[inline]
     pub fn maybe_reschedule(&mut self, timer: &Timer) {
         if timer.is_periodic() {
-            self.enqueue_later(&timer.downstream, self.wave.logical_time + timer.period);
+            let downstream = self.wave.dataflow.reactions_triggered_by(&timer.get_id());
+            self.enqueue_later(downstream, self.wave.logical_time + timer.period);
         }
     }
 
 
     #[inline]
-    pub(in crate) fn enqueue_later(&mut self, downstream: &ReactionSet, process_at: LogicalInstant) {
+    pub(in crate) fn enqueue_later(&mut self, downstream: &'x ExecutableReactions, process_at: LogicalInstant) {
         self.wave.enqueue_later(&downstream, process_at);
     }
 
     #[inline]
-    pub(in crate) fn enqueue_now(&mut self, downstream: &ReactionSet) {
-        self.do_next.accept(downstream.clone());
+    pub(in crate) fn enqueue_now(&mut self, downstream: &'x ExecutableReactions) {
+        self.wave.dataflow.merge(&mut self.do_next, downstream);
+    }
+
+    pub(in crate) fn reactions_triggered_by(&mut self, trigger: TriggerId) -> &'x ExecutableReactions {
+        self.wave.dataflow.reactions_triggered_by(&trigger)
     }
 
     /// Request a shutdown which will be acted upon at the
@@ -235,16 +241,16 @@ impl ReactionCtx<'_> {
 /// asynchronous physical actions. This is a "link" to the event
 /// system, from the outside world.
 #[derive(Clone)]
-pub struct SchedulerLink<'a, 'x> {
+pub struct SchedulerLink<'x> {
     last_processed_logical_time: TimeCell,
 
     /// Sender to schedule events that should be executed later than this wave.
     sender: Sender<Event<'x>>,
 
-    dataflow: &'a DependencyInfo,
+    dataflow: &'x DependencyInfo,
 }
 
-impl<'a, 'x> SchedulerLink<'a, 'x> {
+impl<'x> SchedulerLink<'x> {
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
@@ -256,8 +262,9 @@ impl<'a, 'x> SchedulerLink<'a, 'x> {
         action.schedule_future_value(process_at, value);
 
         // todo merge events at equal tags by merging their dependencies
-        let evt = Event {
-            reactions: Cow::Borrowed(self.dataflow.reactions_triggered_by(&action.get_id())),
+        let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
+        let evt = Event::<'x> {
+            reactions: Cow::Borrowed(downstream),
             tag: process_at,
         };
         self.sender.send(evt).unwrap();
@@ -284,18 +291,18 @@ pub(in super) struct ReactionWave<'x> {
     dataflow: &'x DependencyInfo,
 }
 
-impl<'x> ReactionWave {
+impl<'x> ReactionWave<'x> {
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    pub fn new(sender: Sender<Event>,
+    pub fn new(sender: Sender<Event<'x>>,
                current_time: LogicalInstant,
                initial_time: LogicalInstant,
-               dataflow: &DependencyInfo) -> ReactionWave {
+               dataflow: &'x DependencyInfo) -> Self {
         ReactionWave {
             logical_time: current_time,
             sender,
             initial_time,
-            dataflow
+            dataflow,
         }
     }
 
@@ -303,21 +310,23 @@ impl<'x> ReactionWave {
     ///
     /// This is used for actions.
     #[inline]
-    pub fn enqueue_later(&mut self, downstream: &ReactionSet, process_at: LogicalInstant) {
+    pub fn enqueue_later(&mut self, downstream: &'x ExecutableReactions, process_at: LogicalInstant) {
         debug_assert!(process_at > self.logical_time);
 
         // todo merge events at equal tags by merging their dependencies
-        let evt = Event { todo: downstream.clone() };
-        self.sender.send(ScheduledEvent(evt, process_at)).unwrap();
+        let evt = Event {
+            reactions: Cow::Borrowed(downstream),
+            tag: process_at,
+        };
+        self.sender.send(evt).unwrap();
     }
 
     #[inline]
-    pub fn new_ctx<'a>(&'a mut self, dataflow: &'a DependencyInfo) -> ReactionCtx<'a> {
+    pub fn new_ctx<'a>(&'a mut self) -> ReactionCtx<'a, 'x> {
         ReactionCtx {
             do_next: ExecutableReactions::new(),
             wave: self,
             requested_stop: false,
-            dataflow,
         }
     }
 
@@ -328,11 +337,10 @@ impl<'x> ReactionWave {
     /// or not.
     pub fn consume(mut self,
                    reactors: &mut IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
-                   deps: &DependencyInfo,
                    mut todo: ExecutableReactions) -> WaveResult {
         let mut executed: HashSet<GlobalReactionId> = HashSet::new();// todo get rid of this
         let mut requested_stop = false;
-        let mut ctx = self.new_ctx(deps);
+        let mut ctx = self.new_ctx();
 
         // The maximum layer number we've seen as of now.
         // This must be increasing monotonically.

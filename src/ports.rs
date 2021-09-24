@@ -62,17 +62,20 @@ pub struct WritablePort<'a, T> {
 }
 
 impl<'a, T> WritablePort<'a, T> {
-   pub fn new(port: &'a mut Port<T>) -> Self {
+    pub fn new(port: &'a mut Port<T>) -> Self {
         Self { port }
     }
 
     /// Set the value, see [super::ReactionCtx::set]
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
-    pub(in crate) fn set_impl(&mut self, v: T, process_deps: impl FnOnce(&ReactionSet)) {
-        self.port.set_impl(Some(v), process_deps)
+    pub(in crate) fn set_impl(&mut self, v: T) {
+        self.port.set_impl(Some(v))
     }
 
+    pub(in crate) fn get_id(&self) -> TriggerId {
+        self.port.get_id()
+    }
 }
 
 
@@ -135,7 +138,7 @@ impl<T> Port<T> {
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
     #[inline]
-    pub(in crate) fn set_impl(&mut self, new_value: Option<T>, process_deps: impl FnOnce(&ReactionSet)) {
+    pub(in crate) fn set_impl(&mut self, new_value: Option<T>) {
         debug_assert_ne!(self.bind_status(), BindStatus::Bound, "Cannot set a bound port ({})", self.id);
 
         let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
@@ -147,7 +150,6 @@ impl<T> Port<T> {
         let class_cell: &PortCell<T> = Rc::borrow(class);
 
         class_cell.cell.replace(new_value);
-        process_deps(&class_cell.triggered_reactions.borrow());
     }
 
     /// Called at the end of a tag.
@@ -156,7 +158,7 @@ impl<T> Port<T> {
         // If this port is bound, then some other port has
         // a reference to the same cell but is not bound.
         if self.bind_status() != BindStatus::Bound {
-            self.set_impl(None, |_| {})
+            self.set_impl(None)
         }
     }
 

@@ -52,7 +52,7 @@ impl Default for SchedulerOptions {
 }
 
 /// The runtime scheduler.
-pub struct SyncScheduler {
+pub struct SyncScheduler<'x> {
     /// The latest processed logical time (necessarily behind physical time)
     latest_logical_time: TimeCell,
 
@@ -61,10 +61,10 @@ pub struct SyncScheduler {
     /// polls this to make progress.
     ///
     /// The receiver is unique.
-    rx: Receiver<ScheduledEvent>,
+    rx: Receiver<Event<'x>>,
 
     /// A sender bound to the receiver, which may be cloned.
-    tx: Sender<ScheduledEvent>,
+    tx: Sender<Event<'x>>,
 
     /// A queue of pending events.
     event_queue: EventQueue,
@@ -78,15 +78,15 @@ pub struct SyncScheduler {
     shutdown_time: Option<LogicalInstant>,
     options: SchedulerOptions,
 
-    dataflow: DependencyInfo,
+    dataflow: &'x DependencyInfo,
 
     /// All reactors.
     pub(in super) reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
 
-    pub(in super) id_registry: IdRegistry
+    pub(in super) id_registry: IdRegistry,
 }
 
-impl SyncScheduler {
+impl<'x> SyncScheduler<'x> {
     pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
         let mut root_assembler = RootAssembler::default();
         let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler);
@@ -114,8 +114,8 @@ impl SyncScheduler {
     /// See [Self::launch_async].
     fn new(options: SchedulerOptions,
            reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
-           dependency_info: DependencyInfo) -> Self {
-        let (sender, receiver) = channel::<ScheduledEvent>();
+           dependency_info: &'x DependencyInfo) -> Self {
+        let (sender, receiver) = channel::<Event<'x>>();
         Self {
             latest_logical_time: Arc::new(Mutex::new(Cell::new(LogicalInstant::now()))),
             rx: receiver,
@@ -157,7 +157,7 @@ impl SyncScheduler {
                     time: LogicalInstant,
                     enqueue_fun: fn(&(dyn ReactorBehavior + 'static), &mut StartupCtx)) {
         let mut wave = self.new_wave(time);
-        let mut ctx = StartupCtx { ctx: wave.new_ctx(&self.dataflow) };
+        let mut ctx = StartupCtx { ctx: wave.new_ctx() };
         for reactor in &self.reactors {
             enqueue_fun(reactor.deref(), &mut ctx);
         }
@@ -169,7 +169,7 @@ impl SyncScheduler {
 
     fn consume_wave(&mut self, wave: ReactionWave, plan: ExecutableReactions) {
         let logical_time = wave.logical_time;
-        match wave.consume(&mut self.reactors, &self.dataflow, plan) {
+        match wave.consume(&mut self.reactors, plan) {
             WaveResult::Continue => {}
             WaveResult::StopRequested => {
                 let time = logical_time.next_microstep();
@@ -202,8 +202,7 @@ macro_rules! push_event {
         }};
     }
 
-impl SyncScheduler {
-
+impl<'x> SyncScheduler<'x> {
     /// Launch the event loop in this thread.
     ///
     /// Note that this assumes [startup] has already been called.
@@ -295,7 +294,7 @@ impl SyncScheduler {
 
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    fn new_wave(&self, logical_time: LogicalInstant) -> ReactionWave {
+    fn new_wave(&self, logical_time: LogicalInstant) -> ReactionWave<'x> {
         ReactionWave::new(
             self.tx.clone(),
             logical_time,
@@ -303,6 +302,7 @@ impl SyncScheduler {
             // first thing done during startup so the unwrap
             // should never panic
             self.initial_time.unwrap(),
+            self.dataflow,
         )
     }
 
@@ -318,22 +318,23 @@ impl SyncScheduler {
 /// Allows directly enqueuing reactions for a future,
 /// unspecified logical time. This is only relevant
 /// during the initialization of reactors.
-pub struct StartupCtx<'a> {
-    ctx: ReactionCtx<'a>,
+pub struct StartupCtx<'a, 'x> {
+    ctx: ReactionCtx<'a, 'x>,
 }
 
-impl<'a> StartupCtx<'a> {
+impl<'a, 'x> StartupCtx<'a, 'x> {
     #[inline]
-    pub fn enqueue(&mut self, reactions: &ReactionSet) {
+    pub fn enqueue(&mut self, reactions: &'x ExecutableReactions) {
         self.ctx.enqueue_now(reactions)
     }
 
     pub fn start_timer(&mut self, t: &Timer) {
+        let downstream = self.ctx.reactions_triggered_by(t.get_id());
         if t.offset.is_zero() {
             // no offset
-            self.ctx.enqueue_now(&t.downstream)
+            self.ctx.enqueue_now(downstream)
         } else {
-            self.ctx.enqueue_later(&t.downstream, self.ctx.get_logical_time() + t.offset)
+            self.ctx.enqueue_later(downstream, self.ctx.get_logical_time() + t.offset)
         }
     }
 

@@ -373,7 +373,7 @@ impl DependencyInfo {
 type Layer = HashSet<GlobalReactionId>;
 
 /// A set of reactions ordered by relative dependency.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(in super) struct ExecutableReactions(
     /// An ordered list of layers to execute.
     ///
