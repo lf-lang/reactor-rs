@@ -32,7 +32,7 @@ pub use context::*;
 pub(in self) use event_queue::*;
 pub use scheduler_impl::*;
 
-use crate::{GlobalReactionId, LogicalInstant};
+use crate::LogicalInstant;
 
 use self::depgraph::ExecutableReactions;
 
@@ -45,8 +45,6 @@ pub(in self) struct Event<'x> {
     pub(in self) reactions: Cow<'x, ExecutableReactions>,
     pub(in self) tag: LogicalInstant,
 }
-
-pub(in self) struct ScheduledEvent(ExecutableReactions, LogicalInstant);
 
 mod context;
 mod scheduler_impl;

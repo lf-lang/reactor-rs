@@ -52,7 +52,7 @@ fn binding_two_ports_should_let_values_be_read() {
 
     assert_eq!(None, downstream.get());
 
-    bind_ports(&mut upstream, &mut downstream);
+    bind_ports(&mut upstream, &mut downstream).unwrap();
 
     assert_eq!(None, downstream.get());
 
@@ -70,8 +70,8 @@ fn a_port_can_be_upstream_of_several_ports() {
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
 
-    bind_ports(&mut upstream, &mut d1);
-    bind_ports(&mut upstream, &mut d2);
+    bind_ports(&mut upstream, &mut d1).unwrap();
+    bind_ports(&mut upstream, &mut d2).unwrap();
 
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
@@ -97,8 +97,8 @@ fn transitive_binding_should_let_values_flow() {
     assert_eq!(None, d2.get());
 
     // upstream -> d1 -> d2
-    bind_ports(&mut upstream, &mut d1);
-    bind_ports(&mut d1, &mut d2);
+    bind_ports(&mut upstream, &mut d1).unwrap();
+    bind_ports(&mut d1, &mut d2).unwrap();
 
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
@@ -132,12 +132,12 @@ fn transitive_binding_in_topo_order_is_ok() {
     // Note that linking the ports the other way around doesn't
     // work, we need to go in topo order
 
-    bind_ports(&mut upstream, &mut d1);
+    bind_ports(&mut upstream, &mut d1).unwrap();
 
-    bind_ports(&mut d1, &mut d2);
+    bind_ports(&mut d1, &mut d2).unwrap();
 
-    bind_ports(&mut d2, &mut b1);
-    bind_ports(&mut d2, &mut b2);
+    bind_ports(&mut d2, &mut b1).unwrap();
+    bind_ports(&mut d2, &mut b2).unwrap();
 
 
     assert_eq!(None, d1.get());
@@ -189,7 +189,7 @@ fn dependencies_are_adopted_by_upstream_when_binding() {
 
     assert_deps_eq(container, vec![0], &up);
 
-    bind_ports(&mut up, &mut down);
+    bind_ports(&mut up, &mut down).unwrap();
 
     assert_deps_eq(container, vec![0, 1, 2, 3], &up);
 }

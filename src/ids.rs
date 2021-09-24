@@ -25,9 +25,6 @@
 
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter, Result};
-use std::iter::FromIterator;
-
-use bit_set::BitSet;
 
 // private implementation types
 type ReactionIdImpl = u16;
@@ -47,36 +44,6 @@ impl LocalReactionId {
     // a const fn to be able to use this in const context
     pub const fn new_const(u: ReactionIdImpl) -> Self {
         Self { _raw: u }
-    }
-}
-
-/// A set of reactions all belonging to the same reactor.
-/// The [ReactorId] is not stored within this struct.
-pub(in crate) struct LocalizedReactionSet {
-    set: BitSet,
-}
-
-impl LocalizedReactionSet {
-    pub fn is_empty(&self) -> bool {
-        self.set.is_empty()
-    }
-
-    pub fn insert(&mut self, id: LocalReactionId) -> bool {
-        self.set.insert(id.index())
-    }
-
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item=LocalReactionId> + 'a {
-        self.set.iter().map(Into::into)
-    }
-}
-
-impl FromIterator<LocalReactionId> for LocalizedReactionSet {
-    fn from_iter<T: IntoIterator<Item=LocalReactionId>>(iter: T) -> Self {
-        let mut result = Self { set: BitSet::with_capacity(32) };
-        for t in iter {
-            result.insert(t);
-        }
-        result
     }
 }
 
@@ -145,10 +112,6 @@ impl GlobalId {
     pub fn new(container: ReactorId, local: LocalReactionId) -> Self {
         let _raw: GlobalIdImpl = (container._raw as GlobalIdImpl) << ReactionIdImpl::BITS | (local._raw as GlobalIdImpl);
         Self { _raw }
-    }
-
-    pub(in crate) fn as_usize(&self) -> usize {
-        self._raw as usize
     }
 
     #[cfg(test)]

@@ -33,9 +33,9 @@ use index_vec::IndexVec;
 
 use crate::*;
 use crate::CleanupCtx;
+use crate::scheduler::depgraph::{DependencyInfo, ExecutableReactions};
 
 use super::*;
-use crate::scheduler::depgraph::{DependencyInfo, ExecutableReactions};
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,
@@ -186,10 +186,10 @@ impl<'x> SyncScheduler<'x> {
             reactor.cleanup_tag(&ctx)
         }
     }
-
-    pub(in super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut Box<dyn ReactorBehavior> {
-        self.reactors.get_mut(id).unwrap()
-    }
+    //
+    // pub(in super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut Box<dyn ReactorBehavior> {
+    //     self.reactors.get_mut(id).unwrap()
+    // }
 }
 
 // note: we can't use a method because sometimes it would self.push_event because it would borrow self twice...
@@ -323,7 +323,7 @@ pub struct StartupCtx<'a, 'x> {
 
 impl<'a, 'x> StartupCtx<'a, 'x> {
     #[inline]
-    pub fn enqueue(&mut self, reactions: Vec<GlobalReactionId>) {
+    pub fn enqueue(&mut self, reactions: &Vec<GlobalReactionId>) {
         self.ctx.enqueue_now(Cow::Owned(self.ctx.make_executable(reactions)))
     }
 

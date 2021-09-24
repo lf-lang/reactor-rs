@@ -1,11 +1,10 @@
-use std::cmp::{Reverse, Ordering};
+use std::borrow::Cow;
+use std::cmp::Reverse;
 
-use itertools::Itertools;
 use smallvec::SmallVec;
 
-use crate::{LocalizedReactionSet, LogicalInstant, ReactionSet, ReactorId};
-use crate::scheduler::depgraph::{ExecutableReactions, DependencyInfo};
-use std::borrow::Cow;
+use crate::LogicalInstant;
+use crate::scheduler::depgraph::{DependencyInfo, ExecutableReactions};
 
 /// A set of reactions to execute at a particular tag.
 /// The key characteristic of instances is
@@ -17,7 +16,6 @@ pub(in crate) struct TagExecutionPlan<'x> {
     pub reactions: Cow<'x, ExecutableReactions>,
 }
 
-pub(in crate) struct Batch(pub ReactorId, pub LocalizedReactionSet);
 
 /// A queue of pending [TagExecutionPlan].
 #[derive(Default)]

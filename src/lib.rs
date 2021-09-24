@@ -22,19 +22,17 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#[macro_use]
+extern crate array_macro;
 #[cfg(test)]
 #[macro_use]
 extern crate assert_matches;
-extern crate bit_set;
 #[macro_use]
 extern crate index_vec;
-extern crate itertools;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate smallvec;
-#[macro_use]
-extern crate array_macro;
 
 pub use std::time::Duration;
 // reexport those to complement our LogicalInstant

@@ -278,7 +278,7 @@ impl ReactionLayerInfo {
         let dst_end = dst.len();
 
         for (i, src_layer) in src.iter().enumerate() {
-            if i > dst_end {
+            if i >= dst_end {
                 debug_assert_eq!(i, dst.len());
                 dst.push(src_layer.clone());
             } else {
@@ -414,7 +414,6 @@ impl ExecutableReactions {
 
 #[cfg(test)]
 pub mod test {
-
     use super::*;
 
     #[test]

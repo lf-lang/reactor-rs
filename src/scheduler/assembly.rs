@@ -37,7 +37,6 @@ pub(in super) struct RootAssembler {
     pub(in super) graph: DepGraph,
 
     pub(crate) id_registry: IdRegistry,
-    reaction_labels: IdRegistry,
 }
 
 impl Default for RootAssembler {
@@ -46,7 +45,6 @@ impl Default for RootAssembler {
             reactor_id: ReactorId::new(0),
             graph: Default::default(),
             id_registry: Default::default(),
-            reaction_labels: Default::default(),
             reactors: Default::default(),
         }
     }
@@ -114,7 +112,6 @@ impl<'x> AssemblyCtx<'x> {
 
     /// Create N reactions
     pub fn new_reactions<const N: usize>(&mut self) -> [GlobalReactionId; N] {
-        assert_eq!(self.cur_local, LocalReactionId::ZERO, "Reactions should be declared before other components");
         assert!(!self.reactions_done, "May only create reactions once");
         self.reactions_done = true;
 
@@ -191,8 +188,9 @@ impl<'x> AssemblyCtx<'x> {
         Self {
             globals,
             reactor_id: None,
+            reactions_done: false,
+            // this is not zero, so that reaction ids and component ids are disjoint
             cur_local: S::MAX_REACTION_ID,
-            reactions_done: false
         }
     }
 }

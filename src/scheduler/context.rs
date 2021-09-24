@@ -153,10 +153,10 @@ impl<'x> ReactionCtx<'_, 'x> {
         self.wave.dataflow.merge(&mut self.do_next, downstream.as_ref());
     }
 
-    pub(in crate) fn make_executable(&self, reactions: Vec<GlobalReactionId>) -> ExecutableReactions {
+    pub(in crate) fn make_executable(&self, reactions: &Vec<GlobalReactionId>) -> ExecutableReactions {
         let mut result = ExecutableReactions::new();
         for r in reactions {
-            self.wave.dataflow.augment(&mut result, r)
+            self.wave.dataflow.augment(&mut result, *r)
         }
         result
     }
@@ -365,7 +365,7 @@ impl<'x> ReactionWave<'x> {
                 for reaction_id in global_ids.iter() {
                     if executed.insert(*reaction_id) {// todo get rid of this
 
-                        let mut reactor = &mut reactors[reaction_id.0.container()];
+                        let reactor = &mut reactors[reaction_id.0.container()];
                         trace!("  - Executing {}", reaction_id);
                         // this may append new elements into the queue,
                         // which is why we can't use an iterator
