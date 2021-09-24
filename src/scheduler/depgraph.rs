@@ -406,7 +406,7 @@ impl ExecutableReactions {
     /// Returns an iterator which associates batches of reactions
     /// with their layer.
     pub fn batches(&self) -> impl Iterator<Item=(usize, &HashSet<GlobalReactionId>)> {
-        self.0.iter().filter(|it| !it.is_empty()).enumerate()
+        self.0.iter().enumerate().filter(|it| !it.1.is_empty())
     }
 }
 
