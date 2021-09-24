@@ -35,7 +35,7 @@ use crate::*;
 use crate::CleanupCtx;
 
 use super::*;
-use crate::scheduler::depgraph::DependencyInfo;
+use crate::scheduler::depgraph::{DependencyInfo, ExecutableReactions};
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,
@@ -78,7 +78,7 @@ pub struct SyncScheduler {
     shutdown_time: Option<LogicalInstant>,
     options: SchedulerOptions,
 
-    dependency_info: DependencyInfo,
+    dataflow: DependencyInfo,
 
     /// All reactors.
     pub(in super) reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
@@ -124,7 +124,7 @@ impl SyncScheduler {
             initial_time: None,
             shutdown_time: None,
             options,
-            dependency_info,
+            dataflow: dependency_info,
             reactors,
             id_registry: <_>::default(),
         }
@@ -157,7 +157,7 @@ impl SyncScheduler {
                     time: LogicalInstant,
                     enqueue_fun: fn(&(dyn ReactorBehavior + 'static), &mut StartupCtx)) {
         let mut wave = self.new_wave(time);
-        let mut ctx = StartupCtx { ctx: wave.new_ctx() };
+        let mut ctx = StartupCtx { ctx: wave.new_ctx(&self.dataflow) };
         for reactor in &self.reactors {
             enqueue_fun(reactor.deref(), &mut ctx);
         }
@@ -167,9 +167,9 @@ impl SyncScheduler {
         self.consume_wave(wave, todo)
     }
 
-    fn consume_wave(&mut self, wave: ReactionWave, plan: TagExecutionPlan) {
+    fn consume_wave(&mut self, wave: ReactionWave, plan: ExecutableReactions) {
         let logical_time = wave.logical_time;
-        match wave.consume(self, plan) {
+        match wave.consume(&mut self.reactors, &self.dataflow, plan) {
             WaveResult::Continue => {}
             WaveResult::StopRequested => {
                 let time = logical_time.next_microstep();
@@ -198,7 +198,7 @@ macro_rules! push_event {
             let evt = $evt;
             let process_at = $time;
             trace!("Pushing {}", $_self.display_event(&evt, process_at));
-            $_self.event_queue.insert(process_at, evt.todo);
+            $_self.event_queue.insert(process_at, &$_self.dataflow, evt.todo);
         }};
     }
 
@@ -277,7 +277,7 @@ impl SyncScheduler {
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
 
         let wave = self.new_wave(time);
-        self.consume_wave(wave, plan);
+        self.consume_wave(wave, plan.reactions);
     }
 
     fn catch_up_physical_time(up_to_time: LogicalInstant) -> LogicalInstant {

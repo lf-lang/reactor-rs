@@ -13,7 +13,7 @@ use crate::scheduler::depgraph::{ExecutableReactions, DependencyInfo};
 pub(in crate) struct TagExecutionPlan {
     /// Tag at which this must be executed.
     pub tag: LogicalInstant,
-    reactions: ExecutableReactions,
+    pub reactions: ExecutableReactions,
 }
 
 pub(in crate) struct Batch(pub ReactorId, pub LocalizedReactionSet);
@@ -36,10 +36,10 @@ impl EventQueue {
         self.value_list.pop()
     }
 
-    pub fn insert(&mut self, tag: LogicalInstant, dataflow: DependencyInfo, reactions: ExecutableReactions) {
+    pub fn insert(&mut self, tag: LogicalInstant, dataflow: &DependencyInfo, reactions: &ExecutableReactions) {
         match self.value_list.binary_search_by_key(&Reverse(tag), |v| Reverse(v.tag)) {
             Ok(idx) => dataflow.merge(&mut self.value_list[idx].reactions, reactions),
-            Err(idx) => self.value_list.insert(idx, TagExecutionPlan::new(tag, reactions)),
+            Err(idx) => self.value_list.insert(idx, TagExecutionPlan { tag, reactions: reactions.clone() }),
         }
     }
 }

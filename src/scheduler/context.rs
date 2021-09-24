@@ -1,12 +1,14 @@
 use std::borrow::{Borrow, BorrowMut};
+use std::cmp::max;
 use std::collections::HashSet;
 use std::sync::mpsc::Sender;
 
+use index_vec::IndexVec;
+
 use crate::*;
+use crate::scheduler::depgraph::{DependencyInfo, ExecutableReactions};
 
 use super::*;
-use crate::scheduler::depgraph::ExecutableReactions;
-use std::cmp::max;
 
 /// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
@@ -30,6 +32,8 @@ pub struct ReactionCtx<'a> {
 
     /// Whether some reaction has called [Self::request_stop].
     requested_stop: bool,
+
+    dataflow: &'a DependencyInfo,
 }
 
 impl ReactionCtx<'_> {
@@ -231,14 +235,16 @@ impl ReactionCtx<'_> {
 /// asynchronous physical actions. This is a "link" to the event
 /// system, from the outside world.
 #[derive(Clone)]
-pub struct SchedulerLink {
+pub struct SchedulerLink<'a, 'x> {
     last_processed_logical_time: TimeCell,
 
     /// Sender to schedule events that should be executed later than this wave.
-    sender: Sender<ScheduledEvent>,
+    sender: Sender<Event<'x>>,
+
+    dataflow: &'a DependencyInfo,
 }
 
-impl SchedulerLink {
+impl<'a, 'x> SchedulerLink<'a, 'x> {
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
@@ -250,8 +256,11 @@ impl SchedulerLink {
         action.schedule_future_value(process_at, value);
 
         // todo merge events at equal tags by merging their dependencies
-        let evt = Event { todo: action.downstream.clone() };
-        self.sender.send(ScheduledEvent(evt, process_at)).unwrap();
+        let evt = Event {
+            reactions: Cow::Borrowed(self.dataflow.reactions_triggered_by(&action.get_id())),
+            tag: process_at,
+        };
+        self.sender.send(evt).unwrap();
     }
 }
 
@@ -261,28 +270,32 @@ impl SchedulerLink {
 /// they're processed in exec order.
 ///
 /// todo would there be a way to "split" waves into workers?
-pub(in super) struct ReactionWave {
+pub(in super) struct ReactionWave<'x> {
     /// Logical time of the execution of this wave, constant
     /// during the existence of the object
     pub logical_time: LogicalInstant,
 
     /// Sender to schedule events that should be executed later than this wave.
-    sender: Sender<ScheduledEvent>,
+    sender: Sender<Event<'x>>,
 
     /// Start time of the program.
     initial_time: LogicalInstant,
+
+    dataflow: &'x DependencyInfo,
 }
 
-impl ReactionWave {
+impl<'x> ReactionWave {
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    pub fn new(sender: Sender<ScheduledEvent>,
+    pub fn new(sender: Sender<Event>,
                current_time: LogicalInstant,
-               initial_time: LogicalInstant) -> ReactionWave {
+               initial_time: LogicalInstant,
+               dataflow: &DependencyInfo) -> ReactionWave {
         ReactionWave {
             logical_time: current_time,
             sender,
             initial_time,
+            dataflow
         }
     }
 
@@ -299,11 +312,12 @@ impl ReactionWave {
     }
 
     #[inline]
-    pub fn new_ctx(&mut self) -> ReactionCtx {
+    pub fn new_ctx<'a>(&'a mut self, dataflow: &'a DependencyInfo) -> ReactionCtx<'a> {
         ReactionCtx {
             do_next: ExecutableReactions::new(),
             wave: self,
             requested_stop: false,
+            dataflow,
         }
     }
 
@@ -312,11 +326,13 @@ impl ReactionWave {
     ///
     /// Returns whether some reaction called [ReactionCtx#request_stop]
     /// or not.
-    pub fn consume(mut self, scheduler: &mut SyncScheduler, mut todo: ExecutableReactions) -> WaveResult {
-        // We can share it, to reuse the allocation of the do_next buffer
+    pub fn consume(mut self,
+                   reactors: &mut IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
+                   deps: &DependencyInfo,
+                   mut todo: ExecutableReactions) -> WaveResult {
         let mut executed: HashSet<GlobalReactionId> = HashSet::new();// todo get rid of this
         let mut requested_stop = false;
-        let mut ctx = self.new_ctx();
+        let mut ctx = self.new_ctx(deps);
 
         // The maximum layer number we've seen as of now.
         // This must be increasing monotonically.
@@ -333,7 +349,7 @@ impl ReactionWave {
                 for reaction_id in global_ids.iter() {
                     if executed.insert(*reaction_id) {// todo get rid of this
 
-                        let reactor = scheduler.get_reactor_mut(reaction_id.0.container());
+                        let mut reactor = &mut reactors[reaction_id.0.container()];
                         trace!("  - Executing {}", reaction_id);
                         // this may append new elements into the queue,
                         // which is why we can't use an iterator

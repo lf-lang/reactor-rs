@@ -354,7 +354,7 @@ impl DependencyInfo {
     }
 
     /// Merge the second set of reactions into the first.
-    pub fn merge(&self, dst: &mut ExecutableReactions, src: ExecutableReactions) {
+    pub fn merge(&self, dst: &mut ExecutableReactions, src: &ExecutableReactions) {
         self.layer_info.merge(dst, src)
     }
 
@@ -373,6 +373,7 @@ impl DependencyInfo {
 type Layer = HashSet<GlobalReactionId>;
 
 /// A set of reactions ordered by relative dependency.
+#[derive(Clone)]
 pub(in super) struct ExecutableReactions(
     /// An ordered list of layers to execute.
     ///
@@ -405,7 +406,7 @@ impl ExecutableReactions {
 
     /// Returns an iterator which associates batches of reactions
     /// with their layer.
-    pub fn batches(&self) -> impl Iterator<Item=(usize, HashSet<GlobalReactionId>)> {
+    pub fn batches(&self) -> impl Iterator<Item=(usize, &HashSet<GlobalReactionId>)> {
         self.0.iter().filter(|it| !it.is_empty()).enumerate()
     }
 }
