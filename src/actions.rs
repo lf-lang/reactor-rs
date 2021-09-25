@@ -30,7 +30,7 @@ use std::time::{Duration, Instant};
 use crate::*;
 use crate::ActionPresence::NotPresent;
 
-use super::{LogicalInstant, ReactionSet};
+use super::{LogicalInstant};
 
 #[doc(hidden)]
 pub struct Logical;
@@ -43,7 +43,6 @@ pub type PhysicalAction<T> = Action<Physical, T>;
 
 pub struct Action<Kind, T: Clone> {
     pub min_delay: Duration,
-    pub(in super) downstream: ReactionSet,
     id: GlobalId,
     is_logical: bool,
     _logical: PhantomData<Kind>,
@@ -52,10 +51,6 @@ pub struct Action<Kind, T: Clone> {
 }
 
 impl<K, T: Clone> Action<K, T> {
-    #[inline]
-    pub fn set_downstream(&mut self, r: ReactionSet) {
-        self.downstream = r
-    }
 
     /// Record a future value that can be queried at a future logical time.
     /// Note that we don't check that the given time is in the future. If it's
@@ -114,7 +109,6 @@ impl<K, T: Clone> Action<K, T> {
         Action {
             min_delay: min_delay.unwrap_or(Duration::new(0, 0)),
             is_logical,
-            downstream: Default::default(),
             id,
             _logical: PhantomData,
             values: Default::default(),

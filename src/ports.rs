@@ -29,7 +29,7 @@ use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-use crate::{AssemblyError, GlobalId, PortId, ReactionSet, TriggerId, TriggerLike};
+use crate::{AssemblyError, GlobalId, PortId, TriggerId, TriggerLike};
 
 /// A read-only reference to a port.
 #[repr(transparent)]
@@ -162,21 +162,6 @@ impl<T> Port<T> {
         }
     }
 
-    /// Only for glue code during assembly.
-    pub fn set_downstream(&mut self, r: ReactionSet) {
-        let binding = (*self.upstream_binding).borrow();
-        let Binding(_, class) = binding.deref();
-        *class.triggered_reactions.borrow_mut() = r;
-    }
-
-    #[cfg(test)]
-    pub(in crate) fn get_downstream_deps(&self) -> ReactionSet {
-        let binding = (*self.upstream_binding).borrow();
-        let Binding(_, class) = binding.deref();
-        let triggered = class.triggered_reactions.borrow();
-        triggered.clone()
-    }
-
     fn forward_to(&mut self, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
         let mut mut_downstream_cell = (&downstream.upstream_binding).borrow_mut();
         let Binding(downstream_status, ref downstream_class) = *mut_downstream_cell;
@@ -257,8 +242,6 @@ struct Binding<T>(BindStatus, Rc<PortCell<T>>);
 struct PortCell<T> {
     /// Cell for the value.
     cell: RefCell<Option<T>>,
-    /// The set of reactions which are scheduled when this cell is set.
-    triggered_reactions: RefCell<ReactionSet>,
 
     /// This is the set of ports that are "forwarded to".
     /// When you bind 2 ports A -> B, then the binding of B
@@ -302,7 +285,6 @@ impl<T> Default for PortCell<T> {
     fn default() -> Self {
         PortCell {
             cell: Default::default(),
-            triggered_reactions: Default::default(),
             downstreams: Default::default(),
         }
     }

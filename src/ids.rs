@@ -96,7 +96,7 @@ global_id_newtype!(GlobalReactionId);
 // Identifies a trigger (port, action, timer)
 global_id_newtype!(TriggerId);
 
-/// todo ensure it is toposorted
+/// A set of reactions
 pub type ReactionSet = Vec<GlobalReactionId>;
 
 

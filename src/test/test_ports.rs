@@ -176,23 +176,6 @@ fn transitive_binding_in_non_topo_order_is_ok() {
     assert_eq!(Some(1), c.get());
 }
 
-#[test]
-#[ignore]
-fn dependencies_are_adopted_by_upstream_when_binding() {
-    let mut up = new_port();
-    let mut down = new_port();
-
-    let container = ReactorId::new(0);
-
-    set_fake_downstream(container, vec![0], &mut up);
-    set_fake_downstream(container, vec![1, 2, 3], &mut down);
-
-    assert_deps_eq(container, vec![0], &up);
-
-    bind_ports(&mut up, &mut down).unwrap();
-
-    assert_deps_eq(container, vec![0, 1, 2, 3], &up);
-}
 
 #[test]
 fn repeated_binding_panics() {
