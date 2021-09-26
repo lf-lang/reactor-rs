@@ -87,7 +87,7 @@ pub struct SyncScheduler<'x> {
 impl<'x> SyncScheduler<'x> {
     pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
         let mut root_assembler = RootAssembler::default();
-        let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler);
+        let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler, "/", &String::new());
 
         let main_reactor = R::assemble(args, &mut assembler).unwrap();
         assembler.register_reactor(main_reactor);
@@ -310,6 +310,10 @@ impl<'x> SyncScheduler<'x> {
     fn display_event(&self, evt: &Event, process_at: LogicalInstant) -> String {
         format!("Event(at {}: run {:?})", self.display_tag(process_at), evt.reactions)
     }
+
+    // fn display_reaction(&self, evt: &Event, process_at: LogicalInstant) -> String {
+    //     format!("Event(at {}: run {:?})", self.display_tag(process_at), evt.reactions)
+    // }
 }
 
 /// Allows directly enqueuing reactions for a future,

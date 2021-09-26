@@ -26,6 +26,7 @@ use index_vec::IndexVec;
 
 use crate::*;
 use crate::scheduler::depgraph::DepGraph;
+use core::any::type_name;
 
 pub(in super) struct RootAssembler {
     /// ID of the next reactor to assign
@@ -59,7 +60,16 @@ pub struct AssemblyCtx<'x> {
     reactor_id: Option<ReactorId>,
     /// Next local ID for components != reactions
     cur_local: LocalReactionId,
-    reactions_done: bool
+    reactions_done: bool,
+
+    // debug info:
+
+    /// Debug type
+    debug_type: &'static str,
+    /// Debug simple name (last segment of the path)
+    debug_name: &'static str,
+    /// Debug path to this instantiation
+    debug_inst_path: String,
 }
 
 impl<'x> AssemblyCtx<'x> {
@@ -179,18 +189,26 @@ impl<'x> AssemblyCtx<'x> {
     /// Assemble a child reactor. The child needs to be registered
     /// using [register_reactor] later.
     #[inline]
-    pub fn assemble_sub<S: ReactorInitializer>(&mut self, args: S::Params) -> Result<S, AssemblyError> {
-        let mut sub = AssemblyCtx::new::<S>(&mut self.globals);
+    pub fn assemble_sub<S: ReactorInitializer>(&mut self, inst_name: &'static str, args: S::Params) -> Result<S, AssemblyError> {
+        let mut sub = AssemblyCtx::new::<S>(&mut self.globals, inst_name, &self.debug_inst_path);
         S::assemble(args, &mut sub)
     }
 
-    pub(in super) fn new<S: ReactorInitializer>(globals: &'x mut RootAssembler) -> Self {
+    pub(in super) fn new<S: ReactorInitializer>(
+        globals: &'x mut RootAssembler,
+        debug_name: &'static str,
+        leading_path: &String,
+    ) -> Self {
         Self {
             globals,
             reactor_id: None,
             reactions_done: false,
             // this is not zero, so that reaction ids and component ids are disjoint
             cur_local: S::MAX_REACTION_ID,
+
+            debug_name,
+            debug_type: type_name::<S::Wrapped>(),
+            debug_inst_path: format!("{}/{}", leading_path, debug_name),
         }
     }
 }
