@@ -287,6 +287,9 @@ impl<'x> SyncScheduler<'x> {
             let t = up_to_time.instant - now;
             trace!("  - Need to sleep {} ns", t.as_nanos());
             std::thread::sleep(t); // todo: see crate shuteyes for nanosleep capabilities on linux/macos platforms
+        } else if now > up_to_time.instant {
+            let delay = now - up_to_time.instant;
+            trace!("  - Running late by {} ns = {} µs = {} ms", delay.as_nanos(), delay.as_micros(), delay.as_millis())
         }
         // note this doesn't use `now` because we use
         // scheduled time identity to associate values
