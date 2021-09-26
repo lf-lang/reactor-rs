@@ -23,11 +23,13 @@
  */
 
 
+use core::any::type_name;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter, Result};
+
 use index_vec::IndexVec;
-use crate::{ReactorBehavior, ReactorInitializer};
-use core::any::type_name;
+
+use crate::ReactorInitializer;
 
 // private implementation types
 type ReactionIdImpl = u16;
@@ -199,9 +201,6 @@ pub(in crate) struct IdRegistry {
 }
 
 impl IdRegistry {
-    pub fn new() -> Self {
-        Default::default()
-    }
 
     pub fn get_debug_label(&self, id: GlobalId) -> Option<&'static str> {
         self.debug_ids.get(&id).map(|it| *it)
@@ -213,7 +212,7 @@ impl IdRegistry {
 
     #[inline]
     pub fn fmt_reaction(&self, id: GlobalReactionId) -> impl Display {
-        let mut str = format!("{}:{}", &self.reactor_infos[id.0.container()], id.0.local());
+        let mut str = format!("{}:{}", self.get_debug_info(id.0.container()), id.0.local());
         // reactions may have labels too
         if let Some(label) = self.get_debug_label(id.0) {
             str += "@";
@@ -229,7 +228,6 @@ impl IdRegistry {
 
     pub(in super) fn record_reactor(&mut self, id: ReactorId, debug: &ReactorDebugInfo) {
         let ix = self.reactor_infos.push(debug.clone());
-        println!("reactor {}: {}", id, debug);
-        assert_eq!(ix, id);
+        debug_assert_eq!(ix, id);
     }
 }

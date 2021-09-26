@@ -26,7 +26,6 @@ use index_vec::IndexVec;
 
 use crate::*;
 use crate::scheduler::depgraph::DepGraph;
-use core::any::type_name;
 
 pub(in super) struct RootAssembler {
     /// ID of the next reactor to assign

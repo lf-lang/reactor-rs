@@ -3,8 +3,6 @@ use std::cmp::max;
 use std::collections::HashSet;
 use std::sync::mpsc::Sender;
 
-
-
 use crate::*;
 use crate::scheduler::depgraph::{DependencyInfo, ExecutableReactions};
 

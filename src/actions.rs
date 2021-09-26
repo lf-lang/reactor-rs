@@ -30,7 +30,7 @@ use std::time::{Duration, Instant};
 use crate::*;
 use crate::ActionPresence::NotPresent;
 
-use super::{LogicalInstant};
+use super::LogicalInstant;
 
 #[doc(hidden)]
 pub struct Logical;

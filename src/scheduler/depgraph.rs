@@ -83,10 +83,9 @@ impl Debug for GraphNode {
 }
 
 impl DepGraph {
-
-    /// Print a dot representation of the graph onto stderr.
+    /// Produce a dot representation of the graph.
     #[cfg(feature = "graph-dump")]
-    pub fn eprintln_dot(&self, id_registry: &IdRegistry) {
+    pub fn format_dot(&self, id_registry: &IdRegistry) -> impl Display {
         use regex::{Regex, Captures};
         use petgraph::dot::{Config, Dot};
         use NodeKind::Reaction;
@@ -113,7 +112,7 @@ impl DepGraph {
             }
         });
 
-        eprintln!("{}", replaced);
+        replaced
     }
 
     pub(in super) fn record_port(&mut self, id: GlobalId) {

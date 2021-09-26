@@ -25,6 +25,7 @@
 //! Home of the scheduler component.
 
 
+use std::fmt::Display;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 use index_vec::IndexVec;
@@ -34,7 +35,6 @@ use crate::CleanupCtx;
 use crate::scheduler::depgraph::{DependencyInfo, ExecutableReactions};
 
 use super::*;
-use std::fmt::Display;
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,
@@ -97,7 +97,7 @@ impl<'x> SyncScheduler<'x> {
         let RootAssembler { graph, reactors, id_registry, .. } = root_assembler;
 
         #[cfg(feature = "graph-dump")] {
-            graph.eprintln_dot(&id_registry);
+            eprintln!("{}", graph.format_dot(&id_registry));
         }
 
         // collect dependency information
