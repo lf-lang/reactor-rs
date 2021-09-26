@@ -22,3 +22,36 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use std::fmt::Display;
+#[macro_export]
+macro_rules! join_to {
+    ($f:expr, $iter:expr) => {join_to!($f, $iter, ", ")};
+    ($f:expr, $iter:expr, $sep:literal) => {join_to!($f, $iter, $sep, "", "")};
+    ($f:expr, $iter:expr, $sep:literal, $prefix:literal, $suffix:literal) => {
+        join_to!($f, $iter, $sep, $prefix, $suffix, |x| format!("{}", x))
+    };
+    ($f:expr, $iter:expr, $sep:literal, $prefix:literal, $suffix:literal, $display:expr) => {
+        {
+            crate::util::do_write($f, $iter, $sep, $prefix, $suffix, $display)
+        }
+    };
+}
+
+pub fn do_write<X>(f: &mut impl std::fmt::Write,
+                   iter: impl Iterator<Item=X>,
+                   sep: &'static str,
+                   prefix: &'static str,
+                   suffix: &'static str,
+                   formatter: impl Fn(X) -> String) -> std::fmt::Result {
+    let mut iter = iter;
+    write!(f, "{}", prefix)?;
+    if let Some(first) = iter.next() {
+        write!(f, "{}", formatter(first))?;
+    }
+    for item in iter {
+        write!(f, "{}", sep)?;
+        write!(f, "{}", formatter(item))?;
+    }
+    write!(f, "{}", suffix)
+}
+

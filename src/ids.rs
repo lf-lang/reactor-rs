@@ -25,7 +25,7 @@
 
 use core::any::type_name;
 use std::collections::HashMap;
-use std::fmt::{Debug, Display, Formatter, Result};
+use std::fmt::{Debug, Display, Formatter, Result, Write};
 
 use index_vec::IndexVec;
 
@@ -211,12 +211,11 @@ impl IdRegistry {
     }
 
     #[inline]
-    pub fn fmt_reaction(&self, id: GlobalReactionId) -> impl Display {
+    pub fn fmt_reaction(&self, id: GlobalReactionId) -> String {
         let mut str = format!("{}:{}", self.get_debug_info(id.0.container()), id.0.local());
         // reactions may have labels too
         if let Some(label) = self.get_debug_label(id.0) {
-            str += "@";
-            str += label;
+            write!(str, "@{}", label).unwrap();
         }
         str
     }

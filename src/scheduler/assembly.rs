@@ -114,14 +114,17 @@ impl<'x> AssemblyCtx<'x> {
     }
 
     /// Create N reactions
-    pub fn new_reactions<const N: usize>(&mut self) -> [GlobalReactionId; N] {
+    pub fn new_reactions<const N: usize>(&mut self, names: [Option<&'static str>; N]) -> [GlobalReactionId; N] {
         assert!(!self.reactions_done, "May only create reactions once");
         self.reactions_done = true;
 
         let result = array![i => GlobalReactionId::new(self.get_id(), LocalReactionId::new(i)); N];
 
         let mut prev: Option<GlobalReactionId> = None;
-        for r in result.iter().cloned() {
+        for (i, r) in result.iter().cloned().enumerate() {
+            if let Some(label) = names[i] {
+                self.globals.id_registry.record(r.0, label)
+            }
             self.globals.graph.record_reaction(r);
             if let Some(prev) = prev {
                 // Add an edge that represents that the

@@ -27,7 +27,7 @@
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
 use std::default::Default;
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Formatter, Display};
 
 use petgraph::Direction::{Incoming, Outgoing};
 use petgraph::graph::{DiGraph, NodeIndex};
@@ -411,6 +411,16 @@ impl ExecutableReactions {
     /// with their layer.
     pub fn batches(&self) -> impl Iterator<Item=(usize, &HashSet<GlobalReactionId>)> {
         self.0.iter().enumerate().filter(|it| !it.1.is_empty())
+    }
+}
+
+impl Display for ExecutableReactions {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[")?;
+        for layer in &self.0 {
+            join_to!(f, layer.iter(), ", ", "{", "} ; ")?;
+        }
+        write!(f, "]")
     }
 }
 

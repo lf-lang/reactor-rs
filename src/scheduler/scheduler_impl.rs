@@ -36,6 +36,8 @@ use crate::scheduler::depgraph::{DependencyInfo, ExecutableReactions};
 
 use super::*;
 
+use std::fmt::Write;
+
 pub struct SchedulerOptions {
     pub keep_alive: bool,
     pub timeout: Option<Duration>,
@@ -311,11 +313,19 @@ impl<'x> SyncScheduler<'x> {
     }
 
     fn display_event(&self, evt: &Event, process_at: LogicalInstant) -> String {
-        format!("Event(at {}: run {:?})", self.display_tag(process_at), evt.reactions)
+        let mut str = format!("Event(at {}: run [", self.display_tag(process_at));
+
+        for (layer_no, batch) in evt.reactions.batches() {
+            write!(str, "{}: ", layer_no).unwrap();
+            join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| self.display_reaction(*x)).unwrap();
+        }
+
+        str += "])";
+        str
     }
 
     #[inline]
-    pub(in super) fn display_reaction(&self, global: GlobalReactionId) -> impl Display {
+    pub(in super) fn display_reaction(&self, global: GlobalReactionId) -> String {
         self.id_registry.fmt_reaction(global)
     }
 }
