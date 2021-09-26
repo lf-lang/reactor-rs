@@ -224,7 +224,7 @@ impl DepGraph {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 enum EdgeWeight {
     /// Default semantics for this edge (determined by the
     /// kind of source and target vertex). This only makes a
@@ -339,9 +339,16 @@ impl DependencyInfo {
                     Self::collect_reactions_rec(dataflow, downstr.target(), layer_info, reactions)
                 }
                 NodeKind::Reaction => {
-                    layer_info.augment(reactions, GlobalReactionId(node.id))
+                    // trigger->reaction
+                    if downstr.weight() != &EdgeWeight::Use {
+                        // so it's a trigger dependency
+                        layer_info.augment(reactions, GlobalReactionId(node.id))
+                    }
                 }
-                NodeKind::Action => {}
+                NodeKind::Action => {
+                    // trigger->action? this is malformed
+                    panic!("malformed dependency graph")
+                }
             }
         }
     }
