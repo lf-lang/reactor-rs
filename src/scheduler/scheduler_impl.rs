@@ -34,6 +34,7 @@ use crate::CleanupCtx;
 use crate::scheduler::depgraph::{DependencyInfo, ExecutableReactions};
 
 use super::*;
+use std::fmt::Display;
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,
@@ -79,29 +80,30 @@ pub struct SyncScheduler<'x> {
     dataflow: &'x DependencyInfo,
 
     /// All reactors.
-    pub(in super) reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
+    reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
 
-    pub(in super) id_registry: IdRegistry,
+    id_registry: IdRegistry,
 }
 
 impl<'x> SyncScheduler<'x> {
     pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
         let mut root_assembler = RootAssembler::default();
-        let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler, "/", &String::new());
+        let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler, ReactorDebugInfo::root::<R::Wrapped>());
 
         let main_reactor = R::assemble(args, &mut assembler).unwrap();
         assembler.register_reactor(main_reactor);
 
-        #[cfg(feature = "graph-dump")] {
-            root_assembler.graph.eprintln_dot(&root_assembler.id_registry);
-        }
 
-        let RootAssembler { graph, reactors, .. } = root_assembler;
+        let RootAssembler { graph, reactors, id_registry, .. } = root_assembler;
+
+        #[cfg(feature = "graph-dump")] {
+            graph.eprintln_dot(&id_registry);
+        }
 
         // collect dependency information
         let dependency_info = DependencyInfo::new(graph).unwrap();
 
-        let mut scheduler = SyncScheduler::new(options, reactors, &dependency_info);
+        let mut scheduler = SyncScheduler::new(options, reactors, id_registry, &dependency_info);
 
         scheduler.startup();
         scheduler.launch_event_loop()
@@ -112,6 +114,7 @@ impl<'x> SyncScheduler<'x> {
     /// See [Self::launch_async].
     fn new(options: SchedulerOptions,
            reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
+           id_registry: IdRegistry,
            dependency_info: &'x DependencyInfo) -> Self {
         let (sender, receiver) = channel::<Event<'x>>();
         Self {
@@ -124,7 +127,7 @@ impl<'x> SyncScheduler<'x> {
             options,
             dataflow: dependency_info,
             reactors,
-            id_registry: <_>::default(),
+            id_registry,
         }
     }
 
@@ -311,9 +314,10 @@ impl<'x> SyncScheduler<'x> {
         format!("Event(at {}: run {:?})", self.display_tag(process_at), evt.reactions)
     }
 
-    // fn display_reaction(&self, evt: &Event, process_at: LogicalInstant) -> String {
-    //     format!("Event(at {}: run {:?})", self.display_tag(process_at), evt.reactions)
-    // }
+    #[inline]
+    pub(in super) fn display_reaction(&self, global: GlobalReactionId) -> impl Display {
+        self.id_registry.fmt_reaction(global)
+    }
 }
 
 /// Allows directly enqueuing reactions for a future,

@@ -360,8 +360,8 @@ impl<'x> ReactionWave<'x> {
                 progress = true;
 
                 for reaction_id in reactions {
+                    trace!("  - Executing {}", scheduler.display_reaction(*reaction_id));
                     let reactor = scheduler.get_reactor_mut(reaction_id.0.container());
-                    trace!("  - Executing {}", reaction_id);
 
                     // this may append new elements into the queue,
                     // which is why we can't use an iterator

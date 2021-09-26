@@ -25,6 +25,9 @@
 
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter, Result};
+use index_vec::IndexVec;
+use crate::{ReactorBehavior, ReactorInitializer};
+use core::any::type_name;
 
 // private implementation types
 type ReactionIdImpl = u16;
@@ -153,30 +156,80 @@ pub trait TriggerLike {
 
 pub type PortId = GlobalId;
 
-/// Stores a mapping from global Id
-///
+#[derive(Clone)]
+pub(in crate) struct ReactorDebugInfo {
+    /// Type name
+    pub type_name: &'static str,
+    /// Simple name of the instantiation (last segment of the path)
+    pub inst_name: &'static str,
+    /// Path to this instantiation (eg "/parent/child")
+    inst_path: String,
+}
+
+impl ReactorDebugInfo {
+    pub(in crate) fn root<R>() -> Self {
+        Self {
+            type_name: type_name::<R>(),
+            inst_name: "<main>",
+            inst_path: "<main>".into(),
+        }
+    }
+
+    pub(in crate) fn derive<R: ReactorInitializer>(&self, inst_name: &'static str) -> Self {
+        Self {
+            type_name: type_name::<R::Wrapped>(),
+            inst_name,
+            inst_path: format!("{}/{}", self.inst_path, inst_name),
+        }
+    }
+}
+
+impl Display for ReactorDebugInfo {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        write!(f, "{}", self.inst_path)
+    }
+}
+
+
+/// Stores a mapping from global Id to debug label
+#[derive(Default)]
 pub(in crate) struct IdRegistry {
     debug_ids: HashMap<GlobalId, &'static str>,
+    reactor_infos: IndexVec<ReactorId, ReactorDebugInfo>,
 }
 
 impl IdRegistry {
     pub fn new() -> Self {
-        IdRegistry { debug_ids: Default::default() }
+        Default::default()
     }
 
     pub fn get_debug_label(&self, id: GlobalId) -> Option<&'static str> {
         self.debug_ids.get(&id).map(|it| *it)
     }
 
+    pub fn get_debug_info(&self, id: ReactorId) -> &ReactorDebugInfo {
+        &self.reactor_infos[id]
+    }
+
+    #[inline]
+    pub fn fmt_reaction(&self, id: GlobalReactionId) -> impl Display {
+        let mut str = format!("{}:{}", &self.reactor_infos[id.0.container()], id.0.local());
+        // reactions may have labels too
+        if let Some(label) = self.get_debug_label(id.0) {
+            str += "@";
+            str += label;
+        }
+        str
+    }
+
     pub(in super) fn record(&mut self, id: GlobalId, name: &'static str) {
         let existing = self.debug_ids.insert(id, name);
         debug_assert!(existing.is_none())
     }
-}
 
-
-impl Default for IdRegistry {
-    fn default() -> Self {
-        Self::new()
+    pub(in super) fn record_reactor(&mut self, id: ReactorId, debug: &ReactorDebugInfo) {
+        let ix = self.reactor_infos.push(debug.clone());
+        println!("reactor {}: {}", id, debug);
+        assert_eq!(ix, id);
     }
 }
