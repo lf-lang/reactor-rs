@@ -41,3 +41,8 @@ callgrind*
 oprofile_data
 flamegraph.svg
 perf.data*
+benches/bin
+benches/src-gen
+examples/src-gen
+examples/bin
+sandbox

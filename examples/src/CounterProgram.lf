@@ -1,0 +1,26 @@
+target Rust {
+    timeout: 3 sec
+};
+
+reactor Counter(stride: u32(1)) {
+    state count: u32(0);
+    timer t(0, 1 sec);
+    output out: u32;
+    reaction(t) -> out {=
+        ctx.set(out, self.count);
+        self.count += params.stride;
+    =}
+}
+reactor Printer {
+    input in: u32;
+    reaction(in) {=
+        if let Some(value) = ctx.get(r#in) {
+            println!("Hello World! value={}.", value);
+        }
+    =}
+}
+main reactor {
+    counter = new Counter(stride = 10);
+    printer = new Printer();
+    counter.out -> printer.in;
+}
