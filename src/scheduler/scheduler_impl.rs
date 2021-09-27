@@ -25,7 +25,7 @@
 //! Home of the scheduler component.
 
 
-use std::fmt::Display;
+
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 use index_vec::IndexVec;

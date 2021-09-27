@@ -22,7 +22,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::fmt::Display;
+
 #[macro_export]
 macro_rules! join_to {
     ($f:expr, $iter:expr) => {join_to!($f, $iter, ", ")};
