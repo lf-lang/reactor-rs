@@ -8,19 +8,13 @@ edition = "2018"
 
 [dependencies]
 log = "0.4"
-#index_vec = "0.1.2"
+index_vec = "0.1.2"
 #itertools = "0.10.1"
 #bit-set = "0.5"
 smallvec = "1.6"
 petgraph = "0.6.0"
 array-macro = "2.1.0"
 regex = { version = "1", optional = true}
-
-[dependencies.index_vec]
-# This is my fork, we depend on one new feature bc we use const exprs
-# See upstream PR: https://github.com/thomcc/index_vec/pull/7
-git = "ssh://git@github.com/oowekyala/index_vec.git"
-branch = "const-fns"
 
 [dev-dependencies]
 criterion = "0.3"
