@@ -42,7 +42,7 @@ impl<'a, T> ReadablePort<'a, T> {
     }
 }
 
-impl<'a, T> ReactionTrigger<T> for ReadablePort<'a, T> {
+impl< T> ReactionTrigger<T> for ReadablePort<'_, T> {
     #[inline]
     fn get_value(&self, _now: &LogicalInstant) -> Option<T> where T: Copy {
         self.0.get()
