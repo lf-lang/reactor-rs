@@ -23,11 +23,11 @@
  */
 
 
-use crate::LogicalInstant;
+use crate::{LogicalInstant, ReactionCtx};
 
 /// Common trait for actions, ports, and timer objects handed
 /// to reaction functions. This is meant to be used through the
-/// API of [crate::ReactionCtx] instead of directly.
+/// API of [ReactionCtx] instead of directly.
 pub trait ReactionTrigger<T> {
 
     /// Returns whether the trigger is present, given that
@@ -39,7 +39,7 @@ pub trait ReactionTrigger<T> {
 
     /// Copies the value out, if it is present. Whether a *value*
     /// is present is not in general the same thing as whether *this trigger*
-    /// [is_present]. See [ReactionCtx::get].
+    /// [Self::is_present]. See [ReactionCtx::get].
     fn get_value(&self, now: &LogicalInstant) -> Option<T> where T: Copy;
 
     /// Execute an action using the current value of this trigger.

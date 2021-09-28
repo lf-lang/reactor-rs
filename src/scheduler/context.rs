@@ -96,7 +96,7 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// }
     /// ```
     ///
-    /// See also the similar [use_ref].
+    /// See also the similar [Self::use_ref_opt].
     #[inline]
     pub fn use_ref<'a, C, T, I, O>(&self, container: I, action: impl FnOnce(Option<&T>) -> O) -> O
         where T: 'a,
@@ -109,7 +109,7 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// only if it is present. The value is fetched by reference
     /// and not copied.
     ///
-    /// See also the similar [use_ref_opt].
+    /// See also the similar [Self::use_ref].
     pub fn use_ref_opt<'a, C, T, I, O>(&self, container: I, action: impl FnOnce(&T) -> O) -> Option<O>
         where T: 'a,
               I: Borrow<C>,
@@ -135,7 +135,7 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// Returns true if the given action was triggered at the
     /// current logical time.
     ///
-    /// If so, then it may, but must not, present a value ([Self::get_action]).
+    /// If so, then it may, but must not, present a value ([Self::get]).
     #[inline]
     pub fn is_present<T>(&self, action: &impl ReactionTrigger<T>) -> bool {
         action.is_present(&self.get_logical_time())
@@ -156,7 +156,7 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// to this method. The value can be cleared by using `None`
     /// as a value. Note that even if the value is absent, the
     /// *action* will still be present at the time it is triggered
-    /// (see [Self::is_action_present]).
+    /// (see [Self::is_present]).
     ///
     /// The action will trigger after its own implicit time delay,
     /// plus an optional additional time delay (see [Offset]).

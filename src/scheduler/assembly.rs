@@ -183,7 +183,7 @@ impl<'x> AssemblyCtx<'x> {
     }
 
     /// Assemble a child reactor. The child needs to be registered
-    /// using [register_reactor] later.
+    /// using [Self::register_reactor] later.
     #[inline]
     pub fn assemble_sub<S: ReactorInitializer>(&mut self, inst_name: &'static str, args: S::Params) -> Result<S, AssemblyError> {
         let mut sub = AssemblyCtx::new::<S>(&mut self.globals, self.debug.derive::<S>(inst_name));
