@@ -28,7 +28,6 @@ use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
 use crate::*;
-use crate::ActionPresence::NotPresent;
 
 use super::LogicalInstant;
 
@@ -41,17 +40,26 @@ pub struct Physical;
 pub type LogicalAction<T> = Action<Logical, T>;
 pub type PhysicalAction<T> = Action<Physical, T>;
 
-pub struct Action<Kind, T: Clone> {
+pub struct Action<Kind, T> {
     pub min_delay: Duration,
     id: GlobalId,
     is_logical: bool,
     _logical: PhantomData<Kind>,
-    // This is only used for an action scheduled with zero delay 
-    values: ValueMap<T>,
+
+    /// Stores values of an action for future scheduled events.
+    /// We rely strongly on the fact that any value put in there by [Action.schedule_future_value]
+    /// will be cleaned up after that tag. Otherwise the map will
+    /// blow up the heap.
+    ///
+    /// A logical instant is the thing about
+    ///
+    // todo a simple linked list of entries should be simpler and sufficient
+    // Most actions probably only need a single cell as a swap.
+
+    map: HashMap<LogicalInstant, Option<T>>,
 }
 
-impl<K, T: Clone> Action<K, T> {
-
+impl<K, T> Action<K, T> {
     /// Record a future value that can be queried at a future logical time.
     /// Note that we don't check that the given time is in the future. If it's
     /// in the past, the value will never be reclaimed.
@@ -59,29 +67,14 @@ impl<K, T: Clone> Action<K, T> {
     ///
     #[inline]
     pub(in crate) fn schedule_future_value(&mut self, time: LogicalInstant, value: Option<T>) {
-        self.values.schedule(time, value)
+        self.map.insert(time, value);
+        // todo log when overwriting value
     }
 
-    #[inline]
-    pub(in crate) fn get_value(&self, time: LogicalInstant) -> Option<T> {
-        match self.values.get_value(time) {
-            ActionPresence::NotPresent => None,
-            ActionPresence::Present(value) => value
-        }
-    }
 
     #[inline]
-    pub(in crate) fn is_present(&self, time: LogicalInstant) -> bool {
-        match self.values.get_value(time) {
-            ActionPresence::NotPresent => false,
-            ActionPresence::Present(_) => true
-        }
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    pub fn forget_value(&mut self, time: LogicalInstant) {
-        self.values.forget(time)
+    pub(in crate) fn forget_value(&mut self, time: &LogicalInstant) {
+        self.map.remove(time);
     }
 
     /// Compute the logical time at which an action must be scheduled
@@ -111,74 +104,96 @@ impl<K, T: Clone> Action<K, T> {
             is_logical,
             id,
             _logical: PhantomData,
-            values: Default::default(),
+            map: Default::default(),
         }
     }
 }
 
-impl<T: Clone> LogicalAction<T> {
+impl<T, K> ReactionTrigger<T> for Action<K, T> {
+    #[inline]
+    fn is_present(&self, now: &LogicalInstant) -> bool {
+        self.map.contains_key(now)
+    }
+
+    #[inline]
+    fn get_value(&self, now: &LogicalInstant) -> Option<T> where T: Copy {
+        self.map.get(&now).cloned().flatten()
+    }
+
+    #[inline]
+    fn use_value_ref<O>(&self, now: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
+        let inmap: Option<&Option<T>> = self.map.get(now);
+        let v = inmap.map(|i| i.as_ref()).flatten();
+        action(v)
+    }
+}
+
+
+impl<T> LogicalAction<T> {
     pub fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
         Self::new_impl(id, min_delay, true)
     }
 }
 
-impl<T: Clone> PhysicalAction<T> {
+impl<T> PhysicalAction<T> {
     pub fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
         Self::new_impl(id, min_delay, false)
     }
 }
 
-impl<K, T: Clone> TriggerLike for Action<K, T> {
+impl<K, T> TriggerLike for Action<K, T> {
     fn get_id(&self) -> TriggerId {
         TriggerId(self.id)
     }
 }
 
+/*#[cfg(test)] //fixme
+mod test {
+    use ActionPresence::{NotPresent, Present};
 
-#[derive(Debug, Eq, PartialEq)]
-pub(in crate) enum ActionPresence<T> {
-    /// Action was not scheduled
-    NotPresent,
-    /// Action was scheduled, but value may be missing.
-    Present(Option<T>),
-}
+    use crate::*;
 
-impl<T: Clone> Clone for ActionPresence<T> {
-    fn clone(&self) -> Self {
-        match self {
-            ActionPresence::NotPresent => ActionPresence::NotPresent,
-            ActionPresence::Present(o) => ActionPresence::Present(o.clone())
-        }
-    }
-}
-
-/// Stores values of an action for future scheduled events.
-/// We rely strongly on the fact that any value put in there by [Action.schedule_future_value]
-/// will be cleaned up after that tag. Otherwise the map will
-/// blow up.
-pub(in crate) struct ValueMap<T: Clone> {
-    // todo a simple linked list of entries should be simpler and sufficient
-    // Most actions probably only need a single cell as a swap.
-    map: HashMap<LogicalInstant, ActionPresence<T>>,
-}
-
-impl<T: Clone> ValueMap<T> {
-    pub(in crate) fn get_value(&self, time: LogicalInstant) -> ActionPresence<T> {
-        self.map.get(&time).cloned().unwrap_or(NotPresent)
+    #[test]
+    fn a_value_map_should_be_able_to_store_a_value() {
+        let mut vmap = Action::<i64>::default();
+        let fut = LogicalInstant::now() + Duration::from_millis(500);
+        assert_eq!(NotPresent, vmap.get_value(fut));
+        vmap.schedule(fut, Some(2555));
+        assert_eq!(Present(Some(2555)), vmap.get_value(fut));
+        assert_eq!(Present(Some(2555)), vmap.get_value(fut)); // not deleted
+        vmap.schedule(fut, Some(16));
+        assert_eq!(Present(Some(16)), vmap.get_value(fut));
+        vmap.schedule(fut, None);
+        assert_eq!(Present(None), vmap.get_value(fut));
+        vmap.forget(fut);
+        assert_eq!(NotPresent, vmap.get_value(fut));
     }
 
-    pub(in crate) fn forget(&mut self, time: LogicalInstant) {
-        self.map.remove(&time);
+    #[test]
+    fn a_value_map_should_be_able_to_forget_a_value() {
+        let mut vmap = ValueMap::<i64>::default();
+        let fut = LogicalInstant::now() + Duration::from_millis(500);
+        vmap.schedule(fut, Some(2555));
+        assert_eq!(Present(Some(2555)), vmap.get_value(fut));
+        vmap.forget(fut);
+        assert_eq!(NotPresent, vmap.get_value(fut));
     }
 
-    pub(in crate) fn schedule(&mut self, time: LogicalInstant, value: Option<T>) {
-        self.map.insert(time, ActionPresence::Present(value));
-        // todo log when overwriting value
-    }
-}
+    #[test]
+    fn a_value_map_should_be_able_to_store_more_values() {
+        let mut vmap = ValueMap::<i64>::default();
+        let fut = LogicalInstant::now() + Duration::from_millis(500);
+        let fut2 = LogicalInstant::now() + Duration::from_millis(540);
+        let fut3 = LogicalInstant::now() + Duration::from_millis(560);
 
-impl<T: Clone> Default for ValueMap<T> {
-    fn default() -> Self {
-        Self { map: Default::default() }
+        vmap.schedule(fut, Some(1));
+        // order is reversed on purpose
+        vmap.schedule(fut3, Some(3));
+        vmap.schedule(fut2, Some(2));
+
+        assert_eq!(Present(Some(1)), vmap.get_value(fut));
+        assert_eq!(Present(Some(2)), vmap.get_value(fut2));
+        assert_eq!(Present(Some(3)), vmap.get_value(fut3));
     }
 }
+*/

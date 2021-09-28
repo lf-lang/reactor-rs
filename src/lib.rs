@@ -46,6 +46,7 @@ pub use self::scheduler::*;
 pub use self::time::*;
 pub use self::timers::*;
 pub use self::util::*;
+pub use self::values::*;
 
 #[cfg(test)]
 pub mod test;
@@ -58,6 +59,7 @@ mod timers;
 mod util;
 mod ids;
 mod error;
+mod values;
 
 /// Wrapper around the user struct for safe dispatch.
 ///

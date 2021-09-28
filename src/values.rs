@@ -22,5 +22,29 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-pub mod test_ports;
-pub mod testutil;
+
+use crate::LogicalInstant;
+
+/// Common trait for actions, ports, and timer objects handed
+/// to reaction functions. This is meant to be used through the
+/// API of [crate::ReactionCtx] instead of directly.
+pub trait ReactionTrigger<T> {
+
+    /// Returns whether the trigger is present, given that
+    /// the current logical time is the parameter.
+    #[inline]
+    fn is_present(&self, now: &LogicalInstant) -> bool {
+        self.use_value_ref(now, |opt| opt.is_some())
+    }
+
+    /// Copies the value out, if it is present. Whether a *value*
+    /// is present is not in general the same thing as whether *this trigger*
+    /// [is_present]. See [ReactionCtx::get].
+    fn get_value(&self, now: &LogicalInstant) -> Option<T> where T: Copy;
+
+    /// Execute an action using the current value of this trigger.
+    /// The closure is called even if the value is absent (with a [None]
+    /// argument).
+    fn use_value_ref<O>(&self, now: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O;
+}
+

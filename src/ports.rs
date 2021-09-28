@@ -29,30 +29,28 @@ use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
-use crate::{AssemblyError, GlobalId, PortId, TriggerId, TriggerLike};
+use crate::{AssemblyError, GlobalId, LogicalInstant, PortId, ReactionTrigger, TriggerId, TriggerLike};
 
 /// A read-only reference to a port.
 #[repr(transparent)]
-pub struct ReadablePort<'a, T> {
-    port: &'a Port<T>,
-}
+pub struct ReadablePort<'a, T>(&'a Port<T>);
 
 impl<'a, T> ReadablePort<'a, T> {
     #[inline(always)]
     pub fn new(port: &'a Port<T>) -> Self {
-        Self { port }
+        Self(port)
+    }
+}
+
+impl<'a, T> ReactionTrigger<T> for ReadablePort<'a, T> {
+    #[inline]
+    fn get_value(&self, _now: &LogicalInstant) -> Option<T> where T: Copy {
+        self.0.get()
     }
 
-    /// Copies the value out, see [super::ReactionCtx::get]
-    #[inline(always)]
-    pub(in crate) fn get(&self) -> Option<T> where T: Copy {
-        self.port.get()
-    }
-
-    /// Copies the value out, see [super::ReactionCtx::use_ref]
-    #[inline(always)]
-    pub(in crate) fn use_ref<O>(&self, action: impl FnOnce(&T) -> O ) -> Option<O> {
-        self.port.use_ref(|opt| opt.as_ref().map(action))
+    #[inline]
+    fn use_value_ref<O>(&self, _now: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
+        self.0.use_ref(|opt| action(opt.as_ref()))
     }
 }
 

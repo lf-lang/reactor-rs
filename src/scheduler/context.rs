@@ -26,6 +26,8 @@ pub struct ReactionCtx<'a, 'x> {
     /// This is mutable: if a reaction sets a port, then the
     /// downstream of that port is inserted in order into this
     /// queue.
+
+    // note: we could use a Cow here too
     pub(in super) do_next: ExecutableReactions,
 
     /// Whether some reaction has called [Self::request_stop].
@@ -33,32 +35,91 @@ pub struct ReactionCtx<'a, 'x> {
 }
 
 impl<'x> ReactionCtx<'_, 'x> {
-    /// Returns the current value of a port at this logical time.
-    /// If the value is absent, [Option::None] is returned.
+
+    /// Returns the current value of a port or action at this
+    /// logical time. If the value is absent, [Option::None] is
+    /// returned.  This is the case if the action or port is
+    /// not present ([Self::is_present]), or if no value was
+    /// scheduled (action values are optional, see [Self::schedule_with_v]).
     ///
     /// The value is copied out. See also [Self::use_ref] if this
     /// is to be avoided.
+    ///
+    /// ### Examples
+    ///
+    /// ```no_run
+    /// # use reactor_rt::{ReactionCtx, ReadablePort};
+    /// # let ctx: &mut ReactionCtx = panic!();
+    /// # let port: &ReadablePort<u32> = panic!();
+    /// if let Some(value) = ctx.get(port) {
+    ///     // branch is taken if the port is set -- note, this moves `port`!
+    /// }
+    /// ```
+    /// ```no_run
+    /// # use reactor_rt::{ReactionCtx, ReadablePort};
+    /// # let ctx: &mut ReactionCtx = panic!();
+    /// # let port: &ReadablePort<u32> = panic!();
+    ///
+    /// let value_opt = ctx.get(&port); // you can pass the port by reference
+    /// let value_opt = ctx.get(port); // or by value (but this moves it out)
+    /// ```
+    ///
     #[inline]
-    pub fn get<'a, T, I>(&self, port: I) -> Option<T>
+    pub fn get<'a, C, T, I>(&self, container: I) -> Option<T>
         where T: Copy + 'a,
-              I: Borrow<ReadablePort<'a, T>> {
-        port.borrow().get()
+              I: Borrow<C>,
+              C: ReactionTrigger<T> + 'a {
+        container.borrow().get_value(&self.get_logical_time())
+    }
+
+    /// Executes the provided closure on the value of the port
+    /// or action. The value is fetched by reference and not
+    /// copied.
+    ///
+    /// ### Examples
+    ///
+    /// ```no_run
+    /// # use reactor_rt::{ReactionCtx, ReadablePort};
+    /// # let ctx: &mut ReactionCtx = panic!();
+    /// # let port: &ReadablePort<String> = panic!();
+    /// let len = ctx.use_ref(port, |str| str.map(String::len).unwrap_or(0));
+    /// // equivalent to
+    /// let len = ctx.use_ref_opt(port, String::len).unwrap_or(0);
+    /// ```
+    /// ```no_run
+    /// # use reactor_rt::{ReactionCtx, ReadablePort};
+    /// # let ctx: &mut ReactionCtx = panic!();
+    /// # let port: &ReadablePort<String> = panic!();
+    ///
+    /// if let Some(str) = ctx.use_ref_opt(port, Clone::clone) {
+    ///     // only entered if the port value is present, so no need to check is_present
+    /// }
+    /// ```
+    ///
+    /// See also the similar [use_ref].
+    #[inline]
+    pub fn use_ref<'a, C, T, I, O>(&self, container: I, action: impl FnOnce(Option<&T>) -> O) -> O
+        where T: 'a,
+              I: Borrow<C>,
+              C: ReactionTrigger<T> + 'a {
+        container.borrow().use_value_ref(&self.get_logical_time(), action)
     }
 
     /// Executes the provided closure on the value of the port,
-    /// if it is present.
+    /// only if it is present. The value is fetched by reference
+    /// and not copied.
     ///
-    /// The value is fetched by reference and not copied.
-    #[inline]
-    pub fn use_ref<'a, T, I, O>(&self, port: I, action: impl FnOnce(&T) -> O) -> Option<O>
-        where I: Borrow<ReadablePort<'a, T>>,
-              T: 'a {
-        port.borrow().use_ref(action)
+    /// See also the similar [use_ref_opt].
+    pub fn use_ref_opt<'a, C, T, I, O>(&self, container: I, action: impl FnOnce(&T) -> O) -> Option<O>
+        where T: 'a,
+              I: Borrow<C>,
+              C: ReactionTrigger<T> + 'a {
+        self.use_ref(container, |c| c.map(action))
     }
 
     /// Sets the value of the given port.
     ///
-    /// The change is visible at the same logical time, ie
+    /// The change is visible at the same logical time, i.e.
     /// the value propagates immediately. This may hence
     /// schedule more reactions that should execute at the
     /// same logical time.
@@ -66,24 +127,9 @@ impl<'x> ReactionCtx<'_, 'x> {
     pub fn set<'a, T, W>(&mut self, mut port: W, value: T)
         where W: BorrowMut<WritablePort<'a, T>>,
               T: 'a {
-
-        // TODO topology information & deduplication
-        //  Eg for a diamond situation this will execute reactions several times...
-        //  This is why I added a set to patch it
         let port = port.borrow_mut();
         port.set_impl(value);
         self.enqueue_now(Cow::Borrowed(self.reactions_triggered_by(port.get_id())))
-    }
-
-    /// Get the value of an action at this logical time.
-    ///
-    /// The value is cloned out. The value may be absent,
-    /// in which case [Option::None] is returned. This is
-    /// the case if the action is not present ([Self::is_action_present]),
-    /// or if no value was scheduled (see [Self::schedule_with_v]).
-    #[inline]
-    pub fn get_action<T: Clone>(&self, action: &LogicalAction<T>) -> Option<T> {
-        action.get_value(self.get_logical_time())
     }
 
     /// Returns true if the given action was triggered at the
@@ -91,15 +137,15 @@ impl<'x> ReactionCtx<'_, 'x> {
     ///
     /// If so, then it may, but must not, present a value ([Self::get_action]).
     #[inline]
-    pub fn is_action_present<T: Clone>(&self, action: &LogicalAction<T>) -> bool {
-        action.is_present(self.get_logical_time())
+    pub fn is_present<T>(&self, action: &impl ReactionTrigger<T>) -> bool {
+        action.is_present(&self.get_logical_time())
     }
 
     /// Schedule an action to trigger at some point in the future.
     ///
     /// This is like [Self::schedule_with_v], where the value is [None].
     #[inline]
-    pub fn schedule<T: Clone>(&mut self, action: &mut LogicalAction<T>, offset: Offset) {
+    pub fn schedule<T>(&mut self, action: &mut LogicalAction<T>, offset: Offset) {
         self.schedule_with_v(action, None, offset)
     }
 
@@ -115,20 +161,20 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// The action will trigger after its own implicit time delay,
     /// plus an optional additional time delay (see [Offset]).
     #[inline]
-    pub fn schedule_with_v<T: Clone>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
+    pub fn schedule_with_v<T>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
         self.schedule_impl(action, value, offset);
     }
 
-    // private
     #[inline]
-    fn schedule_impl<K, T: Clone>(&mut self, action: &mut Action<K, T>, value: Option<T>, offset: Offset) {
+    fn schedule_impl<K, T>(&mut self, action: &mut Action<K, T>, value: Option<T>, offset: Offset) {
         let eta = action.make_eta(self.wave.logical_time, offset.to_duration());
         action.schedule_future_value(eta, value);
         let downstream = self.wave.dataflow.reactions_triggered_by(&action.get_id());
         self.enqueue_later(downstream, eta);
     }
 
-    // todo hide this better
+    // todo hide this better: this would require synthesizing
+    //  the reaction within the runtime and not with the code generator
     /// Reschedule a timer if need be. This is used by synthetic
     /// reactions that reschedule timers.
     #[doc(hidden)]
@@ -443,6 +489,6 @@ impl CleanupCtx {
         port.clear_value()
     }
     pub fn cleanup_action<T: Clone>(&self, action: &mut LogicalAction<T>) {
-        action.forget_value(self.tag)
+        action.forget_value(&self.tag)
     }
 }
