@@ -32,7 +32,7 @@ use index_vec::IndexVec;
 
 use crate::*;
 use crate::CleanupCtx;
-use crate::scheduler::depgraph::{DependencyInfo, ExecutableReactions};
+use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
 
 use super::*;
 
@@ -67,9 +67,6 @@ pub struct SyncScheduler<'x> {
     /// A sender bound to the receiver, which may be cloned.
     tx: Sender<Event<'x>>,
 
-    /// A queue of pending events.
-    event_queue: EventQueue<'x>,
-
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
     initial_time: Option<LogicalInstant>,
@@ -79,7 +76,7 @@ pub struct SyncScheduler<'x> {
     shutdown_time: Option<LogicalInstant>,
     options: SchedulerOptions,
 
-    dataflow: &'x DependencyInfo,
+    dataflow: &'x DataflowInfo,
 
     /// All reactors.
     reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
@@ -103,10 +100,11 @@ impl<'x> SyncScheduler<'x> {
         }
 
         // collect dependency information
-        let dependency_info = DependencyInfo::new(graph).unwrap();
+        let dependency_info = DataflowInfo::new(graph).unwrap();
 
         let mut scheduler = SyncScheduler::new(options, reactors, id_registry, &dependency_info);
 
+        info!("Triggering startup...");
         scheduler.startup();
         scheduler.launch_event_loop()
     }
@@ -117,13 +115,12 @@ impl<'x> SyncScheduler<'x> {
     fn new(options: SchedulerOptions,
            reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
            id_registry: IdRegistry,
-           dependency_info: &'x DependencyInfo) -> Self {
+           dependency_info: &'x DataflowInfo) -> Self {
         let (sender, receiver) = channel::<Event<'x>>();
         Self {
             latest_logical_time: Arc::new(Mutex::new(Cell::new(LogicalInstant::now()))),
             rx: receiver,
             tx: sender,
-            event_queue: <_>::default(),
             initial_time: None,
             shutdown_time: None,
             options,
@@ -193,42 +190,32 @@ impl<'x> SyncScheduler<'x> {
     pub(in super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut Box<dyn ReactorBehavior> {
         &mut self.reactors[id]
     }
-}
 
-// note: we can't use a method because sometimes it would self.push_event because it would borrow self twice...
-macro_rules! push_event {
-        ($ich:expr, $evt:expr) => {{
-            let evt = $evt;
-            trace!("Pushing {}", $ich.display_event(&evt, evt.tag));
-            $ich.event_queue.insert(evt.tag, &$ich.dataflow, evt.reactions);
-        }};
-    }
-
-impl<'x> SyncScheduler<'x> {
     /// Launch the event loop in this thread.
     ///
     /// Note that this assumes [startup] has already been called.
     fn launch_event_loop(mut self) {
+        let mut event_queue: EventQueue<'x> = Default::default();
+
         /************************************************
          * This is the main event loop of the scheduler *
          ************************************************/
         loop {
             // flush pending events, this doesn't block
             for evt in self.rx.try_iter() {
-                push_event!(self, evt);
+                self.do_push_event(&mut event_queue, evt);
             }
 
-            if let Some(plan) = self.event_queue.take_earliest() {
-                if self.is_after_shutdown(plan.tag) {
-                    trace!("Event is late, shutting down - event tag: {}", self.display_tag(plan.tag));
+            if let Some(evt) = event_queue.take_earliest() {
+                if self.is_after_shutdown(evt.tag) {
+                    trace!("Event is late, shutting down - event tag: {}", self.display_tag(evt.tag));
                     break;
                 }
                 // execute the wave for this event.
-                trace!("Processing event for tag {}", self.display_tag(plan.tag));
-                self.step(plan);
-            } else if let Some(evt) = self.receive_event() {
-                // this may block
-                push_event!(self, evt);
+                trace!("Processing event for tag {}", self.display_tag(evt.tag));
+                self.step(evt);
+            } else if let Some(evt) = self.receive_event() { // this may block
+                self.do_push_event(&mut event_queue, evt);
                 continue;
             } else {
                 // all senders have hung up, or timeout
@@ -241,6 +228,11 @@ impl<'x> SyncScheduler<'x> {
         info!("Scheduler has been shut down")
 
         // self destructor is called here
+    }
+
+    fn do_push_event(&self, event_queue: &mut EventQueue<'x>, evt: Event<'x>) {
+        trace!("Pushing {}", self.display_event(&evt, evt.tag));
+        event_queue.insert(&self.dataflow, evt);
     }
 
     /// Returns whether the given event should be ignored and
@@ -273,12 +265,12 @@ impl<'x> SyncScheduler<'x> {
     /// Execute a wave. This may make the calling thread
     /// (the scheduler one) sleep, if the expected processing
     /// time (logical) is ahead of current physical time.
-    fn step(&mut self, plan: TagExecutionPlan) {
-        let time = Self::catch_up_physical_time(plan.tag);
+    fn step(&mut self, event: Event<'x>) {
+        let time = Self::catch_up_physical_time(event.tag);
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
 
         let wave = self.new_wave(time);
-        self.consume_wave(wave, plan.reactions.into_owned());
+        self.consume_wave(wave, event.reactions.into_owned()); // todo remove this into_owned
     }
 
     fn catch_up_physical_time(up_to_time: LogicalInstant) -> LogicalInstant {

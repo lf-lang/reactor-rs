@@ -39,7 +39,10 @@ use self::depgraph::ExecutableReactions;
 /// The internal cell type used to store a thread-safe mutable logical time value.
 type TimeCell = Arc<Mutex<Cell<LogicalInstant>>>;
 
-/// A simple tuple of (expected processing time, reactions to execute).
+/// A set of reactions to execute at a particular tag.
+/// The key characteristic of instances is
+/// 1. they may be merged together (by a [DataflowInfo]).
+/// 2. merging two plans eliminates duplicates
 #[derive(Debug)]
 pub(in self) struct Event<'x> {
     pub(in self) reactions: Cow<'x, ExecutableReactions>,

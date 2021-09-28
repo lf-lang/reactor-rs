@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::sync::mpsc::Sender;
 
 use crate::*;
-use crate::scheduler::depgraph::{DependencyInfo, ExecutableReactions};
+use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
 
 use super::*;
 
@@ -253,7 +253,7 @@ pub struct SchedulerLink<'x> {
     /// Sender to schedule events that should be executed later than this wave.
     sender: Sender<Event<'x>>,
 
-    dataflow: &'x DependencyInfo,
+    dataflow: &'x DataflowInfo,
 }
 
 impl<'x> SchedulerLink<'x> {
@@ -294,7 +294,7 @@ pub(in super) struct ReactionWave<'x> {
     /// Start time of the program.
     initial_time: LogicalInstant,
 
-    dataflow: &'x DependencyInfo,
+    dataflow: &'x DataflowInfo,
 }
 
 impl<'x> ReactionWave<'x> {
@@ -303,7 +303,7 @@ impl<'x> ReactionWave<'x> {
     pub fn new(sender: Sender<Event<'x>>,
                current_time: LogicalInstant,
                initial_time: LogicalInstant,
-               dataflow: &'x DependencyInfo) -> Self {
+               dataflow: &'x DataflowInfo) -> Self {
         ReactionWave {
             logical_time: current_time,
             sender,

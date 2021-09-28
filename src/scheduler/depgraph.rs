@@ -54,7 +54,12 @@ type DepGraphImpl = DiGraph<GraphNode, EdgeWeight, GlobalIdImpl>;
 
 /// Dependency graph representing "instantaneous" dependencies,
 /// ie read- and write-dependencies of reactions to ports, and
-/// their trigger dependencies. This is a DAG.
+/// their trigger dependencies. This must be a DAG.
+///
+/// One global instance is built during the assembly process (see [RootAssembler]).
+/// Initialization completes when that instance is turned into
+/// a [DataflowInfo], which is the data structure used at runtime.
+///
 #[derive(Default)]
 pub(in super) struct DepGraph {
     /// Instantaneous data flow. Must be acyclic. Edges from
@@ -291,7 +296,7 @@ impl ReactionLayerInfo {
 
 /// Pre-calculated dependency information,
 /// using the dependency graph
-pub(in super) struct DependencyInfo {
+pub(in super) struct DataflowInfo {
     /// Maps each trigger to the set of reactions that need
     /// to be scheduled when it is triggered.
     trigger_to_plan: HashMap<TriggerId, ExecutableReactions>,
@@ -299,7 +304,7 @@ pub(in super) struct DependencyInfo {
     layer_info: ReactionLayerInfo,
 }
 
-impl DependencyInfo {
+impl DataflowInfo {
     pub fn new(mut graph: DepGraph) -> Result<Self, AssemblyError> {
         if petgraph::algo::is_cyclic_directed(&graph.dataflow) {
             return Err(AssemblyError::CyclicDependencyGraph);
@@ -308,7 +313,7 @@ impl DependencyInfo {
         let layer_info = ReactionLayerInfo { layer_numbers: graph.number_reactions_by_layer() };
         let trigger_to_plan = Self::collect_trigger_to_plan(&mut graph, &layer_info);
 
-        Ok(DependencyInfo { trigger_to_plan, layer_info })
+        Ok(DataflowInfo { trigger_to_plan, layer_info })
     }
 
     fn collect_trigger_to_plan(DepGraph { dataflow, .. }: &mut DepGraph,
