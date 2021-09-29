@@ -23,7 +23,7 @@
  */
 
 use std::collections::HashMap;
-use std::fmt::*;
+
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 

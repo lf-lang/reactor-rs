@@ -1,10 +1,10 @@
-use std::borrow::Cow;
+
 use std::cmp::Reverse;
 
 use smallvec::SmallVec;
 
-use crate::LogicalInstant;
-use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
+
+use crate::scheduler::depgraph::{DataflowInfo};
 
 use super::Event;
 

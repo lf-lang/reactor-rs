@@ -23,7 +23,7 @@
  */
 
 
-use crate::{LogicalInstant, ReactionCtx};
+use crate::{LogicalInstant};
 
 /// Common trait for actions, ports, and timer objects handed
 /// to reaction functions. This is meant to be used through the
