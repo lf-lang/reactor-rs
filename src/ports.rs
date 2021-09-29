@@ -98,7 +98,7 @@ impl<'a, T> WritablePort<'a, T> {
 pub struct Port<T> {
     id: GlobalId,
     bind_status: BindStatus,
-    upstream_binding: Rc<RefCell<Binding<T>>>,
+    upstream_binding: Rc<RefCell<Rc<PortCell<T>>>>,
 }
 
 impl<T> Port<T> {
@@ -107,7 +107,7 @@ impl<T> Port<T> {
         Self {
             id,
             bind_status: BindStatus::Free,
-            upstream_binding: Rc::new(RefCell::new(Binding(Default::default()))),
+            upstream_binding: Rc::new(RefCell::new(Default::default())),
         }
     }
 
@@ -118,11 +118,9 @@ impl<T> Port<T> {
 
     #[inline]
     pub(in crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
-        let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
-        let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
-        let binding: &Binding<T> = cell_ref.deref();
-        let Binding(class) = binding;
-        let class_cell: &PortCell<T> = Rc::borrow(class);
+        let cell_ref: Ref<Rc<PortCell<T>>> = RefCell::borrow(&self.upstream_binding);
+        let binding: &Rc<PortCell<T>> = cell_ref.deref();
+        let class_cell: &PortCell<T> = Rc::borrow(binding);
         let cell_borrow: &Ref<Option<T>> = &class_cell.cell.borrow();
 
         f(cell_borrow.deref())
@@ -135,13 +133,8 @@ impl<T> Port<T> {
     pub(in crate) fn set_impl(&mut self, new_value: Option<T>) {
         debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port ({})", self.id);
 
-        let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
-        let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
-        // let binding: &Binding<T> = cell_ref.deref();
-
-        let Binding(class) = cell_ref.deref();
-
-        let class_cell: &PortCell<T> = Rc::borrow(class);
+        let cell_ref: Ref<Rc<PortCell<T>>> = RefCell::borrow(&self.upstream_binding);
+        let class_cell: &PortCell<T> = Rc::borrow(cell_ref.deref());
 
         class_cell.cell.replace(new_value);
     }
@@ -165,21 +158,18 @@ impl<T> Port<T> {
 
         downstream.bind_status = BindStatus::Bound;
 
-        let Binding(ref downstream_class) = *mut_downstream_cell;
-
-        let mut self_cell = self.upstream_binding.borrow_mut();
-        let Binding(my_class) = self_cell.deref_mut();
+        let my_class = self.upstream_binding.borrow_mut();
 
         my_class.downstreams.borrow_mut().insert(
             downstream.id.clone(),
             Rc::clone(&downstream.upstream_binding),
         );
 
-        let new_binding = Binding(Rc::clone(&my_class));
+        let new_binding = Rc::clone(&my_class);
 
-        downstream_class.check_cycle(&self.id, &downstream.id)?;
+        mut_downstream_cell.check_cycle(&self.id, &downstream.id)?;
 
-        downstream_class.set_upstream(my_class);
+        mut_downstream_cell.set_upstream(&my_class);
         *mut_downstream_cell.deref_mut() = new_binding;
         Ok(())
     }
@@ -225,15 +215,6 @@ enum BindStatus {
     Bound,
 }
 
-impl Default for BindStatus {
-    fn default() -> Self {
-        Self::Free
-    }
-}
-
-#[derive(Default)]
-struct Binding<T>(Rc<PortCell<T>>);
-
 
 /// This is the internal cell type that is shared by ports.
 struct PortCell<T> {
@@ -256,7 +237,7 @@ struct PortCell<T> {
     /// - so all three refer to the equiv class of A, whose downstream is now {B, C}
     /// - if you then try binding C -> A, then we can know
     /// that C is in the downstream of A, indicating that there is a cycle.
-    downstreams: RefCell<HashMap<PortId, Rc<RefCell<Binding<T>>>>>,
+    downstreams: RefCell<HashMap<PortId, Rc<RefCell<Rc<PortCell<T>>>>>>,
 }
 
 impl<T> PortCell<T> {
@@ -271,9 +252,8 @@ impl<T> PortCell<T> {
     /// This updates all downstreams to point to the given equiv class instead of `self`
     fn set_upstream(&self, new_binding: &Rc<PortCell<T>>) {
         for (_, cell_rc) in &*self.downstreams.borrow() {
-            let cell: &RefCell<Binding<T>> = Rc::borrow(cell_rc);
-            let mut ref_mut = cell.borrow_mut();
-            *ref_mut.deref_mut() = Binding(Rc::clone(new_binding));
+            let mut ref_mut = cell_rc.borrow_mut();
+            *ref_mut.deref_mut() = Rc::clone(new_binding);
         }
     }
 }
