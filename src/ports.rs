@@ -97,6 +97,7 @@ impl<'a, T> WritablePort<'a, T> {
 ///
 pub struct Port<T> {
     id: GlobalId,
+    bind_status: BindStatus,
     upstream_binding: Rc<RefCell<Binding<T>>>,
 }
 
@@ -105,7 +106,8 @@ impl<T> Port<T> {
     pub fn new(id: GlobalId) -> Self {
         Self {
             id,
-            upstream_binding: Rc::new(RefCell::new(Binding(BindStatus::Free, Default::default()))),
+            bind_status: BindStatus::Free,
+            upstream_binding: Rc::new(RefCell::new(Binding(Default::default()))),
         }
     }
 
@@ -119,17 +121,11 @@ impl<T> Port<T> {
         let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
         let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
         let binding: &Binding<T> = cell_ref.deref();
-        let Binding(_, class) = binding;
+        let Binding(class) = binding;
         let class_cell: &PortCell<T> = Rc::borrow(class);
         let cell_borrow: &Ref<Option<T>> = &class_cell.cell.borrow();
 
         f(cell_borrow.deref())
-    }
-
-    fn bind_status(&self) -> BindStatus {
-        let binding: &RefCell<Binding<T>> = Rc::borrow(&self.upstream_binding);
-        let Binding(status, _) = *binding.borrow();
-        status
     }
 
     /// Set the value, see [super::ReactionCtx::set]
@@ -137,13 +133,13 @@ impl<T> Port<T> {
     /// avoid having to clone the dependency list just to return it.
     #[inline]
     pub(in crate) fn set_impl(&mut self, new_value: Option<T>) {
-        debug_assert_ne!(self.bind_status(), BindStatus::Bound, "Cannot set a bound port ({})", self.id);
+        debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port ({})", self.id);
 
         let cell: &RefCell<Binding<T>> = self.upstream_binding.borrow();
         let cell_ref: Ref<Binding<T>> = RefCell::borrow(cell);
         // let binding: &Binding<T> = cell_ref.deref();
 
-        let Binding(_, class) = cell_ref.deref();
+        let Binding(class) = cell_ref.deref();
 
         let class_cell: &PortCell<T> = Rc::borrow(class);
 
@@ -155,28 +151,31 @@ impl<T> Port<T> {
     pub(in crate) fn clear_value(&mut self) {
         // If this port is bound, then some other port has
         // a reference to the same cell but is not bound.
-        if self.bind_status() != BindStatus::Bound {
+        if self.bind_status != BindStatus::Bound {
             self.set_impl(None)
         }
     }
 
     fn forward_to(&mut self, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
         let mut mut_downstream_cell = (&downstream.upstream_binding).borrow_mut();
-        let Binding(downstream_status, ref downstream_class) = *mut_downstream_cell;
 
-        if downstream_status == BindStatus::Bound {
+        if downstream.bind_status == BindStatus::Bound {
             return Err(AssemblyError::CannotBind(self.id, downstream.id))
         }
-        assert_ne!(downstream_status, BindStatus::Bound, "Downstream port cannot be bound a second time");
+
+        downstream.bind_status = BindStatus::Bound;
+
+        let Binding(ref downstream_class) = *mut_downstream_cell;
+
         let mut self_cell = self.upstream_binding.borrow_mut();
-        let Binding(_, my_class) = self_cell.deref_mut();
+        let Binding(my_class) = self_cell.deref_mut();
 
         my_class.downstreams.borrow_mut().insert(
             downstream.id.clone(),
             Rc::clone(&downstream.upstream_binding),
         );
 
-        let new_binding = Binding(BindStatus::Bound, Rc::clone(&my_class));
+        let new_binding = Binding(Rc::clone(&my_class));
 
         downstream_class.check_cycle(&self.id, &downstream.id)?;
 
@@ -233,7 +232,7 @@ impl Default for BindStatus {
 }
 
 #[derive(Default)]
-struct Binding<T>(BindStatus, Rc<PortCell<T>>);
+struct Binding<T>(Rc<PortCell<T>>);
 
 
 /// This is the internal cell type that is shared by ports.
@@ -274,7 +273,7 @@ impl<T> PortCell<T> {
         for (_, cell_rc) in &*self.downstreams.borrow() {
             let cell: &RefCell<Binding<T>> = Rc::borrow(cell_rc);
             let mut ref_mut = cell.borrow_mut();
-            *ref_mut.deref_mut() = Binding(ref_mut.0, Rc::clone(new_binding));
+            *ref_mut.deref_mut() = Binding(Rc::clone(new_binding));
         }
     }
 }
