@@ -480,7 +480,7 @@ impl Offset {
 
 
 /// Cleans up a tag
-// #[doc(hidden)]
+#[doc(hidden)]
 pub struct CleanupCtx {
     /// Tag we're cleaning up
     pub tag: LogicalInstant,
@@ -490,6 +490,7 @@ impl CleanupCtx {
     pub fn cleanup_port<T>(&self, port: &mut Port<T>) {
         port.clear_value()
     }
+
     pub fn cleanup_action<T: Clone>(&self, action: &mut LogicalAction<T>) {
         action.forget_value(&self.tag)
     }
