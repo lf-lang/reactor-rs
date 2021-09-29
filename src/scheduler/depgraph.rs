@@ -383,7 +383,7 @@ impl DataflowInfo {
 type Layer = HashSet<GlobalReactionId>;
 
 /// A set of reactions ordered by relative dependency.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub(in crate) struct ExecutableReactions(
     /// An ordered list of layers to execute.
     ///

@@ -164,12 +164,12 @@ impl<'x> SyncScheduler<'x> {
         // now execute all reactions that were scheduled
         let todo = ctx.ctx.do_next;
 
-        self.consume_wave(wave, todo)
+        self.consume_wave(wave, todo.unwrap_or_default())
     }
 
-    fn consume_wave(&mut self, wave: ReactionWave<'x>, plan: ExecutableReactions) {
+    fn consume_wave(&mut self, wave: ReactionWave<'x>, plan: Cow<'x, ExecutableReactions>) {
         let logical_time = wave.logical_time;
-        match wave.consume( self, plan) {
+        match wave.consume(self, plan) {
             WaveResult::Continue => {}
             WaveResult::StopRequested => {
                 let time = logical_time.next_microstep();
@@ -270,7 +270,7 @@ impl<'x> SyncScheduler<'x> {
         self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
 
         let wave = self.new_wave(time);
-        self.consume_wave(wave, event.reactions.into_owned()); // todo remove this into_owned
+        self.consume_wave(wave, event.reactions);
     }
 
     fn catch_up_physical_time(up_to_time: LogicalInstant) -> LogicalInstant {

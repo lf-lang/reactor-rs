@@ -22,13 +22,14 @@ pub struct ReactionCtx<'a, 'x> {
     wave: &'a mut ReactionWave<'x>,
 
     /// Remaining reactions to execute before the wave dies.
+    /// Using [Option] and [Cow] optimises for the case where
+    /// zero or exactly one port/action is set, and minimises
+    /// copies.
     ///
     /// This is mutable: if a reaction sets a port, then the
-    /// downstream of that port is inserted in order into this
-    /// queue.
-
-    // note: we could use a Cow here too
-    pub(in super) do_next: ExecutableReactions,
+    /// downstream of that port is inserted in into this
+    /// data structure.
+    pub(in super) do_next: Option<Cow<'x, ExecutableReactions>>,
 
     /// Whether some reaction has called [Self::request_stop].
     requested_stop: bool,
@@ -189,7 +190,12 @@ impl<'x> ReactionCtx<'_, 'x> {
 
     #[inline]
     pub(in crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions>) {
-        self.wave.dataflow.merge(&mut self.do_next, downstream.as_ref());
+        match &mut self.do_next {
+            Some(ref mut do_next) => self.wave.dataflow.merge(do_next.to_mut(), downstream.as_ref()),
+            None => {
+                self.do_next = Some(downstream);
+            }
+        }
     }
 
     pub(in crate) fn make_executable(&self, reactions: &Vec<GlobalReactionId>) -> ExecutableReactions {
@@ -371,7 +377,7 @@ impl<'x> ReactionWave<'x> {
     #[inline]
     pub fn new_ctx<'a>(&'a mut self) -> ReactionCtx<'a, 'x> {
         ReactionCtx {
-            do_next: ExecutableReactions::new(),
+            do_next: <_>::default(),
             wave: self,
             requested_stop: false,
         }
@@ -382,7 +388,7 @@ impl<'x> ReactionWave<'x> {
     ///
     /// Returns whether some reaction called [ReactionCtx#request_stop]
     /// or not.
-    pub fn consume(mut self, scheduler: &mut SyncScheduler<'x>, mut todo: ExecutableReactions) -> WaveResult {
+    pub fn consume(mut self, scheduler: &mut SyncScheduler<'x>, mut todo: Cow<'x, ExecutableReactions>) -> WaveResult {
 
         // set of reactions that have been executed
         let mut executed: HashSet<GlobalReactionId> = HashSet::new();
@@ -419,16 +425,17 @@ impl<'x> ReactionWave<'x> {
                 }
             }
 
-            todo.clear();
-
             if !progress {
                 // no new batch, we're done
                 break;
             }
 
-            // doing this lets us reuse the allocations of these vectors
-            // todo this actually copies bytes, we just want to swap pointers inside the variable!
-            std::mem::swap(&mut ctx.do_next, &mut todo);
+            if let Some(cow) = ctx.do_next.take() {
+                todo = cow;
+            } else {
+                // nothing more to do
+                break;
+            }
         }
 
         if requested_stop {
