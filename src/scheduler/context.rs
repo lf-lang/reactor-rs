@@ -69,7 +69,7 @@ impl<'x> ReactionCtx<'_, 'x> {
     pub fn get<T, C>(&self, container: C) -> Option<T>
         where T: Copy,
               C: ReactionTrigger<T> {
-        container.borrow().get_value(&self.get_logical_time())
+        container.borrow().get_value(&self.get_logical_time(), &self.get_start_time())
     }
 
     /// Executes the provided closure on the value of the port
@@ -100,7 +100,7 @@ impl<'x> ReactionCtx<'_, 'x> {
     #[inline]
     pub fn use_ref<C, T, O>(&self, container: C, action: impl FnOnce(Option<&T>) -> O) -> O
         where C: ReactionTrigger<T> {
-        container.borrow().use_value_ref(&self.get_logical_time(), action)
+        container.borrow().use_value_ref(&self.get_logical_time(), &self.get_start_time(), action)
     }
 
     /// Executes the provided closure on the value of the port,
@@ -134,7 +134,7 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// If so, then it may, but must not, present a value ([Self::get]).
     #[inline]
     pub fn is_present<T>(&self, action: &impl ReactionTrigger<T>) -> bool {
-        action.is_present(&self.get_logical_time())
+        action.is_present(&self.get_logical_time(), &self.get_start_time())
     }
 
     /// Schedule an action to trigger at some point in the future.

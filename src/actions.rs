@@ -23,7 +23,6 @@
  */
 
 use std::collections::HashMap;
-
 use std::marker::PhantomData;
 use std::time::{Duration, Instant};
 
@@ -111,17 +110,17 @@ impl<K, T> Action<K, T> {
 
 impl<T, K> ReactionTrigger<T> for Action<K, T> {
     #[inline]
-    fn is_present(&self, now: &LogicalInstant) -> bool {
+    fn is_present(&self, now: &LogicalInstant, _start: &LogicalInstant) -> bool {
         self.map.contains_key(now)
     }
 
     #[inline]
-    fn get_value(&self, now: &LogicalInstant) -> Option<T> where T: Copy {
+    fn get_value(&self, now: &LogicalInstant, _start: &LogicalInstant) -> Option<T> where T: Copy {
         self.map.get(&now).cloned().flatten()
     }
 
     #[inline]
-    fn use_value_ref<O>(&self, now: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
+    fn use_value_ref<O>(&self, now: &LogicalInstant, _start: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
         let inmap: Option<&Option<T>> = self.map.get(now);
         let v = inmap.map(|i| i.as_ref()).flatten();
         action(v)

@@ -151,11 +151,6 @@ pub(in crate) trait GloballyIdentified {
     fn get_id(&self) -> GlobalId;
 }
 
-pub trait TriggerLike {
-    fn get_id(&self) -> TriggerId;
-}
-
-
 pub type PortId = GlobalId;
 
 #[derive(Clone)]

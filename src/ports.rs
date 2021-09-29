@@ -44,12 +44,12 @@ impl<'a, T> ReadablePort<'a, T> {
 
 impl< T> ReactionTrigger<T> for ReadablePort<'_, T> {
     #[inline]
-    fn get_value(&self, _now: &LogicalInstant) -> Option<T> where T: Copy {
+    fn get_value(&self, _now: &LogicalInstant, _start: &LogicalInstant) -> Option<T> where T: Copy {
         self.0.get()
     }
 
     #[inline]
-    fn use_value_ref<O>(&self, _now: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
+    fn use_value_ref<O>(&self, _now: &LogicalInstant, _start: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
         self.0.use_ref(|opt| action(opt.as_ref()))
     }
 }

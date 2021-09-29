@@ -27,7 +27,7 @@
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
 use std::default::Default;
-use std::fmt::{Debug, Formatter, Display};
+use std::fmt::{Debug, Display, Formatter};
 
 use petgraph::Direction::{Incoming, Outgoing};
 use petgraph::graph::{DiGraph, NodeIndex};

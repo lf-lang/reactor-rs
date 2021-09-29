@@ -1,13 +1,10 @@
-
 use std::cmp::Reverse;
 
 use smallvec::SmallVec;
 
-
-use crate::scheduler::depgraph::{DataflowInfo};
+use crate::scheduler::depgraph::DataflowInfo;
 
 use super::Event;
-
 
 /// A queue of pending [TagExecutionPlan].
 #[derive(Default)]

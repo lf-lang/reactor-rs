@@ -26,6 +26,7 @@
 
 
 
+use std::fmt::Write;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 use index_vec::IndexVec;
@@ -35,8 +36,6 @@ use crate::CleanupCtx;
 use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
 
 use super::*;
-
-use std::fmt::Write;
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,

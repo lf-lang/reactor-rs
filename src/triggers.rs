@@ -23,44 +23,51 @@
  */
 
 
-use crate::{LogicalInstant};
+use crate::{LogicalInstant, TriggerId};
 
 /// Common trait for actions, ports, and timer objects handed
 /// to reaction functions. This is meant to be used through the
 /// API of [ReactionCtx] instead of directly.
 pub trait ReactionTrigger<T> {
-
     /// Returns whether the trigger is present, given that
     /// the current logical time is the parameter.
     #[inline]
-    fn is_present(&self, now: &LogicalInstant) -> bool {
-        self.use_value_ref(now, |opt| opt.is_some())
+    fn is_present(&self, now: &LogicalInstant, start: &LogicalInstant) -> bool {
+        self.use_value_ref(now, start, |opt| opt.is_some())
     }
 
     /// Copies the value out, if it is present. Whether a *value*
     /// is present is not in general the same thing as whether *this trigger*
     /// [Self::is_present]. See [ReactionCtx::get].
-    fn get_value(&self, now: &LogicalInstant) -> Option<T> where T: Copy;
+    fn get_value(&self, now: &LogicalInstant, start: &LogicalInstant) -> Option<T> where T: Copy;
 
     /// Execute an action using the current value of this trigger.
     /// The closure is called even if the value is absent (with a [None]
     /// argument).
-    fn use_value_ref<O>(&self, now: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O;
+    fn use_value_ref<O>(&self, now: &LogicalInstant, start: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O;
 }
 
 impl<T, R> ReactionTrigger<T> for &R where R: ReactionTrigger<T> {
     #[inline]
-    fn is_present(&self, now: &LogicalInstant) -> bool {
-        <R as ReactionTrigger<T>>::is_present(&**self, now)
+    fn is_present(&self, now: &LogicalInstant, start: &LogicalInstant) -> bool {
+        <R as ReactionTrigger<T>>::is_present(&**self, now, start)
     }
 
     #[inline]
-    fn get_value(&self, now: &LogicalInstant) -> Option<T> where T: Copy {
-        <R as ReactionTrigger<T>>::get_value(&**self, now)
+    fn get_value(&self, now: &LogicalInstant, start: &LogicalInstant) -> Option<T> where T: Copy {
+        <R as ReactionTrigger<T>>::get_value(&**self, now, start)
     }
 
     #[inline]
-    fn use_value_ref<O>(&self, now: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
-        <R as ReactionTrigger<T>>::use_value_ref(&**self, now, action)
+    fn use_value_ref<O>(&self, now: &LogicalInstant, start: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
+        <R as ReactionTrigger<T>>::use_value_ref(&**self, now, start, action)
     }
 }
+
+
+/// Something on which we can declare a trigger dependency
+/// in the dependency graph.
+pub trait TriggerLike {
+    fn get_id(&self) -> TriggerId;
+}
+

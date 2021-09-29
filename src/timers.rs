@@ -61,3 +61,26 @@ impl TriggerLike for Timer {
         TriggerId(self.id)
     }
 }
+
+impl ReactionTrigger<()> for Timer {
+    fn is_present(&self, now: &LogicalInstant, start: &LogicalInstant) -> bool {
+        let elapsed = now.instant - start.instant;
+        if elapsed == self.offset {
+            true
+        } else if elapsed < self.offset || !self.is_periodic() {
+            false
+        } else {
+            ((elapsed - self.offset).as_nanos() % self.period.as_nanos()) == 0
+        }
+    }
+
+    #[inline]
+    fn get_value(&self, now: &LogicalInstant, start: &LogicalInstant) -> Option<()> {
+        if self.is_present(now, start) { Some(()) } else { None }
+    }
+
+    #[inline]
+    fn use_value_ref<O>(&self, now: &LogicalInstant, start: &LogicalInstant, action: impl FnOnce(Option<&()>) -> O) -> O {
+        if self.is_present(now, start) { action(Some(&())) } else { action(None) }
+    }
+}
