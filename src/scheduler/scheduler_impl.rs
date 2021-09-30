@@ -39,6 +39,10 @@ use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
 use super::*;
 
 pub struct SchedulerOptions {
+    /// If true, we won't shut down the scheduler as soon as
+    /// the event queue is empty, provided there are still
+    /// live threads that can send messages to the scheduler
+    /// asynchronously.
     pub keep_alive: bool,
     pub timeout: Option<Duration>,
 }
@@ -274,22 +278,32 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         self.shutdown_time.map(|shutdown_t| shutdown_t < t).unwrap_or(false)
     }
 
+    /// Wait for an asynchronous event for as long as we can
+    /// expect it.
     fn receive_event(&mut self) -> Option<Event<'x>> {
         let now = PhysicalInstant::now();
-        //fixme keepalive doesn't work as in C
-        // if self.options.keep_alive {
-        if let Some(shutdown_t) = self.shutdown_time {
-            if now < shutdown_t.instant {
-                // we don't have to shutdown yet, so we can wait
-                let timeout = shutdown_t.instant.duration_since(now);
 
-                trace!("Will wait for next event {} ns", timeout.as_nanos());
-
-                return self.rx.recv_timeout(timeout).ok();
-            }
-            // }
+        if !self.options.keep_alive {
+            trace!("Won't wait without keepalive option");
+            return None
         }
-        None
+
+        return match self.shutdown_time {
+            Some(shutdown_t) => {
+                if now < shutdown_t.instant {
+                    let timeout = shutdown_t.instant.duration_since(now);
+                    trace!("Will wait for asynchronous event {} ns", timeout.as_nanos());
+                    self.rx.recv_timeout(timeout).map_err(|_| trace!("All senders have hung up")).ok()
+                } else {
+                    trace!("Cannot wait, already past programmed shutdown time...");
+                    None
+                }
+            }
+            None => {
+                trace!("Will wait for asynchronous event indefinitely");
+                self.rx.recv().map_err(|_| trace!("All senders have hung up")).ok()
+            }
+        };
     }
 
     /// Execute a wave. This may make the calling thread
