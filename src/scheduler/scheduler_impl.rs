@@ -297,15 +297,21 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// (the scheduler one) sleep, if the expected processing
     /// time (logical) is ahead of current physical time.
     fn step(&mut self, event: Event<'x>) {
-        let time = Self::catch_up_physical_time(event.tag);
+        let time = self.catch_up_physical_time(event.tag);
         self.latest_processed_tag.store(time); // set the time so that scheduler links can know that.
 
         let wave = self.new_wave(time);
         self.consume_wave(wave, event.reactions);
     }
 
-    fn catch_up_physical_time(up_to_time: LogicalInstant) -> LogicalInstant {
+    fn catch_up_physical_time(&mut self, up_to_time: LogicalInstant) -> LogicalInstant {
         let now = PhysicalInstant::now();
+        // Set the time for physical actions
+        // Note it must be set before sleeping, because async threads
+        // are going to wake up while the scheduler sleeps and push
+        // physical events.
+        self.latest_processed_tag.store(up_to_time);
+
         if now < up_to_time.instant {
             let t = up_to_time.instant - now;
             trace!("  - Need to sleep {} ns", t.as_nanos());
