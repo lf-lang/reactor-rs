@@ -340,15 +340,16 @@ impl TagSpec {
 /// asynchronous physical actions. This is a "link" to the event
 /// system, from the outside world.
 #[derive(Clone)]
-pub struct SchedulerLink<'x> {
+pub struct PhysicalCtx<'x> {
     last_processed_logical_time: TimeCell,
 
     /// Sender to schedule events that should be executed later than this wave.
-    sender: Sender<Event<'x>>,
+    tx: Sender<Event<'x>>,
     dataflow: &'x DataflowInfo,
 }
 
-impl<'x> SchedulerLink<'x> {
+impl<'x> PhysicalCtx<'x> {
+
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
@@ -356,32 +357,28 @@ impl<'x> SchedulerLink<'x> {
         // we have to fetch the time at which the logical timeline is currently running,
         // this may be far behind the current physical time
         let time_in_logical_subsystem = self.last_processed_logical_time.load();
-        let process_at = action.make_eta(time_in_logical_subsystem, offset.to_duration());
-        action.schedule_future_value(process_at, value);
+        let tag = action.make_eta(time_in_logical_subsystem, offset.to_duration());
+        action.schedule_future_value(tag, value);
 
         // todo merge events at equal tags by merging their dependencies
         let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
-        let evt = Event::<'x> {
-            reactions: Cow::Borrowed(downstream),
-            tag: process_at,
-        };
-        self.sender.send(evt).unwrap();
+        let evt = Event::<'x> { reactions: Cow::Borrowed(downstream), tag };
+        self.tx.send(evt).unwrap();
     }
 }
+
 
 
 /// A "wave" of reactions executing at the same logical time.
 /// Waves can enqueue new reactions to execute at the same time,
 /// they're processed in exec order.
-///
-/// todo would there be a way to "split" waves into workers?
 pub(in super) struct ReactionWave<'x> {
     /// Logical time of the execution of this wave, constant
     /// during the existence of the object
     pub logical_time: LogicalInstant,
 
     /// Sender to schedule events that should be executed later than this wave.
-    sender: Sender<Event<'x>>,
+    tx: Sender<Event<'x>>,
 
     /// Start time of the program.
     initial_time: LogicalInstant,
@@ -398,7 +395,7 @@ impl<'x> ReactionWave<'x> {
                dataflow: &'x DataflowInfo) -> Self {
         ReactionWave {
             logical_time: current_time,
-            sender,
+            tx: sender,
             initial_time,
             dataflow,
         }
@@ -416,7 +413,7 @@ impl<'x> ReactionWave<'x> {
             reactions: Cow::Borrowed(downstream),
             tag: process_at,
         };
-        self.sender.send(evt).unwrap();
+        self.tx.send(evt).unwrap();
     }
 
     #[inline]
