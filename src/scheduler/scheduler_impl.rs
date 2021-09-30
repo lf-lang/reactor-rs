@@ -36,6 +36,8 @@ use crate::CleanupCtx;
 use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
 
 use super::*;
+use crossbeam::thread::Scope;
+use crossbeam::scope;
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,
@@ -52,11 +54,15 @@ impl Default for SchedulerOptions {
 }
 
 /// The runtime scheduler.
-pub struct SyncScheduler<'x> {
+pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// The latest processed logical time (necessarily behind physical time).
     /// This is Clone, Send and Sync; it's accessible from the physical contexts
     /// handed out to asynchronous event producers (physical triggers).
     latest_processed_tag: &'x TimeCell,
+
+    dataflow: &'x DataflowInfo,
+
+    thread_spawner: &'a Scope<'t>,
 
     /// The receiver end of the communication channels. Reactions
     /// contexts each have their own [Sender]. The main event loop
@@ -77,15 +83,13 @@ pub struct SyncScheduler<'x> {
     shutdown_time: Option<LogicalInstant>,
     options: SchedulerOptions,
 
-    dataflow: &'x DataflowInfo,
-
     /// All reactors.
     reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static + Send>>,
 
     id_registry: IdRegistry,
 }
 
-impl<'x> SyncScheduler<'x> {
+impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     pub fn run_main<R: ReactorInitializer + Send + 'static>(options: SchedulerOptions, args: R::Params) {
         let mut root_assembler = RootAssembler::default();
         let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler, ReactorDebugInfo::root::<R::Wrapped>());
@@ -104,11 +108,26 @@ impl<'x> SyncScheduler<'x> {
         let dependency_info = DataflowInfo::new(graph).unwrap();
         let time_cell = AtomicCell::new(LogicalInstant::now());
 
-        let mut scheduler = SyncScheduler::new(options, reactors, id_registry, &dependency_info, &time_cell);
+        // Using thread::scope here introduces an unnamed lifetime for
+        // the scope, which is captured as 't by the SyncScheduler.
+        // This is useful because it captures the constraint that the
+        // time_cell and dependency_info outlive 't, so that physical
+        // contexts can be spawned in a thread that captures references
+        // to 'x.
+        scope(|scope| {
+            let mut scheduler = SyncScheduler::new(
+                options,
+                reactors,
+                id_registry,
+                &dependency_info,
+                &time_cell,
+                scope,
+            );
 
-        info!("Triggering startup...");
-        scheduler.startup();
-        scheduler.launch_event_loop()
+            info!("Triggering startup...");
+            scheduler.startup();
+            scheduler.launch_event_loop();
+        }).unwrap();
     }
 
     /// Creates a new scheduler. An empty scheduler doesn't
@@ -120,6 +139,7 @@ impl<'x> SyncScheduler<'x> {
         id_registry: IdRegistry,
         dependency_info: &'x DataflowInfo,
         latest_processed_tag: &'x TimeCell,
+        thread_spawner: &'a Scope<'t>,
     ) -> Self {
         let (sender, receiver) = channel::<Event<'x>>();
         Self {
@@ -132,6 +152,7 @@ impl<'x> SyncScheduler<'x> {
             dataflow: dependency_info,
             reactors,
             id_registry,
+            thread_spawner,
         }
     }
 
@@ -172,7 +193,7 @@ impl<'x> SyncScheduler<'x> {
         self.consume_wave(wave, todo.unwrap_or_default())
     }
 
-    fn consume_wave(&mut self, wave: ReactionWave<'x>, plan: Cow<'x, ExecutableReactions>) {
+    fn consume_wave(&mut self, wave: ReactionWave<'_, 'x, 't>, plan: Cow<'x, ExecutableReactions>) {
         let logical_time = wave.logical_time;
         match wave.consume(self, plan) {
             WaveResult::Continue => {}
@@ -296,7 +317,7 @@ impl<'x> SyncScheduler<'x> {
 
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    fn new_wave(&self, current_time: LogicalInstant) -> ReactionWave<'x> {
+    fn new_wave(&self, current_time: LogicalInstant) -> ReactionWave<'a, 'x, 't> {
         ReactionWave::new(
             self.tx.clone(),
             current_time,
@@ -305,7 +326,8 @@ impl<'x> SyncScheduler<'x> {
             // should never panic
             self.initial_time.unwrap(),
             self.dataflow,
-            self.latest_processed_tag
+            self.latest_processed_tag,
+            self.thread_spawner,
         )
     }
 
@@ -334,11 +356,11 @@ impl<'x> SyncScheduler<'x> {
 /// Allows directly enqueuing reactions for a future,
 /// unspecified logical time. This is only relevant
 /// during the initialization of reactors.
-pub struct StartupCtx<'a, 'x> {
-    ctx: ReactionCtx<'a, 'x>,
+pub struct StartupCtx<'b, 'a, 'x, 't> {
+    ctx: ReactionCtx<'b, 'a, 'x, 't>,
 }
 
-impl<'a, 'x> StartupCtx<'a, 'x> {
+impl StartupCtx<'_, '_, '_, '_> {
     #[inline]
     pub fn enqueue(&mut self, reactions: &Vec<GlobalReactionId>) {
         self.ctx.enqueue_now(Cow::Owned(self.ctx.make_executable(reactions)))

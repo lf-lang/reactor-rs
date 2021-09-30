@@ -25,9 +25,9 @@
 
 use std::borrow::Cow;
 
-use std::sync::{Arc};
 
-use crossbeam_utils::atomic::AtomicCell;
+
+use crossbeam::atomic::AtomicCell;
 
 pub use assembly::*;
 pub use context::*;

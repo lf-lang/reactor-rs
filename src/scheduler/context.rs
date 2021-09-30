@@ -3,6 +3,8 @@ use std::cmp::max;
 use std::collections::HashSet;
 use std::sync::mpsc::Sender;
 
+use crossbeam::thread::Scope;
+
 use crate::*;
 use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
 
@@ -17,9 +19,9 @@ use super::*;
 // ReactionCtx is an API built around a ReactionWave. A single
 // ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&mut).
-pub struct ReactionCtx<'a, 'x> {
+pub struct ReactionCtx<'b, 'a, 'x, 't> where 'x: 't {
     /// The reaction wave for the current tag.
-    wave: &'a mut ReactionWave<'x>,
+    wave: &'b mut ReactionWave<'a, 'x, 't>,
 
     /// Remaining reactions to execute before the wave dies.
     /// Using [Option] and [Cow] optimises for the case where
@@ -35,8 +37,7 @@ pub struct ReactionCtx<'a, 'x> {
     requested_stop: bool,
 }
 
-impl<'x> ReactionCtx<'_, 'x> {
-
+impl<'a, 'x, 't> ReactionCtx<'_, 'a, 'x, 't> where 'x: 't {
     /// Returns the current value of a port or action at this
     /// logical time. If the value is absent, [Option::None] is
     /// returned.  This is the case if the action or port is
@@ -107,10 +108,9 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// schedule more reactions that should execute at the
     /// same logical time.
     #[inline]
-    pub fn set<'a, T, W>(&mut self, mut port: W, value: T)
-        where T: Send + 'a,
-              W: BorrowMut<WritablePort<'a, T>> {
-
+    pub fn set<'b, T, W>(&mut self, mut port: W, value: T)
+        where T: Send + 'b,
+              W: BorrowMut<WritablePort<'b, T>> {
         let port = port.borrow_mut();
         port.set_impl(value);
         self.enqueue_now(Cow::Borrowed(self.reactions_triggered_by(port.get_id())))
@@ -303,7 +303,57 @@ impl<'x> ReactionCtx<'_, 'x> {
                    self.display_tag(self.get_logical_time()))
         }
     }
+
+
+    pub fn spawn_physical_thread<F>(&mut self, f: F)
+        where F: FnOnce(&mut PhysicalSchedulerLink<'_, 'x, 't>) + 'x + Send {
+        let tx = self.wave.tx.clone();
+        let latest_processed_tag = self.wave.latest_processed_tag;
+        let dataflow = self.wave.dataflow;
+        let thread_spawner = self.wave.thread_spawner;
+
+        thread_spawner.spawn(move |subscope| {
+            let mut link = PhysicalSchedulerLink {
+                latest_processed_tag,
+                tx,
+                dataflow,
+                thread_spawner: subscope,
+            };
+            f(&mut link)
+        });
+    }
 }
+
+
+/// A type that can affect the logical event queue to implement
+/// asynchronous physical actions. This is a "link" to the event
+/// system, from the outside world.
+#[derive(Clone)]
+pub struct PhysicalSchedulerLink<'a, 'x, 't> {
+    latest_processed_tag: &'x TimeCell,
+    tx: Sender<Event<'x>>,
+    dataflow: &'x DataflowInfo,
+    thread_spawner: &'a Scope<'t>,
+}
+
+impl<'x, 't> PhysicalSchedulerLink<'_, 'x, 't> {
+    /// Schedule an action to run after its own implicit time delay
+    /// plus an optional additional time delay. These delays are in
+    /// logical time.
+    pub fn schedule_physical<T: Send>(&mut self, action: &mut PhysicalAction<T>, value: Option<T>, offset: Offset) {
+        // we have to fetch the time at which the logical timeline is currently running,
+        // this may be far behind the current physical time
+        let time_in_logical_subsystem = self.latest_processed_tag.load();
+        let tag = action.make_eta(time_in_logical_subsystem, offset.to_duration());
+        action.schedule_future_value(tag, value);
+
+        // todo merge events at equal tags by merging their dependencies
+        let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
+        let evt = Event::<'x> { reactions: Cow::Borrowed(downstream), tag };
+        self.tx.send(evt).unwrap();
+    }
+}
+
 
 /// See [ReactionCtx::assert_tag_eq]
 #[cfg(feature = "test-utils")]
@@ -336,43 +386,10 @@ impl TagSpec {
     }
 }
 
-/// A type that can affect the logical event queue to implement
-/// asynchronous physical actions. This is a "link" to the event
-/// system, from the outside world.
-#[derive(Clone)]
-pub struct PhysicalCtx<'x> {
-    last_processed_logical_time: &'x TimeCell,
-
-    /// Sender to schedule events that should be executed later than this wave.
-    tx: Sender<Event<'x>>,
-    dataflow: &'x DataflowInfo,
-}
-
-impl<'x> PhysicalCtx<'x> {
-
-    /// Schedule an action to run after its own implicit time delay
-    /// plus an optional additional time delay. These delays are in
-    /// logical time.
-    pub fn schedule_physical<T: Send>(&mut self, action: &mut PhysicalAction<T>, value: Option<T>, offset: Offset) {
-        // we have to fetch the time at which the logical timeline is currently running,
-        // this may be far behind the current physical time
-        let time_in_logical_subsystem = self.last_processed_logical_time.load();
-        let tag = action.make_eta(time_in_logical_subsystem, offset.to_duration());
-        action.schedule_future_value(tag, value);
-
-        // todo merge events at equal tags by merging their dependencies
-        let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
-        let evt = Event::<'x> { reactions: Cow::Borrowed(downstream), tag };
-        self.tx.send(evt).unwrap();
-    }
-}
-
-
-
 /// A "wave" of reactions executing at the same logical time.
 /// Waves can enqueue new reactions to execute at the same time,
 /// they're processed in exec order.
-pub(in super) struct ReactionWave<'x> {
+pub(in super) struct ReactionWave<'a, 'x, 't> where 'x: 't {
     /// Logical time of the execution of this wave, constant
     /// during the existence of the object
     pub logical_time: LogicalInstant,
@@ -380,26 +397,30 @@ pub(in super) struct ReactionWave<'x> {
     /// Sender to schedule events that should be executed later than this wave.
     tx: Sender<Event<'x>>,
 
+    thread_spawner: &'a Scope<'t>,
+
     /// Start time of the program.
     initial_time: LogicalInstant,
     dataflow: &'x DataflowInfo,
     latest_processed_tag: &'x TimeCell,
 }
 
-impl<'x> ReactionWave<'x> {
+impl<'a, 'x, 't> ReactionWave<'a, 'x, 't> where 'x: 't {
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
     pub fn new(tx: Sender<Event<'x>>,
                current_time: LogicalInstant,
                initial_time: LogicalInstant,
                dataflow: &'x DataflowInfo,
-               latest_processed_tag: &'x TimeCell) -> Self {
+               latest_processed_tag: &'x TimeCell,
+               thread_spawner: &'a Scope<'t>) -> Self {
         ReactionWave {
             logical_time: current_time,
             tx,
             initial_time,
             dataflow,
             latest_processed_tag,
+            thread_spawner,
         }
     }
 
@@ -419,7 +440,7 @@ impl<'x> ReactionWave<'x> {
     }
 
     #[inline]
-    pub fn new_ctx<'a>(&'a mut self) -> ReactionCtx<'a, 'x> {
+    pub fn new_ctx<'b>(&'b mut self) -> ReactionCtx<'b, 'a, 'x, 't> {
         ReactionCtx {
             do_next: <_>::default(),
             wave: self,
@@ -432,7 +453,7 @@ impl<'x> ReactionWave<'x> {
     ///
     /// Returns whether some reaction called [ReactionCtx#request_stop]
     /// or not.
-    pub fn consume(mut self, scheduler: &mut SyncScheduler<'x>, mut todo: Cow<'x, ExecutableReactions>) -> WaveResult {
+    pub fn consume(mut self, scheduler: &mut SyncScheduler<'_, 'x, '_>, mut todo: Cow<'x, ExecutableReactions>) -> WaveResult {
 
         // set of reactions that have been executed
         let mut executed: HashSet<GlobalReactionId> = HashSet::new();
