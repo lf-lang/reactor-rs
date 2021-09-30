@@ -36,8 +36,8 @@ pub struct Logical;
 #[doc(hidden)]
 pub struct Physical;
 
-pub type LogicalAction<T: Send> = Action<Logical, T>;
-pub type PhysicalAction<T: Send> = Action<Physical, T>;
+pub type LogicalAction<T> = Action<Logical, T>;
+pub type PhysicalAction<T> = Action<Physical, T>;
 
 pub struct Action<Kind, T: Send> {
     pub min_delay: Duration,

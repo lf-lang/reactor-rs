@@ -27,7 +27,7 @@
 
 #![allow(unused)]
 
-use crate::{ReactionCtx, Action, LogicalAction, ReadablePort, WritablePort};
+use crate::{ReactionCtx, Action, LogicalAction, ReadablePort, WritablePort, AssemblyCtx, Port};
 use crate::Offset::Asap;
 
 fn actions_get(ctx: &mut ReactionCtx, act_mut: &mut LogicalAction<u32>, act: &LogicalAction<u32>) {
@@ -56,4 +56,18 @@ fn port_get(ctx: &mut ReactionCtx, port: &ReadablePort<u32>) {
 
 fn port_set(ctx: &mut ReactionCtx, mut port: WritablePort<u32>) {
     assert_eq!(ctx.set(port, 3), ());
+}
+
+fn port_is_send(ctx: &mut AssemblyCtx, port: Port<u32>) {
+    struct FooReactor {
+        port: Port<u32>,
+    }
+    let foo: &dyn Send = &FooReactor { port };
+}
+
+fn action_is_send<K: Send>(ctx: &mut AssemblyCtx, action: Action<K, u32>) {
+    struct FooReactor<K: Send> {
+        action: Action<K, u32>,
+    }
+    let foo: &dyn Send = &FooReactor { action };
 }

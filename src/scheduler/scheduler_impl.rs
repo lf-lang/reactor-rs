@@ -107,7 +107,7 @@ impl<'x> SyncScheduler<'x> {
             info!("Triggering startup...");
             scheduler.startup();
             scheduler.launch_event_loop()
-        }).join();
+        }).join().unwrap();
     }
 
     /// Creates a new scheduler. An empty scheduler doesn't

@@ -23,11 +23,12 @@
  */
 
 use std::borrow::Borrow;
-use std::cell::{Ref, RefCell};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
+use std::sync::Arc;
+
+use atomic_refcell::{AtomicRef, AtomicRefCell};
 
 use crate::{AssemblyError, GlobalId, LogicalInstant, PortId, ReactionTrigger, TriggerId, TriggerLike};
 
@@ -98,7 +99,7 @@ impl<'a, T: Send> WritablePort<'a, T> {
 pub struct Port<T: Send> {
     id: GlobalId,
     bind_status: BindStatus,
-    upstream_binding: Rc<RefCell<Rc<PortCell<T>>>>,
+    upstream_binding: Arc<AtomicRefCell<Arc<PortCell<T>>>>,
 }
 
 impl<T: Send> Port<T> {
@@ -107,7 +108,7 @@ impl<T: Send> Port<T> {
         Self {
             id,
             bind_status: BindStatus::Free,
-            upstream_binding: Rc::new(RefCell::new(Default::default())),
+            upstream_binding: Arc::new(AtomicRefCell::new(Default::default())),
         }
     }
 
@@ -118,10 +119,10 @@ impl<T: Send> Port<T> {
 
     #[inline]
     pub(in crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
-        let cell_ref: Ref<Rc<PortCell<T>>> = RefCell::borrow(&self.upstream_binding);
-        let binding: &Rc<PortCell<T>> = cell_ref.deref();
-        let class_cell: &PortCell<T> = Rc::borrow(binding);
-        let cell_borrow: &Ref<Option<T>> = &class_cell.cell.borrow();
+        let cell_ref: AtomicRef<Arc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
+        let binding: &Arc<PortCell<T>> = cell_ref.deref();
+        let class_cell: &PortCell<T> = Arc::borrow(binding);
+        let cell_borrow: &AtomicRef<Option<T>> = &class_cell.cell.borrow();
 
         f(cell_borrow.deref())
     }
@@ -133,10 +134,10 @@ impl<T: Send> Port<T> {
     pub(in crate) fn set_impl(&mut self, new_value: Option<T>) {
         debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port ({})", self.id);
 
-        let cell_ref: Ref<Rc<PortCell<T>>> = RefCell::borrow(&self.upstream_binding);
-        let class_cell: &PortCell<T> = Rc::borrow(cell_ref.deref());
+        let cell_ref: AtomicRef<Arc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
+        let class_cell: &PortCell<T> = Arc::borrow(cell_ref.deref());
 
-        class_cell.cell.replace(new_value);
+        *class_cell.cell.borrow_mut() = new_value;
     }
 
     /// Called at the end of a tag.
@@ -162,10 +163,10 @@ impl<T: Send> Port<T> {
 
         my_class.downstreams.borrow_mut().insert(
             downstream.id.clone(),
-            Rc::clone(&downstream.upstream_binding),
+            Arc::clone(&downstream.upstream_binding),
         );
 
-        let new_binding = Rc::clone(&my_class);
+        let new_binding = Arc::clone(&my_class);
 
         mut_downstream_cell.check_cycle(&self.id, &downstream.id)?;
 
@@ -219,7 +220,7 @@ enum BindStatus {
 /// This is the internal cell type that is shared by ports.
 struct PortCell<T: Send> {
     /// Cell for the value.
-    cell: RefCell<Option<T>>,
+    cell: AtomicRefCell<Option<T>>,
 
     /// This is the set of ports that are "forwarded to".
     /// When you bind 2 ports A -> B, then the binding of B
@@ -237,7 +238,7 @@ struct PortCell<T: Send> {
     /// - so all three refer to the equiv class of A, whose downstream is now {B, C}
     /// - if you then try binding C -> A, then we can know
     /// that C is in the downstream of A, indicating that there is a cycle.
-    downstreams: RefCell<HashMap<PortId, Rc<RefCell<Rc<PortCell<T>>>>>>,
+    downstreams: AtomicRefCell<HashMap<PortId, Arc<AtomicRefCell<Arc<PortCell<T>>>>>>,
 }
 
 impl<T: Send> PortCell<T> {
@@ -250,10 +251,10 @@ impl<T: Send> PortCell<T> {
     }
 
     /// This updates all downstreams to point to the given equiv class instead of `self`
-    fn set_upstream(&self, new_binding: &Rc<PortCell<T>>) {
+    fn set_upstream(&self, new_binding: &Arc<PortCell<T>>) {
         for (_, cell_rc) in &*self.downstreams.borrow() {
             let mut ref_mut = cell_rc.borrow_mut();
-            *ref_mut.deref_mut() = Rc::clone(new_binding);
+            *ref_mut.deref_mut() = Arc::clone(new_binding);
         }
     }
 }
