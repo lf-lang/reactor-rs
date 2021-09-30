@@ -123,8 +123,22 @@ impl<'x> ReactionCtx<'_, 'x> {
     }
 
     /// Schedule an action to trigger at some point in the future.
+    /// The action will trigger after its own implicit time delay,
+    /// plus an optional additional time delay (see [Offset]).
     ///
     /// This is like [Self::schedule_with_v], where the value is [None].
+    ///
+    /// ### Examples
+    ///
+    /// ```no_run
+    /// # use reactor_rt::{ReactionCtx, LogicalAction, Offset::*};
+    /// use std::time::Duration;
+    /// # let ctx: &mut ReactionCtx = panic!();
+    /// # let action: &mut LogicalAction<String> = panic!();
+    /// ctx.schedule(action, Asap); // will be executed one microstep from now (+ own delay)
+    /// ctx.schedule(action, AfterMillis(2)); // will be executed 2 milliseconds from now (+ own delay)
+    /// ctx.schedule(action, After(Duration::from_nanos(120)));
+    /// ```
     #[inline]
     pub fn schedule<T>(&mut self, action: &mut LogicalAction<T>, offset: Offset) {
         self.schedule_with_v(action, None, offset)
@@ -141,6 +155,21 @@ impl<'x> ReactionCtx<'_, 'x> {
     ///
     /// The action will trigger after its own implicit time delay,
     /// plus an optional additional time delay (see [Offset]).
+    ///
+    /// ### Examples
+    ///
+    /// ```no_run
+    /// # use reactor_rt::{ReactionCtx, LogicalAction, Offset::*};
+    /// use std::time::Duration;
+    /// # let ctx: &mut ReactionCtx = panic!();
+    /// # let action: &mut LogicalAction<&'static str> = panic!();
+    /// // will be executed 2 milliseconds (+ own delay) from now with that value.
+    /// ctx.schedule_with_v(action, Some("value"), AfterMillis(2));
+    /// // will be executed one microstep from now, with no value
+    /// ctx.schedule_with_v(action, None, Asap);
+    /// // that's equivalent to
+    /// ctx.schedule(action, Asap);
+    /// ```
     #[inline]
     pub fn schedule_with_v<T>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
         self.schedule_impl(action, value, offset);
@@ -283,6 +312,7 @@ pub enum TagSpec {
     Tag(Duration, crate::time::MS),
 }
 
+#[cfg(feature = "test-utils")]
 impl TagSpec {
     fn to_tag(self, t0: LogicalInstant) -> LogicalInstant {
         match self {
@@ -467,26 +497,72 @@ pub(in super) enum WaveResult {
 /// The offset from the current logical time after which an
 /// action is triggered.
 ///
-/// This is to be used with [ReactionCtx.schedule].
+/// This is to be used with [ReactionCtx::schedule].
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Offset {
+    /// Will be scheduled at least after the provided duration.
+    /// The other variants are just shorthands for common use-cases.
+    After(Duration),
+
     /// Will be scheduled as soon as possible. This does not
     /// mean that the action will trigger right away. The
     /// action's inherent minimum delay must be taken into account,
     /// and even with a zero minimal delay, a delay of one microstep
-    /// is applied.
+    /// is applied. This is equivalent to
+    /// ```no_compile
+    /// # use std::time::Duration;
+    /// After(Duration::ZERO)
+    /// ```
     Asap,
 
-    /// Will be scheduled at least after the provided duration.
-    After(Duration),
+    /// Will be scheduled at least after the provided duration,
+    /// which is given in seconds. This is equivalent
+    /// to
+    /// ```no_compile
+    /// # use std::time::Duration;
+    /// After(Duration::from_secs(_))
+    /// ```
+    AfterSeconds(u64),
+
+    /// Will be scheduled at least after the provided duration,
+    /// which is given in milliseconds (ms). This is equivalent
+    /// to
+    /// ```no_compile
+    /// # use std::time::Duration;
+    /// After(Duration::from_millis(_))
+    /// ```
+    AfterMillis(u64),
+
+    /// Will be scheduled at least after the provided duration,
+    /// which is given in microseconds (µs). This is equivalent
+    /// to
+    /// ```no_compile
+    /// # use std::time::Duration;
+    /// After(Duration::from_micros(_))
+    /// ```
+    AfterMicros(u64),
+
+    /// Will be scheduled at least after the provided duration,
+    /// which is given in microseconds (µs). This is equivalent
+    /// to
+    /// ```no_compile
+    /// # use std::time::Duration;
+    /// After(Duration::from_nanos(_))
+    /// ```
+    AfterNanos(u64),
+
 }
 
 impl Offset {
     #[inline]
     pub(in crate) fn to_duration(&self) -> Duration {
         match self {
+            Offset::After(d) => d.clone(),
             Offset::Asap => Duration::from_millis(0),
-            Offset::After(d) => d.clone()
+            Offset::AfterSeconds(s) => Duration::from_secs(*s),
+            Offset::AfterMillis(ms) => Duration::from_millis(*ms),
+            Offset::AfterMicros(us) => Duration::from_micros(*us),
+            Offset::AfterNanos(us) => Duration::from_nanos(*us),
         }
     }
 }
