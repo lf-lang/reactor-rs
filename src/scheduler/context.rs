@@ -261,16 +261,44 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// Asserts that the current tag is equals to the tag
     /// `(T0 + duration_since_t0, microstep)`. Panics if
     /// that is not the case.
-    pub fn assert_tag_eq(&self,
-                         duration_since_t0: Duration,
-                         microstep: crate::time::MS) {
-        let expected_tag = LogicalInstant {
-            instant: self.get_start_time().instant + duration_since_t0,
-            microstep: MicroStep::new(microstep),
-        };
+    #[cfg(feature = "test-utils")]
+    pub fn assert_tag_eq(&self, tag_spec: TagSpec) {
+        let expected_tag = tag_spec.to_tag(self.get_start_time());
 
         if expected_tag != self.get_logical_time() {
-            panic!("Expected tag to be {}, but found {}", self.display_tag(expected_tag), self.display_tag(self.get_logical_time()))
+            panic!("Expected tag to be {}, but found {}",
+                   self.display_tag(expected_tag),
+                   self.display_tag(self.get_logical_time()))
+        }
+    }
+}
+
+/// See [ReactionCtx::assert_tag_eq]
+#[cfg(feature = "test-utils")]
+#[derive(Debug, Copy, Clone)]
+pub enum TagSpec {
+    T0,
+    Milli(u64),
+    MilliStep(u64, crate::time::MS),
+    Tag(Duration, crate::time::MS),
+}
+
+impl TagSpec {
+    fn to_tag(self, t0: LogicalInstant) -> LogicalInstant {
+        match self {
+            TagSpec::T0 => t0,
+            TagSpec::Milli(ms) => LogicalInstant {
+                instant: t0.instant + Duration::from_millis(ms),
+                microstep: MicroStep::ZERO,
+            },
+            TagSpec::MilliStep(ms, step) => LogicalInstant {
+                instant: t0.instant + Duration::from_millis(ms),
+                microstep: MicroStep::new(step),
+            },
+            TagSpec::Tag(offset, step) => LogicalInstant {
+                instant: t0.instant + offset,
+                microstep: MicroStep::new(step),
+            }
         }
     }
 }
