@@ -1,7 +1,7 @@
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp::max;
 use std::collections::HashSet;
-use std::sync::mpsc::Sender;
+use std::sync::mpsc::{Sender, SendError};
 
 use crossbeam::thread::{Scope, ScopedJoinHandle};
 
@@ -342,17 +342,26 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
-    pub fn schedule_physical<T: Send>(&mut self, action: &PhysicalActionRef<T>, offset: Offset) {
-        self.schedule_physical_with_v(action, None, offset);
+    ///
+    /// This may fail if this is called while the scheduler has already
+    /// been shutdown. todo prevent this
+    pub fn schedule_physical<T: Send>(&mut self, action: &PhysicalActionRef<T>, offset: Offset) -> Result<(), SendError<Option<T>>> {
+        self.schedule_physical_with_v(action, None, offset)
     }
 
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
-    pub fn schedule_physical_with_v<T: Send>(&mut self,
-                                             action: &PhysicalActionRef<T>,
-                                             value: Option<T>,
-                                             offset: Offset) {
+    ///
+    /// This may fail if this is called while the scheduler has already
+    /// been shutdown. todo prevent this
+    pub fn schedule_physical_with_v<T: Send>(
+        &mut self,
+        action: &PhysicalActionRef<T>,
+        value: Option<T>,
+        offset: Offset,
+    ) -> Result<(), SendError<Option<T>>> {
+
         // we have to fetch the time at which the logical timeline is currently running,
         // this may be far behind the current physical time
         let time_in_logical_subsystem = self.latest_processed_tag.load();
@@ -362,7 +371,10 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
 
             let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
             let evt = Event { reactions: Cow::Borrowed(downstream), tag };
-            self.tx.send(evt).unwrap();
+            self.tx.send(evt).map_err(|e| {
+                warn!("Event could not be sent! {:?}", e);
+                SendError(action.forget_value(&tag))
+            })
         })
     }
 }
@@ -616,10 +628,10 @@ impl CleanupCtx {
     }
 
     pub fn cleanup_logical_action<T: Send>(&self, action: &mut LogicalAction<T>) {
-        action.forget_value(&self.tag)
+        action.forget_value(&self.tag);
     }
 
     pub fn cleanup_physical_action<T: Send>(&self, action: &mut PhysicalActionRef<T>) {
-        action.use_mut(|a| a.forget_value(&self.tag))
+        action.use_mut(|a| a.forget_value(&self.tag));
     }
 }

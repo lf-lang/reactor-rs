@@ -34,7 +34,6 @@ use crossbeam::thread::Scope;
 use index_vec::IndexVec;
 
 use crate::*;
-use crate::CleanupCtx;
 use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
 
 use super::*;
@@ -306,11 +305,10 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     fn catch_up_physical_time(&mut self, up_to_time: LogicalInstant) -> LogicalInstant {
         let now = PhysicalInstant::now();
-        // Set the time for physical actions
-        // Note it must be set before sleeping, because async threads
-        // are going to wake up while the scheduler sleeps and push
-        // physical events.
-        self.latest_processed_tag.store(up_to_time);
+
+        // fixme when we're sleeping, physical actions may be triggered
+        //  and we only process them after we wake up, so we're late...
+        //  Probably replace sleeping with a Condvar
 
         if now < up_to_time.instant {
             let t = up_to_time.instant - now;

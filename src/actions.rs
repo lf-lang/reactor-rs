@@ -77,22 +77,28 @@ impl<K, T: Send> Action<K, T> {
 
 
     #[inline]
-    pub(in crate) fn forget_value(&mut self, time: &LogicalInstant) {
-        self.map.remove(time);
+    pub(in crate) fn forget_value(&mut self, time: &LogicalInstant) -> Option<T> {
+        self.map.remove(time).flatten()
     }
 
     /// Compute the logical time at which an action must be scheduled
     ///
     ///
-    pub fn make_eta(&self, now: LogicalInstant, additional_delay: Duration) -> LogicalInstant {
+    pub fn make_eta(&self, time_in_logical_subsystem: LogicalInstant, additional_delay: Duration) -> LogicalInstant {
         let min_delay = self.min_delay + additional_delay;
-        let mut instant = now.instant + min_delay;
+        let mut instant = time_in_logical_subsystem.instant + min_delay;
         if !self.is_logical {
             // physical actions are adjusted to physical time if needed
             instant = Instant::max(instant, Instant::now());
         }
 
-        let microstep = if instant == now.instant { now.microstep + 1 } else { MicroStep::ZERO };
+        let microstep = // there must be a non-zero delay
+            if instant == time_in_logical_subsystem.instant {
+                time_in_logical_subsystem.microstep + 1
+            } else {
+                debug_assert!(instant > time_in_logical_subsystem.instant);
+                MicroStep::ZERO
+            };
 
         LogicalInstant {
             instant,
@@ -100,9 +106,7 @@ impl<K, T: Send> Action<K, T> {
         }
     }
 
-    fn new_impl(id: GlobalId,
-                min_delay: Option<Duration>,
-                is_logical: bool) -> Self {
+    fn new_impl(id: GlobalId, min_delay: Option<Duration>, is_logical: bool) -> Self {
         Action {
             min_delay: min_delay.unwrap_or(Duration::new(0, 0)),
             is_logical,
