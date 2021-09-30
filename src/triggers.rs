@@ -47,41 +47,6 @@ pub trait ReactionTrigger<T> {
     fn use_value_ref<O>(&self, now: &LogicalInstant, start: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O;
 }
 
-impl<T, R> ReactionTrigger<T> for &R where R: ReactionTrigger<T> {
-    #[inline]
-    fn is_present(&self, now: &LogicalInstant, start: &LogicalInstant) -> bool {
-        <R as ReactionTrigger<T>>::is_present(&**self, now, start)
-    }
-
-    #[inline]
-    fn get_value(&self, now: &LogicalInstant, start: &LogicalInstant) -> Option<T> where T: Copy {
-        <R as ReactionTrigger<T>>::get_value(&**self, now, start)
-    }
-
-    #[inline]
-    fn use_value_ref<O>(&self, now: &LogicalInstant, start: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
-        <R as ReactionTrigger<T>>::use_value_ref(&**self, now, start, action)
-    }
-}
-
-impl<T, R> ReactionTrigger<T> for &mut R where R: ReactionTrigger<T> {
-    #[inline]
-    fn is_present(&self, now: &LogicalInstant, start: &LogicalInstant) -> bool {
-        <R as ReactionTrigger<T>>::is_present(&**self, now, start)
-    }
-
-    #[inline]
-    fn get_value(&self, now: &LogicalInstant, start: &LogicalInstant) -> Option<T> where T: Copy {
-        <R as ReactionTrigger<T>>::get_value(&**self, now, start)
-    }
-
-    #[inline]
-    fn use_value_ref<O>(&self, now: &LogicalInstant, start: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
-        <R as ReactionTrigger<T>>::use_value_ref(&**self, now, start, action)
-    }
-}
-
-
 /// Something on which we can declare a trigger dependency
 /// in the dependency graph.
 #[doc(hidden)]

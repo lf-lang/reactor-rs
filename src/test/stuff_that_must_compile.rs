@@ -28,13 +28,29 @@
 #![allow(unused)]
 
 use crate::{ReactionCtx, Action, LogicalAction, ReadablePort, WritablePort};
+use crate::Offset::Asap;
 
 fn actions_get(ctx: &mut ReactionCtx, act_mut: &mut LogicalAction<u32>, act: &LogicalAction<u32>) {
     assert!(ctx.get(act_mut).is_some());
+    assert!(ctx.get(act_mut).is_some());
+    assert!(ctx.get(act).is_some());
     assert!(ctx.get(act).is_some());
 }
 
-fn port_get(ctx: &mut ReactionCtx, port: ReadablePort<u32>) {
+fn actions_use_ref_mut(ctx: &mut ReactionCtx, act: &mut LogicalAction<u32>) {
+    // the duplication is useful here, we're testing that `act` is
+    // not moved in the first statement, which would make the
+    // second be uncompilable
+    assert!(ctx.use_ref(act, |v| v.is_some()));
+    assert!(ctx.use_ref(act, |v| v.is_some()));
+}
+
+fn actions_use_ref(ctx: &mut ReactionCtx, act: &LogicalAction<u32>) { // act is not &mut
+    assert!(ctx.use_ref(act, |v| v.is_some()));
+    assert!(ctx.use_ref(act, |v| v.is_some()));
+}
+
+fn port_get(ctx: &mut ReactionCtx, port: &ReadablePort<u32>) {
     assert!(ctx.get(port).is_some());
 }
 

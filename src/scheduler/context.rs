@@ -51,24 +51,13 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// ```no_run
     /// # use reactor_rt::{ReactionCtx, ReadablePort};
     /// # let ctx: &mut ReactionCtx = panic!();
-    /// # let port: ReadablePort<'_, u32> = panic!();
+    /// # let port: &ReadablePort<'_, u32> = panic!();
     /// if let Some(value) = ctx.get(port) {
     ///     // branch is taken if the port is set -- note, this moves `port`!
     /// }
     /// ```
-    /// ```no_run
-    /// # use reactor_rt::{ReactionCtx, ReadablePort};
-    /// # let ctx: &mut ReactionCtx = panic!();
-    /// # let port: ReadablePort<'_, u32> = panic!();
-    ///
-    /// let value_opt = ctx.get(&port); // you can pass the port by reference
-    /// let value_opt = ctx.get(port); // or by value (but this moves it out)
-    /// ```
-    ///
     #[inline]
-    pub fn get<T, C>(&self, container: C) -> Option<T>
-        where T: Copy,
-              C: ReactionTrigger<T> {
+    pub fn get<T: Copy>(&self, container: &impl ReactionTrigger<T>) -> Option<T> {
         container.borrow().get_value(&self.get_logical_time(), &self.get_start_time())
     }
 
@@ -98,8 +87,7 @@ impl<'x> ReactionCtx<'_, 'x> {
     ///
     /// See also the similar [Self::use_ref_opt].
     #[inline]
-    pub fn use_ref<C, T, O>(&self, container: C, action: impl FnOnce(Option<&T>) -> O) -> O
-        where C: ReactionTrigger<T> {
+    pub fn use_ref<T, O>(&self, container: &impl ReactionTrigger<T>, action: impl FnOnce(Option<&T>) -> O) -> O {
         container.borrow().use_value_ref(&self.get_logical_time(), &self.get_start_time(), action)
     }
 
@@ -108,8 +96,7 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// and not copied.
     ///
     /// See also the similar [Self::use_ref].
-    pub fn use_ref_opt<C, T, O>(&self, container: C, action: impl FnOnce(&T) -> O) -> Option<O>
-        where C: ReactionTrigger<T> {
+    pub fn use_ref_opt<T, O>(&self, container: &impl ReactionTrigger<T>, action: impl FnOnce(&T) -> O) -> Option<O> {
         self.use_ref(container, |c| c.map(action))
     }
 
@@ -120,9 +107,7 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// schedule more reactions that should execute at the
     /// same logical time.
     #[inline]
-    pub fn set<'a, T, W>(&mut self, mut port: W, value: T)
-        where T: 'a,
-              W: BorrowMut<WritablePort<'a, T>> {
+    pub fn set<'a, T, W>(&mut self, mut port: W, value: T) where T: 'a, W: BorrowMut<WritablePort<'a, T>> {
         let port = port.borrow_mut();
         port.set_impl(value);
         self.enqueue_now(Cow::Borrowed(self.reactions_triggered_by(port.get_id())))

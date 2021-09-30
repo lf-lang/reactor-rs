@@ -413,7 +413,9 @@ impl ExecutableReactions {
     }
 
     /// Returns an iterator which associates batches of reactions
-    /// with their layer.
+    /// with their layer. Note that this does not mutate this collection
+    /// (eg drain it), because that way we can use borrowed Cows
+    /// and avoid more allocation.
     pub fn batches(&self) -> impl Iterator<Item=(usize, &HashSet<GlobalReactionId>)> {
         self.0.iter().enumerate().filter(|it| !it.1.is_empty())
     }
