@@ -3,7 +3,7 @@ use std::cmp::max;
 use std::collections::HashSet;
 use std::sync::mpsc::Sender;
 
-use crossbeam::thread::Scope;
+use crossbeam::thread::{Scope, ScopedJoinHandle};
 
 use crate::*;
 use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
@@ -305,8 +305,10 @@ impl<'a, 'x, 't> ReactionCtx<'_, 'a, 'x, 't> where 'x: 't {
     }
 
 
-    pub fn spawn_physical_thread<F>(&mut self, f: F)
-        where F: FnOnce(&mut PhysicalSchedulerLink<'_, 'x, 't>) + 'x + Send {
+    pub fn spawn_physical_thread<F, R>(&mut self, f: F) -> ScopedJoinHandle<R>
+        where F: FnOnce(&mut PhysicalSchedulerLink<'_, 'x, 't>) -> R,
+              F: 'x + Send,
+              R: 'x + Send {
         let tx = self.wave.tx.clone();
         let latest_processed_tag = self.wave.latest_processed_tag;
         let dataflow = self.wave.dataflow;
@@ -320,7 +322,7 @@ impl<'a, 'x, 't> ReactionCtx<'_, 'a, 'x, 't> where 'x: 't {
                 thread_spawner: subscope,
             };
             f(&mut link)
-        });
+        })
     }
 }
 
@@ -336,20 +338,29 @@ pub struct PhysicalSchedulerLink<'a, 'x, 't> {
     thread_spawner: &'a Scope<'t>,
 }
 
-impl<'x, 't> PhysicalSchedulerLink<'_, 'x, 't> {
+impl PhysicalSchedulerLink<'_, '_, '_> {
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
-    pub fn schedule_physical<T: Send>(&mut self, action: &mut PhysicalAction<T>, value: Option<T>, offset: Offset) {
+    pub fn schedule_physical<T: Send>(&mut self, action: &mut PhysicalAction<T>, offset: Offset) {
+        self.schedule_physical_with_v(action, None, offset);
+    }
+
+    /// Schedule an action to run after its own implicit time delay
+    /// plus an optional additional time delay. These delays are in
+    /// logical time.
+    pub fn schedule_physical_with_v<T: Send>(&mut self,
+                                             action: &mut PhysicalAction<T>,
+                                             value: Option<T>,
+                                             offset: Offset) {
         // we have to fetch the time at which the logical timeline is currently running,
         // this may be far behind the current physical time
         let time_in_logical_subsystem = self.latest_processed_tag.load();
         let tag = action.make_eta(time_in_logical_subsystem, offset.to_duration());
         action.schedule_future_value(tag, value);
 
-        // todo merge events at equal tags by merging their dependencies
         let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
-        let evt = Event::<'x> { reactions: Cow::Borrowed(downstream), tag };
+        let evt = Event { reactions: Cow::Borrowed(downstream), tag };
         self.tx.send(evt).unwrap();
     }
 }

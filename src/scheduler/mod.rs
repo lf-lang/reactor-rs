@@ -25,8 +25,6 @@
 
 use std::borrow::Cow;
 
-
-
 use crossbeam::atomic::AtomicCell;
 
 pub use assembly::*;

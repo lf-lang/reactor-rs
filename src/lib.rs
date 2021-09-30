@@ -59,8 +59,8 @@ pub use self::ports::*;
 pub use self::scheduler::*;
 pub use self::time::*;
 pub use self::timers::*;
-pub use self::util::*;
 pub use self::triggers::*;
+pub use self::util::*;
 
 #[cfg(test)]
 pub mod test;

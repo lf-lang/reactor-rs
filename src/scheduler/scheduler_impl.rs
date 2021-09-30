@@ -29,6 +29,8 @@
 use std::fmt::Write;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
+use crossbeam::scope;
+use crossbeam::thread::Scope;
 use index_vec::IndexVec;
 
 use crate::*;
@@ -36,8 +38,6 @@ use crate::CleanupCtx;
 use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
 
 use super::*;
-use crossbeam::thread::Scope;
-use crossbeam::scope;
 
 pub struct SchedulerOptions {
     pub keep_alive: bool,
@@ -362,10 +362,12 @@ pub struct StartupCtx<'b, 'a, 'x, 't> {
 
 impl StartupCtx<'_, '_, '_, '_> {
     #[inline]
+    #[doc(hidden)]
     pub fn enqueue(&mut self, reactions: &Vec<GlobalReactionId>) {
         self.ctx.enqueue_now(Cow::Owned(self.ctx.make_executable(reactions)))
     }
 
+    #[doc(hidden)]
     pub fn start_timer(&mut self, t: &Timer) {
         let downstream = self.ctx.reactions_triggered_by(t.get_id());
         if t.offset.is_zero() {
@@ -375,15 +377,6 @@ impl StartupCtx<'_, '_, '_, '_> {
             self.ctx.enqueue_later(downstream, self.ctx.get_logical_time() + t.offset)
         }
     }
-
-    // todo physical actions
-    // #[inline]
-    // pub fn scheduler_link(&mut self) -> SchedulerLink {
-    //     SchedulerLink {
-    //         last_processed_logical_time: self.scheduler.latest_logical_time.clone(),
-    //         sender: self.scheduler.canonical_sender.clone(),
-    //     }
-    // }
 }
 
 

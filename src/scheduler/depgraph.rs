@@ -406,12 +406,6 @@ impl ExecutableReactions {
         Self(Vec::new())
     }
 
-    /// Clear the individual layers, retains the allocation
-    /// for the layer vector.
-    pub fn clear(&mut self) {
-        self.0.iter_mut().for_each(|l| l.clear())
-    }
-
     /// Returns an iterator which associates batches of reactions
     /// with their layer. Note that this does not mutate this collection
     /// (eg drain it), because that way we can use borrowed Cows

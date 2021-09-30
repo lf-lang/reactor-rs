@@ -27,7 +27,7 @@
 
 #![allow(unused)]
 
-use crate::{ReactionCtx, Action, LogicalAction, ReadablePort, WritablePort, AssemblyCtx, Port, PhysicalAction};
+use crate::{Action, AssemblyCtx, LogicalAction, PhysicalAction, Port, ReactionCtx, ReadablePort, WritablePort};
 use crate::Offset::Asap;
 
 fn actions_get(ctx: &mut ReactionCtx, act_mut: &mut LogicalAction<u32>, act: &LogicalAction<u32>) {
@@ -62,7 +62,7 @@ fn physical_spawn_elided(ctx: &mut ReactionCtx, mut action: PhysicalAction<u32>)
     use std::thread;
 
     let physical = ctx.spawn_physical_thread(move |link| {
-        link.schedule_physical(&mut action, None, Asap)
+        link.schedule_physical(&mut action, Asap)
     });
 }
 
