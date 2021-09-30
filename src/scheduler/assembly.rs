@@ -31,7 +31,7 @@ pub(in super) struct RootAssembler {
     /// ID of the next reactor to assign
     reactor_id: ReactorId,
     /// All registered reactors
-    pub(in super) reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
+    pub(in super) reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static + Send>>,
     /// Dependency graph
     pub(in super) graph: DepGraph,
     pub(in super) id_registry: IdRegistry,
@@ -177,7 +177,7 @@ impl<'x> AssemblyCtx<'x> {
     }
 
     /// Register a child reactor.
-    pub fn register_reactor<S: ReactorInitializer + 'static>(&mut self, child: S) {
+    pub fn register_reactor<S: ReactorInitializer + Send + 'static>(&mut self, child: S) {
         let vec_id = self.globals.reactors.push(Box::new(child));
         debug_assert_eq!(self.globals.reactors[vec_id].id(), vec_id, "Improper initialization order!");
     }

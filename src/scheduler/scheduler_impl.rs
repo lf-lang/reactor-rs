@@ -78,13 +78,13 @@ pub struct SyncScheduler<'x> {
     dataflow: &'x DataflowInfo,
 
     /// All reactors.
-    reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
+    reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static + Send>>,
 
     id_registry: IdRegistry,
 }
 
 impl<'x> SyncScheduler<'x> {
-    pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
+    pub fn run_main<R: ReactorInitializer + Send + 'static>(options: SchedulerOptions, args: R::Params) {
         let mut root_assembler = RootAssembler::default();
         let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler, ReactorDebugInfo::root::<R::Wrapped>());
 
@@ -98,21 +98,23 @@ impl<'x> SyncScheduler<'x> {
             eprintln!("{}", graph.format_dot(&id_registry));
         }
 
-        // collect dependency information
-        let dependency_info = DataflowInfo::new(graph).unwrap();
+        std::thread::spawn(move || {
+            // collect dependency information
+            let dependency_info = DataflowInfo::new(graph).unwrap();
 
-        let mut scheduler = SyncScheduler::new(options, reactors, id_registry, &dependency_info);
+            let mut scheduler = SyncScheduler::new(options, reactors, id_registry, &dependency_info);
 
-        info!("Triggering startup...");
-        scheduler.startup();
-        scheduler.launch_event_loop()
+            info!("Triggering startup...");
+            scheduler.startup();
+            scheduler.launch_event_loop()
+        }).join();
     }
 
     /// Creates a new scheduler. An empty scheduler doesn't
     /// do anything unless some events are pushed to the queue.
     /// See [Self::launch_async].
     fn new(options: SchedulerOptions,
-           reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static>>,
+           reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static + Send>>,
            id_registry: IdRegistry,
            dependency_info: &'x DataflowInfo) -> Self {
         let (sender, receiver) = channel::<Event<'x>>();
@@ -186,7 +188,7 @@ impl<'x> SyncScheduler<'x> {
         }
     }
 
-    pub(in super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut Box<dyn ReactorBehavior> {
+    pub(in super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut Box<dyn ReactorBehavior + Send> {
         &mut self.reactors[id]
     }
 
