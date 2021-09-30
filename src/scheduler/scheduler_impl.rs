@@ -53,7 +53,9 @@ impl Default for SchedulerOptions {
 
 /// The runtime scheduler.
 pub struct SyncScheduler<'x> {
-    /// The latest processed logical time (necessarily behind physical time)
+    /// The latest processed logical time (necessarily behind physical time).
+    /// This is Clone, Send and Sync; it's accessible from the physical contexts
+    /// handed out to asynchronous event producers (physical triggers).
     latest_logical_time: TimeCell,
 
     /// The receiver end of the communication channels. Reactions
@@ -98,16 +100,14 @@ impl<'x> SyncScheduler<'x> {
             eprintln!("{}", graph.format_dot(&id_registry));
         }
 
-        std::thread::spawn(move || {
-            // collect dependency information
-            let dependency_info = DataflowInfo::new(graph).unwrap();
+        // collect dependency information
+        let dependency_info = DataflowInfo::new(graph).unwrap();
 
-            let mut scheduler = SyncScheduler::new(options, reactors, id_registry, &dependency_info);
+        let mut scheduler = SyncScheduler::new(options, reactors, id_registry, &dependency_info);
 
-            info!("Triggering startup...");
-            scheduler.startup();
-            scheduler.launch_event_loop()
-        }).join().unwrap();
+        info!("Triggering startup...");
+        scheduler.startup();
+        scheduler.launch_event_loop()
     }
 
     /// Creates a new scheduler. An empty scheduler doesn't
@@ -119,7 +119,7 @@ impl<'x> SyncScheduler<'x> {
            dependency_info: &'x DataflowInfo) -> Self {
         let (sender, receiver) = channel::<Event<'x>>();
         Self {
-            latest_logical_time: Arc::new(Mutex::new(Cell::new(LogicalInstant::now()))),
+            latest_logical_time: Arc::new(AtomicCell::new(LogicalInstant::now())),
             rx: receiver,
             tx: sender,
             initial_time: None,
@@ -268,7 +268,7 @@ impl<'x> SyncScheduler<'x> {
     /// time (logical) is ahead of current physical time.
     fn step(&mut self, event: Event<'x>) {
         let time = Self::catch_up_physical_time(event.tag);
-        self.latest_logical_time.lock().unwrap().set(time); // set the time so that scheduler links can know that.
+        self.latest_logical_time.store(time); // set the time so that scheduler links can know that.
 
         let wave = self.new_wave(time);
         self.consume_wave(wave, event.reactions);

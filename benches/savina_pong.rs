@@ -119,7 +119,7 @@ mod reactors {
             fn react_0(&mut self,
                        #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                        #[allow(unused)] params: &PongParams,
-                       receive: ::reactor_rt::ReadablePort<u32>,
+                       receive: &::reactor_rt::ReadablePort<u32>,
                        #[allow(unused_mut)] mut send: ::reactor_rt::WritablePort<u32>,) {
                 self.count += 1;
                 ctx.set(send, ctx.get(receive).unwrap());
@@ -228,7 +228,7 @@ mod reactors {
 
             fn react_erased(&mut self, ctx: &mut ReactionCtx, rid: LocalReactionId) {
                 match rid.raw() {
-                    0 => self._impl.react_0(ctx, &self._params, ::reactor_rt::ReadablePort::new(&self.__receive), ::reactor_rt::WritablePort::new(&mut self.__send),),
+                    0 => self._impl.react_0(ctx, &self._params, &::reactor_rt::ReadablePort::new(&self.__receive), ::reactor_rt::WritablePort::new(&mut self.__send),),
                     1 => self._impl.react_1(ctx, &self._params),
 
                     _ => panic!("Invalid reaction ID: {} should be < {}", rid, Self::MAX_REACTION_ID)
@@ -291,7 +291,7 @@ mod reactors {
             fn react_1(&mut self,
                        #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                        #[allow(unused)] params: &PingParams,
-                       _receive: ::reactor_rt::ReadablePort<u32>,
+                       _receive: &::reactor_rt::ReadablePort<u32>,
                        #[allow(unused_mut)] mut serve: &mut ::reactor_rt::LogicalAction<()>,) {
                 if self.pingsLeft > 0 {
                     ctx.schedule(serve, Asap);
@@ -397,7 +397,7 @@ mod reactors {
             fn react_erased(&mut self, ctx: &mut ReactionCtx, rid: LocalReactionId) {
                 match rid.raw() {
                     0 => self._impl.react_0(ctx, &self._params, &mut self.__serve, ::reactor_rt::WritablePort::new(&mut self.__send),),
-                    1 => self._impl.react_1(ctx, &self._params, ::reactor_rt::ReadablePort::new(&self.__receive), &mut self.__serve,),
+                    1 => self._impl.react_1(ctx, &self._params, &::reactor_rt::ReadablePort::new(&self.__receive), &mut self.__serve,),
 
                     _ => panic!("Invalid reaction ID: {} should be < {}", rid, Self::MAX_REACTION_ID)
                 }

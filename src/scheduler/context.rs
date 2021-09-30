@@ -355,7 +355,7 @@ impl<'x> SchedulerLink<'x> {
     pub fn schedule_physical<T: Send>(&mut self, action: &mut PhysicalAction<T>, value: Option<T>, offset: Offset) {
         // we have to fetch the time at which the logical timeline is currently running,
         // this may be far behind the current physical time
-        let time_in_logical_subsystem = self.last_processed_logical_time.lock().unwrap().get();
+        let time_in_logical_subsystem = self.last_processed_logical_time.load();
         let process_at = action.make_eta(time_in_logical_subsystem, offset.to_duration());
         action.schedule_future_value(process_at, value);
 

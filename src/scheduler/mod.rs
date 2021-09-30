@@ -24,8 +24,10 @@
 
 
 use std::borrow::Cow;
-use std::cell::Cell;
-use std::sync::{Arc, Mutex};
+
+use std::sync::{Arc};
+
+use crossbeam_utils::atomic::AtomicCell;
 
 pub use assembly::*;
 pub use context::*;
@@ -37,7 +39,7 @@ use crate::LogicalInstant;
 use self::depgraph::ExecutableReactions;
 
 /// The internal cell type used to store a thread-safe mutable logical time value.
-type TimeCell = Arc<Mutex<Cell<LogicalInstant>>>;
+type TimeCell = Arc<AtomicCell<LogicalInstant>>;
 
 /// A set of reactions to execute at a particular tag.
 /// The key characteristic of instances is
