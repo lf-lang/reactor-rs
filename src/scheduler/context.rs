@@ -609,11 +609,13 @@ pub struct CleanupCtx {
 }
 
 impl CleanupCtx {
+    #[doc(hidden)]
     pub fn cleanup_port<T: Send>(&self, port: &mut Port<T>) {
         port.clear_value()
     }
 
-    pub fn cleanup_action<T: Send>(&self, action: &mut LogicalAction<T>) {
+    #[doc(hidden)]
+    pub fn cleanup_action<K, T: Send>(&self, action: &mut Action<K, T>) {
         action.forget_value(&self.tag)
     }
 }

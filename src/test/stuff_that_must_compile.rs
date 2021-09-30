@@ -27,7 +27,7 @@
 
 #![allow(unused)]
 
-use crate::{Action, AssemblyCtx, LogicalAction, PhysicalAction, Port, ReactionCtx, ReadablePort, WritablePort};
+use crate::{Action, AssemblyCtx, LogicalAction, PhysicalAction, Port, ReactionCtx, ReadablePort, WritablePort, CleanupCtx};
 use crate::Offset::Asap;
 
 fn actions_get(ctx: &mut ReactionCtx, act_mut: &mut LogicalAction<u32>, act: &LogicalAction<u32>) {
@@ -78,4 +78,15 @@ fn action_is_send<K: Send>(ctx: &mut AssemblyCtx, action: Action<K, u32>) {
         action: Action<K, u32>,
     }
     let foo: &dyn Send = &FooReactor { action };
+}
+
+fn cleanup(
+    ctx: &mut CleanupCtx,
+    action: &mut LogicalAction<u32>,
+    phys_action: &mut PhysicalAction<u32>,
+    port: &mut Port<u32>
+) {
+    ctx.cleanup_action(action);
+    ctx.cleanup_action(phys_action);
+    ctx.cleanup_port(port);
 }
