@@ -341,7 +341,7 @@ impl TagSpec {
 /// system, from the outside world.
 #[derive(Clone)]
 pub struct PhysicalCtx<'x> {
-    last_processed_logical_time: TimeCell,
+    last_processed_logical_time: &'x TimeCell,
 
     /// Sender to schedule events that should be executed later than this wave.
     tx: Sender<Event<'x>>,
@@ -382,22 +382,24 @@ pub(in super) struct ReactionWave<'x> {
 
     /// Start time of the program.
     initial_time: LogicalInstant,
-
     dataflow: &'x DataflowInfo,
+    latest_processed_tag: &'x TimeCell,
 }
 
 impl<'x> ReactionWave<'x> {
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    pub fn new(sender: Sender<Event<'x>>,
+    pub fn new(tx: Sender<Event<'x>>,
                current_time: LogicalInstant,
                initial_time: LogicalInstant,
-               dataflow: &'x DataflowInfo) -> Self {
+               dataflow: &'x DataflowInfo,
+               latest_processed_tag: &'x TimeCell) -> Self {
         ReactionWave {
             logical_time: current_time,
-            tx: sender,
+            tx,
             initial_time,
             dataflow,
+            latest_processed_tag,
         }
     }
 

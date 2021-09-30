@@ -56,7 +56,7 @@ pub struct SyncScheduler<'x> {
     /// The latest processed logical time (necessarily behind physical time).
     /// This is Clone, Send and Sync; it's accessible from the physical contexts
     /// handed out to asynchronous event producers (physical triggers).
-    latest_logical_time: TimeCell,
+    latest_processed_tag: &'x TimeCell,
 
     /// The receiver end of the communication channels. Reactions
     /// contexts each have their own [Sender]. The main event loop
@@ -102,8 +102,9 @@ impl<'x> SyncScheduler<'x> {
 
         // collect dependency information
         let dependency_info = DataflowInfo::new(graph).unwrap();
+        let time_cell = AtomicCell::new(LogicalInstant::now());
 
-        let mut scheduler = SyncScheduler::new(options, reactors, id_registry, &dependency_info);
+        let mut scheduler = SyncScheduler::new(options, reactors, id_registry, &dependency_info, &time_cell);
 
         info!("Triggering startup...");
         scheduler.startup();
@@ -113,13 +114,16 @@ impl<'x> SyncScheduler<'x> {
     /// Creates a new scheduler. An empty scheduler doesn't
     /// do anything unless some events are pushed to the queue.
     /// See [Self::launch_async].
-    fn new(options: SchedulerOptions,
-           reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static + Send>>,
-           id_registry: IdRegistry,
-           dependency_info: &'x DataflowInfo) -> Self {
+    fn new(
+        options: SchedulerOptions,
+        reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static + Send>>,
+        id_registry: IdRegistry,
+        dependency_info: &'x DataflowInfo,
+        latest_processed_tag: &'x TimeCell,
+    ) -> Self {
         let (sender, receiver) = channel::<Event<'x>>();
         Self {
-            latest_logical_time: Arc::new(AtomicCell::new(LogicalInstant::now())),
+            latest_processed_tag,
             rx: receiver,
             tx: sender,
             initial_time: None,
@@ -268,7 +272,7 @@ impl<'x> SyncScheduler<'x> {
     /// time (logical) is ahead of current physical time.
     fn step(&mut self, event: Event<'x>) {
         let time = Self::catch_up_physical_time(event.tag);
-        self.latest_logical_time.store(time); // set the time so that scheduler links can know that.
+        self.latest_processed_tag.store(time); // set the time so that scheduler links can know that.
 
         let wave = self.new_wave(time);
         self.consume_wave(wave, event.reactions);
@@ -292,15 +296,16 @@ impl<'x> SyncScheduler<'x> {
 
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    fn new_wave(&self, logical_time: LogicalInstant) -> ReactionWave<'x> {
+    fn new_wave(&self, current_time: LogicalInstant) -> ReactionWave<'x> {
         ReactionWave::new(
             self.tx.clone(),
-            logical_time,
+            current_time,
             // note: initializing self.initial_time is the
             // first thing done during startup so the unwrap
             // should never panic
             self.initial_time.unwrap(),
             self.dataflow,
+            self.latest_processed_tag
         )
     }
 

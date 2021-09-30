@@ -39,7 +39,7 @@ use crate::LogicalInstant;
 use self::depgraph::ExecutableReactions;
 
 /// The internal cell type used to store a thread-safe mutable logical time value.
-type TimeCell = Arc<AtomicCell<LogicalInstant>>;
+type TimeCell = AtomicCell<LogicalInstant>;
 
 /// A set of reactions to execute at a particular tag.
 /// The key characteristic of instances is
