@@ -54,6 +54,11 @@ impl Default for SchedulerOptions {
 }
 
 /// The runtime scheduler.
+///
+/// Lifetime parameters: 'x and 't are carried around everywhere,
+/// 'x allows us to take references into the dataflow graph, and
+/// 't to spawn new scoped threads for physical actions. 'a is more
+/// useless but is needed to compile.
 pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// The latest processed logical time (necessarily behind physical time).
     /// This is Clone, Send and Sync; it's accessible from the physical contexts
@@ -84,7 +89,7 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     options: SchedulerOptions,
 
     /// All reactors.
-    reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static + Send>>,
+    reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + Send + 'x>>,
 
     id_registry: IdRegistry,
 }
@@ -181,7 +186,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     fn execute_wave(&mut self,
                     time: LogicalInstant,
-                    enqueue_fun: fn(&(dyn ReactorBehavior + 'static), &mut StartupCtx)) {
+                    enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'x), &mut StartupCtx)) {
         let mut wave = self.new_wave(time);
         let mut ctx = StartupCtx { ctx: wave.new_ctx() };
         for reactor in &self.reactors {
@@ -213,7 +218,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         }
     }
 
-    pub(in super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut Box<dyn ReactorBehavior + Send> {
+    pub(in super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut Box<dyn ReactorBehavior + Send + 'x> {
         &mut self.reactors[id]
     }
 

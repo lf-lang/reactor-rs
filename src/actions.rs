@@ -24,9 +24,14 @@
 
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use atomic_refcell::AtomicRefCell;
+
 use crate::*;
+use crate::TriggerLike;
 
 use super::LogicalInstant;
 
@@ -196,3 +201,46 @@ mod test {
     }
 }
 */
+
+
+#[derive(Clone)]
+pub struct PhysicalActionRef<T: Send>(Arc<AtomicRefCell<PhysicalAction<T>>>);
+
+impl<T: Send> PhysicalActionRef<T> {
+    pub fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
+        Self(Arc::new(AtomicRefCell::new(PhysicalAction::new(id, min_delay))))
+    }
+
+
+    pub(crate) fn use_mut<O>(&self, f: impl FnOnce(&mut PhysicalAction<T>) -> O) -> O {
+        let mut refmut = self.0.deref().borrow_mut();
+
+        f(refmut.deref_mut())
+    }
+
+    pub(crate) fn use_value<O>(&self, f: impl FnOnce(&PhysicalAction<T>) -> O) -> O {
+        let r#ref = self.0.deref().borrow();
+
+        f(r#ref.deref())
+    }
+}
+
+impl<T: Send> TriggerLike for PhysicalActionRef<T> {
+    fn get_id(&self) -> TriggerId {
+        self.use_value(|a| a.get_id())
+    }
+}
+
+impl<T: Send> ReactionTrigger<T> for PhysicalActionRef<T> {
+    fn is_present(&self, now: &LogicalInstant, start: &LogicalInstant) -> bool {
+        self.use_value(|a| a.is_present(now, start))
+    }
+
+    fn get_value(&self, now: &LogicalInstant, start: &LogicalInstant) -> Option<T> where T: Copy {
+        self.use_value(|a| a.get_value(now, start))
+    }
+
+    fn use_value_ref<O>(&self, now: &LogicalInstant, start: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
+        self.use_value(|a| a.use_value_ref(now, start, action))
+    }
+}

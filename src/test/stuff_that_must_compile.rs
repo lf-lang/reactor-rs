@@ -27,7 +27,7 @@
 
 #![allow(unused)]
 
-use crate::{Action, AssemblyCtx, LogicalAction, PhysicalAction, Port, ReactionCtx, ReadablePort, WritablePort, CleanupCtx};
+use crate::{Action, AssemblyCtx, LogicalAction, PhysicalAction, Port, ReactionCtx, ReadablePort, WritablePort, CleanupCtx, PhysicalActionRef};
 use crate::Offset::Asap;
 
 fn actions_get(ctx: &mut ReactionCtx, act_mut: &mut LogicalAction<u32>, act: &LogicalAction<u32>) {
@@ -58,11 +58,11 @@ fn port_set(ctx: &mut ReactionCtx, mut port: WritablePort<u32>) {
     assert_eq!(ctx.set(port, 3), ());
 }
 
-fn physical_spawn_elided(ctx: &mut ReactionCtx, mut action: PhysicalAction<u32>) {
+fn physical_spawn_elided(ctx: &mut ReactionCtx, mut action: PhysicalActionRef<u32>) {
     use std::thread;
 
     let physical = ctx.spawn_physical_thread(move |link| {
-        link.schedule_physical(&mut action, Asap)
+        link.schedule_physical(&action, Asap)
     });
 }
 
@@ -71,6 +71,10 @@ fn port_is_send(ctx: &mut AssemblyCtx, port: Port<u32>) {
         port: Port<u32>,
     }
     let foo: &dyn Send = &FooReactor { port };
+}
+
+fn physical_action_ref_is_send(ctx: &mut AssemblyCtx, port: PhysicalActionRef<u32>) {
+    let foo: &dyn Send = &port;
 }
 
 fn action_is_send<K: Send>(ctx: &mut AssemblyCtx, action: Action<K, u32>) {
@@ -83,10 +87,10 @@ fn action_is_send<K: Send>(ctx: &mut AssemblyCtx, action: Action<K, u32>) {
 fn cleanup(
     ctx: &mut CleanupCtx,
     action: &mut LogicalAction<u32>,
-    phys_action: &mut PhysicalAction<u32>,
+    phys_action: &mut PhysicalActionRef<u32>,
     port: &mut Port<u32>
 ) {
-    ctx.cleanup_action(action);
-    ctx.cleanup_action(phys_action);
+    ctx.cleanup_logical_action(action);
+    ctx.cleanup_physical_action(phys_action);
     ctx.cleanup_port(port);
 }

@@ -342,7 +342,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
-    pub fn schedule_physical<T: Send>(&mut self, action: &mut PhysicalAction<T>, offset: Offset) {
+    pub fn schedule_physical<T: Send>(&mut self, action: &PhysicalActionRef<T>, offset: Offset) {
         self.schedule_physical_with_v(action, None, offset);
     }
 
@@ -350,18 +350,20 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     /// plus an optional additional time delay. These delays are in
     /// logical time.
     pub fn schedule_physical_with_v<T: Send>(&mut self,
-                                             action: &mut PhysicalAction<T>,
+                                             action: &PhysicalActionRef<T>,
                                              value: Option<T>,
                                              offset: Offset) {
         // we have to fetch the time at which the logical timeline is currently running,
         // this may be far behind the current physical time
         let time_in_logical_subsystem = self.latest_processed_tag.load();
-        let tag = action.make_eta(time_in_logical_subsystem, offset.to_duration());
-        action.schedule_future_value(tag, value);
+        action.use_mut(|action| {
+            let tag = action.make_eta(time_in_logical_subsystem, offset.to_duration());
+            action.schedule_future_value(tag, value);
 
-        let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
-        let evt = Event { reactions: Cow::Borrowed(downstream), tag };
-        self.tx.send(evt).unwrap();
+            let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
+            let evt = Event { reactions: Cow::Borrowed(downstream), tag };
+            self.tx.send(evt).unwrap();
+        })
     }
 }
 
@@ -609,13 +611,15 @@ pub struct CleanupCtx {
 }
 
 impl CleanupCtx {
-    #[doc(hidden)]
     pub fn cleanup_port<T: Send>(&self, port: &mut Port<T>) {
         port.clear_value()
     }
 
-    #[doc(hidden)]
-    pub fn cleanup_action<K, T: Send>(&self, action: &mut Action<K, T>) {
+    pub fn cleanup_logical_action<T: Send>(&self, action: &mut LogicalAction<T>) {
         action.forget_value(&self.tag)
+    }
+
+    pub fn cleanup_physical_action<T: Send>(&self, action: &mut PhysicalActionRef<T>) {
+        action.use_mut(|a| a.forget_value(&self.tag))
     }
 }

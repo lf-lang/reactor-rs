@@ -101,10 +101,10 @@ impl<'x> AssemblyCtx<'x> {
 
     pub fn new_physical_action<T: Send>(&mut self,
                                         lf_name: &'static str,
-                                        min_delay: Option<Duration>) -> PhysicalAction<T> {
+                                        min_delay: Option<Duration>) -> PhysicalActionRef<T> {
         let id = self.next_comp_id(Some(lf_name));
         self.globals.graph.record_paction(id);
-        PhysicalAction::new(id, min_delay)
+        PhysicalActionRef::new(id, min_delay)
     }
 
     pub fn new_timer(&mut self, lf_name: &'static str, offset: Duration, period: Duration) -> Timer {

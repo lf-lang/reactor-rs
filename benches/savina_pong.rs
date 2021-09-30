@@ -406,7 +406,7 @@ mod reactors {
             fn cleanup_tag(&mut self, ctx: &CleanupCtx) {
                 ctx.cleanup_port(&mut self.__send);
                 ctx.cleanup_port(&mut self.__receive);
-                ctx.cleanup_action(&mut self.__serve);
+                ctx.cleanup_logical_action(&mut self.__serve);
             }
 
             fn enqueue_startup(&self, ctx: &mut StartupCtx) {
