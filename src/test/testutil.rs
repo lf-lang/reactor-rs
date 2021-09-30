@@ -29,7 +29,7 @@
 use crate::*;
 
 /// Set a port to a value
-pub fn set_port<T>(port: &mut Port<T>, v: T) {
+pub fn set_port<T: Send>(port: &mut Port<T>, v: T) {
     port.set_impl(Some(v))
 }
 

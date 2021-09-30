@@ -85,7 +85,7 @@ impl<'x> AssemblyCtx<'x> {
         id
     }
 
-    pub fn new_port<T>(&mut self, lf_name: &'static str) -> Port<T> {
+    pub fn new_port<T: Send>(&mut self, lf_name: &'static str) -> Port<T> {
         let id = self.next_comp_id(Some(lf_name));
         self.globals.graph.record_port(id);
         Port::new(id)
@@ -145,7 +145,7 @@ impl<'x> AssemblyCtx<'x> {
         Ok(())
     }
 
-    pub fn effects_port<T>(&mut self, reaction: GlobalReactionId, port: &Port<T>) -> Result<(), AssemblyError> {
+    pub fn effects_port<T: Send>(&mut self, reaction: GlobalReactionId, port: &Port<T>) -> Result<(), AssemblyError> {
         self.globals.graph.reaction_effects(reaction, port.get_id());
         Ok(())
     }
@@ -155,7 +155,7 @@ impl<'x> AssemblyCtx<'x> {
         Ok(())
     }
 
-    pub fn bind_ports<T>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
+    pub fn bind_ports<T: Send>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
         crate::bind_ports(upstream, downstream)?;
         self.globals.graph.port_bind(upstream, downstream);
         Ok(())

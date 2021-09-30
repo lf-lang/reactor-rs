@@ -107,7 +107,10 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// schedule more reactions that should execute at the
     /// same logical time.
     #[inline]
-    pub fn set<'a, T, W>(&mut self, mut port: W, value: T) where T: 'a, W: BorrowMut<WritablePort<'a, T>> {
+    pub fn set<'a, T, W>(&mut self, mut port: W, value: T)
+        where T: Send + 'a,
+              W: BorrowMut<WritablePort<'a, T>> {
+
         let port = port.borrow_mut();
         port.set_impl(value);
         self.enqueue_now(Cow::Borrowed(self.reactions_triggered_by(port.get_id())))
@@ -342,7 +345,6 @@ pub struct SchedulerLink<'x> {
 
     /// Sender to schedule events that should be executed later than this wave.
     sender: Sender<Event<'x>>,
-
     dataflow: &'x DataflowInfo,
 }
 
@@ -576,7 +578,7 @@ pub struct CleanupCtx {
 }
 
 impl CleanupCtx {
-    pub fn cleanup_port<T>(&self, port: &mut Port<T>) {
+    pub fn cleanup_port<T: Send>(&self, port: &mut Port<T>) {
         port.clear_value()
     }
 

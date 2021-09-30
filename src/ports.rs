@@ -33,16 +33,16 @@ use crate::{AssemblyError, GlobalId, LogicalInstant, PortId, ReactionTrigger, Tr
 
 /// A read-only reference to a port.
 #[repr(transparent)]
-pub struct ReadablePort<'a, T>(&'a Port<T>);
+pub struct ReadablePort<'a, T: Send>(&'a Port<T>);
 
-impl<'a, T> ReadablePort<'a, T> {
+impl<'a, T: Send> ReadablePort<'a, T> {
     #[inline(always)]
     pub fn new(port: &'a Port<T>) -> Self {
         Self(port)
     }
 }
 
-impl< T> ReactionTrigger<T> for ReadablePort<'_, T> {
+impl<T: Send> ReactionTrigger<T> for ReadablePort<'_, T> {
     #[inline]
     fn get_value(&self, _now: &LogicalInstant, _start: &LogicalInstant) -> Option<T> where T: Copy {
         self.0.get()
@@ -55,11 +55,11 @@ impl< T> ReactionTrigger<T> for ReadablePort<'_, T> {
 }
 
 /// A write-only reference to a port.
-pub struct WritablePort<'a, T> {
+pub struct WritablePort<'a, T: Send> {
     port: &'a mut Port<T>,
 }
 
-impl<'a, T> WritablePort<'a, T> {
+impl<'a, T: Send> WritablePort<'a, T> {
     pub fn new(port: &'a mut Port<T>) -> Self {
         Self { port }
     }
@@ -95,13 +95,13 @@ impl<'a, T> WritablePort<'a, T> {
 /// runtime checks.
 ///
 ///
-pub struct Port<T> {
+pub struct Port<T: Send> {
     id: GlobalId,
     bind_status: BindStatus,
     upstream_binding: Rc<RefCell<Rc<PortCell<T>>>>,
 }
 
-impl<T> Port<T> {
+impl<T: Send> Port<T> {
     /// Create a new port
     pub fn new(id: GlobalId) -> Self {
         Self {
@@ -176,13 +176,13 @@ impl<T> Port<T> {
 }
 
 
-impl<T> Debug for Port<T> {
+impl<T: Send> Debug for Port<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.id)
     }
 }
 
-impl<T> TriggerLike for Port<T> {
+impl<T: Send> TriggerLike for Port<T> {
     fn get_id(&self) -> TriggerId {
         TriggerId(self.id)
     }
@@ -195,7 +195,7 @@ impl<T> TriggerLike for Port<T> {
 ///
 /// If the downstream port was already bound to some other port.
 ///
-pub(in crate) fn bind_ports<T>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), AssemblyError> {
+pub(in crate) fn bind_ports<T: Send>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), AssemblyError> {
     up.forward_to(down)
 }
 
@@ -217,7 +217,7 @@ enum BindStatus {
 
 
 /// This is the internal cell type that is shared by ports.
-struct PortCell<T> {
+struct PortCell<T: Send> {
     /// Cell for the value.
     cell: RefCell<Option<T>>,
 
@@ -240,7 +240,7 @@ struct PortCell<T> {
     downstreams: RefCell<HashMap<PortId, Rc<RefCell<Rc<PortCell<T>>>>>>,
 }
 
-impl<T> PortCell<T> {
+impl<T: Send> PortCell<T> {
     fn check_cycle(&self, upstream_id: &PortId, downstream_id: &PortId) -> Result<(), AssemblyError> {
         if (&*self.downstreams.borrow()).contains_key(upstream_id) {
             Err(AssemblyError::CyclicDependency(*upstream_id, *downstream_id))
@@ -258,7 +258,7 @@ impl<T> PortCell<T> {
     }
 }
 
-impl<T> Default for PortCell<T> {
+impl<T: Send> Default for PortCell<T> {
     fn default() -> Self {
         PortCell {
             cell: Default::default(),
