@@ -91,17 +91,17 @@ impl<'x> AssemblyCtx<'x> {
         Port::new(id)
     }
 
-    pub fn new_logical_action<T: Clone>(&mut self,
-                                        lf_name: &'static str,
-                                        min_delay: Option<Duration>) -> LogicalAction<T> {
+    pub fn new_logical_action<T: Send>(&mut self,
+                                       lf_name: &'static str,
+                                       min_delay: Option<Duration>) -> LogicalAction<T> {
         let id = self.next_comp_id(Some(lf_name));
         self.globals.graph.record_laction(id);
         LogicalAction::new(id, min_delay)
     }
 
-    pub fn new_physical_action<T: Clone>(&mut self,
-                                         lf_name: &'static str,
-                                         min_delay: Option<Duration>) -> PhysicalAction<T> {
+    pub fn new_physical_action<T: Send>(&mut self,
+                                        lf_name: &'static str,
+                                        min_delay: Option<Duration>) -> PhysicalAction<T> {
         let id = self.next_comp_id(Some(lf_name));
         self.globals.graph.record_paction(id);
         PhysicalAction::new(id, min_delay)

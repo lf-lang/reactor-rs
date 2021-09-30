@@ -143,7 +143,7 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// ctx.schedule(action, After(Duration::from_nanos(120)));
     /// ```
     #[inline]
-    pub fn schedule<T>(&mut self, action: &mut LogicalAction<T>, offset: Offset) {
+    pub fn schedule<T: Send>(&mut self, action: &mut LogicalAction<T>, offset: Offset) {
         self.schedule_with_v(action, None, offset)
     }
 
@@ -174,12 +174,12 @@ impl<'x> ReactionCtx<'_, 'x> {
     /// ctx.schedule(action, Asap);
     /// ```
     #[inline]
-    pub fn schedule_with_v<T>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
+    pub fn schedule_with_v<T: Send>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
         self.schedule_impl(action, value, offset);
     }
 
     #[inline]
-    fn schedule_impl<K, T>(&mut self, action: &mut Action<K, T>, value: Option<T>, offset: Offset) {
+    fn schedule_impl<K, T: Send>(&mut self, action: &mut Action<K, T>, value: Option<T>, offset: Offset) {
         let eta = action.make_eta(self.wave.logical_time, offset.to_duration());
         action.schedule_future_value(eta, value);
         let downstream = self.wave.dataflow.reactions_triggered_by(&action.get_id());
@@ -352,7 +352,7 @@ impl<'x> SchedulerLink<'x> {
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
-    pub fn schedule_physical<T: Clone>(&mut self, action: &mut PhysicalAction<T>, value: Option<T>, offset: Offset) {
+    pub fn schedule_physical<T: Send>(&mut self, action: &mut PhysicalAction<T>, value: Option<T>, offset: Offset) {
         // we have to fetch the time at which the logical timeline is currently running,
         // this may be far behind the current physical time
         let time_in_logical_subsystem = self.last_processed_logical_time.lock().unwrap().get();
@@ -582,7 +582,7 @@ impl CleanupCtx {
         port.clear_value()
     }
 
-    pub fn cleanup_action<T: Clone>(&self, action: &mut LogicalAction<T>) {
+    pub fn cleanup_action<T: Send>(&self, action: &mut LogicalAction<T>) {
         action.forget_value(&self.tag)
     }
 }

@@ -36,10 +36,10 @@ pub struct Logical;
 #[doc(hidden)]
 pub struct Physical;
 
-pub type LogicalAction<T> = Action<Logical, T>;
-pub type PhysicalAction<T> = Action<Physical, T>;
+pub type LogicalAction<T: Send> = Action<Logical, T>;
+pub type PhysicalAction<T: Send> = Action<Physical, T>;
 
-pub struct Action<Kind, T> {
+pub struct Action<Kind, T: Send> {
     pub min_delay: Duration,
     id: GlobalId,
     is_logical: bool,
@@ -58,7 +58,7 @@ pub struct Action<Kind, T> {
     map: HashMap<LogicalInstant, Option<T>>,
 }
 
-impl<K, T> Action<K, T> {
+impl<K, T: Send> Action<K, T> {
     /// Record a future value that can be queried at a future logical time.
     /// Note that we don't check that the given time is in the future. If it's
     /// in the past, the value will never be reclaimed.
@@ -108,7 +108,7 @@ impl<K, T> Action<K, T> {
     }
 }
 
-impl<T, K> ReactionTrigger<T> for Action<K, T> {
+impl<T: Send, K> ReactionTrigger<T> for Action<K, T> {
     #[inline]
     fn is_present(&self, now: &LogicalInstant, _start: &LogicalInstant) -> bool {
         self.map.contains_key(now)
@@ -128,19 +128,19 @@ impl<T, K> ReactionTrigger<T> for Action<K, T> {
 }
 
 
-impl<T> LogicalAction<T> {
+impl<T: Send> LogicalAction<T> {
     pub fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
         Self::new_impl(id, min_delay, true)
     }
 }
 
-impl<T> PhysicalAction<T> {
+impl<T: Send> PhysicalAction<T> {
     pub fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
         Self::new_impl(id, min_delay, false)
     }
 }
 
-impl<K, T> TriggerLike for Action<K, T> {
+impl<K, T: Send> TriggerLike for Action<K, T> {
     fn get_id(&self) -> TriggerId {
         TriggerId(self.id)
     }
