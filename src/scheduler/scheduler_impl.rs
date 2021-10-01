@@ -119,7 +119,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         // contexts can be spawned in a thread that captures references
         // to 'x.
         scope(|scope| {
-            let mut scheduler = SyncScheduler::new(
+            let scheduler = SyncScheduler::new(
                 options,
                 id_registry,
                 &dataflow_info,
@@ -312,7 +312,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
     fn new_reaction_ctx(&self, current_time: LogicalInstant) -> ReactionCtx<'a, 'x, 't> {
-        ReactionWave::new(
+        ReactionCtx::new(
             self.tx.clone(),
             current_time,
             // note: initializing self.initial_time is the
@@ -322,7 +322,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             self.dataflow,
             self.latest_processed_tag,
             self.thread_spawner,
-        ).new_ctx()
+        )
     }
 
     fn display_tag(&self, tag: LogicalInstant) -> String {

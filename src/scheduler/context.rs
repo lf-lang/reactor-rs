@@ -20,8 +20,6 @@ use super::*;
 // ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&mut).
 pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
-    /// The reaction wave for the current tag.
-    wave: ReactionWave<'a, 'x, 't>,
 
     /// Remaining reactions to execute before the wave dies.
     /// Using [Option] and [Cow] optimises for the case where
@@ -35,9 +33,45 @@ pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
 
     /// Whether some reaction has called [Self::request_stop].
     requested_stop: bool,
+
+    /// Logical time of the execution of this wave, constant
+    /// during the existence of the object
+    pub(in super) current_time: LogicalInstant,
+
+    /// Sender to schedule events that should be executed later than this wave.
+    tx: Sender<Event<'x>>,
+
+    /// Start time of the program.
+    initial_time: LogicalInstant,
+
+    // globals
+    thread_spawner: &'a Scope<'t>,
+    dataflow: &'x DataflowInfo,
+    latest_processed_tag: &'x TimeCell,
 }
 
+
+
 impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
+    pub(in super) fn new(tx: Sender<Event<'x>>,
+                         current_time: LogicalInstant,
+                         initial_time: LogicalInstant,
+                         dataflow: &'x DataflowInfo,
+                         latest_processed_tag: &'x TimeCell,
+                         thread_spawner: &'a Scope<'t>) -> Self {
+        Self {
+            do_next: None,
+            requested_stop: false,
+            current_time,
+            tx,
+            initial_time,
+            dataflow,
+            latest_processed_tag,
+            thread_spawner,
+        }
+    }
+
+
     /// Returns the current value of a port or action at this
     /// logical time. If the value is absent, [Option::None] is
     /// returned.  This is the case if the action or port is
@@ -180,9 +214,9 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
     #[inline]
     fn schedule_impl<K, T: Send>(&mut self, action: &mut Action<K, T>, value: Option<T>, offset: Offset) {
-        let eta = action.make_eta(self.wave.logical_time, offset.to_duration());
+        let eta = action.make_eta(self.get_logical_time(), offset.to_duration());
         action.schedule_future_value(eta, value);
-        let downstream = self.wave.dataflow.reactions_triggered_by(&action.get_id());
+        let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
         self.enqueue_later(downstream, eta);
     }
 
@@ -194,21 +228,32 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     #[inline]
     pub fn maybe_reschedule(&mut self, timer: &Timer) {
         if timer.is_periodic() {
-            let downstream = self.wave.dataflow.reactions_triggered_by(&timer.get_id());
-            self.enqueue_later(downstream, self.wave.logical_time + timer.period);
+            let downstream = self.dataflow.reactions_triggered_by(&timer.get_id());
+            self.enqueue_later(downstream, self.get_logical_time() + timer.period);
         }
     }
 
 
+    /// Add new reactions to execute later (at least 1 microstep later).
+    ///
+    /// This is used for actions.
     #[inline]
     pub(in crate) fn enqueue_later(&mut self, downstream: &'x ExecutableReactions, process_at: LogicalInstant) {
-        self.wave.enqueue_later(&downstream, process_at);
+        debug_assert!(process_at > self.current_time);
+
+        // todo merge events at equal tags by merging their dependencies
+        let evt = Event {
+            reactions: Cow::Borrowed(downstream),
+            tag: process_at,
+        };
+        // fixme we have mut access to scheduler, we should be able to avoid using a sender...
+        self.tx.send(evt).unwrap();
     }
 
     #[inline]
     pub(in crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions>) {
         match &mut self.do_next {
-            Some(ref mut do_next) => self.wave.dataflow.merge(do_next.to_mut(), downstream.as_ref()),
+            Some(ref mut do_next) => self.dataflow.merge(do_next.to_mut(), downstream.as_ref()),
             None => {
                 self.do_next = Some(downstream);
             }
@@ -218,13 +263,13 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     pub(in crate) fn make_executable(&self, reactions: &Vec<GlobalReactionId>) -> ExecutableReactions {
         let mut result = ExecutableReactions::new();
         for r in reactions {
-            self.wave.dataflow.augment(&mut result, *r)
+            self.dataflow.augment(&mut result, *r)
         }
         result
     }
 
     pub(in crate) fn reactions_triggered_by(&self, trigger: TriggerId) -> &'x ExecutableReactions {
-        self.wave.dataflow.reactions_triggered_by(&trigger)
+        self.dataflow.reactions_triggered_by(&trigger)
     }
 
     /// Spawn a new thread that can use a [PhysicalSchedulerLink]
@@ -257,11 +302,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         where F: FnOnce(&mut PhysicalSchedulerLink<'_, 'x, 't>) -> R,
               F: 'x + Send,
               R: 'x + Send {
-        let tx = self.wave.tx.clone();
-        let latest_processed_tag = self.wave.latest_processed_tag;
-        let dataflow = self.wave.dataflow;
+        let tx = self.tx.clone();
+        let latest_processed_tag = self.latest_processed_tag;
+        let dataflow = self.dataflow;
 
-        self.wave.thread_spawner.spawn(move |subscope| {
+        self.thread_spawner.spawn(move |subscope| {
             let mut link = PhysicalSchedulerLink {
                 latest_processed_tag,
                 tx,
@@ -285,7 +330,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// This is a logical instant with microstep zero.
     #[inline]
     pub fn get_start_time(&self) -> LogicalInstant {
-        self.wave.initial_time
+        self.initial_time
     }
 
     /// Returns the current physical time.
@@ -305,7 +350,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// the same value.
     #[inline]
     pub fn get_logical_time(&self) -> LogicalInstant {
-        self.wave.logical_time
+        self.current_time
     }
 
     /// Returns the amount of logical time elapsed since the
@@ -313,7 +358,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// into account.
     #[inline]
     pub fn get_elapsed_logical_time(&self) -> Duration {
-        self.get_logical_time().instant - self.wave.initial_time.instant
+        self.get_logical_time().instant - self.get_start_time().instant
     }
 
     /// Returns the amount of physical time elapsed since the
@@ -323,7 +368,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// this function's result may change over time.
     #[inline]
     pub fn get_elapsed_physical_time(&self) -> Duration {
-        self.get_physical_time() - self.wave.initial_time.instant
+        self.get_physical_time() - self.get_start_time().instant
     }
 
     /// Returns a string representation of the given time.
@@ -332,7 +377,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// it is relative to the start time of the execution ([Self::get_start_time]).
     #[inline]
     pub fn display_tag(&self, tag: LogicalInstant) -> String {
-        display_tag_impl(self.wave.initial_time, tag)
+        display_tag_impl(self.initial_time, tag)
     }
 
     /// Asserts that the current tag is equals to the tag
@@ -504,76 +549,6 @@ impl TagSpec {
             }
         }
     }
-}
-
-/// A "wave" of reactions executing at the same logical time.
-/// Waves can enqueue new reactions to execute at the same time,
-/// they're processed in exec order.
-/// todo implement parallelism then merge ReactionWave into ReactionCtx
-pub(in super) struct ReactionWave<'a, 'x, 't> where 'x: 't {
-    /// Logical time of the execution of this wave, constant
-    /// during the existence of the object
-    pub logical_time: LogicalInstant,
-
-    /// Sender to schedule events that should be executed later than this wave.
-    tx: Sender<Event<'x>>,
-
-    thread_spawner: &'a Scope<'t>,
-
-    /// Start time of the program.
-    initial_time: LogicalInstant,
-    dataflow: &'x DataflowInfo,
-    latest_processed_tag: &'x TimeCell,
-}
-
-impl<'a, 'x, 't> ReactionWave<'a, 'x, 't> where 'x: 't {
-    /// Create a new reaction wave to process the given
-    /// reactions at some point in time.
-    pub fn new(tx: Sender<Event<'x>>,
-               current_time: LogicalInstant,
-               initial_time: LogicalInstant,
-               dataflow: &'x DataflowInfo,
-               latest_processed_tag: &'x TimeCell,
-               thread_spawner: &'a Scope<'t>) -> Self {
-        ReactionWave {
-            logical_time: current_time,
-            tx,
-            initial_time,
-            dataflow,
-            latest_processed_tag,
-            thread_spawner,
-        }
-    }
-
-    /// Add new reactions to execute later (at least 1 microstep later).
-    ///
-    /// This is used for actions.
-    #[inline]
-    pub fn enqueue_later(&mut self, downstream: &'x ExecutableReactions, process_at: LogicalInstant) {
-        debug_assert!(process_at > self.logical_time);
-
-        // todo merge events at equal tags by merging their dependencies
-        let evt = Event {
-            reactions: Cow::Borrowed(downstream),
-            tag: process_at,
-        };
-        // fixme we have mut access to scheduler, we should be able to avoid using a sender...
-        self.tx.send(evt).unwrap();
-    }
-
-    #[inline]
-    pub fn new_ctx(self) -> ReactionCtx<'a, 'x, 't> {
-        ReactionCtx {
-            do_next: <_>::default(),
-            wave: self,
-            requested_stop: false,
-        }
-    }
-}
-
-pub(in super) enum WaveResult {
-    Continue,
-    StopRequested,
 }
 
 /// The offset from the current logical time after which an
