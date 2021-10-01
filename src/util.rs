@@ -23,8 +23,9 @@
  */
 
 
-use std::time::Duration;
 use std::convert::TryFrom;
+use std::time::Duration;
+
 #[macro_export]
 macro_rules! join_to {
     ($f:expr, $iter:expr) => {join_to!($f, $iter, ", ")};

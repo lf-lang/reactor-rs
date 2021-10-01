@@ -26,6 +26,7 @@
 use std::borrow::Cow;
 
 use crossbeam::atomic::AtomicCell;
+use index_vec::IndexVec;
 
 pub use assembly::*;
 pub use context::*;
@@ -35,7 +36,6 @@ pub use scheduler_impl::*;
 use crate::{LogicalInstant, ReactorBehavior, ReactorId};
 
 use self::depgraph::ExecutableReactions;
-use index_vec::IndexVec;
 
 /// The internal cell type used to store a thread-safe mutable logical time value.
 type TimeCell = AtomicCell<LogicalInstant>;

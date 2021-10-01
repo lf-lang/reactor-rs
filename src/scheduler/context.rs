@@ -19,9 +19,9 @@ use super::*;
 // ReactionCtx is an API built around a ReactionWave. A single
 // ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&mut).
-pub struct ReactionCtx<'b, 'a, 'x, 't> where 'x: 't {
+pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// The reaction wave for the current tag.
-    wave: &'b mut ReactionWave<'a, 'x, 't>,
+    wave: ReactionWave<'a, 'x, 't>,
 
     /// Remaining reactions to execute before the wave dies.
     /// Using [Option] and [Cow] optimises for the case where
@@ -37,7 +37,7 @@ pub struct ReactionCtx<'b, 'a, 'x, 't> where 'x: 't {
     requested_stop: bool,
 }
 
-impl<'a, 'x, 't> ReactionCtx<'_, 'a, 'x, 't> where 'x: 't {
+impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// Returns the current value of a port or action at this
     /// logical time. If the value is absent, [Option::None] is
     /// returned.  This is the case if the action or port is
@@ -349,6 +349,72 @@ impl<'a, 'x, 't> ReactionCtx<'_, 'a, 'x, 't> where 'x: 't {
         }
     }
 
+    /// Execute the wave until completion.
+    /// The parameter is the list of reactions to start with.
+    pub(in super) fn process_entire_tag<'r>(
+        mut self,
+        scheduler: &mut SyncScheduler<'_, 'x, '_>,
+        reactors: &mut ReactorVec<'r>,
+    ) {
+
+        // set of reactions that have been executed
+        let mut executed: HashSet<GlobalReactionId> = HashSet::new();
+        // The maximum layer number we've seen as of now.
+        // This must be increasing monotonically.
+        let mut max_layer = 0usize;
+
+        let mut requested_stop = false;
+        loop {
+            let mut progress = false;
+            match self.do_next.take() {
+                None => {
+                    // nothing to do
+                    break;
+                }
+                Some(todo) => {
+                    for (layer_no, reactions) in todo.batches() {
+                        progress = true;
+
+                        for reaction_id in reactions {// todo parallelize this loop
+                            trace!("  - Executing {}", scheduler.display_reaction(*reaction_id));
+                            let reactor = &mut reactors[reaction_id.0.container()];
+
+                            // this may append new elements into the queue,
+                            // which is why we can't use an iterator
+                            reactor.react_erased(&mut self, reaction_id.0.local());
+                            requested_stop |= self.requested_stop;
+
+                            if cfg!(debug_assertions) {
+                                assert!(executed.insert(*reaction_id), "Duplicate reaction");
+                            }
+                        }
+
+
+                        if cfg!(debug_assertions) {
+                            debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected {} < {}", layer_no, max_layer);
+                            max_layer = max(max_layer, layer_no);
+                        }
+                    }
+                }
+            }
+
+            if !progress {
+                // no new batch, we're done
+                break;
+            }
+        }
+
+        if requested_stop {
+            scheduler.request_stop(self.get_logical_time().next_microstep());
+        }
+
+        // cleanup tag-specific resources, eg clear port values
+        let ctx = CleanupCtx { tag: self.get_logical_time() };
+        // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
+        for reactor in reactors {
+            reactor.cleanup_tag(&ctx)
+        }
+    }
 }
 
 
@@ -496,78 +562,11 @@ impl<'a, 'x, 't> ReactionWave<'a, 'x, 't> where 'x: 't {
     }
 
     #[inline]
-    pub fn new_ctx<'b>(&'b mut self) -> ReactionCtx<'b, 'a, 'x, 't> {
+    pub fn new_ctx(self) -> ReactionCtx<'a, 'x, 't> {
         ReactionCtx {
             do_next: <_>::default(),
             wave: self,
             requested_stop: false,
-        }
-    }
-
-    /// Execute the wave until completion.
-    /// The parameter is the list of reactions to start with.
-    ///
-    /// Returns whether some reaction called [ReactionCtx#request_stop]
-    /// or not.
-    pub fn consume<'r>(
-        mut self,
-        scheduler: &mut SyncScheduler<'_, 'x, '_>,
-        reactors: &mut ReactorVec<'r>,
-        mut todo: Cow<'x, ExecutableReactions>,
-    ) -> WaveResult {
-
-        // set of reactions that have been executed
-        let mut executed: HashSet<GlobalReactionId> = HashSet::new();
-        // The maximum layer number we've seen as of now.
-        // This must be increasing monotonically.
-        let mut max_layer = 0usize;
-
-        let mut requested_stop = false;
-        let mut ctx = self.new_ctx();
-        loop {
-            let mut progress = false;
-
-            for (layer_no, reactions) in todo.batches() {
-                progress = true;
-
-                for reaction_id in reactions {
-                    trace!("  - Executing {}", scheduler.display_reaction(*reaction_id));
-                    let reactor = &mut reactors[reaction_id.0.container()];
-
-                    // this may append new elements into the queue,
-                    // which is why we can't use an iterator
-                    reactor.react_erased(&mut ctx, reaction_id.0.local());
-                    requested_stop |= ctx.requested_stop;
-
-                    if cfg!(debug_assertions) {
-                        assert!(executed.insert(*reaction_id), "Duplicate reaction");
-                    }
-                }
-
-
-                if cfg!(debug_assertions) {
-                    debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected {} < {}", layer_no, max_layer);
-                    max_layer = max(max_layer, layer_no);
-                }
-            }
-
-            if !progress {
-                // no new batch, we're done
-                break;
-            }
-
-            if let Some(cow) = ctx.do_next.take() {
-                todo = cow;
-            } else {
-                // nothing more to do
-                break;
-            }
-        }
-
-        if requested_stop {
-            WaveResult::StopRequested
-        } else {
-            WaveResult::Continue
         }
     }
 }
