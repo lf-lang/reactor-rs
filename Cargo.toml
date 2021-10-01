@@ -33,3 +33,7 @@ test-utils=["assert_matches"]
 [[bench]]
 name = "savina_pong"
 harness = false
+
+[profile.bench]
+debug = true
+
