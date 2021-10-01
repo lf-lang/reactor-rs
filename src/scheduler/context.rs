@@ -227,6 +227,51 @@ impl<'a, 'x, 't> ReactionCtx<'_, 'a, 'x, 't> where 'x: 't {
         self.wave.dataflow.reactions_triggered_by(&trigger)
     }
 
+    /// Spawn a new thread that can use a [PhysicalSchedulerLink]
+    /// to push asynchronous events to the reaction queue. This is
+    /// only useful with [physical actions](crate::PhysicalAction).
+    ///
+    /// Since the thread is allowed to keep references into the
+    /// internals of the scheduler, it is joined when the scheduler
+    /// shuts down.
+    /// todo clarify: will scheduler wait for joining,
+    ///  possibly indefinitely? will thread be terminated?
+    ///
+    /// ### Example
+    ///
+    /// ```no_run
+    /// # use reactor_rt::*;
+    /// fn some_reaction(ctx: &mut ReactionCtx, phys_action: &PhysicalActionRef<u32>) {
+    ///     let phys_action = phys_action.clone(); // clone to move it into other thread
+    ///     ctx.spawn_physical_thread(move |link| {
+    ///         std::thread::sleep(Duration::from_millis(200));
+    ///         // This will push an event whose tag is the
+    ///         // current physical time at the point of this
+    ///         // statement.
+    ///         link.schedule_physical_with_v(&phys_action, Some(123), Offset::Asap).unwrap();
+    ///     });
+    /// }
+    /// ```
+    ///
+    pub fn spawn_physical_thread<F, R>(&mut self, f: F) -> ScopedJoinHandle<R>
+        where F: FnOnce(&mut PhysicalSchedulerLink<'_, 'x, 't>) -> R,
+              F: 'x + Send,
+              R: 'x + Send {
+        let tx = self.wave.tx.clone();
+        let latest_processed_tag = self.wave.latest_processed_tag;
+        let dataflow = self.wave.dataflow;
+
+        self.wave.thread_spawner.spawn(move |subscope| {
+            let mut link = PhysicalSchedulerLink {
+                latest_processed_tag,
+                tx,
+                dataflow,
+                thread_spawner: subscope,
+            };
+            f(&mut link)
+        })
+    }
+
     /// Request a shutdown which will be acted upon at the
     /// next microstep. Before then, the current tag is
     /// processed until completion.
@@ -304,32 +349,16 @@ impl<'a, 'x, 't> ReactionCtx<'_, 'a, 'x, 't> where 'x: 't {
         }
     }
 
-
-    pub fn spawn_physical_thread<F, R>(&mut self, f: F) -> ScopedJoinHandle<R>
-        where F: FnOnce(&mut PhysicalSchedulerLink<'_, 'x, 't>) -> R,
-              F: 'x + Send,
-              R: 'x + Send {
-        let tx = self.wave.tx.clone();
-        let latest_processed_tag = self.wave.latest_processed_tag;
-        let dataflow = self.wave.dataflow;
-        let thread_spawner = self.wave.thread_spawner;
-
-        thread_spawner.spawn(move |subscope| {
-            let mut link = PhysicalSchedulerLink {
-                latest_processed_tag,
-                tx,
-                dataflow,
-                thread_spawner: subscope,
-            };
-            f(&mut link)
-        })
-    }
 }
 
 
 /// A type that can affect the logical event queue to implement
 /// asynchronous physical actions. This is a "link" to the event
 /// system, from the outside world.
+///
+/// todo this doesn't have capacity to call request_stop
+///
+/// See [ReactionCtx::spawn_physical_thread].
 #[derive(Clone)]
 pub struct PhysicalSchedulerLink<'a, 'x, 't> {
     latest_processed_tag: &'x TimeCell,

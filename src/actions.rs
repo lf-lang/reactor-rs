@@ -138,13 +138,13 @@ impl<T: Send, K> ReactionTrigger<T> for Action<K, T> {
 
 
 impl<T: Send> LogicalAction<T> {
-    pub fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
+    pub(crate) fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
         Self::new_impl(id, min_delay, true)
     }
 }
 
 impl<T: Send> PhysicalAction<T> {
-    pub fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
+    fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
         Self::new_impl(id, min_delay, false)
     }
 }
@@ -207,14 +207,17 @@ mod test {
 */
 
 
+/// A reference to a physical action. This thing is cloneable
+/// and can be sent to async threads.
+///
+/// See [crate::ReactionCtx::spawn_physical_thread].
 #[derive(Clone)]
 pub struct PhysicalActionRef<T: Send>(Arc<AtomicRefCell<PhysicalAction<T>>>);
 
 impl<T: Send> PhysicalActionRef<T> {
-    pub fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
+    pub(crate) fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
         Self(Arc::new(AtomicRefCell::new(PhysicalAction::new(id, min_delay))))
     }
-
 
     pub(crate) fn use_mut<O>(&self, f: impl FnOnce(&mut PhysicalAction<T>) -> O) -> O {
         let mut refmut = self.0.deref().borrow_mut();
