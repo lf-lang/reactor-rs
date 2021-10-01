@@ -9,6 +9,7 @@ use crate::*;
 use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
 
 use super::*;
+use rayon::prelude::*;
 
 /// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
@@ -254,10 +255,8 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     #[inline]
     pub(in crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions>) {
         match &mut self.todo {
-            Some(ref mut do_next) => self.dataflow.merge(do_next.to_mut(), downstream.as_ref()),
-            None => {
-                self.todo = Some(downstream);
-            }
+            Some(ref mut do_next) => do_next.to_mut().absorb(downstream.as_ref()),
+            None => self.todo = Some(downstream)
         }
     }
 
@@ -395,6 +394,19 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         }
     }
 
+    fn fork(&self) -> Self {
+        Self {
+            todo: None,
+            requested_stop: self.requested_stop,
+            current_time: self.current_time,
+            tx: self.tx.clone(),
+            initial_time: self.initial_time,
+            thread_spawner: self.thread_spawner,
+            dataflow: self.dataflow,
+            latest_processed_tag: self.latest_processed_tag,
+        }
+    }
+
     /// Execute the wave until completion.
     /// The parameter is the list of reactions to start with.
     pub(in super) fn process_entire_tag<'r>(
@@ -418,10 +430,16 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                     break;
                 }
                 Some(todo) => {
-                    for (layer_no, reactions) in todo.batches() {
+                    for (layer_no, batch) in todo.batches() {
+                        // none of the reactions in the batch have data dependencies
                         progress = true;
 
-                        for reaction_id in reactions {// todo parallelize this loop
+                        for reaction_id in batch {
+                            // todo parallelize this loop. Each task needs
+                            //  - a ref mut into the reactors vec -> we need unsafe
+                            //  - a cloned Sender
+                            //  - a separate ReactionCtx -> then we need to merge all parallel ctx.do_next
+                            //  - ....maybe we need ReactionWave back, so that making a new ReactionCtx is cheaper...
                             trace!("  - Executing {}", scheduler.display_reaction(*reaction_id));
                             let reactor = &mut reactors[reaction_id.0.container()];
 
@@ -430,11 +448,8 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                             reactor.react_erased(&mut self, reaction_id.0.local());
                             requested_stop |= self.requested_stop;
 
-                            if cfg!(debug_assertions) {
-                                assert!(executed.insert(*reaction_id), "Duplicate reaction");
-                            }
+                            debug_assert!(executed.insert(*reaction_id), "Duplicate reaction");
                         }
-
 
                         if cfg!(debug_assertions) {
                             debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected {} < {}", layer_no, max_layer);

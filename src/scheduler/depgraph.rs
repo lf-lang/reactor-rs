@@ -269,29 +269,6 @@ impl ReactionLayerInfo {
             layers.push(new_layer);
         }
     }
-
-    /// Merge the second set of reactions into the first.
-    fn merge(&self,
-             ExecutableReactions(dst): &mut ExecutableReactions,
-             ExecutableReactions(src): &ExecutableReactions) {
-        if src.len() > dst.len() {
-            dst.reserve(src.len() - dst.len());
-        }
-
-        let dst_end = dst.len();
-
-        for (i, src_layer) in src.iter().enumerate() {
-            if i >= dst_end {
-                debug_assert_eq!(i, dst.len());
-                dst.push(src_layer.clone());
-            } else {
-                // merge into existing layer
-                // note that we could probs replace get_mut(i).unwrap() with (unsafe) get_unchecked_mut(i)
-                let dst_layer = dst.get_mut(i).unwrap();
-                dst_layer.extend(src_layer);
-            }
-        }
-    }
 }
 
 /// Pre-calculated dependency information,
@@ -365,7 +342,7 @@ impl DataflowInfo {
 
     /// Merge the second set of reactions into the first.
     pub fn merge(&self, dst: &mut ExecutableReactions, src: &ExecutableReactions) {
-        self.layer_info.merge(dst, src)
+        dst.absorb(src)
     }
 
     /// Returns the set of reactions that needs to be scheduled
@@ -412,6 +389,28 @@ impl ExecutableReactions {
     /// and avoid more allocation.
     pub fn batches(&self) -> impl Iterator<Item=(usize, &HashSet<GlobalReactionId>)> {
         self.0.iter().enumerate().filter(|it| !it.1.is_empty())
+    }
+
+    /// Merge the given set of reactions into this one.
+    pub fn absorb(&mut self, ExecutableReactions(src): &ExecutableReactions) {
+        let ExecutableReactions(dst) = self;
+        if src.len() > dst.len() {
+            dst.reserve(src.len() - dst.len());
+        }
+
+        let dst_end = dst.len();
+
+        for (i, src_layer) in src.iter().enumerate() {
+            if i >= dst_end {
+                debug_assert_eq!(i, dst.len());
+                dst.push(src_layer.clone());
+            } else {
+                // merge into existing layer
+                // note that we could probs replace get_mut(i).unwrap() with (unsafe) get_unchecked_mut(i)
+                let dst_layer = dst.get_mut(i).unwrap();
+                dst_layer.extend(src_layer);
+            }
+        }
     }
 }
 

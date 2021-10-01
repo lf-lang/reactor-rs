@@ -47,6 +47,7 @@ extern crate index_vec;
 extern crate log;
 #[macro_use]
 extern crate smallvec;
+extern crate rayon;
 
 pub use std::time::Duration;
 // reexport those to complement our LogicalInstant

@@ -94,7 +94,7 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
 }
 
 impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
-    pub fn run_main<R: ReactorInitializer + Send + 'static>(options: SchedulerOptions, args: R::Params) {
+    pub fn run_main<R: ReactorInitializer + Send + Sync + 'static>(options: SchedulerOptions, args: R::Params) {
         let mut root_assembler = RootAssembler::default();
         let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler, ReactorDebugInfo::root::<R::Wrapped>());
 
@@ -236,7 +236,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     fn do_push_event(&self, event_queue: &mut EventQueue<'x>, evt: Event<'x>) {
         trace!("Pushing {}", self.display_event(&evt, evt.tag));
-        event_queue.insert(&self.dataflow, evt);
+        event_queue.insert(evt);
     }
 
     /// Returns whether the given event should be ignored and
@@ -283,7 +283,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         let time = self.catch_up_physical_time(event.tag);
         self.latest_processed_tag.store(time); // set the time so that scheduler links can know that.
 
-        let mut ctx = self.new_reaction_ctx(time, Some(event.reactions));
+        let ctx = self.new_reaction_ctx(time, Some(event.reactions));
         ctx.process_entire_tag(self, reactors)
     }
 

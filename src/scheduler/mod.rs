@@ -50,7 +50,7 @@ pub(in self) struct Event<'x> {
     pub(in self) tag: LogicalInstant,
 }
 
-pub(in self) type ReactorVec<'x> = IndexVec<ReactorId, Box<dyn ReactorBehavior + Send + 'x>>;
+pub(in self) type ReactorVec<'x> = IndexVec<ReactorId, Box<dyn ReactorBehavior + Send + Sync + 'x>>;
 
 mod context;
 mod scheduler_impl;
