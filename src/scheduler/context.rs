@@ -29,14 +29,14 @@ pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// This is mutable: if a reaction sets a port, then the
     /// downstream of that port is inserted in into this
     /// data structure.
-    pub(in super) do_next: Option<Cow<'x, ExecutableReactions>>,
+    todo: Option<Cow<'x, ExecutableReactions>>,
 
     /// Whether some reaction has called [Self::request_stop].
     requested_stop: bool,
 
     /// Logical time of the execution of this wave, constant
     /// during the existence of the object
-    pub(in super) current_time: LogicalInstant,
+    current_time: LogicalInstant,
 
     /// Sender to schedule events that should be executed later than this wave.
     tx: Sender<Event<'x>>,
@@ -56,11 +56,12 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     pub(in super) fn new(tx: Sender<Event<'x>>,
                          current_time: LogicalInstant,
                          initial_time: LogicalInstant,
+                         todo: Option<Cow<'x, ExecutableReactions>>,
                          dataflow: &'x DataflowInfo,
                          latest_processed_tag: &'x TimeCell,
                          thread_spawner: &'a Scope<'t>) -> Self {
         Self {
-            do_next: None,
+            todo,
             requested_stop: false,
             current_time,
             tx,
@@ -239,7 +240,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// This is used for actions.
     #[inline]
     pub(in crate) fn enqueue_later(&mut self, downstream: &'x ExecutableReactions, process_at: LogicalInstant) {
-        debug_assert!(process_at > self.current_time);
+        debug_assert!(process_at > self.get_logical_time());
 
         // todo merge events at equal tags by merging their dependencies
         let evt = Event {
@@ -252,10 +253,10 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
     #[inline]
     pub(in crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions>) {
-        match &mut self.do_next {
+        match &mut self.todo {
             Some(ref mut do_next) => self.dataflow.merge(do_next.to_mut(), downstream.as_ref()),
             None => {
-                self.do_next = Some(downstream);
+                self.todo = Some(downstream);
             }
         }
     }
@@ -411,7 +412,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         let mut requested_stop = false;
         loop {
             let mut progress = false;
-            match self.do_next.take() {
+            match self.todo.take() {
                 None => {
                     // nothing to do
                     break;

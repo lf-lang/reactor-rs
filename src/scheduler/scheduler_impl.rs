@@ -222,7 +222,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                         time: LogicalInstant,
                         reactors: &mut ReactorVec<'r>,
                         enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'r), &mut StartupCtx)) {
-        let mut startup_ctx = StartupCtx { ctx: self.new_reaction_ctx(time) };
+        let mut startup_ctx = StartupCtx { ctx: self.new_reaction_ctx(time, None) };
         for reactor in reactors.iter() {
             enqueue_fun(reactor.as_ref(), &mut startup_ctx);
         }
@@ -283,8 +283,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         let time = self.catch_up_physical_time(event.tag);
         self.latest_processed_tag.store(time); // set the time so that scheduler links can know that.
 
-        let mut ctx = self.new_reaction_ctx(time);
-        ctx.do_next = Some(event.reactions);
+        let mut ctx = self.new_reaction_ctx(time, Some(event.reactions));
         ctx.process_entire_tag(self, reactors)
     }
 
@@ -311,7 +310,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    fn new_reaction_ctx(&self, current_time: LogicalInstant) -> ReactionCtx<'a, 'x, 't> {
+    fn new_reaction_ctx(&self, current_time: LogicalInstant, todo: Option<Cow<'x, ExecutableReactions>>) -> ReactionCtx<'a, 'x, 't> {
         ReactionCtx::new(
             self.tx.clone(),
             current_time,
@@ -319,6 +318,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             // first thing done during startup so the unwrap
             // should never panic
             self.initial_time.unwrap(),
+            todo,
             self.dataflow,
             self.latest_processed_tag,
             self.thread_spawner,
