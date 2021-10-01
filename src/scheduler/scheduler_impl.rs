@@ -31,7 +31,6 @@ use std::sync::mpsc::{channel, Receiver, Sender};
 
 use crossbeam::scope;
 use crossbeam::thread::Scope;
-use index_vec::IndexVec;
 
 use crate::*;
 use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
@@ -91,9 +90,6 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     shutdown_time: Option<LogicalInstant>,
     options: SchedulerOptions,
 
-    /// All reactors.
-    reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + Send + 'x>>,
-
     id_registry: IdRegistry,
 }
 
@@ -106,7 +102,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         assembler.register_reactor(main_reactor);
 
 
-        let RootAssembler { graph, reactors, id_registry, .. } = root_assembler;
+        let RootAssembler { graph, mut reactors, id_registry, .. } = root_assembler;
 
         #[cfg(feature = "graph-dump")] {
             eprintln!("{}", graph.format_dot(&id_registry));
@@ -125,7 +121,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         scope(|scope| {
             let mut scheduler = SyncScheduler::new(
                 options,
-                reactors,
                 id_registry,
                 &dependency_info,
                 &time_cell,
@@ -133,8 +128,8 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             );
 
             info!("Triggering startup...");
-            scheduler.startup();
-            scheduler.launch_event_loop();
+            scheduler.startup(&mut reactors);
+            scheduler.launch_event_loop(&mut reactors);
         }).unwrap();
     }
 
@@ -143,7 +138,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// See [Self::launch_async].
     fn new(
         options: SchedulerOptions,
-        reactors: IndexVec<ReactorId, Box<dyn ReactorBehavior + 'static + Send>>,
         id_registry: IdRegistry,
         dependency_info: &'x DataflowInfo,
         latest_processed_tag: &'x TimeCell,
@@ -158,7 +152,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             shutdown_time: None,
             options,
             dataflow: dependency_info,
-            reactors,
             id_registry,
             thread_spawner,
         }
@@ -169,41 +162,44 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// physical time, and runs the startup reactions
     /// of all reactors.
     ///
-    fn startup(&mut self) {
+    fn startup<'r>(&mut self, reactors: &mut ReactorVec<'r>) {
         let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
         if let Some(timeout) = self.options.timeout {
             trace!("Timeout specified, will shut down at tag {}", self.display_tag(initial_time + timeout));
-
             self.shutdown_time = Some(initial_time + timeout)
         }
 
-        debug_assert!(!self.reactors.is_empty(), "No registered reactors");
-        self.execute_wave(initial_time, ReactorBehavior::enqueue_startup);
+        debug_assert!(!reactors.is_empty(), "No registered reactors");
+        self.execute_wave(initial_time, reactors, ReactorBehavior::enqueue_startup);
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown<'r>(&mut self, reactors: &mut ReactorVec<'r>) {
         let shutdown_time = self.shutdown_time.unwrap_or_else(LogicalInstant::now);
-        self.execute_wave(shutdown_time, ReactorBehavior::enqueue_shutdown);
+        self.execute_wave(shutdown_time, reactors, ReactorBehavior::enqueue_shutdown);
     }
 
-    fn execute_wave(&mut self,
-                    time: LogicalInstant,
-                    enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'x), &mut StartupCtx)) {
+    fn execute_wave<'r>(&mut self,
+                        time: LogicalInstant,
+                        reactors: &mut ReactorVec<'r>,
+                        enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'r), &mut StartupCtx)) {
         let mut wave = self.new_wave(time);
         let mut ctx = StartupCtx { ctx: wave.new_ctx() };
-        for reactor in &self.reactors {
+        for reactor in reactors.iter() {
             enqueue_fun(reactor.as_ref(), &mut ctx);
         }
         // now execute all reactions that were scheduled
         let todo = ctx.ctx.do_next;
 
-        self.consume_wave(wave, todo.unwrap_or_default())
+        self.consume_wave(wave, reactors, todo.unwrap_or_default())
     }
 
-    fn consume_wave(&mut self, wave: ReactionWave<'_, 'x, 't>, plan: Cow<'x, ExecutableReactions>) {
+    fn consume_wave<'r>(&mut self,
+                        wave: ReactionWave<'_, 'x, 't>,
+                        reactors: &mut ReactorVec<'r>,
+                        plan: Cow<'x, ExecutableReactions>) {
         let logical_time = wave.logical_time;
-        match wave.consume(self, plan) {
+        match wave.consume(self, reactors, plan) {
             WaveResult::Continue => {}
             WaveResult::StopRequested => {
                 let time = logical_time.next_microstep();
@@ -216,19 +212,15 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
         let ctx = CleanupCtx { tag: logical_time };
         // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
-        for reactor in &mut self.reactors {
+        for reactor in reactors {
             reactor.cleanup_tag(&ctx)
         }
-    }
-
-    pub(in super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut Box<dyn ReactorBehavior + Send + 'x> {
-        &mut self.reactors[id]
     }
 
     /// Launch the event loop in this thread.
     ///
     /// Note that this assumes [startup] has already been called.
-    fn launch_event_loop(mut self) {
+    fn launch_event_loop<'r>(mut self, reactors: &mut ReactorVec<'r>) {
         let mut event_queue: EventQueue<'x> = Default::default();
 
         /************************************************
@@ -247,7 +239,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 }
                 // execute the wave for this event.
                 trace!("Processing event for tag {}", self.display_tag(evt.tag));
-                self.step(evt);
+                self.step(evt, reactors);
             } else if let Some(evt) = self.receive_event() { // this may block
                 self.do_push_event(&mut event_queue, evt);
                 continue;
@@ -258,7 +250,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         } // end loop
 
         info!("Scheduler is shutting down...");
-        self.shutdown();
+        self.shutdown(reactors);
         info!("Scheduler has been shut down")
 
         // self destructor is called here
@@ -309,12 +301,12 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Execute a wave. This may make the calling thread
     /// (the scheduler one) sleep, if the expected processing
     /// time (logical) is ahead of current physical time.
-    fn step(&mut self, event: Event<'x>) {
+    fn step<'r>(&mut self, event: Event<'x>, reactors: &mut ReactorVec<'r>) {
         let time = self.catch_up_physical_time(event.tag);
         self.latest_processed_tag.store(time); // set the time so that scheduler links can know that.
 
         let wave = self.new_wave(time);
-        self.consume_wave(wave, event.reactions);
+        self.consume_wave(wave, reactors, event.reactions);
     }
 
     fn catch_up_physical_time(&mut self, up_to_time: LogicalInstant) -> LogicalInstant {

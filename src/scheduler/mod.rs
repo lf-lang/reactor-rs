@@ -32,9 +32,10 @@ pub use context::*;
 pub(in self) use event_queue::*;
 pub use scheduler_impl::*;
 
-use crate::LogicalInstant;
+use crate::{LogicalInstant, ReactorBehavior, ReactorId};
 
 use self::depgraph::ExecutableReactions;
+use index_vec::IndexVec;
 
 /// The internal cell type used to store a thread-safe mutable logical time value.
 type TimeCell = AtomicCell<LogicalInstant>;
@@ -48,6 +49,8 @@ pub(in self) struct Event<'x> {
     pub(in self) reactions: Cow<'x, ExecutableReactions>,
     pub(in self) tag: LogicalInstant,
 }
+
+pub(in self) type ReactorVec<'x> = IndexVec<ReactorId, Box<dyn ReactorBehavior + Send + 'x>>;
 
 mod context;
 mod scheduler_impl;

@@ -443,6 +443,7 @@ impl TagSpec {
 /// A "wave" of reactions executing at the same logical time.
 /// Waves can enqueue new reactions to execute at the same time,
 /// they're processed in exec order.
+/// todo implement parallelism then merge ReactionWave into ReactionCtx
 pub(in super) struct ReactionWave<'a, 'x, 't> where 'x: 't {
     /// Logical time of the execution of this wave, constant
     /// during the existence of the object
@@ -490,6 +491,7 @@ impl<'a, 'x, 't> ReactionWave<'a, 'x, 't> where 'x: 't {
             reactions: Cow::Borrowed(downstream),
             tag: process_at,
         };
+        // fixme we have mut access to scheduler, we should be able to avoid using a sender...
         self.tx.send(evt).unwrap();
     }
 
@@ -507,7 +509,12 @@ impl<'a, 'x, 't> ReactionWave<'a, 'x, 't> where 'x: 't {
     ///
     /// Returns whether some reaction called [ReactionCtx#request_stop]
     /// or not.
-    pub fn consume(mut self, scheduler: &mut SyncScheduler<'_, 'x, '_>, mut todo: Cow<'x, ExecutableReactions>) -> WaveResult {
+    pub fn consume<'r>(
+        mut self,
+        scheduler: &mut SyncScheduler<'_, 'x, '_>,
+        reactors: &mut ReactorVec<'r>,
+        mut todo: Cow<'x, ExecutableReactions>,
+    ) -> WaveResult {
 
         // set of reactions that have been executed
         let mut executed: HashSet<GlobalReactionId> = HashSet::new();
@@ -525,7 +532,7 @@ impl<'a, 'x, 't> ReactionWave<'a, 'x, 't> where 'x: 't {
 
                 for reaction_id in reactions {
                     trace!("  - Executing {}", scheduler.display_reaction(*reaction_id));
-                    let reactor = scheduler.get_reactor_mut(reaction_id.0.container());
+                    let reactor = &mut reactors[reaction_id.0.container()];
 
                     // this may append new elements into the queue,
                     // which is why we can't use an iterator
