@@ -1,0 +1,44 @@
+target Rust {
+    cargo-features: ["cli"],
+    cargo-dependencies: {
+        rand: "0.8",
+        mazelib: {
+            path: "/home/clem/Documents/Git/rs-maze"
+        }
+    }
+};
+
+main reactor MazeProgram(rows: usize(20), cols: usize(20), seed: u64(0)) {
+
+    maze = new MazePrinter(rows=rows, cols=cols, seed=seed);
+
+}
+
+
+reactor MazePrinter(rows: usize(20), cols: usize(20), seed: u64(0)) {
+    preamble {=
+        use mazelib::*;
+        use rand::rngs::StdRng;
+        use rand::Rng;
+        use rand::SeedableRng;
+    =}
+
+
+    timer refresh_screen(100 msec, 30 msec);
+    state player_position: Cell ({= cell(0,0) =});
+
+    state maze: Maze({= {
+        let mut rng = StdRng::seed_from_u64(seed);
+        let mut maze = Maze::new(rows, cols, &mut rng);
+        maze.generate_prim(&mut rng);
+        maze
+    } =});
+
+    reaction(refresh_screen) {=
+        let mut str = String::new();
+        self.maze.display(&mut str, self.player_position);
+        println!("{}", str);
+    =}
+
+
+}
