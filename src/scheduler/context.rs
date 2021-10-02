@@ -20,37 +20,7 @@ use rayon::prelude::*;
 // ReactionCtx is an API built around a ReactionWave. A single
 // ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&mut).
-pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
-
-    /// Remaining reactions to execute before the wave dies.
-    /// Using [Option] and [Cow] optimises for the case where
-    /// zero or exactly one port/action is set, and minimises
-    /// copies.
-    ///
-    /// This is mutable: if a reaction sets a port, then the
-    /// downstream of that port is inserted in into this
-    /// data structure.
-    todo: Option<Cow<'x, ExecutableReactions>>,
-
-    /// Whether some reaction has called [Self::request_stop].
-    requested_stop: bool,
-
-    /// Logical time of the execution of this wave, constant
-    /// during the existence of the object
-    current_time: LogicalInstant,
-
-    /// Sender to schedule events that should be executed later than this wave.
-    tx: Sender<Event<'x>>,
-
-    /// Start time of the program.
-    initial_time: LogicalInstant,
-
-    // globals
-    thread_spawner: &'a Scope<'t>,
-    dataflow: &'x DataflowInfo,
-    latest_processed_tag: &'x TimeCell,
-}
-
+pub struct ReactionCtx<'a, 'x, 't>(RContextInner<'a, 'x, 't>) where 'x: 't;
 
 
 impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
@@ -61,7 +31,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                          dataflow: &'x DataflowInfo,
                          latest_processed_tag: &'x TimeCell,
                          thread_spawner: &'a Scope<'t>) -> Self {
-        Self {
+        Self(RContextInner {
             todo,
             requested_stop: false,
             current_time,
@@ -70,7 +40,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
             dataflow,
             latest_processed_tag,
             thread_spawner,
-        }
+        })
     }
 
 
@@ -218,7 +188,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     fn schedule_impl<K, T: Send>(&mut self, action: &mut Action<K, T>, value: Option<T>, offset: Offset) {
         let eta = action.make_eta(self.get_logical_time(), offset.to_duration());
         action.schedule_future_value(eta, value);
-        let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
+        let downstream = self.0.dataflow.reactions_triggered_by(&action.get_id());
         self.enqueue_later(downstream, eta);
     }
 
@@ -230,7 +200,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     #[inline]
     pub fn maybe_reschedule(&mut self, timer: &Timer) {
         if timer.is_periodic() {
-            let downstream = self.dataflow.reactions_triggered_by(&timer.get_id());
+            let downstream = self.0.dataflow.reactions_triggered_by(&timer.get_id());
             self.enqueue_later(downstream, self.get_logical_time() + timer.period);
         }
     }
@@ -249,27 +219,27 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
             tag: process_at,
         };
         // fixme we have mut access to scheduler, we should be able to avoid using a sender...
-        self.tx.send(evt).unwrap();
+        self.0.tx.send(evt).unwrap();
     }
 
     #[inline]
     pub(in crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions>) {
-        match &mut self.todo {
+        match &mut self.0.todo {
             Some(ref mut do_next) => do_next.to_mut().absorb(downstream.as_ref()),
-            None => self.todo = Some(downstream)
+            None => self.0.todo = Some(downstream)
         }
     }
 
     pub(in crate) fn make_executable(&self, reactions: &Vec<GlobalReactionId>) -> ExecutableReactions {
         let mut result = ExecutableReactions::new();
         for r in reactions {
-            self.dataflow.augment(&mut result, *r)
+            self.0.dataflow.augment(&mut result, *r)
         }
         result
     }
 
     pub(in crate) fn reactions_triggered_by(&self, trigger: TriggerId) -> &'x ExecutableReactions {
-        self.dataflow.reactions_triggered_by(&trigger)
+        self.0.dataflow.reactions_triggered_by(&trigger)
     }
 
     /// Spawn a new thread that can use a [PhysicalSchedulerLink]
@@ -302,11 +272,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         where F: FnOnce(&mut PhysicalSchedulerLink<'_, 'x, 't>) -> R,
               F: 'x + Send,
               R: 'x + Send {
-        let tx = self.tx.clone();
-        let latest_processed_tag = self.latest_processed_tag;
-        let dataflow = self.dataflow;
+        let tx = self.0.tx.clone();
+        let latest_processed_tag = self.0.latest_processed_tag;
+        let dataflow = self.0.dataflow;
 
-        self.thread_spawner.spawn(move |subscope| {
+        self.0.thread_spawner.spawn(move |subscope| {
             let mut link = PhysicalSchedulerLink {
                 latest_processed_tag,
                 tx,
@@ -322,7 +292,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// processed until completion.
     #[inline]
     pub fn request_stop(&mut self) {
-        self.requested_stop = true;
+        self.0.requested_stop = true;
     }
 
     /// Returns the start time of the execution of this program.
@@ -330,7 +300,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// This is a logical instant with microstep zero.
     #[inline]
     pub fn get_start_time(&self) -> LogicalInstant {
-        self.initial_time
+        self.0.initial_time
     }
 
     /// Returns the current physical time.
@@ -350,7 +320,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// the same value.
     #[inline]
     pub fn get_logical_time(&self) -> LogicalInstant {
-        self.current_time
+        self.0.current_time
     }
 
     /// Returns the amount of logical time elapsed since the
@@ -377,7 +347,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// it is relative to the start time of the execution ([Self::get_start_time]).
     #[inline]
     pub fn display_tag(&self, tag: LogicalInstant) -> String {
-        display_tag_impl(self.initial_time, tag)
+        display_tag_impl(self.0.initial_time, tag)
     }
 
     /// Asserts that the current tag is equals to the tag
@@ -394,18 +364,6 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         }
     }
 
-    fn fork(&self) -> Self {
-        Self {
-            todo: None,
-            requested_stop: self.requested_stop,
-            current_time: self.current_time,
-            tx: self.tx.clone(),
-            initial_time: self.initial_time,
-            thread_spawner: self.thread_spawner,
-            dataflow: self.dataflow,
-            latest_processed_tag: self.latest_processed_tag,
-        }
-    }
 
     /// Execute the wave until completion.
     /// The parameter is the list of reactions to start with.
@@ -415,16 +373,13 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         reactors: &mut ReactorVec<'r>,
     ) {
 
-        // set of reactions that have been executed
-        let mut executed: HashSet<GlobalReactionId> = HashSet::new();
         // The maximum layer number we've seen as of now.
         // This must be increasing monotonically.
         let mut max_layer = 0usize;
 
-        let mut requested_stop = false;
         loop {
             let mut progress = false;
-            match self.todo.take() {
+            match self.0.todo.take() {
                 None => {
                     // nothing to do
                     break;
@@ -434,22 +389,33 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                         // none of the reactions in the batch have data dependencies
                         progress = true;
 
-                        for reaction_id in batch {
-                            // todo parallelize this loop. Each task needs
-                            //  - a ref mut into the reactors vec -> we need unsafe
-                            //  - a cloned Sender
-                            //  - a separate ReactionCtx -> then we need to merge all parallel ctx.do_next
-                            //  - ....maybe we need ReactionWave back, so that making a new ReactionCtx is cheaper...
-                            trace!("  - Executing {}", scheduler.display_reaction(*reaction_id));
-                            let reactor = &mut reactors[reaction_id.0.container()];
+                        let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
 
-                            // this may append new elements into the queue,
-                            // which is why we can't use an iterator
-                            reactor.react_erased(&mut self, reaction_id.0.local());
-                            requested_stop |= self.requested_stop;
+                        let (stop, todo_next) = batch.iter()
+                            .par_bridge()
+                            .fold_with(self.0.clone(),
+                                       |ctx_inner, reaction_id| {
 
-                            debug_assert!(executed.insert(*reaction_id), "Duplicate reaction");
-                        }
+                                           // trace!("  - Executing {}", scheduler.display_reaction(*reaction_id));
+                                           let reactor = unsafe {
+                                               // safety:
+                                               // - no two reactions in the batch refer belong to the same reactor
+                                               // - the vec does not change size so there is no reallocation
+                                               &mut *reactors_mut.0.add(reaction_id.0.container().index())
+                                           };
+
+                                           // this may append new elements into the queue,
+                                           // which is why we can't use an iterator
+                                           let mut ctx = ReactionCtx(ctx_inner);
+                                           reactor.react_erased(&mut ctx, reaction_id.0.local());
+
+                                           ctx.0
+                                       })
+                            .fold(|| (false, None), |(rstop, opt_cow), ctx| (ctx.requested_stop || rstop, ExecutableReactions::merge_cows(opt_cow, ctx.todo)))
+                            .reduce(|| (false, None), |(a, b), (c, d)| (a || c, ExecutableReactions::merge_cows(b, d)));
+
+                        self.0.todo = todo_next;
+                        self.0.requested_stop |= stop;
 
                         if cfg!(debug_assertions) {
                             debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected {} < {}", layer_no, max_layer);
@@ -465,7 +431,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
             }
         }
 
-        if requested_stop {
+        if self.0.requested_stop {
             scheduler.request_stop(self.get_logical_time().next_microstep());
         }
 
@@ -474,6 +440,55 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
         for reactor in reactors {
             reactor.cleanup_tag(&ctx)
+        }
+    }
+}
+
+struct UnsafeSharedPointer<T>(*mut T);
+unsafe impl<T> Send for UnsafeSharedPointer<T> {}
+unsafe impl<T> Sync for UnsafeSharedPointer<T> {}
+
+struct RContextInner<'a, 'x, 't> where 'x: 't {
+    /// Remaining reactions to execute before the wave dies.
+    /// Using [Option] and [Cow] optimises for the case where
+    /// zero or exactly one port/action is set, and minimises
+    /// copies.
+    ///
+    /// This is mutable: if a reaction sets a port, then the
+    /// downstream of that port is inserted in into this
+    /// data structure.
+    todo: Option<Cow<'x, ExecutableReactions>>,
+
+    /// Whether some reaction has called [Self::request_stop].
+    requested_stop: bool,
+
+    /// Logical time of the execution of this wave, constant
+    /// during the existence of the object
+    current_time: LogicalInstant,
+
+    /// Sender to schedule events that should be executed later than this wave.
+    tx: Sender<Event<'x>>,
+
+    /// Start time of the program.
+    initial_time: LogicalInstant,
+
+    // globals
+    thread_spawner: &'a Scope<'t>,
+    dataflow: &'x DataflowInfo,
+    latest_processed_tag: &'x TimeCell,
+}
+
+impl<'a, 'x, 't> Clone for RContextInner<'a, 'x, 't> where 'x: 't {
+    fn clone(&self) -> Self {
+        Self {
+            todo: None,
+            requested_stop: self.requested_stop,
+            current_time: self.current_time,
+            tx: self.tx.clone(),
+            initial_time: self.initial_time,
+            thread_spawner: self.thread_spawner,
+            dataflow: self.dataflow,
+            latest_processed_tag: self.latest_processed_tag,
         }
     }
 }

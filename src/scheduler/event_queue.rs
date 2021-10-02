@@ -31,20 +31,3 @@ impl<'x> EventQueue<'x> {
         }
     }
 }
-
-fn merge_cows<'x>(x: Option<Cow<'x, ExecutableReactions>>,
-                  y: Option<Cow<'x, ExecutableReactions>>) -> Option<Cow<'x, ExecutableReactions>> {
-    match (x, y) {
-        (None, None) => None,
-        (Some(x), None) | (None, Some(x)) => Some(x),
-        (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
-            x.absorb(&y);
-            Some(Cow::Owned(x))
-        },
-        (Some(mut x), Some(y)) => {
-            x.to_mut().absorb(&y);
-            Some(x)
-        }
-    }
-}
-
