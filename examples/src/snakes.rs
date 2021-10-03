@@ -169,3 +169,73 @@ impl SnakeGrid {
         cell.row * self.grid_side + cell.col
     }
 }
+
+pub mod output {
+    use std::io::{Write, Error, Result, ErrorKind};
+    use termcolor::{Buffer, BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
+    use super::*;
+
+    pub fn paint_on_raw_console(grid: &SnakeGrid) {
+        use std::io::Write;
+        let str = format_for_raw_console(grid).unwrap();
+        let stdout = std::io::stdout();
+        let mut stdout = stdout.lock();
+
+        // this escape char clears the terminal
+        write!(stdout, "\x1B[2J\n\r{}", str).unwrap();
+        stdout.flush().unwrap();
+    }
+
+    fn print_fence(buf: &mut Buffer, side: usize) -> Result<()> {
+        write!(buf, "+")?;
+        for _ in 0..side {
+            write!(buf, "~")?;
+        }
+        write!(buf, "+\n\r")
+    }
+
+    fn write_colored(buf: &mut Buffer, string: &str, color: &ColorSpec) -> Result<()> {
+        buf.set_color(color)?;
+        write!(buf, "{}", string)?;
+        buf.set_color(&ColorSpec::new())
+    }
+
+
+    fn format_for_raw_console(grid: &SnakeGrid) -> Result<String> {
+
+        let bufwtr = BufferWriter::stdout(ColorChoice::Always);
+        let mut buf = bufwtr.buffer();
+
+
+        let snake_color = {
+            let mut it = ColorSpec::new();
+            it.set_fg(Some(Color::Green));
+            it
+        };
+
+        let food_color = {
+            let mut it = ColorSpec::new();
+            it.set_fg(Some(Color::Yellow));
+            it
+        };
+
+        print_fence(&mut buf, grid.grid_side())?;
+
+        for row in 0..grid.grid_side() {
+            write!(&mut buf, "|").unwrap();
+            for col in 0..grid.grid_side() {
+                match grid[cell(row, col)] {
+                    CellState::SnakeHead => write_colored(&mut buf, "@", &snake_color)?,
+                    CellState::Snake => write_colored(&mut buf, "o", &snake_color)?,
+                    CellState::Food => write_colored(&mut buf, "x", &food_color)?,
+                    CellState::Free => write!(&mut buf, " ")?,
+                }
+            }
+            write!(&mut buf, "|\n\r")?;
+        }
+
+        print_fence(&mut buf, grid.grid_side())?;
+
+        String::from_utf8(buf.into_inner()).map_err(|e| Error::new(ErrorKind::Other, e))
+    }
+}

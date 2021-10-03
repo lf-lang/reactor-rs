@@ -1,4 +1,7 @@
+//! A snake minigame.
+
 target Rust {
+    // LF-Rust programs integrate well with Cargo
     cargo-features: ["cli"],
     cargo-dependencies: {
         termcolor: "1",
@@ -9,25 +12,29 @@ target Rust {
     keepalive: true,
 };
 
+// Import a shared reactor
 import KeyboardEvents from "KeyboardEvents.lf";
 
-main reactor Snake(grid_side: usize(32), tempo: u32(2)) {
+// main reactor parameters can be set on the CLI, eg:
+//  ./snake --main-grid-side 48
+main reactor Snake(grid_side: usize(32), tempo_step: u32(40)) {
     preamble {=
         use crate::snakes::*;
+        use crate::snakes;
         use termion::event::Key;
         use rand::prelude::*;
 
         const MAX_FOOD_ON_GRID: u32 = 2;
-        const MAX_TEMPO: u32 = 16;
     =}
 
+    /// this thing helps capturing key presses
     keyboard = new KeyboardEvents();
 
     /// Triggers a screen refresh, not a timer because we can
     /// shrink the period over time to speed up the game.
     logical action screen_refresh;
-    /// The game speed
-    state tempo: u32(tempo);
+    /// The game speed level
+    state tempo: u32(1);
 
     /// manually triggered
     logical action manually_add_more_food;
@@ -38,35 +45,39 @@ main reactor Snake(grid_side: usize(32), tempo: u32(2)) {
     state snake: CircularSnake ({= CircularSnake::new(grid_side) =});
     state grid: SnakeGrid ({= SnakeGrid::new(grid_side, &snake) =});
 
-    /// Whither the snake is currently looking, changes with arrow key presses
+    /// Whither the snake has slithered last
     state snake_direction: Direction ({= Direction::RIGHT =});
-
+    /// Changes with arrow key presses, might be invalid.
+    /// Only committed to snake_direction on grid update.
+    state pending_direction: Direction ({= Direction::RIGHT =});
 
     // @label startup
     reaction(startup) -> screen_refresh {=
-        // KeyboardEvents makes stdout raw
-        paint_on_raw_console(&self.grid);
+        // KeyboardEvents makes stdout raw so this is safe
+        snakes::output::paint_on_raw_console(&self.grid);
+        // schedule the first one, then it reschedules itself.
         ctx.schedule(screen_refresh, After(Duration::from_secs(1)));
     =}
 
     // @label handle_key_press
     reaction(keyboard.arrow_key_pressed) {=
-        // change the current heading, might be overwritten between two frames
-        let new_direction = match ctx.get(keyboard__arrow_key_pressed).unwrap() {
+        // this might be overwritten several times, only committed on screen refreshes
+        self.pending_direction = match ctx.get(keyboard__arrow_key_pressed).unwrap() {
             Key::Left => Direction::LEFT,
             Key::Right => Direction::RIGHT,
             Key::Up => Direction::UP,
             Key::Down => Direction::DOWN,
             _ => unreachable!(),
         };
-        // cannot make a 180° in one step
-        if new_direction != self.snake_direction.opposite() {
-            self.snake_direction = new_direction;
-        }
     =}
 
     // @label refresh_screen
     reaction(screen_refresh) -> manually_add_more_food {=
+        // check that the user's command is valid
+        if self.pending_direction != self.snake_direction.opposite() {
+            self.snake_direction = self.pending_direction;
+        }
+
         // snakes don't "step" forward
         match self.snake.slither_forward(self.snake_direction, &mut self.grid) {
             UpdateResult::GameOver => { ctx.request_stop(); return; },
@@ -80,13 +91,14 @@ main reactor Snake(grid_side: usize(32), tempo: u32(2)) {
             UpdateResult::NothingInParticular => {/* do nothing in particular. */}
         }
 
-        paint_on_raw_console(&self.grid);
+        snakes::output::paint_on_raw_console(&self.grid);
     =}
 
     reaction(manually_add_more_food, add_more_food) {=
         if self.food_on_grid >= MAX_FOOD_ON_GRID {
             return; // there's enough food there
         }
+        // find a random free cell that will become food
         let mut rng = thread_rng();
         loop {
             let row = rng.gen_range(0..params.grid_side);
@@ -102,62 +114,11 @@ main reactor Snake(grid_side: usize(32), tempo: u32(2)) {
 
     // @label schedule_next_tick
     reaction(screen_refresh) -> screen_refresh {=
-
         // select a delay depending on the tempo
-        let millis = 400 - 20 * self.tempo.min(MAX_TEMPO);
+        let millis = 400 - (params.tempo_step * self.tempo).min(300);
         let delay = Duration::from_millis(millis as u64);
 
         ctx.schedule(screen_refresh, After(delay));
     =}
 
-
-    preamble {=
-        use std::io::{Write, Error, Result, ErrorKind};
-
-        pub fn paint_on_raw_console(grid: &SnakeGrid) {
-            use std::io::Write;
-            let str = format_for_raw_console(grid).unwrap();
-            let stdout = std::io::stdout();
-            let mut stdout = stdout.lock();
-
-            // this escape char clears the terminal
-            write!(stdout, "\x1B[2J\n\r{}", str).unwrap();
-            stdout.flush().unwrap();
-        }
-
-        fn format_for_raw_console(grid: &SnakeGrid) -> Result<String> {
-            use termcolor::{Buffer, BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
-
-            let bufwtr = BufferWriter::stdout(ColorChoice::Always);
-            let mut buf = bufwtr.buffer();
-
-            fn print_fence(buf: &mut Buffer, side: usize) -> Result<()> {
-                write!(buf, "+")?;
-                for _ in 0..side {
-                    write!(buf, "~")?;
-                }
-                write!(buf, "+\n\r")
-            }
-            
-            print_fence(&mut buf, grid.grid_side())?;
-
-            for row in 0..grid.grid_side() {
-                write!(&mut buf, "|").unwrap();
-                for col in 0..grid.grid_side() {
-                    match grid[cell(row, col)] {
-                        CellState::SnakeHead => write!(&mut buf, "@")?,
-                        CellState::Snake     => write!(&mut buf, "o")?,
-                        CellState::Food      => write!(&mut buf, "$")?,
-                        CellState::Free      => write!(&mut buf, " ")?,
-                    }
-                }
-                write!(&mut buf, "|\n\r")?;
-            }
-
-            print_fence(&mut buf, grid.grid_side())?;
-
-            String::from_utf8(buf.into_inner()).map_err(|e| Error::new(ErrorKind::Other, e))
-        }
-
-    =}
 }
