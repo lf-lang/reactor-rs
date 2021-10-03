@@ -180,19 +180,20 @@ impl MazeModel {
         }
     }
 
-    pub fn render_to_console(&self, player: PlayerPos) {
+    pub fn render_to_console(&self, player: PlayerPos)-> std::io::Result<()> {
         use std::io::Write;
-        let str = self.render_to_string_raw(player);
+        let str = self.render_to_string_raw(player)?;
         let stdout = std::io::stdout();
         let mut stdout = stdout.lock();
 
         // this escape char clears the terminal
-        write!(stdout, "\x1B[2J{}", str).unwrap();
+        write!(stdout, "\x1B[2J{}", str)?;
         stdout.flush().unwrap();
+        Ok(())
     }
 
 
-    pub fn render_to_string_raw(&self, player: PlayerPos) -> String {
+    pub fn render_to_string_raw(&self, player: PlayerPos) -> std::io::Result<String> {
         use std::io::Write;
         use termcolor::{Buffer, BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
 
@@ -210,67 +211,68 @@ impl MazeModel {
         let mut hline = bufwtr.buffer();
         let mut vline = bufwtr.buffer();
 
-        fn write_px(buf: &mut Buffer, color: &ColorSpec) {
-            buf.set_color(color);
-            write!(buf, "   ");
-            buf.set_color(&ColorSpec::new());
+        fn write_px(buf: &mut Buffer, color: &ColorSpec) -> std::io::Result<()>{
+            buf.set_color(color)?;
+            write!(buf, "   ")?;
+            buf.set_color(&ColorSpec::new())?;
+            Ok(())
         }
 
-        fn write_px_with_dude(buf: &mut Buffer) {
-            buf.set_color(&ColorSpec::new());
-            write!(buf, " I ");
+        fn write_px_with_dude(buf: &mut Buffer) -> std::io::Result<()> {
+            buf.set_color(&ColorSpec::new())?;
+            write!(buf, " I ")
         }
 
         for row in 0..self.nrows {
             for buf in [&mut hline, &mut vline] {
                 buf.clear();
-                write_px(buf, &free);
+                write_px(buf, &free)?;
             }
 
             for col in 0..self.ncols {
                 let cell = cell(row, col);
 
-                write_px(&mut hline, &black);
+                write_px(&mut hline, &black)?;
                 if self.north_walls.contains(&cell) {
-                    write_px(&mut hline, &black);
+                    write_px(&mut hline, &black)?;
                 } else if player == PlayerPos::Wall(Wall { cell, side: NORTH }) {
-                    write_px_with_dude(&mut hline);
+                    write_px_with_dude(&mut hline)?;
                 } else {
-                    write_px(&mut hline, &free);
+                    write_px(&mut hline, &free)?;
                 }
 
                 if self.west_walls.contains(&cell) {
-                    write_px(&mut vline, &black);
+                    write_px(&mut vline, &black)?;
                 } else if player == PlayerPos::Wall(Wall { cell, side: WEST }) {
-                    write_px_with_dude(&mut vline);
+                    write_px_with_dude(&mut vline)?;
                 } else {
-                    write_px(&mut vline, &free);
+                    write_px(&mut vline, &free)?;
                 }
 
                 if player == PlayerPos::Cell(cell) {
-                    write_px_with_dude(&mut vline);
+                    write_px_with_dude(&mut vline)?;
                 } else {
-                    write_px(&mut vline, &free);
+                    write_px(&mut vline, &free)?;
                 }
             }
 
-            buffer.write_all(hline.as_slice());
-            write_px(&mut buffer, &black);
-            write!(buffer, "\n\r");
-            buffer.write_all(vline.as_slice());
-            write_px(&mut buffer, &black);
-            write!(buffer, "\n\r");
+            buffer.write_all(hline.as_slice())?;
+            write_px(&mut buffer, &black)?;
+            write!(buffer, "\n\r")?;
+            buffer.write_all(vline.as_slice())?;
+            write_px(&mut buffer, &black)?;
+            write!(buffer, "\n\r")?;
         }
-        write_px(&mut buffer, &free);
+        write_px(&mut buffer, &free)?;
 
         for _ in 0..self.ncols {
-            write_px(&mut buffer, &black);
-            write_px(&mut buffer, &black);
+            write_px(&mut buffer, &black)?;
+            write_px(&mut buffer, &black)?;
         }
-        write_px(&mut buffer, &black);
-        write!(buffer, "\n\r");
+        write_px(&mut buffer, &black)?;
+        write!(buffer, "\n\r")?;
 
-        String::from_utf8(buffer.into_inner()).unwrap()
+        Ok(String::from_utf8(buffer.into_inner()).unwrap())
     }
 
     pub fn display(&self, out: &mut impl Write, player: Cell) -> std::fmt::Result {

@@ -6,13 +6,14 @@ target Rust {
         rand: "0.8",
     },
     rust-include: "snakes.rs",
+    keepalive: true,
 };
 
 import KeyboardEvents from "KeyboardEvents.lf";
 
 main reactor Snake(grid_side: usize(32), tempo: u8(2)) {
     preamble {=
-        use snakes::*;
+        use crate::snakes::*;
         use termion::event::Key;
     =}
 
@@ -22,61 +23,34 @@ main reactor Snake(grid_side: usize(32), tempo: u8(2)) {
     /// shrink the period over time to speed up the game.
     logical action screen_refresh;
 
-    state grid: SnakeGrid ({= SnakeGrid::new(grid_side) =});
+    state snake: CircularSnake ({= CircularSnake::new(grid_side) =});
+    state grid: SnakeGrid ({= SnakeGrid::new(grid_side, &snake) =});
 
-    /// Whither the snake is currently looking
+    /// Whither the snake is currently looking, changes with arrow key presses
     state cur_heading: Direction ({= Direction::RIGHT =});
 
     reaction(keyboard.arrow_key_pressed) {=
         // change the current heading, might be overwritten between two frames
-        self.cur_heading = match ctx.get(key_press).unwrap() {
-            Key::Left => Side::LEFT,
-            Key::Right => Side::RIGHT,
-            Key::Up => Side::UP,
-            Key::Down => Side::DOWN,
+        self.cur_heading = match ctx.get(keyboard__arrow_key_pressed).unwrap() {
+            Key::Left => Direction::LEFT,
+            Key::Right => Direction::RIGHT,
+            Key::Up => Direction::UP,
+            Key::Down => Direction::DOWN,
             _ => unreachable!(),
         };
     =}
 
     reaction(screen_refresh) {=
-        if self.grid.step(self.cur_heading) {
+        if self.snake.step(self.cur_heading, &mut self.grid) {
             paint_on_raw_console(&self.grid);
         } else {
             // todo game over
         }
     =}
 
-    reaction(startup) -> key_press {=
-        self.maze.render_to_console(self.player_pos);
-
-        let stdin = std::io::stdin();
-
-        let key_press = key_press.clone();
-        ctx.spawn_physical_thread(move |link| {
-            use termion::input::TermRead;
-            use termion::raw::IntoRawMode;
-
-            // enter raw mode, to get key presses one by one
-            // this will stay so until this variable is dropped
-            let stdout = std::io::stdout().into_raw_mode().unwrap();
-
-            for c in stdin.keys() {
-                match c.unwrap() {
-                    k@(Key::Left | Key::Right | Key::Up | Key::Down) => {
-                        trace!("received {:?}", k);
-                        link.schedule_physical_with_v(&key_press, Some(k), Asap).unwrap();
-                    },
-                    Key::Ctrl('c') => {
-                        // todo request stop! for now just exit raw mode
-                        drop(stdout);
-                        break;
-                    },
-                    k => {
-                        trace!("received {:?}", k);
-                    }
-                }
-            }
-        });
+    reaction(startup) {=
+        // KeyboardEvents makes stdout raw
+        paint_on_raw_console(&self.grid);
     =}
 
 
@@ -101,31 +75,27 @@ main reactor Snake(grid_side: usize(32), tempo: u8(2)) {
             let mut buf = bufwtr.buffer();
 
             for _ in 0..grid.grid_side() {
-                write!(&mut buf, "-")
+                write!(&mut buf, "-").unwrap();
             }
-            write!(&mut buf, "|\n\r");
+            write!(&mut buf, "|\n\r").unwrap();
 
             for row in 0..grid.grid_side() {
-                write!(&mut buf, "|");
+                write!(&mut buf, "|").unwrap();
                 for col in 0..grid.grid_side() {
                     match grid[cell(row, col)] {
-                        CellState::Snake =>
-                            if grid.snake.head() == cell(row, col) {
-                                write!(&mut buf, "@");
-                            } else {
-                                write!(&mut buf, "o");
-                            },
-                        CellState::Food => write!(&mut buf, "$"),
-                        CellState::Free => write!(&mut buf, " "),
+                        CellState::SnakeHead => write!(&mut buf, "@").unwrap(),
+                        CellState::Snake     => write!(&mut buf, "o").unwrap(),
+                        CellState::Food      => write!(&mut buf, "$").unwrap(),
+                        CellState::Free      => write!(&mut buf, " ").unwrap(),
                     }
                 }
-                write!(&mut buf, "|\n\r");
+                write!(&mut buf, "|\n\r").unwrap();
             }
             for _ in 0..grid.grid_side() {
-                write!(&mut buf, "-")
+                write!(&mut buf, "-").unwrap();
             }
 
-            String::from_utf8(buffer.into_inner()).unwrap()
+            String::from_utf8(buf.into_inner()).unwrap()
         }
 
     =}

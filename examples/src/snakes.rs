@@ -6,10 +6,7 @@ use std::ops::{Index, IndexMut};
 
 /// Position on the grid
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-struct Cell {
-    row: usize,
-    col: usize,
-}
+pub struct Cell { row: usize, col: usize }
 
 pub fn cell(row: usize, col: usize) -> Cell {
     Cell { row, col }
@@ -36,7 +33,7 @@ impl Cell {
     }
 }
 
-struct CircularSnake {
+pub struct CircularSnake {
     /// Circular buffer, the head field is the first element,
     /// then they're in order when you read from right to left.
     /// ```no_compile
@@ -63,27 +60,28 @@ impl CircularSnake {
         }
     }
 
-    fn head(&self) -> Cell {
+    pub fn head(&self) -> Cell {
         self.snake_positions[self.head]
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.snake_positions.len()
     }
 
     /// Mutate internal state of the grid too.
     /// Returns cells that have changed. If none, the move was illegal
-    pub fn advance(&mut self, snake_heading: Direction, grid: &mut SnakeGrid) -> bool {
-        let head = &self.snake_positions[self.head];
-        let new_head = head.shift(snake_heading, self.grid_side);
+    pub fn step(&mut self, snake_heading: Direction, grid: &mut SnakeGrid) -> bool {
+        let old_head = *&self.snake_positions[self.head];
+        let new_head = old_head.shift(snake_heading, self.grid_side);
         match grid[new_head] {
             // we're eating our tail, move is illegal
-            CellState::Snake => false,
+            CellState::Snake | CellState::SnakeHead => false,
             CellState::Food => {
                 // then the tail is not moving, we increase size of the snake
                 self.snake_positions.insert(self.head + 1, new_head);
                 self.head = self.head + 1;
-                grid[new_head] = CellState::Snake;
+                grid[old_head] = CellState::Snake;
+                grid[new_head] = CellState::SnakeHead;
                 true
             }
             CellState::Free => {
@@ -93,8 +91,10 @@ impl CircularSnake {
                 self.snake_positions[tail] = new_head;
                 self.head = tail;
 
+                // note old_head and old_tail may be same if snake has length 1
+                grid[old_head] = CellState::Snake;
                 grid[old_tail] = CellState::Free;
-                grid[new_head] = CellState::Snake;
+                grid[new_head] = CellState::SnakeHead;
                 true
             }
         }
@@ -102,16 +102,16 @@ impl CircularSnake {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-enum CellState {
+pub enum CellState {
+    SnakeHead,
     Snake,
     Food,
     Free,
 }
 
-struct SnakeGrid {
+pub struct SnakeGrid {
     grid: Vec<CellState>,
     grid_side: usize,
-    snake: CircularSnake,
 }
 
 impl Index<Cell> for SnakeGrid {
@@ -130,12 +130,17 @@ impl IndexMut<Cell> for SnakeGrid {
 }
 
 impl SnakeGrid {
-    fn new(grid_side: usize) -> Self {
-        Self {
+    pub fn new(grid_side: usize, snake: &CircularSnake) -> Self {
+        let mut grid = Self {
             grid_side,
-            grid: vec![CellState::Free; grid_side],
-            snake: CircularSnake::new(grid_side),
+            grid: vec![CellState::Free; grid_side * grid_side],
+        };
+
+        for cell in &snake.snake_positions {
+            grid[*cell] = CellState::Snake;
         }
+        grid[snake.head()] = CellState::SnakeHead;
+        grid
     }
 
     pub fn grid_side(&self) -> usize {
@@ -145,55 +150,4 @@ impl SnakeGrid {
     fn index_of(&self, cell: Cell) -> usize {
         cell.row * self.grid_side + cell.col
     }
-
-    pub fn step(&mut self, snake_heading: Direction) -> bool {
-        self.snake.advance(snake_heading, self)
-    }
-}
-
-
-pub fn paint_on_raw_console(grid: &SnakeGrid) {
-    use std::io::Write;
-    let str = format_for_raw_console(grid);
-    let stdout = std::io::stdout();
-    let mut stdout = stdout.lock();
-
-    // this escape char clears the terminal
-    write!(stdout, "\x1B[2J{}", str).unwrap();
-    stdout.flush().unwrap();
-}
-
-fn format_for_raw_console(grid: &SnakeGrid) -> String {
-    use std::io::Write;
-    use termcolor::{Buffer, BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
-
-    let bufwtr = BufferWriter::stdout(ColorChoice::Always);
-    let mut buf = bufwtr.buffer();
-
-    for _ in 0..grid.grid_side() {
-        write!(&mut buf, "-")
-    }
-    write!(&mut buf, "|\n\r");
-
-    for row in 0..grid.grid_side() {
-        write!(&mut buf, "|");
-        for col in 0..grid.grid_side() {
-            match grid[cell(row, col)] {
-                CellState::Snake =>
-                    if grid.snake.head() == cell(row, col) {
-                        write!(&mut buf, "@");
-                    } else {
-                        write!(&mut buf, "o");
-                    },
-                CellState::Food => write!(&mut buf, "$"),
-                CellState::Free => write!(&mut buf, " "),
-            }
-        }
-        write!(&mut buf, "|\n\r");
-    }
-    for _ in 0..grid.grid_side() {
-        write!(&mut buf, "-")
-    }
-
-    String::from_utf8(buffer.into_inner()).unwrap()
 }
