@@ -33,7 +33,7 @@ reactor KeyboardEvents {
                 match c.unwrap() {
                     k@(Key::Left | Key::Right | Key::Up | Key::Down) => {
                         trace!("received {:?}", k);
-                        link.schedule_physical_with_v(&key_press, Some(k), Asap).unwrap();
+                        link.schedule_physical_with_v(&key_press, Some(k), Asap).ok();
                     },
                     Key::Ctrl('c') => {
                         // todo request stop! for now just exit raw mode

@@ -15,6 +15,17 @@ pub fn cell(row: usize, col: usize) -> Cell {
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum Direction { UP, RIGHT, DOWN, LEFT }
 
+impl Direction {
+    pub fn opposite(&self) -> Self {
+        match *self {
+            Self::UP => Self::DOWN,
+            Self::DOWN => Self::UP,
+            Self::RIGHT => Self::LEFT,
+            Self::LEFT => Self::RIGHT,
+        }
+    }
+}
+
 impl Cell {
     fn wrap_add(a: usize, add: bool, grid_side: usize) -> usize {
         if a == grid_side - 1 && add { 0 } else if a == 0 && !add { grid_side - 1 } else if add { a + 1 } else { a - 1 }
@@ -70,19 +81,19 @@ impl CircularSnake {
 
     /// Mutate internal state of the grid too.
     /// Returns cells that have changed. If none, the move was illegal
-    pub fn step(&mut self, snake_heading: Direction, grid: &mut SnakeGrid) -> bool {
+    pub fn slither_forward(&mut self, snake_heading: Direction, grid: &mut SnakeGrid) -> UpdateResult {
         let old_head = *&self.snake_positions[self.head];
         let new_head = old_head.shift(snake_heading, self.grid_side);
         match grid[new_head] {
             // we're eating our tail, move is illegal
-            CellState::Snake | CellState::SnakeHead => false,
+            CellState::Snake | CellState::SnakeHead => UpdateResult::GameOver,
             CellState::Food => {
                 // then the tail is not moving, we increase size of the snake
                 self.snake_positions.insert(self.head + 1, new_head);
                 self.head = self.head + 1;
                 grid[old_head] = CellState::Snake;
                 grid[new_head] = CellState::SnakeHead;
-                true
+                UpdateResult::FoodEaten
             }
             CellState::Free => {
                 // replace old tail with new head, shift head ptr wrapping around
@@ -95,10 +106,17 @@ impl CircularSnake {
                 grid[old_head] = CellState::Snake;
                 grid[old_tail] = CellState::Free;
                 grid[new_head] = CellState::SnakeHead;
-                true
+                UpdateResult::NothingInParticular
             }
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum UpdateResult {
+    FoodEaten,
+    GameOver,
+    NothingInParticular,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
