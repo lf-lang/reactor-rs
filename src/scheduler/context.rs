@@ -1,6 +1,6 @@
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp::max;
-use std::collections::HashSet;
+
 use std::sync::mpsc::{Sender, SendError};
 
 use crossbeam::thread::{Scope, ScopedJoinHandle};

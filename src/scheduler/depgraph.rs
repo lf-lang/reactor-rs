@@ -34,7 +34,7 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 
 use crate::*;
-use std::borrow::Cow;
+
 
 type GraphIx = NodeIndex<u32>;
 
@@ -341,11 +341,6 @@ impl DataflowInfo {
         self.layer_info.augment(reactions, reaction)
     }
 
-    /// Merge the second set of reactions into the first.
-    pub fn merge(&self, dst: &mut ExecutableReactions, src: &ExecutableReactions) {
-        dst.absorb(src)
-    }
-
     /// Returns the set of reactions that needs to be scheduled
     /// when the given trigger is triggered.
     ///
@@ -414,6 +409,7 @@ impl ExecutableReactions {
         }
     }
 
+    #[cfg(feature = "parallel_runtime")]
     pub fn merge_cows<'x>(x: Option<Cow<'x, ExecutableReactions>>,
                           y: Option<Cow<'x, ExecutableReactions>>) -> Option<Cow<'x, ExecutableReactions>> {
         match (x, y) {
