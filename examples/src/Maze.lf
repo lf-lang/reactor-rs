@@ -1,13 +1,13 @@
 //! Simple program that generates a maze and the player can
 //! move within it. It's really dumb, there's no victory
-//! condition or so.
+//! condition or so. Does not support windows.
 
 target Rust {
     cargo-features: ["cli"],
     cargo-dependencies: {
         rand: "0.8",
         termcolor: "1",
-        termion: "1",
+        termion: "1", // (this doesn't support windows)
         bit-vec: "0.6"
     },
     rust-include: "maze.rs",

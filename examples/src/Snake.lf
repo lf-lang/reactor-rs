@@ -1,11 +1,11 @@
-//! A snake minigame.
+//! A snake minigame. Does not support windows.
 
 target Rust {
     // LF-Rust programs integrate well with Cargo
     cargo-features: ["cli"],
     cargo-dependencies: {
         termcolor: "1",
-        termion: "1",
+        termion: "1", // (this doesn't support windows)
         rand: "0.8",
     },
     rust-include: "snakes.rs",

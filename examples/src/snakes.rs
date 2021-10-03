@@ -55,7 +55,7 @@ pub struct CircularSnake {
     /// time/space operation. But growing the snake is linear.
     /// Using a linked list would make it constant.
     ///
-    /// Whatever it's a snake lol
+    /// Whatever it's a snake
     snake_positions: Vec<Cell>,
     head: usize,
     /// Side of the square grid

@@ -3,6 +3,7 @@ target Rust {
 };
 
 /// Capture asynchronous key presses, and sends them through an output port.
+/// Used by the other examples.
 reactor KeyboardEvents {
     preamble {=
         use termion::event::Key;
