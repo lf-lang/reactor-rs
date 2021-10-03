@@ -1,6 +1,5 @@
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp::max;
-
 use std::sync::mpsc::{Sender, SendError};
 
 use crossbeam::thread::{Scope, ScopedJoinHandle};
@@ -390,11 +389,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
                         if cfg!(feature = "parallel_runtime") {
                             #[cfg(feature = "parallel_runtime")]
-                            parallel_rt_impl::process_batch(&mut self, scheduler, reactors);
+                                parallel_rt_impl::process_batch(&mut self, &scheduler.debug(), reactors, batch);
                         } else {
                             // the impl for non-parallel runtime
                             for reaction_id in batch {
-                                trace!("  - Executing {}", scheduler.display_reaction(*reaction_id));
+                                trace!("  - Executing {}", scheduler.debug().display_reaction(*reaction_id));
                                 let reactor = &mut reactors[reaction_id.0.container()];
 
                                 // this may append new elements into the queue,
@@ -432,15 +431,18 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
 #[cfg(feature = "parallel_runtime")]
 mod parallel_rt_impl {
-    use super::ReactionCtx;
-    use super::SyncScheduler;
-    use super::ExecutableReactions;
+    use std::borrow::Cow;
+    use std::collections::HashSet;
+
     use rayon::prelude::*;
 
-    pub fn process_batch<'r, 'x>(
+    use super::*;
+
+    pub(super) fn process_batch<'r, 'x>(
         ctx: &mut ReactionCtx<'_, 'x, '_>,
-        _scheduler: &mut SyncScheduler<'_, 'x, '_>,
+        debug: &DebugInfoProvider<'_>,
         reactors: &mut ReactorVec<'r>,
+        batch: &HashSet<GlobalReactionId>,
     ) {
         let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
 
@@ -448,8 +450,7 @@ mod parallel_rt_impl {
             .par_bridge()
             .fold_with(ctx.0.clone(),
                        |ctx_inner, reaction_id| {
-
-                           // trace!("  - Executing {}", scheduler.display_reaction(*reaction_id));
+                           trace!("  - Executing {}", debug.display_reaction(*reaction_id));
                            let reactor = unsafe {
                                // safety:
                                // - no two reactions in the batch refer belong to the same reactor
@@ -464,11 +465,27 @@ mod parallel_rt_impl {
 
                            ctx.0
                        })
-            .fold(|| (false, None), |(rstop, opt_cow), ctx| (ctx.requested_stop || rstop, ExecutableReactions::merge_cows(opt_cow, ctx.todo)))
-            .reduce(|| (false, None), |(a, b), (c, d)| (a || c, ExecutableReactions::merge_cows(b, d)));
+            .fold(|| (false, None), |(rstop, opt_cow), ctx| (ctx.requested_stop || rstop, merge_cows(opt_cow, ctx.todo)))
+            .reduce(|| (false, None), |(a, b), (c, d)| (a || c, merge_cows(b, d)));
 
         ctx.0.todo = todo_next;
         ctx.0.requested_stop |= stop;
+    }
+
+    fn merge_cows<'x>(x: Option<Cow<'x, ExecutableReactions>>,
+                      y: Option<Cow<'x, ExecutableReactions>>) -> Option<Cow<'x, ExecutableReactions>> {
+        match (x, y) {
+            (None, None) => None,
+            (Some(x), None) | (None, Some(x)) => Some(x),
+            (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
+                x.absorb(&y);
+                Some(Cow::Owned(x))
+            },
+            (Some(mut x), Some(y)) => {
+                x.to_mut().absorb(&y);
+                Some(x)
+            }
+        }
     }
 
     struct UnsafeSharedPointer<T>(*mut T);

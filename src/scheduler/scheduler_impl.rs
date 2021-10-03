@@ -150,11 +150,11 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
             if let Some(evt) = event_queue.take_earliest() {
                 if self.is_after_shutdown(evt.tag) {
-                    trace!("Event is late, shutting down - event tag: {}", self.display_tag(evt.tag));
+                    trace!("Event is late, shutting down - event tag: {}", self.debug().display_tag(evt.tag));
                     break;
                 }
                 // execute the wave for this event.
-                trace!("Processing event for tag {}", self.display_tag(evt.tag));
+                trace!("Processing event for tag {}", self.debug().display_tag(evt.tag));
                 self.step(evt, reactors);
             } else if let Some(evt) = self.receive_event() { // this may block
                 self.do_push_event(&mut event_queue, evt);
@@ -205,7 +205,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
         if let Some(timeout) = self.options.timeout {
-            trace!("Timeout specified, will shut down at tag {}", self.display_tag(initial_time + timeout));
+            trace!("Timeout specified, will shut down at tag {}", self.debug().display_tag(initial_time + timeout));
             self.shutdown_time = Some(initial_time + timeout)
         }
 
@@ -230,12 +230,12 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     }
 
     pub(in super) fn request_stop(&mut self, time: LogicalInstant) {
-        info!("Shutdown requested and scheduled at {}", self.display_tag(time));
+        info!("Shutdown requested and scheduled at {}", self.debug().display_tag(time));
         self.shutdown_time = Some(time);
     }
 
     fn do_push_event(&self, event_queue: &mut EventQueue<'x>, evt: Event<'x>) {
-        trace!("Pushing {}", self.display_event(&evt, evt.tag));
+        trace!("Pushing {}", self.debug().display_event(&evt, evt.tag));
         event_queue.insert(evt);
     }
 
@@ -325,11 +325,27 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         )
     }
 
-    fn display_tag(&self, tag: LogicalInstant) -> String {
-        display_tag_impl(self.initial_time.unwrap(), tag)
+    #[inline]
+    pub(in super) fn debug(&self) -> DebugInfoProvider {
+        DebugInfoProvider {
+            initial_time: self.initial_time.unwrap(),
+            id_registry: &self.id_registry,
+        }
+    }
+}
+
+/// Can format stuff for trace messages.
+pub(in super) struct DebugInfoProvider<'a> {
+    id_registry: &'a IdRegistry,
+    initial_time: LogicalInstant,
+}
+
+impl DebugInfoProvider<'_> {
+    pub fn display_tag(&self, tag: LogicalInstant) -> String {
+        display_tag_impl(self.initial_time, tag)
     }
 
-    fn display_event(&self, evt: &Event, process_at: LogicalInstant) -> String {
+    pub fn display_event(&self, evt: &Event, process_at: LogicalInstant) -> String {
         let mut str = format!("Event(at {}: run [", self.display_tag(process_at));
 
         for (layer_no, batch) in evt.reactions.batches() {
