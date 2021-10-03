@@ -27,6 +27,7 @@ use std::convert::TryFrom;
 use std::time::Duration;
 
 #[macro_export]
+#[doc(hidden)]
 macro_rules! join_to {
     ($f:expr, $iter:expr) => {join_to!($f, $iter, ", ")};
     ($f:expr, $iter:expr, $sep:literal) => {join_to!($f, $iter, $sep, "", "")};
@@ -58,6 +59,58 @@ pub fn do_write<X>(f: &mut impl std::fmt::Write,
     write!(f, "{}", suffix)
 }
 
+/// Creates a [Duration] value using the same syntax as in LF.
+///
+/// ```
+/// use std::time::Duration;
+/// use reactor_rt::delay;
+///
+/// assert_eq!(delay!(10 ns), Duration::from_nanos(10));
+/// assert_eq!(delay!(10 ms), delay!(10 msec));
+/// assert_eq!(delay!(10 msec), Duration::from_millis(10));
+/// assert_eq!(delay!(10 sec), Duration::from_secs(10));
+/// assert_eq!(delay!(2 min), delay!(120 s));
+/// ```
+#[macro_export]
+macro_rules! delay {
+    (0)                     => { $crate::Duration::from_nanos(0) };
+    ($amount:literal ns)    => { $crate::Duration::from_nanos($amount) };
+    ($amount:literal nsec)  => { delay!($amount ns) };
+    ($amount:literal nsecs) => { delay!($amount ns) };
+    ($amount:literal us)    => { $crate::Duration::from_micros($amount) };
+    ($amount:literal usec)  => { delay!($amount us) };
+    ($amount:literal usecs) => { delay!($amount us) };
+    ($amount:literal ms)    => { $crate::Duration::from_millis($amount) };
+    ($amount:literal msec)  => { delay!($amount ms) };
+    ($amount:literal msecs) => { delay!($amount ms) };
+    ($amount:literal s)     => { $crate::Duration::from_secs($amount) };
+    ($amount:literal sec)   => { delay!($amount s) };
+    ($amount:literal secs)  => { delay!($amount s) };
+    ($amount:literal second)   => { delay!($amount s) };
+    ($amount:literal seconds)  => { delay!($amount s) };
+    ($amount:literal min)      => { $crate::Duration::from_secs(60 * $amount) };
+    ($amount:literal mins)     => { delay!($amount min) };
+    ($amount:literal minute)   => { delay!($amount min) };
+    ($amount:literal minutes)  => { delay!($amount min) };
+    (($amount:expr) ns)    => { $crate::Duration::from_nanos($amount) };
+    (($amount:expr) nsec)  => { delay!(($amount) ns) };
+    (($amount:expr) nsecs) => { delay!(($amount) ns) };
+    (($amount:expr) us)    => { $crate::Duration::from_micros($amount) };
+    (($amount:expr) usec)  => { delay!(($amount) us) };
+    (($amount:expr) usecs) => { delay!(($amount) us) };
+    (($amount:expr) ms)    => { $crate::Duration::from_millis($amount) };
+    (($amount:expr) msec)  => { delay!(($amount) ms) };
+    (($amount:expr) msecs) => { delay!(($amount) ms) };
+    (($amount:expr) s)     => { $crate::Duration::from_secs($amount) };
+    (($amount:expr) sec)   => { delay!(($amount) s) };
+    (($amount:expr) secs)  => { delay!(($amount) s) };
+    (($amount:expr) second)   => { delay!(($amount) s) };
+    (($amount:expr) seconds)  => { delay!(($amount) s) };
+    (($amount:expr) min)      => { $crate::Duration::from_secs(60 * ($amount)) };
+    (($amount:expr) mins)     => { delay!(($amount) min) };
+    (($amount:expr) minute)   => { delay!(($amount) min) };
+    (($amount:expr) minutes)  => { delay!(($amount) min) };
+}
 
 /// A unit of time, used in LF.
 #[derive(Debug)]
