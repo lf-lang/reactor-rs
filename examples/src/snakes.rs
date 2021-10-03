@@ -3,19 +3,22 @@
 
 /// Position on the grid
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-struct Cell { row: u32, col: u32 }
+struct Cell { row: usize, col: usize }
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 pub enum Direction { UP, RIGHT, DOWN, LEFT }
 
 impl Cell {
-    fn wrap_add(a: u32, add: bool, grid_side: u32) -> u32 {
-        if a == grid_side - 1 && add { 0 } else if a == 0 && !add { grid_side - 1 } else if add { a + 1 } else { a - 1 }
+    fn wrap_add(a: usize, add: bool, grid_side: usize) -> usize {
+        if a == grid_side - 1 && add { 0 }
+        else if a == 0 && !add { grid_side - 1 }
+        else if add { a + 1 }
+        else { a - 1 }
     }
 
     /// Returns the neighbor cell that's in the given direction,
     /// wrap around the grid if needed.
-    fn shift(self, direction: Direction, grid_side: u32) -> Cell {
+    fn shift(self, direction: Direction, grid_side: usize) -> Cell {
         let Cell { row, col } = self;
         match direction {
             Direction::UP => Cell { row: Self::wrap_add(row, false, grid_side), col },
@@ -41,11 +44,11 @@ struct CircularSnake {
     snake_positions: Vec<Cell>,
     head: usize,
     /// Side of the square grid
-    grid_side: u32,
+    grid_side: usize,
 }
 
 impl CircularSnake {
-    pub fn new(grid_side: u32) -> Self {
+    pub fn new(grid_side: usize) -> Self {
         Self {
             snake_positions: vec![Cell { row: grid_side / 2, col: grid_side / 2 }],
             head: 0,
@@ -76,5 +79,52 @@ impl CircularSnake {
             self.head = tail;
         }
         true
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+enum CellState {
+    Snake,
+    SnakeHead,
+    SnakeTail,
+    Food,
+    Free,
+}
+
+struct SnakeWorld {
+    grid: Vec<CellState>,
+    grid_side: usize,
+    snake: CircularSnake,
+}
+
+impl SnakeWorld {
+    fn new(grid_side: usize) -> Self {
+        Self {
+            grid: vec![CellState::Free; grid_side],
+            grid_side,
+            snake: CircularSnake::new(grid_side)
+        }
+    }
+
+    fn step_and_repaint(&mut self, snake_heading: Direction) -> bool {
+        for i in 0..self.grid_side {
+            for j in 0..self.grid_side {
+                match self.grid[i * self.grid_side + j] {
+                    CellState::Snake => {
+
+                    }
+                    CellState::SnakeHead => {}
+                    CellState::SnakeTail => {}
+                    CellState::Food => {
+
+                    }
+                    CellState::Free => {
+
+                    }
+                }
+            }
+        }
+
+        todo!()
     }
 }
