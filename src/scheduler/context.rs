@@ -9,7 +9,6 @@ use crate::*;
 use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
 
 use super::*;
-use rayon::prelude::*;
 
 /// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
@@ -389,33 +388,20 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                         // none of the reactions in the batch have data dependencies
                         progress = true;
 
-                        let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
+                        if cfg!(feature = "parallel_runtime") {
+                            #[cfg(feature = "parallel_runtime")]
+                            parallel_rt_impl::process_batch(&mut self, scheduler, reactors);
+                        } else {
+                            // the impl for non-parallel runtime
+                            for reaction_id in batch {
+                                trace!("  - Executing {}", scheduler.display_reaction(*reaction_id));
+                                let reactor = &mut reactors[reaction_id.0.container()];
 
-                        let (stop, todo_next) = batch.iter()
-                            .par_bridge()
-                            .fold_with(self.0.clone(),
-                                       |ctx_inner, reaction_id| {
-
-                                           // trace!("  - Executing {}", scheduler.display_reaction(*reaction_id));
-                                           let reactor = unsafe {
-                                               // safety:
-                                               // - no two reactions in the batch refer belong to the same reactor
-                                               // - the vec does not change size so there is no reallocation
-                                               &mut *reactors_mut.0.add(reaction_id.0.container().index())
-                                           };
-
-                                           // this may append new elements into the queue,
-                                           // which is why we can't use an iterator
-                                           let mut ctx = ReactionCtx(ctx_inner);
-                                           reactor.react_erased(&mut ctx, reaction_id.0.local());
-
-                                           ctx.0
-                                       })
-                            .fold(|| (false, None), |(rstop, opt_cow), ctx| (ctx.requested_stop || rstop, ExecutableReactions::merge_cows(opt_cow, ctx.todo)))
-                            .reduce(|| (false, None), |(a, b), (c, d)| (a || c, ExecutableReactions::merge_cows(b, d)));
-
-                        self.0.todo = todo_next;
-                        self.0.requested_stop |= stop;
+                                // this may append new elements into the queue,
+                                // which is why we can't use an iterator
+                                reactor.react_erased(&mut self, reaction_id.0.local());
+                            }
+                        }
 
                         if cfg!(debug_assertions) {
                             debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected {} < {}", layer_no, max_layer);
@@ -444,9 +430,54 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     }
 }
 
-struct UnsafeSharedPointer<T>(*mut T);
-unsafe impl<T> Send for UnsafeSharedPointer<T> {}
-unsafe impl<T> Sync for UnsafeSharedPointer<T> {}
+#[cfg(feature = "parallel_runtime")]
+mod parallel_rt_impl {
+    use super::ReactionCtx;
+    use super::SyncScheduler;
+    use super::ExecutableReactions;
+    use rayon::prelude::*;
+
+    pub fn process_batch<'r, 'x>(
+        ctx: &mut ReactionCtx<'_, 'x, '_>,
+        _scheduler: &mut SyncScheduler<'_, 'x, '_>,
+        reactors: &mut ReactorVec<'r>,
+    ) {
+        let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
+
+        let (stop, todo_next) = batch.iter()
+            .par_bridge()
+            .fold_with(ctx.0.clone(),
+                       |ctx_inner, reaction_id| {
+
+                           // trace!("  - Executing {}", scheduler.display_reaction(*reaction_id));
+                           let reactor = unsafe {
+                               // safety:
+                               // - no two reactions in the batch refer belong to the same reactor
+                               // - the vec does not change size so there is no reallocation
+                               &mut *reactors_mut.0.add(reaction_id.0.container().index())
+                           };
+
+                           // this may append new elements into the queue,
+                           // which is why we can't use an iterator
+                           let mut ctx = ReactionCtx(ctx_inner);
+                           reactor.react_erased(&mut ctx, reaction_id.0.local());
+
+                           ctx.0
+                       })
+            .fold(|| (false, None), |(rstop, opt_cow), ctx| (ctx.requested_stop || rstop, ExecutableReactions::merge_cows(opt_cow, ctx.todo)))
+            .reduce(|| (false, None), |(a, b), (c, d)| (a || c, ExecutableReactions::merge_cows(b, d)));
+
+        ctx.0.todo = todo_next;
+        ctx.0.requested_stop |= stop;
+    }
+
+    struct UnsafeSharedPointer<T>(*mut T);
+
+    unsafe impl<T> Send for UnsafeSharedPointer<T> {}
+
+    unsafe impl<T> Sync for UnsafeSharedPointer<T> {}
+}
+
 
 struct RContextInner<'a, 'x, 't> where 'x: 't {
     /// Remaining reactions to execute before the wave dies.

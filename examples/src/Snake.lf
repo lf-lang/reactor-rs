@@ -22,6 +22,8 @@ main reactor Snake(grid_side: usize(32), tempo: u8(2)) {
     /// Triggers a screen refresh, not a timer because we can
     /// shrink the period over time to speed up the game.
     logical action screen_refresh;
+    /// The game speed
+    state tempo: u8(tempo);
 
     state snake: CircularSnake ({= CircularSnake::new(grid_side) =});
     state grid: SnakeGrid ({= SnakeGrid::new(grid_side, &snake) =});
@@ -29,6 +31,15 @@ main reactor Snake(grid_side: usize(32), tempo: u8(2)) {
     /// Whither the snake is currently looking, changes with arrow key presses
     state cur_heading: Direction ({= Direction::RIGHT =});
 
+
+    // @label startup
+    reaction(startup) -> screen_refresh {=
+        // KeyboardEvents makes stdout raw
+        paint_on_raw_console(&self.grid);
+        ctx.schedule(screen_refresh, After(Duration::from_secs(1)));
+    =}
+
+    // @label handle_key_press
     reaction(keyboard.arrow_key_pressed) {=
         // change the current heading, might be overwritten between two frames
         self.cur_heading = match ctx.get(keyboard__arrow_key_pressed).unwrap() {
@@ -40,6 +51,7 @@ main reactor Snake(grid_side: usize(32), tempo: u8(2)) {
         };
     =}
 
+    // @label refresh_screen
     reaction(screen_refresh) {=
         if self.snake.step(self.cur_heading, &mut self.grid) {
             paint_on_raw_console(&self.grid);
@@ -48,9 +60,23 @@ main reactor Snake(grid_side: usize(32), tempo: u8(2)) {
         }
     =}
 
-    reaction(startup) {=
-        // KeyboardEvents makes stdout raw
-        paint_on_raw_console(&self.grid);
+    // @label schedule_next_tick
+    reaction(screen_refresh) -> screen_refresh {=
+        // select a delay depending on the tempo
+        let delay = match self.tempo / 32 {
+            b'0' => Duration::from_millis(400),
+            b'1' => Duration::from_millis(370),
+            b'2' => Duration::from_millis(350),
+            // todo
+            b'3' => Duration::from_millis(170),
+            b'4' => Duration::from_millis(150),
+            b'5' => Duration::from_millis(100),
+            b'6' => Duration::from_millis(200),
+            b'7' => Duration::from_millis(200),
+            _ => unreachable!(),
+        };
+
+        ctx.schedule(screen_refresh, After(delay));
     =}
 
 

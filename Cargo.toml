@@ -16,8 +16,8 @@ petgraph = "0.6.0"
 array-macro = "2.1.0"
 atomic_refcell = "0.1.8"
 crossbeam = "0.8.1"
-rayon = "1.5"
-regex = { version = "1", optional = true}
+rayon = { version = "1.5", optional = true }
+regex = { version = "1", optional = true }
 assert_matches = { version = "1", optional = true }
 
 [dev-dependencies]
@@ -30,6 +30,7 @@ regex = { version = "1" }
 # dump the graph to a DOT representation
 graph-dump=["regex"]
 test-utils=["assert_matches"]
+parallel_runtime=["rayon"]
 
 [[bench]]
 name = "savina_pong"

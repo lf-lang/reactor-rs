@@ -31,6 +31,10 @@
 //! point for user documentation.
 //!
 //! Crate-level features include:
+//! - `parallel_runtime`: use Rayon to execute reactions in parallel
+//! when possible. For some applications, where there is no data parallelism,
+//! this *kills* performance. Also it makes trace messages less helpful.
+//! This is off by default.
 //! - `test-utils`: utilities to write tests of reactor programs,
 //! e.g, to check time invariants from within reactions.
 //! - `graph-dump` (internal): dumps the dependency graph to stdout
@@ -47,6 +51,7 @@ extern crate index_vec;
 extern crate log;
 #[macro_use]
 extern crate smallvec;
+#[cfg(feature = "parallel_runtime")]
 extern crate rayon;
 
 pub use std::time::Duration;
