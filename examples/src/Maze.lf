@@ -9,6 +9,8 @@ target Rust {
     rust-include: "maze.rs",
 };
 
+import KeyboardEvents from "KeyboardEvents.lf";
+
 main reactor Maze(rows: usize(20), cols: usize(20), seed: u64(0)) {
     preamble {=
         use crate::maze::*;
@@ -18,7 +20,7 @@ main reactor Maze(rows: usize(20), cols: usize(20), seed: u64(0)) {
         use termion::event::Key;
     =}
 
-    physical action key_press: Key;
+    keyboard = new KeyboardEvents();
 
     state player_pos: PlayerPos ({= PlayerPos::Cell(cell(0,0)) =});
 
@@ -29,8 +31,8 @@ main reactor Maze(rows: usize(20), cols: usize(20), seed: u64(0)) {
         maze
     } =});
 
-    reaction(key_press) {=
-        let side = match ctx.get(key_press).unwrap() {
+    reaction(keyboard.arrow_key_pressed) {=
+        let side = match ctx.get(key_presses__key).unwrap() {
             Key::Left => Side::WEST,
             Key::Right => Side::EAST,
             Key::Up => Side::NORTH,
@@ -42,38 +44,5 @@ main reactor Maze(rows: usize(20), cols: usize(20), seed: u64(0)) {
             // refresh screen
             self.maze.render_to_console(self.player_pos);
         }
-    =}
-
-    reaction(startup) -> key_press {=
-        self.maze.render_to_console(self.player_pos);
-
-        let stdin = std::io::stdin();
-
-        let key_press = key_press.clone();
-        ctx.spawn_physical_thread(move |link| {
-            use termion::input::TermRead;
-            use termion::raw::IntoRawMode;
-
-            // enter raw mode, to get key presses one by one
-            // this will stay so until this variable is dropped
-            let stdout = std::io::stdout().into_raw_mode().unwrap();
-
-            for c in stdin.keys() {
-                match c.unwrap() {
-                    k@(Key::Left | Key::Right | Key::Up | Key::Down) => {
-                        trace!("received {:?}", k);
-                        link.schedule_physical_with_v(&key_press, Some(k), Asap).unwrap();
-                    },
-                    Key::Ctrl('c') => {
-                        // todo request stop! for now just exit raw mode
-                        drop(stdout);
-                        break;
-                    },
-                    k => {
-                        trace!("received {:?}", k);
-                    }
-                }
-            }
-        });
     =}
 }

@@ -3,9 +3,12 @@ target Rust {
     cargo-dependencies: {
         termcolor: "1",
         termion: "1",
+        rand: "0.8",
     },
     rust-include: "snakes.rs",
 };
+
+import KeyboardEvents from "KeyboardEvents.lf";
 
 main reactor Snake(grid_side: usize(32), tempo: u8(2)) {
     preamble {=
@@ -13,19 +16,18 @@ main reactor Snake(grid_side: usize(32), tempo: u8(2)) {
         use termion::event::Key;
     =}
 
-    /// Handles a key press.
-    physical action key_press: Key;
+    keyboard = new KeyboardEvents();
 
     /// Triggers a screen refresh, not a timer because we can
     /// shrink the period over time to speed up the game.
     logical action screen_refresh;
 
-    state snake: CircularSnake ({= CircularSnake::new(grid_side) =});
+    state grid: SnakeGrid ({= SnakeGrid::new(grid_side) =});
 
     /// Whither the snake is currently looking
     state cur_heading: Direction ({= Direction::RIGHT =});
 
-    reaction(key_press) {=
+    reaction(keyboard.arrow_key_pressed) {=
         // change the current heading, might be overwritten between two frames
         self.cur_heading = match ctx.get(key_press).unwrap() {
             Key::Left => Side::LEFT,
@@ -37,9 +39,8 @@ main reactor Snake(grid_side: usize(32), tempo: u8(2)) {
     =}
 
     reaction(screen_refresh) {=
-        // todo eat stuff
-        if self.snake.advance(self.cur_heading, false) {
-            self.repaint();
+        if self.grid.step(self.cur_heading) {
+            paint_on_raw_console(&self.grid);
         } else {
             // todo game over
         }
@@ -80,8 +81,52 @@ main reactor Snake(grid_side: usize(32), tempo: u8(2)) {
 
 
     preamble {=
-        fn repaint(&mut self) {
 
+        pub fn paint_on_raw_console(grid: &SnakeGrid) {
+            use std::io::Write;
+            let str = format_for_raw_console(grid);
+            let stdout = std::io::stdout();
+            let mut stdout = stdout.lock();
+
+            // this escape char clears the terminal
+            write!(stdout, "\x1B[2J{}", str).unwrap();
+            stdout.flush().unwrap();
         }
+
+        fn format_for_raw_console(grid: &SnakeGrid) -> String {
+            use std::io::Write;
+            use termcolor::{Buffer, BufferWriter, Color, ColorChoice, ColorSpec, WriteColor};
+
+            let bufwtr = BufferWriter::stdout(ColorChoice::Always);
+            let mut buf = bufwtr.buffer();
+
+            for _ in 0..grid.grid_side() {
+                write!(&mut buf, "-")
+            }
+            write!(&mut buf, "|\n\r");
+
+            for row in 0..grid.grid_side() {
+                write!(&mut buf, "|");
+                for col in 0..grid.grid_side() {
+                    match grid[cell(row, col)] {
+                        CellState::Snake =>
+                            if grid.snake.head() == cell(row, col) {
+                                write!(&mut buf, "@");
+                            } else {
+                                write!(&mut buf, "o");
+                            },
+                        CellState::Food => write!(&mut buf, "$"),
+                        CellState::Free => write!(&mut buf, " "),
+                    }
+                }
+                write!(&mut buf, "|\n\r");
+            }
+            for _ in 0..grid.grid_side() {
+                write!(&mut buf, "-")
+            }
+
+            String::from_utf8(buffer.into_inner()).unwrap()
+        }
+
     =}
 }

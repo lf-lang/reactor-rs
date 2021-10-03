@@ -366,12 +366,11 @@ impl MazeModel {
         }
     }
 }
+
 #[cfg(test)]
 mod test {
     use rand::SeedableRng;
     use rand::rngs::StdRng;
-    use crate::{cell, Maze};
-
     use super::*;
 
     #[test]
@@ -401,7 +400,7 @@ mod test {
         maze.generate_prim(&mut rng);
         let mut str = String::new();
         maze.display(&mut str, cell(6, 4));
-        maze.render_to_console();
+        maze.render_to_console(PlayerPos::Cell(cell(6, 4)));
         assert_eq!(str.as_str(),
                    r#"
    +--+--+--+--+--+--+--+--+--+--+
