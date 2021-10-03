@@ -4,22 +4,14 @@ target Rust {
         rand: "0.8",
         termcolor: "1",
         termion: "1",
-        mazelib: {
-            path: "/home/clem/Documents/Git/rs-maze"
-        }
-    }
+        bit-vec: "0.6"
+    },
+    rust-include: "maze.rs",
 };
 
-main reactor MazeProgram(rows: usize(20), cols: usize(20), seed: u64(0)) {
-
-    maze = new MazePrinter(rows=rows, cols=cols, seed=seed);
-
-}
-
-
-reactor MazePrinter(rows: usize(20), cols: usize(20), seed: u64(0)) {
+main reactor Maze(rows: usize(20), cols: usize(20), seed: u64(0)) {
     preamble {=
-        use mazelib::*;
+        use crate::maze::*;
         use rand::rngs::StdRng;
         use rand::Rng;
         use rand::SeedableRng;
@@ -30,9 +22,9 @@ reactor MazePrinter(rows: usize(20), cols: usize(20), seed: u64(0)) {
 
     state player_pos: PlayerPos ({= PlayerPos::Cell(cell(0,0)) =});
 
-    state maze: Maze({= {
+    state maze: MazeModel({= {
         let mut rng = StdRng::seed_from_u64(seed);
-        let mut maze = Maze::new(rows, cols, &mut rng);
+        let mut maze = MazeModel::new(rows, cols, &mut rng);
         maze.generate_prim(&mut rng);
         maze
     } =});

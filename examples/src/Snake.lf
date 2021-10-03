@@ -1,0 +1,87 @@
+target Rust {
+    cargo-features: ["cli"],
+    cargo-dependencies: {
+        termcolor: "1",
+        termion: "1",
+    },
+    rust-include: "snakes.rs",
+};
+
+main reactor Snake(grid_side: usize(32), tempo: u8(2)) {
+    preamble {=
+        use snakes::*;
+        use termion::event::Key;
+    =}
+
+    /// Handles a key press.
+    physical action key_press: Key;
+
+    /// Triggers a screen refresh, not a timer because we can
+    /// shrink the period over time to speed up the game.
+    logical action screen_refresh;
+
+    state snake: CircularSnake ({= CircularSnake::new(grid_side) =});
+
+    /// Whither the snake is currently looking
+    state cur_heading: Direction ({= Direction::RIGHT =});
+
+    reaction(key_press) {=
+        // change the current heading, might be overwritten between two frames
+        self.cur_heading = match ctx.get(key_press).unwrap() {
+            Key::Left => Side::LEFT,
+            Key::Right => Side::RIGHT,
+            Key::Up => Side::UP,
+            Key::Down => Side::DOWN,
+            _ => unreachable!(),
+        };
+    =}
+
+    reaction(screen_refresh) {=
+        // todo eat stuff
+        if self.snake.advance(self.cur_heading, false) {
+            self.repaint();
+        } else {
+            // todo game over
+        }
+    =}
+
+    reaction(startup) -> key_press {=
+        self.maze.render_to_console(self.player_pos);
+
+        let stdin = std::io::stdin();
+
+        let key_press = key_press.clone();
+        ctx.spawn_physical_thread(move |link| {
+            use termion::input::TermRead;
+            use termion::raw::IntoRawMode;
+
+            // enter raw mode, to get key presses one by one
+            // this will stay so until this variable is dropped
+            let stdout = std::io::stdout().into_raw_mode().unwrap();
+
+            for c in stdin.keys() {
+                match c.unwrap() {
+                    k@(Key::Left | Key::Right | Key::Up | Key::Down) => {
+                        trace!("received {:?}", k);
+                        link.schedule_physical_with_v(&key_press, Some(k), Asap).unwrap();
+                    },
+                    Key::Ctrl('c') => {
+                        // todo request stop! for now just exit raw mode
+                        drop(stdout);
+                        break;
+                    },
+                    k => {
+                        trace!("received {:?}", k);
+                    }
+                }
+            }
+        });
+    =}
+
+
+    preamble {=
+        fn repaint(&mut self) {
+
+        }
+    =}
+}
