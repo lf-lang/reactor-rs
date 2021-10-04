@@ -296,7 +296,7 @@ mod reactors {
                 if self.pingsLeft > 0 {
                     ctx.schedule(serve, Asap);
                 } else {
-                    ctx.request_stop();
+                    ctx.request_stop(Asap);
                 }
             }
 

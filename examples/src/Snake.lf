@@ -80,7 +80,7 @@ main reactor Snake(grid_side: usize(32), tempo_step: u32(40)) {
 
         // snakes don't "step" forward
         match self.snake.slither_forward(self.snake_direction, &mut self.grid) {
-            UpdateResult::GameOver => { ctx.request_stop(); return; },
+            UpdateResult::GameOver => { ctx.request_stop(Asap); return; },
             UpdateResult::FoodEaten => {
                 self.food_on_grid -= 1;
                 if self.food_on_grid == 0 {

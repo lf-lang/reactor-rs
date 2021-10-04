@@ -291,11 +291,12 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// next microstep. Before then, the current tag is
     /// processed until completion.
     #[inline]
-    pub fn request_stop(&mut self) {
-        let evt = Event {
-            tag: self.get_logical_time().next_microstep(),
-            payload: EventPayload::Terminate,
-        };
+    pub fn request_stop(&mut self, offset: Offset) {
+        let tag = (self.get_logical_time() + offset.to_duration())
+            // add at least one microstep
+            .max(self.get_logical_time().next_microstep());
+
+        let evt = Event { tag, payload: EventPayload::Terminate };
         self.0.insides.future_events.push(evt);
     }
 
