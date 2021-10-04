@@ -1,6 +1,7 @@
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp::max;
 use std::sync::mpsc::{Sender, SendError};
+use std::time::Instant;
 
 use crossbeam::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
@@ -597,6 +598,22 @@ pub struct PhysicalSchedulerLink<'a, 'x, 't> {
 }
 
 impl PhysicalSchedulerLink<'_, '_, '_> {
+    /// Request that the application
+    ///
+    /// This may fail if this is called while the scheduler has already
+    /// been shutdown. todo prevent this
+    pub fn request_stop(&mut self, offset: Offset) -> Result<(), SendError<()>> {
+        // physical time must be ahead of logical time so
+        // this event is scheduled for the future
+        let tag = LogicalInstant::now() + offset.to_duration();
+
+        let evt = Event { tag, payload: EventPayload::Terminate };
+        self.tx.send(evt).map_err(|e| {
+            warn!("Event could not be sent! {:?}", e);
+            SendError(())
+        })
+    }
+
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
@@ -619,12 +636,10 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
         value: Option<T>,
         offset: Offset,
     ) -> Result<(), SendError<Option<T>>> {
-
-        // we have to fetch the time at which the logical timeline is currently running,
-        // this may be far behind the current physical time
-        let time_in_logical_subsystem = self.latest_processed_tag.load();
+        // physical time must be ahead of logical time so
+        // this event is scheduled for the future
         action.use_mut(|action| {
-            let tag = action.make_eta(time_in_logical_subsystem, offset.to_duration());
+            let tag = action.make_eta(LogicalInstant::now(), offset.to_duration());
             action.schedule_future_value(tag, value);
 
             let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
