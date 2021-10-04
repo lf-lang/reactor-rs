@@ -3,6 +3,7 @@ use std::cmp::max;
 use std::sync::mpsc::{Sender, SendError};
 
 use crossbeam::thread::{Scope, ScopedJoinHandle};
+use smallvec::SmallVec;
 
 use crate::*;
 use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
@@ -30,8 +31,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                          latest_processed_tag: &'x TimeCell,
                          thread_spawner: &'a Scope<'t>) -> Self {
         Self(RContextInner {
-            todo,
-            requested_stop: false,
+            insides: RContextForwardableStuff {
+                todo_now: todo,
+                requested_stop: false,
+                future_events: Default::default(),
+            },
             current_time,
             tx,
             initial_time,
@@ -211,20 +215,18 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     pub(in crate) fn enqueue_later(&mut self, downstream: &'x ExecutableReactions, process_at: LogicalInstant) {
         debug_assert!(process_at > self.get_logical_time());
 
-        // todo merge events at equal tags by merging their dependencies
         let evt = Event {
             reactions: Cow::Borrowed(downstream),
             tag: process_at,
         };
-        // fixme we have mut access to scheduler, we should be able to avoid using a sender...
-        self.0.tx.send(evt).unwrap();
+        self.0.insides.future_events.push(evt);
     }
 
     #[inline]
     pub(in crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions>) {
-        match &mut self.0.todo {
+        match &mut self.0.insides.todo_now {
             Some(ref mut do_next) => do_next.to_mut().absorb(downstream.as_ref()),
-            None => self.0.todo = Some(downstream)
+            None => self.0.insides.todo_now = Some(downstream)
         }
     }
 
@@ -290,7 +292,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// processed until completion.
     #[inline]
     pub fn request_stop(&mut self) {
-        self.0.requested_stop = true;
+        self.0.insides.requested_stop = true;
     }
 
     /// Returns the start time of the execution of this program.
@@ -369,15 +371,18 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         mut self,
         scheduler: &mut SyncScheduler<'_, 'x, '_>,
         reactors: &mut ReactorVec<'r>,
+        event_queue: &mut EventQueue<'x>
     ) {
 
         // The maximum layer number we've seen as of now.
         // This must be increasing monotonically.
         let mut max_layer = 0usize;
 
+        let mut requested_stop = false;
+
         loop {
             let mut progress = false;
-            match self.0.todo.take() {
+            match self.0.insides.todo_now.take() {
                 None => {
                     // nothing to do
                     break;
@@ -396,9 +401,17 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                                 trace!("  - Executing {}", scheduler.debug().display_reaction(*reaction_id));
                                 let reactor = &mut reactors[reaction_id.0.container()];
 
-                                // this may append new elements into the queue,
-                                // which is why we can't use an iterator
                                 reactor.react_erased(&mut self, reaction_id.0.local());
+                                // the call to the reaction may have mutated three things,
+                                // all on self.0.insides:
+                                // - todo_now: reactions that need to be executed next -> they're
+                                // processed in the next loop iteration
+                                // - requested_stop and future_events: consume them now
+                                requested_stop |= self.0.insides.requested_stop;
+                                // push events without using the Sender
+                                for evt in self.0.insides.future_events.drain(..) {
+                                    event_queue.insert(evt)
+                                }
                             }
                         }
 
@@ -416,7 +429,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
             }
         }
 
-        if self.0.requested_stop {
+        if requested_stop {
             scheduler.request_stop(self.get_logical_time().next_microstep());
         }
 
@@ -446,47 +459,37 @@ mod parallel_rt_impl {
     ) {
         let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
 
-        let (stop, todo_next) = batch.iter()
-            .par_bridge()
-            .fold_with(ctx.0.clone(),
-                       |ctx_inner, reaction_id| {
-                           trace!("  - Executing {}", debug.display_reaction(*reaction_id));
-                           let reactor = unsafe {
-                               // safety:
-                               // - no two reactions in the batch refer belong to the same reactor
-                               // - the vec does not change size so there is no reallocation
-                               &mut *reactors_mut.0.add(reaction_id.0.container().index())
-                           };
+        let final_result =
+            batch.iter()
+                .par_bridge()
+                .fold(
+                    || ctx.0.fork(),
+                    |ctx_inner, reaction_id| {
+                        trace!("  - Executing {}", debug.display_reaction(*reaction_id));
+                        let reactor = unsafe {
+                            // safety:
+                            // - no two reactions in the batch refer belong to the same reactor
+                            // - the vec does not change size so there is no reallocation
+                            &mut *reactors_mut.0.add(reaction_id.0.container().index())
+                        };
 
-                           // this may append new elements into the queue,
-                           // which is why we can't use an iterator
-                           let mut ctx = ReactionCtx(ctx_inner);
-                           reactor.react_erased(&mut ctx, reaction_id.0.local());
+                        // this may append new elements into the queue,
+                        // which is why we can't use an iterator
+                        let mut ctx = ReactionCtx(ctx_inner);
+                        reactor.react_erased(&mut ctx, reaction_id.0.local());
 
-                           ctx.0
-                       })
-            .fold(|| (false, None), |(rstop, opt_cow), ctx| (ctx.requested_stop || rstop, merge_cows(opt_cow, ctx.todo)))
-            .reduce(|| (false, None), |(a, b), (c, d)| (a || c, merge_cows(b, d)));
+                        ctx.0
+                    },
+                )
+                // .fold_with(ctx.0.fork(),
+                //            |ctx_inner, reaction_id| {
+                //            })
+                .fold(|| Default::default(), |cx1, cx2| cx2.insides.merge(cx1))
+                .reduce(|| Default::default(), RContextForwardableStuff::merge);
 
-        ctx.0.todo = todo_next;
-        ctx.0.requested_stop |= stop;
+        ctx.0.insides = final_result;
     }
 
-    fn merge_cows<'x>(x: Option<Cow<'x, ExecutableReactions>>,
-                      y: Option<Cow<'x, ExecutableReactions>>) -> Option<Cow<'x, ExecutableReactions>> {
-        match (x, y) {
-            (None, None) => None,
-            (Some(x), None) | (None, Some(x)) => Some(x),
-            (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
-                x.absorb(&y);
-                Some(Cow::Owned(x))
-            },
-            (Some(mut x), Some(y)) => {
-                x.to_mut().absorb(&y);
-                Some(x)
-            }
-        }
-    }
 
     struct UnsafeSharedPointer<T>(*mut T);
 
@@ -497,18 +500,7 @@ mod parallel_rt_impl {
 
 
 struct RContextInner<'a, 'x, 't> where 'x: 't {
-    /// Remaining reactions to execute before the wave dies.
-    /// Using [Option] and [Cow] optimises for the case where
-    /// zero or exactly one port/action is set, and minimises
-    /// copies.
-    ///
-    /// This is mutable: if a reaction sets a port, then the
-    /// downstream of that port is inserted in into this
-    /// data structure.
-    todo: Option<Cow<'x, ExecutableReactions>>,
-
-    /// Whether some reaction has called [Self::request_stop].
-    requested_stop: bool,
+    insides: RContextForwardableStuff<'x>,
 
     /// Logical time of the execution of this wave, constant
     /// during the existence of the object
@@ -526,11 +518,15 @@ struct RContextInner<'a, 'x, 't> where 'x: 't {
     latest_processed_tag: &'x TimeCell,
 }
 
-impl<'a, 'x, 't> Clone for RContextInner<'a, 'x, 't> where 'x: 't {
-    fn clone(&self) -> Self {
+impl<'x, 't> RContextInner<'_, 'x, 't> where 'x: 't {
+    /// Fork a context. Some things are shared, but not the
+    /// mutable stuff.
+    #[cfg(feature = "parallel_runtime")]
+    fn fork(&self) -> Self {
         Self {
-            todo: None,
-            requested_stop: self.requested_stop,
+            insides: Default::default(),
+
+            // all of that is common to all contexts
             current_time: self.current_time,
             tx: self.tx.clone(),
             initial_time: self.initial_time,
@@ -541,6 +537,60 @@ impl<'a, 'x, 't> Clone for RContextInner<'a, 'x, 't> where 'x: 't {
     }
 }
 
+/// Info that executing reactions need to make known to the scheduler.
+struct RContextForwardableStuff<'x> {
+    /// Remaining reactions to execute before the wave dies.
+    /// Using [Option] and [Cow] optimises for the case where
+    /// zero or exactly one port/action is set, and minimises
+    /// copies.
+    ///
+    /// This is mutable: if a reaction sets a port, then the
+    /// downstream of that port is inserted in into this
+    /// data structure.
+    todo_now: Option<Cow<'x, ExecutableReactions>>,
+
+    /// Events that were produced for a strictly greater
+    /// logical time than a current one.
+    future_events: SmallVec<[Event<'x>; 4]>,
+
+    /// Whether some reaction has called [Self::request_stop].
+    requested_stop: bool, // todo Option<Duration>
+}
+
+impl Default for RContextForwardableStuff<'_> {
+    fn default() -> Self {
+        Self {
+            todo_now: None,
+            future_events: Default::default(),
+            requested_stop: false,
+        }
+    }
+}
+
+impl<'x> RContextForwardableStuff<'x> {
+    fn merge(mut self, mut other: Self) -> Self {
+        self.requested_stop |= other.requested_stop;
+        self.todo_now = Self::merge_cows(self.todo_now, other.todo_now);
+        self.future_events.append(&mut other.future_events);
+        self
+    }
+
+    fn merge_cows(x: Option<Cow<'x, ExecutableReactions>>,
+                  y: Option<Cow<'x, ExecutableReactions>>) -> Option<Cow<'x, ExecutableReactions>> {
+        match (x, y) {
+            (None, None) => None,
+            (Some(x), None) | (None, Some(x)) => Some(x),
+            (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
+                x.absorb(&y);
+                Some(Cow::Owned(x))
+            },
+            (Some(mut x), Some(y)) => {
+                x.to_mut().absorb(&y);
+                Some(x)
+            }
+        }
+    }
+}
 
 /// A type that can affect the logical event queue to implement
 /// asynchronous physical actions. This is a "link" to the event

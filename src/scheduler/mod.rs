@@ -37,27 +37,33 @@ use crate::{LogicalInstant, ReactorBehavior, ReactorId};
 
 use self::depgraph::ExecutableReactions;
 
-/// The internal cell type used to store a thread-safe mutable logical time value.
-type TimeCell = AtomicCell<LogicalInstant>;
-
-/// A set of reactions to execute at a particular tag.
-/// The key characteristic of instances is
-/// 1. they may be merged together (by a [DataflowInfo]).
-/// 2. merging two plans eliminates duplicates
-#[derive(Debug)]
-pub(in self) struct Event<'x> {
-    pub(in self) reactions: Cow<'x, ExecutableReactions>,
-    pub(in self) tag: LogicalInstant,
-}
-
-pub(in self) type ReactorVec<'x> = IndexVec<ReactorId, Box<dyn ReactorBehavior + Send + Sync + 'x>>;
-
 mod context;
 mod scheduler_impl;
 mod event_queue;
 mod depgraph;
 mod assembly;
 
+
+/// The internal cell type used to store a thread-safe mutable logical time value.
+type TimeCell = AtomicCell<LogicalInstant>;
+
+/// A tagged event of the reactor program. Events are tagged
+/// with the logical instant at which they must be processed.
+/// They are queued and processed in order. See [self::EventQueue].
+///
+/// [self::PhysicalSchedulerLink] may only communicate with
+/// the scheduler by sending events.
+#[derive(Debug)]
+pub(in self) struct Event<'x> {
+    /// The tag at which the reactions to this event must be executed.
+    /// This is always > to the latest *processed* tag, by construction
+    /// of the reactor application.
+    pub(in self) tag: LogicalInstant,
+    /// The set of reactions to execute.
+    pub(in self) reactions: Cow<'x, ExecutableReactions>,
+}
+
+pub(in self) type ReactorVec<'x> = IndexVec<ReactorId, Box<dyn ReactorBehavior + Send + Sync + 'x>>;
 
 #[inline]
 pub(in self) fn display_tag_impl(initial_time: LogicalInstant, tag: LogicalInstant) -> String {

@@ -137,7 +137,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     fn launch_event_loop<'r>(mut self, reactors: &mut ReactorVec<'r>) {
         let mut event_queue: EventQueue<'x> = Default::default();
 
-        self.startup(reactors);
+        self.startup(reactors, &mut event_queue);
 
         /************************************************
          * This is the main event loop of the scheduler *
@@ -155,7 +155,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 }
                 // execute the wave for this event.
                 trace!("Processing event for tag {}", self.debug().display_tag(evt.tag));
-                self.step(evt, reactors);
+                self.step(evt, reactors, &mut event_queue);
             } else if let Some(evt) = self.receive_event() { // this may block
                 self.do_push_event(&mut event_queue, evt);
                 continue;
@@ -166,7 +166,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         } // end loop
 
         info!("Scheduler is shutting down...");
-        self.shutdown(reactors);
+        self.shutdown(reactors, &mut event_queue);
         info!("Scheduler has been shut down")
 
         // self destructor is called here
@@ -200,7 +200,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Fix the origin of the logical timeline to the current
     /// physical time, and runs the startup reactions
     /// of all reactors.
-    fn startup<'r>(&mut self, reactors: &mut ReactorVec<'r>) {
+    fn startup<'r>(&mut self, reactors: &mut ReactorVec<'r>, event_queue: &mut EventQueue<'x>) {
         info!("Triggering startup...");
         let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
@@ -210,23 +210,24 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         }
 
         debug_assert!(!reactors.is_empty(), "No registered reactors");
-        self.execute_wave(initial_time, reactors, ReactorBehavior::enqueue_startup);
+        self.execute_wave(initial_time, reactors, ReactorBehavior::enqueue_startup, event_queue);
     }
 
-    fn shutdown<'r>(&mut self, reactors: &mut ReactorVec<'r>) {
+    fn shutdown<'r>(&mut self, reactors: &mut ReactorVec<'r>, event_queue: &mut EventQueue<'x>) {
         let shutdown_time = self.shutdown_time.unwrap_or_else(LogicalInstant::now);
-        self.execute_wave(shutdown_time, reactors, ReactorBehavior::enqueue_shutdown);
+        self.execute_wave(shutdown_time, reactors, ReactorBehavior::enqueue_shutdown, event_queue);
     }
 
     fn execute_wave<'r>(&mut self,
                         time: LogicalInstant,
                         reactors: &mut ReactorVec<'r>,
-                        enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'r), &mut StartupCtx)) {
+                        enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'r), &mut StartupCtx),
+                        event_queue: &mut EventQueue<'x>) {
         let mut startup_ctx = StartupCtx { ctx: self.new_reaction_ctx(time, None) };
         for reactor in reactors.iter() {
             enqueue_fun(reactor.as_ref(), &mut startup_ctx);
         }
-        startup_ctx.ctx.process_entire_tag(self, reactors)
+        startup_ctx.ctx.process_entire_tag(self, reactors, event_queue)
     }
 
     pub(in super) fn request_stop(&mut self, time: LogicalInstant) {
@@ -279,12 +280,12 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Execute a wave. This may make the calling thread
     /// (the scheduler one) sleep, if the expected processing
     /// time (logical) is ahead of current physical time.
-    fn step<'r>(&mut self, event: Event<'x>, reactors: &mut ReactorVec<'r>) {
+    fn step<'r>(&mut self, event: Event<'x>, reactors: &mut ReactorVec<'r>, event_queue: &mut EventQueue<'x>) {
         let time = self.catch_up_physical_time(event.tag);
         self.latest_processed_tag.store(time); // set the time so that scheduler links can know that.
 
         let ctx = self.new_reaction_ctx(time, Some(event.reactions));
-        ctx.process_entire_tag(self, reactors)
+        ctx.process_entire_tag(self, reactors, event_queue)
     }
 
     fn catch_up_physical_time(&mut self, up_to_time: LogicalInstant) -> LogicalInstant {

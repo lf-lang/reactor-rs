@@ -356,6 +356,9 @@ impl DataflowInfo {
 type Layer = HashSet<GlobalReactionId>;
 
 /// A set of reactions ordered by relative dependency.
+/// The key characteristic of instances is
+/// 1. they may be merged together (by a [DataflowInfo]).
+/// 2. merging two plans eliminates duplicates
 #[derive(Clone, Debug, Default)]
 pub(in crate) struct ExecutableReactions(
     /// An ordered list of layers to execute.
