@@ -189,7 +189,7 @@ pub mod output {
     fn print_fence(buf: &mut Buffer, side: usize) -> Result<()> {
         write!(buf, "+")?;
         for _ in 0..side {
-            write!(buf, "~")?;
+            write!(buf, "~~")?;
         }
         write!(buf, "+\n\r")
     }
@@ -221,14 +221,18 @@ pub mod output {
 
         print_fence(&mut buf, grid.grid_side())?;
 
+        // note: each cell is two chars wide because tty
+        // characters are taller than they're wide. This
+        // way vertical/horizontal speed is not warped.
+
         for row in 0..grid.grid_side() {
             write!(&mut buf, "|").unwrap();
             for col in 0..grid.grid_side() {
                 match grid[cell(row, col)] {
-                    CellState::SnakeHead => write_colored(&mut buf, "@", &snake_color)?,
-                    CellState::Snake => write_colored(&mut buf, "o", &snake_color)?,
-                    CellState::Food => write_colored(&mut buf, "x", &food_color)?,
-                    CellState::Free => write!(&mut buf, " ")?,
+                    CellState::SnakeHead => write_colored(&mut buf, "@ ", &snake_color)?,
+                    CellState::Snake => write_colored(&mut buf, "o ", &snake_color)?,
+                    CellState::Food => write_colored(&mut buf, "x ", &food_color)?,
+                    CellState::Free => write!(&mut buf, "  ")?,
                 }
             }
             write!(&mut buf, "|\n\r")?;
