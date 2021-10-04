@@ -17,14 +17,14 @@ import KeyboardEvents from "KeyboardEvents.lf";
 
 // main reactor parameters can be set on the CLI, eg:
 //  ./snake --main-grid-side 48
-main reactor Snake(grid_side: usize(32), tempo_step: u32(40)) {
+main reactor Snake(grid_side: usize(32),
+                   tempo_step: u32(40),
+                   food_limit: u32(2)) {
     preamble {=
         use crate::snakes::*;
         use crate::snakes;
         use termion::event::Key;
         use rand::prelude::*;
-
-        const MAX_FOOD_ON_GRID: u32 = 2;
     =}
 
     /// this thing helps capturing key presses
@@ -95,12 +95,12 @@ main reactor Snake(grid_side: usize(32), tempo_step: u32(40)) {
     =}
 
     reaction(manually_add_more_food, add_more_food) {=
-        if self.food_on_grid >= MAX_FOOD_ON_GRID {
+        if self.food_on_grid >= params.food_limit {
             return; // there's enough food there
         }
         // find a random free cell that will become food
         let mut rng = thread_rng();
-        loop {
+        for _ in 0..60 { // don't loop infinitely
             let row = rng.gen_range(0..params.grid_side);
             let col = rng.gen_range(0..params.grid_side);
             if self.grid[cell(row, col)] == CellState::Free {

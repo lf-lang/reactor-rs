@@ -37,8 +37,8 @@ reactor KeyboardEvents {
                         link.schedule_physical_with_v(&key_press, Some(k), Asap).ok();
                     },
                     Key::Ctrl('c') => {
-                        // todo request stop! for now just exit raw mode
-                        drop(stdout);
+                        drop(stdout);// exit raw mode
+                        link.request_stop(Asap);
                         break;
                     },
                     k => {
