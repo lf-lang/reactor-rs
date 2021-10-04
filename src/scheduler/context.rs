@@ -33,7 +33,6 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         Self(RContextInner {
             insides: RContextForwardableStuff {
                 todo_now: todo,
-                requested_stop: false,
                 future_events: Default::default(),
             },
             current_time,
@@ -216,8 +215,8 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         debug_assert!(process_at > self.get_logical_time());
 
         let evt = Event {
-            reactions: Cow::Borrowed(downstream),
             tag: process_at,
+            payload: EventPayload::Reactions(Cow::Borrowed(downstream)),
         };
         self.0.insides.future_events.push(evt);
     }
@@ -292,7 +291,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// processed until completion.
     #[inline]
     pub fn request_stop(&mut self) {
-        self.0.insides.requested_stop = true;
+        let evt = Event {
+            tag: self.get_logical_time().next_microstep(),
+            payload: EventPayload::Terminate,
+        };
+        self.0.insides.future_events.push(evt);
     }
 
     /// Returns the start time of the execution of this program.
@@ -378,8 +381,6 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         // This must be increasing monotonically.
         let mut max_layer = 0usize;
 
-        let mut requested_stop = false;
-
         loop {
             let mut progress = false;
             match self.0.insides.todo_now.take() {
@@ -402,13 +403,10 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                                 let reactor = &mut reactors[reaction_id.0.container()];
 
                                 reactor.react_erased(&mut self, reaction_id.0.local());
-                                // the call to the reaction may have mutated three things,
-                                // all on self.0.insides:
+                                // the reaction invocation may have mutated self.0.insides:
                                 // - todo_now: reactions that need to be executed next -> they're
                                 // processed in the next loop iteration
-                                // - requested_stop and future_events: consume them now
-                                requested_stop |= self.0.insides.requested_stop;
-                                // push events without using the Sender
+                                // - future_events: handled now
                                 for evt in self.0.insides.future_events.drain(..) {
                                     event_queue.insert(evt)
                                 }
@@ -427,10 +425,6 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                 // no new batch, we're done
                 break;
             }
-        }
-
-        if requested_stop {
-            scheduler.request_stop(self.get_logical_time().next_microstep());
         }
 
         // cleanup tag-specific resources, eg clear port values
@@ -552,9 +546,6 @@ struct RContextForwardableStuff<'x> {
     /// Events that were produced for a strictly greater
     /// logical time than a current one.
     future_events: SmallVec<[Event<'x>; 4]>,
-
-    /// Whether some reaction has called [Self::request_stop].
-    requested_stop: bool, // todo Option<Duration>
 }
 
 impl Default for RContextForwardableStuff<'_> {
@@ -562,14 +553,12 @@ impl Default for RContextForwardableStuff<'_> {
         Self {
             todo_now: None,
             future_events: Default::default(),
-            requested_stop: false,
         }
     }
 }
 
 impl<'x> RContextForwardableStuff<'x> {
     fn merge(mut self, mut other: Self) -> Self {
-        self.requested_stop |= other.requested_stop;
         self.todo_now = Self::merge_cows(self.todo_now, other.todo_now);
         self.future_events.append(&mut other.future_events);
         self
@@ -639,7 +628,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
             action.schedule_future_value(tag, value);
 
             let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
-            let evt = Event { reactions: Cow::Borrowed(downstream), tag };
+            let evt = Event { tag, payload: EventPayload::Reactions(Cow::Borrowed(downstream)) };
             self.tx.send(evt).map_err(|e| {
                 warn!("Event could not be sent! {:?}", e);
                 SendError(action.forget_value(&tag))

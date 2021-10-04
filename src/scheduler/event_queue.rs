@@ -26,7 +26,7 @@ impl<'x> EventQueue<'x> {
 
     pub(in super) fn insert(&mut self, evt: Event<'x>) {
         match self.value_list.binary_search_by_key(&Reverse(evt.tag), |e| Reverse(e.tag)) {
-            Ok(idx) => self.value_list[idx].reactions.to_mut().absorb(evt.reactions.as_ref()),
+            Ok(idx) => self.value_list[idx].absorb(evt),
             Err(idx) => self.value_list.insert(idx, evt),
         }
     }

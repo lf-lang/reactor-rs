@@ -153,9 +153,16 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                     trace!("Event is late, shutting down - event tag: {}", self.debug().display_tag(evt.tag));
                     break;
                 }
-                // execute the wave for this event.
-                trace!("Processing event for tag {}", self.debug().display_tag(evt.tag));
-                self.step(evt, reactors, &mut event_queue);
+                match evt {
+                    Event { tag, payload: EventPayload::Reactions(reactions) } => {
+                        trace!("Processing event for tag {}", self.debug().display_tag(evt.tag));
+                        self.step(tag, reactions, reactors, &mut event_queue);
+                    },
+                    Event { tag, payload: EventPayload::Terminate } => {
+                        // todo sleep until the tag, possibly waking up
+                        break
+                    }
+                }
             } else if let Some(evt) = self.receive_event() { // this may block
                 self.do_push_event(&mut event_queue, evt);
                 continue;
@@ -236,7 +243,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     }
 
     fn do_push_event(&self, event_queue: &mut EventQueue<'x>, evt: Event<'x>) {
-        trace!("Pushing {}", self.debug().display_event(&evt, evt.tag));
+        trace!("Pushing {}", self.debug().display_event(&evt));
         event_queue.insert(evt);
     }
 
@@ -280,11 +287,16 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Execute a wave. This may make the calling thread
     /// (the scheduler one) sleep, if the expected processing
     /// time (logical) is ahead of current physical time.
-    fn step<'r>(&mut self, event: Event<'x>, reactors: &mut ReactorVec<'r>, event_queue: &mut EventQueue<'x>) {
-        let time = self.catch_up_physical_time(event.tag);
+    fn step<'r>(&mut self,
+                tag: LogicalInstant,
+                reactions: Cow<'x, ExecutableReactions>,
+                reactors: &mut ReactorVec<'r>,
+                event_queue: &mut EventQueue<'x>,
+    ) {
+        let time = self.catch_up_physical_time(tag);
         self.latest_processed_tag.store(time); // set the time so that scheduler links can know that.
 
-        let ctx = self.new_reaction_ctx(time, Some(event.reactions));
+        let ctx = self.new_reaction_ctx(time, Some(reactions));
         ctx.process_entire_tag(self, reactors, event_queue)
     }
 
@@ -346,16 +358,23 @@ impl DebugInfoProvider<'_> {
         display_tag_impl(self.initial_time, tag)
     }
 
-    pub fn display_event(&self, evt: &Event, process_at: LogicalInstant) -> String {
-        let mut str = format!("Event(at {}: run [", self.display_tag(process_at));
+    pub fn display_event(&self, evt: &Event) -> String {
+        match evt {
+            Event { tag, payload: EventPayload::Reactions(reactions) } => {
+                let mut str = format!("Event(at {}: run [", self.display_tag(*tag));
 
-        for (layer_no, batch) in evt.reactions.batches() {
-            write!(str, "{}: ", layer_no).unwrap();
-            join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| self.display_reaction(*x)).unwrap();
+                for (layer_no, batch) in reactions.batches() {
+                    write!(str, "{}: ", layer_no).unwrap();
+                    join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| self.display_reaction(*x)).unwrap();
+                }
+
+                str += "])";
+                str
+            }
+            Event { tag, payload: EventPayload::Terminate } => {
+                format!("Event(at {}: terminate program", self.display_tag(*tag))
+            }
         }
-
-        str += "])";
-        str
     }
 
     #[inline]

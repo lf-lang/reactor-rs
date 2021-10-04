@@ -33,7 +33,7 @@ pub use context::*;
 pub(in self) use event_queue::*;
 pub use scheduler_impl::*;
 
-use crate::{LogicalInstant, ReactorBehavior, ReactorId};
+use crate::{Duration, LogicalInstant, PhysicalInstant, ReactorBehavior, ReactorId};
 
 use self::depgraph::ExecutableReactions;
 
@@ -54,19 +54,45 @@ type TimeCell = AtomicCell<LogicalInstant>;
 /// [self::PhysicalSchedulerLink] may only communicate with
 /// the scheduler by sending events.
 #[derive(Debug)]
-pub(in self) struct Event<'x> {
+pub(self) struct Event<'x> {
     /// The tag at which the reactions to this event must be executed.
     /// This is always > to the latest *processed* tag, by construction
     /// of the reactor application.
     pub(in self) tag: LogicalInstant,
-    /// The set of reactions to execute.
-    pub(in self) reactions: Cow<'x, ExecutableReactions>,
+    /// The payload.
+    pub payload: EventPayload<'x>,
 }
 
-pub(in self) type ReactorVec<'x> = IndexVec<ReactorId, Box<dyn ReactorBehavior + Send + Sync + 'x>>;
+impl<'x> Event<'x> {
+    pub fn absorb(&mut self, other: Event<'x>) {
+        use EventPayload::*;
+        debug_assert_eq!(self.tag, other.tag);
+        match (&mut self.payload, other.payload) {
+            (Reactions(ref mut r1), Reactions(ref r2)) => {
+                r1.to_mut().absorb(r2.as_ref())
+            }
+            _ => {
+                // Terminate wins against reactions
+                self.payload = Terminate
+            }
+        }
+    }
+}
+
+/// Identifies different kind of events.
+#[derive(Debug)]
+pub(self) enum EventPayload<'x> {
+    /// A set of reactions to execute.
+    Reactions(Cow<'x, ExecutableReactions>),
+    /// Means we should terminate the application at the tag
+    /// of this event.
+    Terminate,
+}
+
+pub(self) type ReactorVec<'x> = IndexVec<ReactorId, Box<dyn ReactorBehavior + Send + Sync + 'x>>;
 
 #[inline]
-pub(in self) fn display_tag_impl(initial_time: LogicalInstant, tag: LogicalInstant) -> String {
+pub(self) fn display_tag_impl(initial_time: LogicalInstant, tag: LogicalInstant) -> String {
     let elapsed = tag.instant - initial_time.instant;
     format!("(T0 + {} ns = {} ms, {})", elapsed.as_nanos(), elapsed.as_millis(), tag.microstep)
 }
