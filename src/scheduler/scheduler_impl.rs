@@ -27,7 +27,7 @@
 
 
 use std::fmt::Write;
-use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 
 use crossbeam::scope;
 use crossbeam::thread::Scope;
@@ -154,15 +154,26 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                     trace!("Event is late, shutting down - event tag: {}", self.debug().display_tag(evt.tag));
                     break;
                 }
-                match evt {
-                    Event { tag, payload: EventPayload::Reactions(reactions) } => {
-                        trace!("Processing event for tag {}", self.debug().display_tag(evt.tag));
-                        self.step(tag, reactions, reactors, &mut event_queue);
-                    },
-                    Event { tag: _, payload: EventPayload::Terminate } => {
-                        // todo sleep until the tag, possibly waking up
-                        break
+                trace!("Processing event for tag {}", self.debug().display_tag(evt.tag));
+                match self.catch_up_physical_time(&evt.tag) {
+                    Ok(_) => {},
+                    Err(async_event) => {
+                        // an asynchronous event woke our sleep
+                        if async_event.tag < evt.tag {
+                            // reinsert both events to order them and try again.
+                            event_queue.insert(evt);
+                            event_queue.insert(async_event);
+                            continue
+                        } else {
+                            // we can process this event first and not care about the async event
+                            event_queue.insert(async_event);
+                        }
                     }
+                };
+
+                match evt.payload {
+                    EventPayload::Reactions(reactions) => self.step(evt.tag, reactions, reactors, &mut event_queue),
+                    EventPayload::Terminate => break,
                 }
             } else if let Some(evt) = self.receive_event() { // this may block
                 self.do_push_event(&mut event_queue, evt);
@@ -290,32 +301,36 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 reactors: &mut ReactorVec<'r>,
                 event_queue: &mut EventQueue<'x>,
     ) {
-        let time = self.catch_up_physical_time(tag);
-        self.latest_processed_tag.store(time); // set the time so that scheduler links can know that.
+        self.latest_processed_tag.store(tag); // set the time so that scheduler links can know that.
 
-        let ctx = self.new_reaction_ctx(time, Some(reactions));
+        let ctx = self.new_reaction_ctx(tag, Some(reactions));
         ctx.process_entire_tag(self, reactors, event_queue)
     }
 
-    fn catch_up_physical_time(&mut self, up_to_time: LogicalInstant) -> LogicalInstant {
+    fn catch_up_physical_time(&mut self, up_to_time: &LogicalInstant) -> Result<(), Event<'x>> {
         let now = PhysicalInstant::now();
-
-        // fixme when we're sleeping, physical actions may be triggered
-        //  and we only process them after we wake up, so we're late...
-        //  Probably replace sleeping with a Condvar
 
         if now < up_to_time.instant {
             let t = up_to_time.instant - now;
             trace!("  - Need to sleep {} ns", t.as_nanos());
-            std::thread::sleep(t); // todo: see crate shuteyes for nanosleep capabilities on linux/macos platforms
-        } else if now > up_to_time.instant {
+            // we use recv_timeout as a thread::sleep so that
+            // our sleep is interrupted properly when an async
+            // event arrives
+            match self.rx.recv_timeout(t) {
+                Ok(async_evt) => {
+                    trace!("  - Received async event for tag {}, going back to queue", self.debug().display_tag(async_evt.tag));
+                    return Err(async_evt)
+                },
+                Err(RecvTimeoutError::Timeout) => { /*great*/ },
+                Err(RecvTimeoutError::Disconnected) => unreachable!("at least one sender should be alive in this scheduler instance")
+            }
+        }
+
+        if now > up_to_time.instant {
             let delay = now - up_to_time.instant;
             trace!("  - Running late by {} ns = {} µs = {} ms", delay.as_nanos(), delay.as_micros(), delay.as_millis())
         }
-        // note this doesn't use `now` because we use
-        // scheduled time identity to associate values
-        // with actions
-        up_to_time
+        Ok(())
     }
 
     /// Create a new reaction wave to process the given

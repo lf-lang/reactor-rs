@@ -141,7 +141,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ### Examples
     ///
     /// ```no_run
-    /// # use reactor_rt::{Duration, ReactionCtx, LogicalAction, Offset::*};
+    /// # use reactor_rt::{Duration, ReactionCtx, LogicalAction, Offset::*, after, delay};
     /// # let ctx: &mut ReactionCtx = panic!();
     /// # let action: &mut LogicalAction<String> = panic!();
     /// ctx.schedule(action, Asap);         // will be executed one microstep from now (+ own delay)
@@ -169,7 +169,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ### Examples
     ///
     /// ```no_run
-    /// # use reactor_rt::{Duration, ReactionCtx, LogicalAction, Offset::*};
+    /// # use reactor_rt::{Duration, ReactionCtx, LogicalAction, Offset::*, after, delay};
     /// # let ctx: &mut ReactionCtx = panic!();
     /// # let action: &mut LogicalAction<&'static str> = panic!();
     /// // will be executed 2 milliseconds (+ own delay) from now with that value.
@@ -706,8 +706,8 @@ pub enum Offset {
     /// action's inherent minimum delay must be taken into account,
     /// and even with a zero minimal delay, a delay of one microstep
     /// is applied. This is equivalent to
-    /// ```
-    /// # use reactor_rt::Duration;
+    /// ```no_compile
+    /// # use reactor_rt::{Duration, Offset::After};
     /// After(Duration::ZERO)
     /// ```
     Asap,
