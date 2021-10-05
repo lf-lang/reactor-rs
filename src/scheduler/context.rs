@@ -408,7 +408,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                                 // processed in the next loop iteration
                                 // - future_events: handled now
                                 for evt in self.0.insides.future_events.drain(..) {
-                                    event_queue.insert(evt)
+                                    event_queue.push(evt)
                                 }
                             }
                         }

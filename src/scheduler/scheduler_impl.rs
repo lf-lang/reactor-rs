@@ -161,12 +161,12 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                         // an asynchronous event woke our sleep
                         if async_event.tag < evt.tag {
                             // reinsert both events to order them and try again.
-                            event_queue.insert(evt);
-                            event_queue.insert(async_event);
+                            event_queue.push(evt);
+                            event_queue.push(async_event);
                             continue
                         } else {
                             // we can process this event first and not care about the async event
-                            event_queue.insert(async_event);
+                            event_queue.push(async_event);
                         }
                     }
                 };
@@ -252,7 +252,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     fn do_push_event(&self, event_queue: &mut EventQueue<'x>, evt: Event<'x>) {
         trace!("Pushing {}", self.debug().display_event(&evt));
-        event_queue.insert(evt);
+        event_queue.push(evt);
     }
 
     /// Returns whether the given event should be ignored and

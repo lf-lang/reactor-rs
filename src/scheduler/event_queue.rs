@@ -1,4 +1,5 @@
 use std::cmp::Reverse;
+use std::collections::LinkedList;
 
 use smallvec::SmallVec;
 
@@ -7,14 +8,23 @@ use smallvec::SmallVec;
 use super::Event;
 
 
-/// A queue of pending [TagExecutionPlan].
+/// A queue of pending [Event]s. Events are ordered by tag,
+/// so this is not a FIFO queue.
 #[derive(Default)]
 pub(in super) struct EventQueue<'x> {
-    /// This is a list sorted by the tag of each TagExecutionPlan.
-    /// The earliest tag is at the end.
+
+    /// This list is sorted by the tag of each TagExecutionPlan.
+    /// The earliest tag is at the end, to minimize insertions
+    /// at the beginning (which would shift all remaining events
+    /// right).
     ///
-    /// TODO using linked list could be nice in some cases
-    value_list: SmallVec<[Event<'x>; 16]>,
+    /// But insertion is at worse O(n)... And it's easy to build
+    /// a pathological program where this worse case is always hit.
+    /// Theoretically using a tree/ heap would be useful here.
+    ///
+    /// Note that the size of 2 for this SmallVec was found
+    /// to be the best for the Savina pong benchmark.
+    value_list: SmallVec<[Event<'x>; 2]>,
 }
 
 
@@ -24,7 +34,8 @@ impl<'x> EventQueue<'x> {
         self.value_list.pop()
     }
 
-    pub(in super) fn insert(&mut self, evt: Event<'x>) {
+    /// Push an event into the heap.
+    pub(in super) fn push(&mut self, evt: Event<'x>) {
         match self.value_list.binary_search_by_key(&Reverse(evt.tag), |e| Reverse(e.tag)) {
             Ok(idx) => self.value_list[idx].absorb(evt),
             Err(idx) => self.value_list.insert(idx, evt),
