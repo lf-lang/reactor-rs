@@ -6,7 +6,10 @@ target Rust {
 /// Used by the other examples.
 reactor KeyboardEvents {
     preamble {=
+        use std::io::Stdout;
+
         use termion::event::Key;
+        use termion::raw::{RawTerminal, IntoRawMode};
     =}
 
     /// The latest key press.
@@ -14,21 +17,27 @@ reactor KeyboardEvents {
 
     physical action key_press: Key;
 
+    state raw_terminal: Option<RawTerminal<Stdout>>;
+
     reaction(key_press) -> arrow_key_pressed {=
         ctx.set(arrow_key_pressed, ctx.get(key_press).unwrap());
     =}
 
+    reaction(shutdown) {=
+        drop(self.raw_terminal.take()) // exit raw mode
+    =}
+
     reaction(startup) -> key_press {=
+
         let stdin = std::io::stdin();
+
+        // enter raw mode, to get key presses one by one
+        // this will stay so until this variable is dropped
+        self.raw_terminal = Some(std::io::stdout().into_raw_mode().unwrap());
 
         let key_press = key_press.clone();
         ctx.spawn_physical_thread(move |link| {
             use termion::input::TermRead;
-            use termion::raw::IntoRawMode;
-
-            // enter raw mode, to get key presses one by one
-            // this will stay so until this variable is dropped
-            let stdout = std::io::stdout().into_raw_mode().unwrap();
 
             for c in stdin.keys() {
                 match c.unwrap() {
@@ -37,8 +46,7 @@ reactor KeyboardEvents {
                         link.schedule_physical_with_v(&key_press, Some(k), Asap).ok();
                     },
                     Key::Ctrl('c') => {
-                        drop(stdout);// exit raw mode
-                        link.request_stop(Asap);
+                        link.request_stop(Asap).unwrap();
                         break;
                     },
                     k => {

@@ -125,4 +125,8 @@ main reactor Snake(grid_side: usize(32),
         }
     =}
 
+    // @label shutdown
+    reaction(shutdown) {=
+        println!("New high score: {}", self.snake.len());
+    =}
 }
