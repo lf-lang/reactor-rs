@@ -167,6 +167,7 @@ impl TimeUnit {
 /// use reactor_rt::try_parse_duration;
 /// use std::time::Duration;
 ///
+/// assert_eq!(try_parse_duration("3 ms"),   Ok(Duration::from_millis(3)));
 /// assert_eq!(try_parse_duration("3ms"),    Ok(Duration::from_millis(3)));
 /// assert_eq!(try_parse_duration("5us"),    Ok(Duration::from_micros(5)));
 /// assert_eq!(try_parse_duration("30ns"),   Ok(Duration::from_nanos(30)));
@@ -188,7 +189,7 @@ pub fn try_parse_duration(t: &str) -> Result<Duration, String> {
     if let Some((num_end, _)) = &chars.next() {
         let magnitude: u64 = (&t)[0..*num_end].parse::<u64>().map_err(|e| format!("{}", e))?;
 
-        let unit = &t[*num_end..];
+        let unit = t[*num_end..].trim();
 
         let duration = match TimeUnit::try_from(unit) {
             Ok(unit) => unit.to_duration(magnitude),
