@@ -156,8 +156,10 @@ pub type PortId = GlobalId;
 #[derive(Clone)]
 pub(in crate) struct ReactorDebugInfo {
     /// Type name
+    #[allow(unused)]
     pub type_name: &'static str,
     /// Simple name of the instantiation (last segment of the path)
+    #[allow(unused)]
     pub inst_name: &'static str,
     /// Path to this instantiation (eg "/parent/child")
     inst_path: String,

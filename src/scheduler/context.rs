@@ -28,7 +28,6 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                          initial_time: LogicalInstant,
                          todo: Option<Cow<'x, ExecutableReactions>>,
                          dataflow: &'x DataflowInfo,
-                         latest_processed_tag: &'x TimeCell,
                          thread_spawner: &'a Scope<'t>) -> Self {
         Self(RContextInner {
             insides: RContextForwardableStuff {
@@ -39,7 +38,6 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
             tx,
             initial_time,
             dataflow,
-            latest_processed_tag,
             thread_spawner,
         })
     }
@@ -271,12 +269,10 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
               F: 'x + Send,
               R: 'x + Send {
         let tx = self.0.tx.clone();
-        let latest_processed_tag = self.0.latest_processed_tag;
         let dataflow = self.0.dataflow;
 
         self.0.thread_spawner.spawn(move |subscope| {
             let mut link = PhysicalSchedulerLink {
-                latest_processed_tag,
                 tx,
                 dataflow,
                 thread_spawner: subscope,
@@ -509,7 +505,6 @@ struct RContextInner<'a, 'x, 't> where 'x: 't {
     // globals
     thread_spawner: &'a Scope<'t>,
     dataflow: &'x DataflowInfo,
-    latest_processed_tag: &'x TimeCell,
 }
 
 impl<'x, 't> RContextInner<'_, 'x, 't> where 'x: 't {
@@ -526,7 +521,6 @@ impl<'x, 't> RContextInner<'_, 'x, 't> where 'x: 't {
             initial_time: self.initial_time,
             thread_spawner: self.thread_spawner,
             dataflow: self.dataflow,
-            latest_processed_tag: self.latest_processed_tag,
         }
     }
 }
@@ -586,14 +580,12 @@ impl<'x> RContextForwardableStuff<'x> {
 /// asynchronous physical actions. This is a "link" to the event
 /// system, from the outside world.
 ///
-/// todo this doesn't have capacity to call request_stop
-///
 /// See [ReactionCtx::spawn_physical_thread].
 #[derive(Clone)]
 pub struct PhysicalSchedulerLink<'a, 'x, 't> {
-    latest_processed_tag: &'x TimeCell,
     tx: Sender<Event<'x>>,
     dataflow: &'x DataflowInfo,
+    #[allow(unused)] // maybe add a spawn_physical_thread to this type
     thread_spawner: &'a Scope<'t>,
 }
 

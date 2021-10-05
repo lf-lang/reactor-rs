@@ -25,7 +25,6 @@
 
 use std::borrow::Cow;
 
-use crossbeam::atomic::AtomicCell;
 use index_vec::IndexVec;
 
 pub use assembly::*;
@@ -43,9 +42,6 @@ mod event_queue;
 mod depgraph;
 mod assembly;
 
-
-/// The internal cell type used to store a thread-safe mutable logical time value.
-type TimeCell = AtomicCell<LogicalInstant>;
 
 /// A tagged event of the reactor program. Events are tagged
 /// with the logical instant at which they must be processed.

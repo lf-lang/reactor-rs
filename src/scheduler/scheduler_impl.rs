@@ -63,9 +63,7 @@ impl Default for SchedulerOptions {
 /// useless but is needed to compile.
 pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// The latest processed logical time (necessarily behind physical time).
-    /// This is Clone, Send and Sync; it's accessible from the physical contexts
-    /// handed out to asynchronous event producers (physical triggers).
-    latest_processed_tag: &'x TimeCell,
+    latest_processed_tag: Option<LogicalInstant>,
 
     dataflow: &'x DataflowInfo,
 
@@ -111,7 +109,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
         // collect dependency information
         let dataflow_info = DataflowInfo::new(graph).unwrap();
-        let time_cell = AtomicCell::new(LogicalInstant::now());
 
         // Using thread::scope here introduces an unnamed lifetime for
         // the scope, which is captured as 't by the SyncScheduler.
@@ -124,7 +121,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 options,
                 id_registry,
                 &dataflow_info,
-                &time_cell,
                 scope,
             );
 
@@ -133,8 +129,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     }
 
     /// Launch the event loop in this thread.
-    ///
-    /// Note that this assumes [startup] has already been called.
     fn launch_event_loop<'r>(mut self, reactors: &mut ReactorVec<'r>) {
         let mut event_queue: EventQueue<'x> = Default::default();
 
@@ -198,15 +192,14 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         options: SchedulerOptions,
         id_registry: IdRegistry,
         dependency_info: &'x DataflowInfo,
-        latest_processed_tag: &'x TimeCell,
         thread_spawner: &'a Scope<'t>,
     ) -> Self {
         let (tx, rx) = channel::<Event<'x>>();
         Self {
-            latest_processed_tag,
             rx,
             tx,
             initial_time: None,
+            latest_processed_tag: None,
             shutdown_time: None,
             options,
             dataflow: dependency_info,
@@ -301,7 +294,12 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 reactors: &mut ReactorVec<'r>,
                 event_queue: &mut EventQueue<'x>,
     ) {
-        self.latest_processed_tag.store(tag); // set the time so that scheduler links can know that.
+        if cfg!(debug_assertions) {
+            if let Some(t) = self.latest_processed_tag {
+                debug_assert!(tag > t, "Tag ordering mismatch")
+            }
+            self.latest_processed_tag = Some(tag);
+        }
 
         let ctx = self.new_reaction_ctx(tag, Some(reactions));
         ctx.process_entire_tag(self, reactors, event_queue)
@@ -348,7 +346,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             self.initial_time.unwrap(),
             todo,
             self.dataflow,
-            self.latest_processed_tag,
             self.thread_spawner,
         )
     }
