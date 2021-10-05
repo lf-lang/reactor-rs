@@ -8,14 +8,14 @@ edition = "2018"
 
 [dependencies]
 log = "0.4"
-index_vec = "0.1.2"
+index_vec = "0.1"
 #itertools = "0.10.1"
 #bit-set = "0.5"
 smallvec = "1.6"
-petgraph = "0.6.0"
-array-macro = "2.1.0"
-atomic_refcell = "0.1.8"
-crossbeam = "0.8.1"
+petgraph = "0.6"
+array-macro = "2.1"
+atomic_refcell = "0.1"
+crossbeam = "0.8"
 rayon = { version = "1.5", optional = true }
 regex = { version = "1", optional = true }
 assert_matches = { version = "1", optional = true }
@@ -23,7 +23,7 @@ assert_matches = { version = "1", optional = true }
 [dev-dependencies]
 criterion = "0.3"
 env_logger = "0.9"
-assert_matches = "1.5.0"
+assert_matches = "1.5"
 regex = { version = "1" }
 
 [features]

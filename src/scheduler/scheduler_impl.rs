@@ -307,18 +307,21 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         ctx.process_entire_tag(self, reactors, event_queue)
     }
 
+    /// Sleep/wait until the given time OR an asynchronous
+    /// event is received first.
     fn catch_up_physical_time(&mut self, up_to_time: &LogicalInstant) -> Result<(), Event<'x>> {
         let now = PhysicalInstant::now();
 
-        if now < up_to_time.instant {
-            let t = up_to_time.instant - now;
+        let target = up_to_time.instant;
+        if now < target {
+            let t = target - now;
             trace!("  - Need to sleep {} ns", t.as_nanos());
             // we use recv_timeout as a thread::sleep so that
             // our sleep is interrupted properly when an async
             // event arrives
             match self.rx.recv_timeout(t) {
                 Ok(async_evt) => {
-                    trace!("  - Received async event for tag {}, going back to queue", self.debug().display_tag(async_evt.tag));
+                    trace!("  - Sleep interrupted by async event for tag {}, going back to queue", self.debug().display_tag(async_evt.tag));
                     return Err(async_evt)
                 },
                 Err(RecvTimeoutError::Timeout) => { /*great*/ },
@@ -326,8 +329,8 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             }
         }
 
-        if now > up_to_time.instant {
-            let delay = now - up_to_time.instant;
+        if now > target {
+            let delay = now - target;
             trace!("  - Running late by {} ns = {} µs = {} ms", delay.as_nanos(), delay.as_micros(), delay.as_millis())
         }
         Ok(())
