@@ -59,18 +59,18 @@ pub fn do_write<X>(f: &mut impl std::fmt::Write,
     write!(f, "{}", suffix)
 }
 
-/// Shorthand for using [Offset::After].
+/// Shorthand for using [Offset::After] together with [delay].
 ///
 /// ```
 /// use std::time::Duration;
-/// use reactor_rt::{after, delay, Offset::After};
+/// use reactor_rt::{after, Offset::After};
 ///
-/// assert_eq!(after!(10 ns), After(delay!(10 ns)));
+/// assert_eq!(after!(10 ns), After(Duration::from_nanos(10)));
 /// assert_eq!(after!(2 min), After(Duration::from_secs(120)));
 /// ```
 #[macro_export]
 macro_rules! after {
-    ($amount:tt $unit:tt) => { $crate::Offset::After(delay!($amount $unit)) }
+    ($amount:tt $unit:tt) => { $crate::Offset::After($crate::delay!($amount $unit)) }
 }
 
 /// Creates a [Duration] value using the same syntax as in LF.
