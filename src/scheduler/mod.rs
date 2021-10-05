@@ -33,7 +33,7 @@ pub use context::*;
 pub(in self) use event_queue::*;
 pub use scheduler_impl::*;
 
-use crate::{Duration, LogicalInstant, PhysicalInstant, ReactorBehavior, ReactorId};
+use crate::{LogicalInstant, ReactorBehavior, ReactorId};
 
 use self::depgraph::ExecutableReactions;
 

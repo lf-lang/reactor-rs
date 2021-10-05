@@ -1,7 +1,6 @@
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp::max;
 use std::sync::mpsc::{Sender, SendError};
-use std::time::Instant;
 
 use crossbeam::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
@@ -142,13 +141,13 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ### Examples
     ///
     /// ```no_run
-    /// # use reactor_rt::{ReactionCtx, LogicalAction, Offset::*};
-    /// use std::time::Duration;
+    /// # use reactor_rt::{Duration, ReactionCtx, LogicalAction, Offset::*};
     /// # let ctx: &mut ReactionCtx = panic!();
     /// # let action: &mut LogicalAction<String> = panic!();
-    /// ctx.schedule(action, Asap); // will be executed one microstep from now (+ own delay)
-    /// ctx.schedule(action, AfterMillis(2)); // will be executed 2 milliseconds from now (+ own delay)
-    /// ctx.schedule(action, After(Duration::from_nanos(120)));
+    /// ctx.schedule(action, Asap);         // will be executed one microstep from now (+ own delay)
+    /// ctx.schedule(action, after!(2 ms)); // will be executed 2 milliseconds from now (+ own delay)
+    /// ctx.schedule(action, After(delay!(2 ms)));             // equivalent to the previous
+    /// ctx.schedule(action, After(Duration::from_millis(2))); // equivalent to the previous
     /// ```
     #[inline]
     pub fn schedule<T: Send>(&mut self, action: &mut LogicalAction<T>, offset: Offset) {
@@ -170,12 +169,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ### Examples
     ///
     /// ```no_run
-    /// # use reactor_rt::{ReactionCtx, LogicalAction, Offset::*};
-    /// use std::time::Duration;
+    /// # use reactor_rt::{Duration, ReactionCtx, LogicalAction, Offset::*};
     /// # let ctx: &mut ReactionCtx = panic!();
     /// # let action: &mut LogicalAction<&'static str> = panic!();
     /// // will be executed 2 milliseconds (+ own delay) from now with that value.
-    /// ctx.schedule_with_v(action, Some("value"), AfterMillis(2));
+    /// ctx.schedule_with_v(action, Some("value"), after!(2 msec));
     /// // will be executed one microstep from now, with no value
     /// ctx.schedule_with_v(action, None, Asap);
     /// // that's equivalent to
@@ -194,10 +192,10 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         self.enqueue_later(downstream, eta);
     }
 
-    // todo hide this better: this would require synthesizing
-    //  the reaction within the runtime and not with the code generator
     /// Reschedule a timer if need be. This is used by synthetic
     /// reactions that reschedule timers.
+    // todo hide this better: this would require synthesizing
+    //  the reaction within the runtime and not with the code generator
     #[doc(hidden)]
     #[inline]
     pub fn maybe_reschedule(&mut self, timer: &Timer) {
@@ -397,7 +395,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
                         if cfg!(feature = "parallel_runtime") {
                             #[cfg(feature = "parallel_runtime")]
-                                parallel_rt_impl::process_batch(&mut self, &scheduler.debug(), reactors, batch);
+                            parallel_rt_impl::process_batch(&mut self, scheduler.debug(), reactors, batch);
                         } else {
                             // the impl for non-parallel runtime
                             for reaction_id in batch {
@@ -449,7 +447,7 @@ mod parallel_rt_impl {
 
     pub(super) fn process_batch<'r, 'x>(
         ctx: &mut ReactionCtx<'_, 'x, '_>,
-        debug: &DebugInfoProvider<'_>,
+        debug: DebugInfoProvider<'_>,
         reactors: &mut ReactorVec<'r>,
         batch: &HashSet<GlobalReactionId>,
     ) {
@@ -559,6 +557,7 @@ impl Default for RContextForwardableStuff<'_> {
     }
 }
 
+#[cfg(feature = "parallel_runtime")]
 impl<'x> RContextForwardableStuff<'x> {
     fn merge(mut self, mut other: Self) -> Self {
         self.todo_now = Self::merge_cows(self.todo_now, other.todo_now);
@@ -599,7 +598,8 @@ pub struct PhysicalSchedulerLink<'a, 'x, 't> {
 }
 
 impl PhysicalSchedulerLink<'_, '_, '_> {
-    /// Request that the application
+    /// Request that the application shutdown, possibly with
+    /// a particular offset.
     ///
     /// This may fail if this is called while the scheduler has already
     /// been shutdown. todo prevent this
@@ -693,6 +693,12 @@ impl TagSpec {
 pub enum Offset {
     /// Will be scheduled at least after the provided duration.
     /// The other variants are just shorthands for common use-cases.
+    ///
+    /// You can use this in conjunction with the [after!()](crate::after)
+    /// macro, for instance:
+    /// ```
+    /// # use reactor_rt::Duration;
+    /// ```
     After(Duration),
 
     /// Will be scheduled as soon as possible. This does not
@@ -700,8 +706,8 @@ pub enum Offset {
     /// action's inherent minimum delay must be taken into account,
     /// and even with a zero minimal delay, a delay of one microstep
     /// is applied. This is equivalent to
-    /// ```no_compile
-    /// # use std::time::Duration;
+    /// ```
+    /// # use reactor_rt::Duration;
     /// After(Duration::ZERO)
     /// ```
     Asap,
@@ -710,7 +716,7 @@ pub enum Offset {
     /// which is given in seconds. This is equivalent
     /// to
     /// ```no_compile
-    /// # use std::time::Duration;
+    /// # use reactor_rt::Duration;
     /// After(Duration::from_secs(_))
     /// ```
     AfterSeconds(u64),
@@ -719,7 +725,7 @@ pub enum Offset {
     /// which is given in milliseconds (ms). This is equivalent
     /// to
     /// ```no_compile
-    /// # use std::time::Duration;
+    /// # use reactor_rt::Duration;
     /// After(Duration::from_millis(_))
     /// ```
     AfterMillis(u64),
@@ -728,7 +734,7 @@ pub enum Offset {
     /// which is given in microseconds (µs). This is equivalent
     /// to
     /// ```no_compile
-    /// # use std::time::Duration;
+    /// # use reactor_rt::Duration;
     /// After(Duration::from_micros(_))
     /// ```
     AfterMicros(u64),
@@ -737,7 +743,7 @@ pub enum Offset {
     /// which is given in microseconds (µs). This is equivalent
     /// to
     /// ```no_compile
-    /// # use std::time::Duration;
+    /// # use reactor_rt::Duration;
     /// After(Duration::from_nanos(_))
     /// ```
     AfterNanos(u64),

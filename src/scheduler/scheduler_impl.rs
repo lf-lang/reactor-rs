@@ -87,6 +87,7 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Scheduled shutdown time. If not None, shutdown must
     /// be initiated at least at this physical time step.
     /// todo does this match lf semantics?
+    /// This is set when [EventPayload::Terminate] is received.
     shutdown_time: Option<LogicalInstant>,
     options: SchedulerOptions,
 
@@ -158,7 +159,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                         trace!("Processing event for tag {}", self.debug().display_tag(evt.tag));
                         self.step(tag, reactions, reactors, &mut event_queue);
                     },
-                    Event { tag, payload: EventPayload::Terminate } => {
+                    Event { tag: _, payload: EventPayload::Terminate } => {
                         // todo sleep until the tag, possibly waking up
                         break
                     }
@@ -237,10 +238,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         startup_ctx.ctx.process_entire_tag(self, reactors, event_queue)
     }
 
-    pub(in super) fn request_stop(&mut self, time: LogicalInstant) {
-        info!("Shutdown requested and scheduled at {}", self.debug().display_tag(time));
-        self.shutdown_time = Some(time);
-    }
 
     fn do_push_event(&self, event_queue: &mut EventQueue<'x>, evt: Event<'x>) {
         trace!("Pushing {}", self.debug().display_event(&evt));
