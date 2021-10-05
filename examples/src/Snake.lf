@@ -18,7 +18,7 @@ import KeyboardEvents from "KeyboardEvents.lf";
 // main reactor parameters can be set on the CLI, eg:
 //  ./snake --main-grid-side 48
 main reactor Snake(grid_side: usize(32),
-                   tempo_step: u32(40),
+                   tempo_step: time(40 msec),
                    food_limit: u32(2)) {
     preamble {=
         use crate::snakes::*;
@@ -30,33 +30,45 @@ main reactor Snake(grid_side: usize(32),
     /// this thing helps capturing key presses
     keyboard = new KeyboardEvents();
 
+    // model classes for the game.
+    state snake: CircularSnake ({= CircularSnake::new(grid_side) =});
+    state grid: SnakeGrid ({= SnakeGrid::new(grid_side, &snake) =});
+
     /// Triggers a screen refresh, not a timer because we can
     /// shrink the period over time to speed up the game.
     logical action screen_refresh;
     /// The game speed level
     state tempo: u32(1);
+    state tempo_step(tempo_step);
+
+    /// Changes with arrow key presses, might be invalid.
+    /// Only committed to snake_direction on grid update.
+    state pending_direction: Direction ({= Direction::RIGHT =});
+    /// Whither the snake has slithered last
+    state snake_direction: Direction ({= Direction::RIGHT =});
 
     /// manually triggered
     logical action manually_add_more_food;
     /// periodic
     timer add_more_food(0, 5 sec);
     state food_on_grid: u32(0);
-
-    state snake: CircularSnake ({= CircularSnake::new(grid_side) =});
-    state grid: SnakeGrid ({= SnakeGrid::new(grid_side, &snake) =});
-
-    /// Whither the snake has slithered last
-    state snake_direction: Direction ({= Direction::RIGHT =});
-    /// Changes with arrow key presses, might be invalid.
-    /// Only committed to snake_direction on grid update.
-    state pending_direction: Direction ({= Direction::RIGHT =});
+    state max_food_on_grid(food_limit);
 
     // @label startup
     reaction(startup) -> screen_refresh {=
-        // KeyboardEvents makes stdout raw so this is safe
+        // KeyboardEvents makes stdout raw on startup so this is safe
         snakes::output::paint_on_raw_console(&self.grid);
+
         // schedule the first one, then it reschedules itself.
-        ctx.schedule(screen_refresh, After(Duration::from_secs(1)));
+        ctx.schedule(screen_refresh, after!(1 sec));
+    =}
+
+    // @label schedule_next_tick
+    reaction(screen_refresh) -> screen_refresh {=
+        // select a delay depending on the tempo
+        let delay = delay!(400 ms) - (self.tempo_step * self.tempo).min(delay!(300 ms));
+
+        ctx.schedule(screen_refresh, After(delay));
     =}
 
     // @label handle_key_press
@@ -94,15 +106,16 @@ main reactor Snake(grid_side: usize(32),
         snakes::output::paint_on_raw_console(&self.grid);
     =}
 
+    // @label add_food
     reaction(manually_add_more_food, add_more_food) {=
-        if self.food_on_grid >= params.food_limit {
+        if self.food_on_grid >= self.max_food_on_grid {
             return; // there's enough food there
         }
         // find a random free cell that will become food
         let mut rng = thread_rng();
         for _ in 0..60 { // don't loop infinitely
-            let row = rng.gen_range(0..params.grid_side);
-            let col = rng.gen_range(0..params.grid_side);
+            let row = rng.gen_range(0..self.grid.grid_side());
+            let col = rng.gen_range(0..self.grid.grid_side());
             if self.grid[cell(row, col)] == CellState::Free {
                 self.grid[cell(row, col)] = CellState::Food; // next screen update will catch this.
                 self.food_on_grid += 1;
@@ -110,15 +123,6 @@ main reactor Snake(grid_side: usize(32),
             }
             // otherwise try again
         }
-    =}
-
-    // @label schedule_next_tick
-    reaction(screen_refresh) -> screen_refresh {=
-        // select a delay depending on the tempo
-        let millis = 400 - (params.tempo_step * self.tempo).min(300);
-        let delay = Duration::from_millis(millis as u64);
-
-        ctx.schedule(screen_refresh, After(delay));
     =}
 
 }
