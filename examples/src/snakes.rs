@@ -44,6 +44,8 @@ impl Cell {
     }
 }
 
+/// Keeps track of the positions of the snake, can update them
+/// incrementally.
 pub struct CircularSnake {
     /// Circular buffer, the head field is the first element,
     /// then they're in order when you read from right to left.
@@ -53,10 +55,8 @@ pub struct CircularSnake {
     /// ```
     /// This makes advancing while preserving order a constant
     /// time/space operation. But growing the snake is linear.
-    /// Using a linked list would make it constant.
-    ///
-    /// Whatever it's a snake
     snake_positions: Vec<Cell>,
+    /// Index of the snake head in the position list
     head: usize,
     /// Side of the square grid
     grid_side: usize,
@@ -64,8 +64,12 @@ pub struct CircularSnake {
 
 impl CircularSnake {
     pub fn new(grid_side: usize) -> Self {
+        let mid = grid_side / 2;
         Self {
-            snake_positions: vec![Cell { row: grid_side / 2, col: grid_side / 2 }],
+            snake_positions: vec![
+                cell(mid, mid),
+                cell(mid, mid - 1),
+            ],
             head: 0,
             grid_side,
         }
@@ -149,6 +153,7 @@ impl IndexMut<Cell> for SnakeGrid {
 
 impl SnakeGrid {
     pub fn new(grid_side: usize, snake: &CircularSnake) -> Self {
+        assert!(grid_side >= 4, "Grid is too small");
         let mut grid = Self {
             grid_side,
             grid: vec![CellState::Free; grid_side * grid_side],
