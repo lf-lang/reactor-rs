@@ -40,6 +40,13 @@
 //! - `graph-dump` (internal): dumps the dependency graph to stdout
 //! before starting execution.
 
+#![deny(unused_crate_dependencies)]
+#![deny(unused_extern_crates)]
+// #![warn(unreachable_pub)]
+#![warn(unused_lifetimes)]
+#![warn(single_use_lifetimes)]
+#![warn(explicit_outlives_requirements)]
+
 #[macro_use]
 extern crate array_macro;
 #[cfg(any(test, feature = "test-utils"))]
