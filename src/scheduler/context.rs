@@ -42,6 +42,10 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         })
     }
 
+    pub(super) fn todo_now(self) -> Option<Cow<'x, ExecutableReactions>> {
+        self.0.insides.todo_now
+    }
+
 
     /// Returns the current value of a port or action at this
     /// logical time. If the value is absent, [Option::None] is
@@ -366,7 +370,12 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
     /// Execute the wave until completion.
     /// The parameter is the list of reactions to start with.
-    pub(in super) fn process_entire_tag(mut self, scheduler: &mut SyncScheduler<'_, 'x, '_>) {
+    pub(in super) fn process_entire_tag(
+        mut self,
+        debug: DebugInfoProvider<'_>,
+        reactors: &mut ReactorVec<'_>,
+        mut push_future_event:  impl FnMut(Event<'x>),
+    ) {
 
         // The maximum layer number we've seen as of now.
         // This must be increasing monotonically.
@@ -386,12 +395,16 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
                         if cfg!(feature = "parallel_runtime") {
                             #[cfg(feature = "parallel_runtime")]
-                            parallel_rt_impl::process_batch(&mut self, scheduler.debug(), reactors, batch);
+                                parallel_rt_impl::process_batch(&mut self, &debug, reactors, batch);
+
+                            for evt in self.0.insides.future_events.drain(..) {
+                                push_future_event(evt)
+                            }
                         } else {
                             // the impl for non-parallel runtime
                             for reaction_id in batch {
-                                trace!("  - Executing {}", scheduler.debug().display_reaction(*reaction_id));
-                                let reactor = scheduler.get_reactor_mut(reaction_id.0.container());
+                                trace!("  - Executing {}", debug.display_reaction(*reaction_id));
+                                let reactor = &mut reactors[reaction_id.0.container()];
 
                                 reactor.react_erased(&mut self, reaction_id.0.local());
                                 // the reaction invocation may have mutated self.0.insides:
@@ -399,7 +412,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                                 // processed in the next loop iteration
                                 // - future_events: handled now
                                 for evt in self.0.insides.future_events.drain(..) {
-                                    scheduler.push_event(evt)
+                                    push_future_event(evt)
                                 }
                             }
                         }
@@ -421,7 +434,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         // cleanup tag-specific resources, eg clear port values
         let ctx = CleanupCtx { tag: self.get_logical_time() };
         // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
-        for reactor in scheduler.iter_reactors_mut() {
+        for reactor in reactors {
             reactor.cleanup_tag(&ctx)
         }
     }
@@ -429,17 +442,16 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
 #[cfg(feature = "parallel_runtime")]
 mod parallel_rt_impl {
-    use std::borrow::Cow;
     use std::collections::HashSet;
 
     use rayon::prelude::*;
 
     use super::*;
 
-    pub(super) fn process_batch<'r, 'x>(
-        ctx: &mut ReactionCtx<'_, 'x, '_>,
-        debug: DebugInfoProvider<'_>,
-        reactors: &mut ReactorVec<'r>,
+    pub(super) fn process_batch(
+        ctx: &mut ReactionCtx<'_, '_, '_>,
+        debug: &DebugInfoProvider<'_>,
+        reactors: &mut ReactorVec<'_>,
         batch: &HashSet<GlobalReactionId>,
     ) {
         let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
@@ -447,9 +459,9 @@ mod parallel_rt_impl {
         let final_result =
             batch.iter()
                 .par_bridge()
-                .fold(
-                    || ctx.0.fork(),
-                    |ctx_inner, reaction_id| {
+                .fold_with(
+                    CloneableCtx(ctx.0.fork()),
+                    |CloneableCtx(ctx_inner), reaction_id| {
                         trace!("  - Executing {}", debug.display_reaction(*reaction_id));
                         let reactor = unsafe {
                             // safety:
@@ -463,13 +475,13 @@ mod parallel_rt_impl {
                         let mut ctx = ReactionCtx(ctx_inner);
                         reactor.react_erased(&mut ctx, reaction_id.0.local());
 
-                        ctx.0
+                        CloneableCtx(ctx.0)
                     },
                 )
                 // .fold_with(ctx.0.fork(),
                 //            |ctx_inner, reaction_id| {
                 //            })
-                .fold(|| Default::default(), |cx1, cx2| cx2.insides.merge(cx1))
+                .fold(|| RContextForwardableStuff::default(), |cx1, cx2| cx1.merge(cx2.0.insides))
                 .reduce(|| Default::default(), RContextForwardableStuff::merge);
 
         ctx.0.insides = final_result;
@@ -481,8 +493,18 @@ mod parallel_rt_impl {
     unsafe impl<T> Send for UnsafeSharedPointer<T> {}
 
     unsafe impl<T> Sync for UnsafeSharedPointer<T> {}
-}
 
+
+    /// We need a Clone bound to use fold_with, but this clone
+    /// implementation is not general purpose so I hide it.
+    struct CloneableCtx<'a, 'x, 't>(RContextInner<'a, 'x, 't>);
+
+    impl Clone for CloneableCtx<'_, '_, '_> {
+        fn clone(&self) -> Self {
+            Self(self.0.fork())
+        }
+    }
+}
 
 struct RContextInner<'a, 'x, 't> where 'x: 't {
     insides: RContextForwardableStuff<'x>,

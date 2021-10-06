@@ -80,7 +80,7 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     tx: Sender<Event<'x>>,
 
     /// All reactors.
-    reactors: ReactorVec<'x>,
+    pub(super) reactors: ReactorVec<'x>,
 
     /// Pending events/ tags to process.
     event_queue: EventQueue<'x>,
@@ -173,7 +173,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 };
 
                 match evt.payload {
-                    EventPayload::Reactions(reactions) => self.step(evt.tag, reactions),
+                    EventPayload::Reactions(reactions) => self.process_tag(evt.tag, Some(reactions)),
                     EventPayload::Terminate => break,
                 }
             } else if let Some(evt) = self.receive_event() { // this may block
@@ -248,21 +248,13 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         for reactor in self.reactors.iter() {
             enqueue_fun(reactor.as_ref(), &mut startup_ctx);
         }
-        startup_ctx.ctx.process_entire_tag(self)
+        self.process_tag(time, startup_ctx.ctx.todo_now())
     }
 
 
     pub(super) fn push_event(&mut self, evt: Event<'x>) {
         trace!("Pushing {}", self.debug().display_event(&evt));
         self.event_queue.push(evt);
-    }
-
-    pub(super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut ReactorBox<'x> {
-        &mut self.reactors[id]
-    }
-
-    pub(super) fn iter_reactors_mut(&mut self) -> impl Iterator<Item=&mut ReactorBox<'x>> {
-        self.reactors.iter_mut()
     }
 
     /// Returns whether the given event should be ignored and
@@ -289,7 +281,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 if now < shutdown_t.instant {
                     let timeout = shutdown_t.instant.duration_since(now);
                     trace!("Will wait for asynchronous event {} ns", timeout.as_nanos());
-                    self.rx.recv_timeout(timeout).map_err(|_| trace!("All senders have hung up")).ok()
+                    self.rx.recv_timeout(timeout).map_err(|_| unreachable!("self.tx is alive")).ok()
                 } else {
                     trace!("Cannot wait, already past programmed shutdown time...");
                     None
@@ -297,18 +289,14 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             }
             None => {
                 trace!("Will wait for asynchronous event indefinitely");
-                self.rx.recv().map_err(|_| trace!("All senders have hung up")).ok()
+                self.rx.recv().map_err(|_| unreachable!("self.tx is alive")).ok()
             }
         };
     }
 
-    /// Execute a wave. This may make the calling thread
-    /// (the scheduler one) sleep, if the expected processing
-    /// time (logical) is ahead of current physical time.
-    fn step(&mut self,
-            tag: LogicalInstant,
-            reactions: Cow<'x, ExecutableReactions>,
-    ) {
+    /// Actually process a tag. The provided reactions are the
+    /// root reactions that startup the "wave".
+    fn process_tag(&mut self, tag: LogicalInstant, reactions: Option<Cow<'x, ExecutableReactions>>) {
         if cfg!(debug_assertions) {
             if let Some(t) = self.latest_processed_tag {
                 debug_assert!(tag > t, "Tag ordering mismatch")
@@ -316,8 +304,20 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             self.latest_processed_tag = Some(tag);
         }
 
-        let ctx = self.new_reaction_ctx(tag, Some(reactions));
-        ctx.process_entire_tag(self)
+        if reactions.is_none() {
+            return;
+        }
+
+        // note: we have to inline all this to prove to the
+        // compiler that we're borrowing disjoint parts of self
+
+        let ctx = self.new_reaction_ctx(tag, reactions);
+        let event_q_borrow = &mut self.event_queue;
+        let debug = DebugInfoProvider {
+            initial_time: self.initial_time.unwrap(),
+            id_registry: &self.id_registry,
+        };
+        ctx.process_entire_tag(debug, &mut self.reactors, move |evt| event_q_borrow.push(evt))
     }
 
     /// Sleep/wait until the given time OR an asynchronous
@@ -375,6 +375,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 }
 
 /// Can format stuff for trace messages.
+#[derive(Clone)]
 pub(in super) struct DebugInfoProvider<'a> {
     id_registry: &'a IdRegistry,
     initial_time: LogicalInstant,
