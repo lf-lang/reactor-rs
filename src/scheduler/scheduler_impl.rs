@@ -64,6 +64,28 @@ impl Default for SchedulerOptions {
     }
 }
 
+// Macros are placed a bit out of order to avoid exporting them
+// (they're only visible in code placed AFTER them).
+// We use macros instead of private methods as the borrow checker
+// needs to know we're borrowing disjoint parts of self at any time.
+
+macro_rules! debug_info {
+    ($e:expr) => {
+        DebugInfoProvider {
+            initial_time: $e.initial_time.unwrap(),
+            id_registry: &$e.id_registry,
+        }
+    };
+}
+
+macro_rules! push_event {
+    ($scheduler:expr, $evt:expr) => {{
+        trace!("Pushing {}", debug_info!($scheduler).display_event(&$evt));
+        $scheduler.event_queue.push($evt);
+    }};
+}
+
+
 /// The runtime scheduler.
 ///
 /// Lifetime parameters: 'x and 't are carried around everywhere,
@@ -96,7 +118,8 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
-    initial_time: Option<LogicalInstant>,
+    initial_time: Option<LogicalInstant>,// todo unwrap this always
+
     /// Scheduled shutdown time. If not None, shutdown must
     /// be initiated at least at this physical time step.
     /// todo does this match lf semantics?
@@ -156,9 +179,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         loop {
             // flush pending events, this doesn't block
             for evt in self.rx.try_iter() {
-                // note: this is duplicated from self.push_event
-                trace!("Pushing {}", self.debug().display_event(&evt));
-                self.event_queue.push(evt);
+                push_event!(self, evt);
             }
 
             if let Some(evt) = self.event_queue.take_earliest() {
@@ -173,12 +194,12 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                         // an asynchronous event woke our sleep
                         if async_event.tag < evt.tag {
                             // reinsert both events to order them and try again.
-                            self.event_queue.push(evt);
-                            self.event_queue.push(async_event);
+                            push_event!(self, evt);
+                            push_event!(self, async_event);
                             continue
                         } else {
                             // we can process this event first and not care about the async event
-                            self.event_queue.push(async_event);
+                            push_event!(self, async_event);
                         }
                     }
                 };
@@ -188,7 +209,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                     EventPayload::Terminate => break,
                 }
             } else if let Some(evt) = self.receive_event() { // this may block
-                self.push_event(evt);
+                push_event!(self, evt);
                 continue;
             } else {
                 // all senders have hung up, or timeout
@@ -260,12 +281,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             enqueue_fun(reactor.as_ref(), &mut startup_ctx);
         }
         self.process_tag(time, startup_ctx.todo_now())
-    }
-
-
-    pub(super) fn push_event(&mut self, evt: Event<'x>) {
-        trace!("Pushing {}", self.debug().display_event(&evt));
-        self.event_queue.push(evt);
     }
 
     /// Returns whether the given event should be ignored and
@@ -377,17 +392,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     pub(in super) fn debug(&self) -> DebugInfoProvider {
         debug_info!(self)
     }
-}
-
-#[macro_export]
-#[doc(hidden)]
-macro_rules! debug_info {
-    ($e:expr) => {
-        DebugInfoProvider {
-            initial_time: $e.initial_time.unwrap(),
-            id_registry: &$e.id_registry,
-        }
-    };
 }
 
 /// Can format stuff for trace messages.
