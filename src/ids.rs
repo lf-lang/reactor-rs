@@ -70,7 +70,8 @@ impl ReactorId {
 }
 
 macro_rules! global_id_newtype {
-    ($id:ident) => {
+    {$(#[$m:meta])* $id:ident} => {
+        $(#[$m])*
         #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Copy, Clone)]
         pub struct $id(pub(in crate) GlobalId);
 
@@ -94,14 +95,18 @@ macro_rules! global_id_newtype {
     };
 }
 
-// Identifies a component of a reactor using the ID of its container
-// and a local component ID.
-global_id_newtype!(GlobalReactionId);
+global_id_newtype! {
+    /// Global identifier for a reaction.
+    GlobalReactionId
+}
 
-// Identifies a trigger (port, action, timer)
-global_id_newtype!(TriggerId);
+global_id_newtype! {
+    /// Global identifier for a trigger (port, action, timer)
+    TriggerId
+}
 
 /// A set of reactions
+#[doc(hidden)]
 pub type ReactionSet = Vec<GlobalReactionId>;
 
 

@@ -230,12 +230,14 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         }
     }
 
-    pub(in crate) fn make_executable(&self, reactions: &Vec<GlobalReactionId>) -> ExecutableReactions {
-        let mut result = ExecutableReactions::new();
-        for r in reactions {
-            self.0.dataflow.augment(&mut result, *r)
-        }
-        result
+    #[inline]
+    pub(in crate) fn make_executable(&self, reactions: impl Iterator<Item=GlobalReactionId>) -> ExecutableReactions {
+        reactions.fold(
+            ExecutableReactions::new(),
+            |mut acc, r| {
+                self.0.dataflow.augment(&mut acc, r);
+                acc
+            })
     }
 
     pub(in crate) fn reactions_triggered_by(&self, trigger: TriggerId) -> &'x ExecutableReactions {

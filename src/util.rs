@@ -41,12 +41,12 @@ macro_rules! join_to {
     };
 }
 
-pub fn do_write<X>(f: &mut impl std::fmt::Write,
-                   iter: impl Iterator<Item=X>,
-                   sep: &'static str,
-                   prefix: &'static str,
-                   suffix: &'static str,
-                   formatter: impl Fn(X) -> String) -> std::fmt::Result {
+pub(crate) fn do_write<X>(f: &mut impl std::fmt::Write,
+                          iter: impl Iterator<Item=X>,
+                          sep: &'static str,
+                          prefix: &'static str,
+                          suffix: &'static str,
+                          formatter: impl Fn(X) -> String) -> std::fmt::Result {
     let mut iter = iter;
     write!(f, "{}", prefix)?;
     if let Some(first) = iter.next() {
@@ -59,7 +59,7 @@ pub fn do_write<X>(f: &mut impl std::fmt::Write,
     write!(f, "{}", suffix)
 }
 
-/// Shorthand for using [Offset::After] together with [delay].
+/// Shorthand for using [After](crate::Offset::After) together with [delay].
 ///
 /// ```
 /// use std::time::Duration;

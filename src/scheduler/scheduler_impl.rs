@@ -194,7 +194,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     /// Creates a new scheduler. An empty scheduler doesn't
     /// do anything unless some events are pushed to the queue.
-    /// See [Self::launch_async].
+    /// See [Self::launch_event_loop].
     fn new(
         options: SchedulerOptions,
         id_registry: IdRegistry,
@@ -313,11 +313,8 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
         let ctx = self.new_reaction_ctx(tag, reactions);
         let event_q_borrow = &mut self.event_queue;
-        let debug = DebugInfoProvider {
-            initial_time: self.initial_time.unwrap(),
-            id_registry: &self.id_registry,
-        };
-        ctx.process_entire_tag(debug, &mut self.reactors, move |evt| event_q_borrow.push(evt))
+        let debug = debug_info!(self);
+        ctx.process_entire_tag(debug, &mut self.reactors, |evt| event_q_borrow.push(evt))
     }
 
     /// Sleep/wait until the given time OR an asynchronous
@@ -367,11 +364,19 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     #[inline]
     pub(in super) fn debug(&self) -> DebugInfoProvider {
-        DebugInfoProvider {
-            initial_time: self.initial_time.unwrap(),
-            id_registry: &self.id_registry,
-        }
+        debug_info!(self)
     }
+}
+
+#[macro_export]
+#[doc(hidden)]
+macro_rules! debug_info {
+    ($e:expr) => {
+        DebugInfoProvider {
+            initial_time: $e.initial_time.unwrap(),
+            id_registry: &$e.id_registry,
+        }
+    };
 }
 
 /// Can format stuff for trace messages.
@@ -421,7 +426,7 @@ pub struct StartupCtx<'a, 'x, 't> {
 impl StartupCtx<'_, '_, '_> {
     #[inline]
     #[doc(hidden)]
-    pub fn enqueue(&mut self, reactions: &Vec<GlobalReactionId>) {
+    pub fn enqueue(&mut self, reactions: impl Iterator<Item=GlobalReactionId>) {
         self.ctx.enqueue_now(Cow::Owned(self.ctx.make_executable(reactions)))
     }
 
