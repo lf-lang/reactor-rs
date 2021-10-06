@@ -1,12 +1,8 @@
 use std::cmp::Reverse;
 
-
 use smallvec::SmallVec;
 
-
-
 use super::Event;
-
 
 /// A queue of pending [Event]s. Events are ordered by tag,
 /// so this is not a FIFO queue.

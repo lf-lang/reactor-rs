@@ -105,10 +105,6 @@ global_id_newtype! {
     TriggerId
 }
 
-/// A set of reactions
-#[doc(hidden)]
-pub type ReactionSet = Vec<GlobalReactionId>;
-
 
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.

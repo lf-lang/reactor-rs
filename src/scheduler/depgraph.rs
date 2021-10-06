@@ -35,7 +35,6 @@ use petgraph::visit::EdgeRef;
 
 use crate::*;
 
-
 type GraphIx = NodeIndex<u32>;
 
 #[derive(Debug, Eq, PartialEq, Hash)]

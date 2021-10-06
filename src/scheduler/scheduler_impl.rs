@@ -244,11 +244,11 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     fn execute_wave(&mut self, time: LogicalInstant, enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'x), &mut StartupCtx),
     ) {
-        let mut startup_ctx = StartupCtx { ctx: self.new_reaction_ctx(time, None) };
+        let mut startup_ctx = StartupCtx::new(self.new_reaction_ctx(time, None));
         for reactor in self.reactors.iter() {
             enqueue_fun(reactor.as_ref(), &mut startup_ctx);
         }
-        self.process_tag(time, startup_ctx.ctx.todo_now())
+        self.process_tag(time, startup_ctx.todo_now())
     }
 
 
@@ -415,31 +415,3 @@ impl DebugInfoProvider<'_> {
         self.id_registry.fmt_reaction(global)
     }
 }
-
-/// Allows directly enqueuing reactions for a future,
-/// unspecified logical time. This is only relevant
-/// during the initialization of reactors.
-pub struct StartupCtx<'a, 'x, 't> {
-    ctx: ReactionCtx<'a, 'x, 't>,
-}
-
-impl StartupCtx<'_, '_, '_> {
-    #[inline]
-    #[doc(hidden)]
-    pub fn enqueue(&mut self, reactions: impl Iterator<Item=GlobalReactionId>) {
-        self.ctx.enqueue_now(Cow::Owned(self.ctx.make_executable(reactions)))
-    }
-
-    #[doc(hidden)]
-    pub fn start_timer(&mut self, t: &Timer) {
-        let downstream = self.ctx.reactions_triggered_by(t.get_id());
-        if t.offset.is_zero() {
-            // no offset
-            self.ctx.enqueue_now(Cow::Borrowed(downstream))
-        } else {
-            self.ctx.enqueue_later(downstream, self.ctx.get_logical_time() + t.offset)
-        }
-    }
-}
-
-

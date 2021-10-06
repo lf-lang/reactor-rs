@@ -42,10 +42,6 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         })
     }
 
-    pub(super) fn todo_now(self) -> Option<Cow<'x, ExecutableReactions>> {
-        self.0.insides.todo_now
-    }
-
 
     /// Returns the current value of a port or action at this
     /// logical time. If the value is absent, [Option::None] is
@@ -231,11 +227,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     }
 
     #[inline]
-    pub(in crate) fn make_executable(&self, reactions: impl Iterator<Item=GlobalReactionId>) -> ExecutableReactions {
-        reactions.fold(
+    pub(in crate) fn make_executable(&self, reactions: &ReactionSet) -> ExecutableReactions {
+        reactions.iter().fold(
             ExecutableReactions::new(),
             |mut acc, r| {
-                self.0.dataflow.augment(&mut acc, r);
+                self.0.dataflow.augment(&mut acc, *r);
                 acc
             })
     }
@@ -794,5 +790,43 @@ impl CleanupCtx {
 
     pub fn cleanup_physical_action<T: Send>(&self, action: &mut PhysicalActionRef<T>) {
         action.use_mut(|a| a.forget_value(&self.tag));
+    }
+}
+
+/// Allows directly enqueuing reactions for a future,
+/// unspecified logical time. This is only relevant
+/// during the initialization of reactors.
+pub struct StartupCtx<'a, 'x, 't> {
+    ctx: ReactionCtx<'a, 'x, 't>,
+}
+
+/// A set of reactions.
+#[doc(hidden)]
+pub type ReactionSet = Vec<GlobalReactionId>;
+
+impl<'a, 'x, 't> StartupCtx<'a, 'x, 't> {
+    pub(super) fn new(ctx: ReactionCtx<'a, 'x, 't>) -> Self {
+        Self { ctx }
+    }
+
+    pub(super) fn todo_now(self) -> Option<Cow<'x, ExecutableReactions>> {
+        self.ctx.0.insides.todo_now
+    }
+
+    #[inline]
+    #[doc(hidden)]
+    pub fn enqueue(&mut self, reactions: &ReactionSet) {
+        self.ctx.enqueue_now(Cow::Owned(self.ctx.make_executable(reactions)))
+    }
+
+    #[doc(hidden)]
+    pub fn start_timer(&mut self, t: &Timer) {
+        let downstream = self.ctx.reactions_triggered_by(t.get_id());
+        if t.offset.is_zero() {
+            // no offset
+            self.ctx.enqueue_now(Cow::Borrowed(downstream))
+        } else {
+            self.ctx.enqueue_later(downstream, self.ctx.get_logical_time() + t.offset)
+        }
     }
 }
