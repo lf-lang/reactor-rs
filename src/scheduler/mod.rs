@@ -85,7 +85,8 @@ pub(self) enum EventPayload<'x> {
     Terminate,
 }
 
-pub(self) type ReactorVec<'x> = IndexVec<ReactorId, Box<dyn ReactorBehavior + Send + Sync + 'x>>;
+pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + Send + Sync + 'a>;
+pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
 
 #[inline]
 pub(self) fn display_tag_impl(initial_time: LogicalInstant, tag: LogicalInstant) -> String {

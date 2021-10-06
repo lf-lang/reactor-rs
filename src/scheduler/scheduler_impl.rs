@@ -79,6 +79,12 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// A sender bound to the receiver, which may be cloned.
     tx: Sender<Event<'x>>,
 
+    /// All reactors.
+    reactors: ReactorVec<'x>,
+
+    /// Pending events/ tags to process.
+    event_queue: EventQueue<'x>,
+
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
     initial_time: Option<LogicalInstant>,
@@ -101,7 +107,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         assembler.register_reactor(main_reactor);
 
 
-        let RootAssembler { graph, mut reactors, id_registry, .. } = root_assembler;
+        let RootAssembler { graph, reactors, id_registry, .. } = root_assembler;
 
         #[cfg(feature = "graph-dump")] {
             eprintln!("{}", graph.format_dot(&id_registry));
@@ -122,17 +128,16 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 id_registry,
                 &dataflow_info,
                 scope,
+                reactors,
             );
 
-            scheduler.launch_event_loop(&mut reactors);
+            scheduler.launch_event_loop();
         }).unwrap();
     }
 
     /// Launch the event loop in this thread.
-    fn launch_event_loop(mut self, reactors: &mut ReactorVec<'_>) {
-        let mut event_queue: EventQueue<'x> = Default::default();
-
-        self.startup(reactors, &mut event_queue);
+    fn launch_event_loop(mut self) {
+        self.startup();
 
         /************************************************
          * This is the main event loop of the scheduler *
@@ -140,10 +145,12 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         loop {
             // flush pending events, this doesn't block
             for evt in self.rx.try_iter() {
-                self.do_push_event(&mut event_queue, evt);
+                // note: this is duplicated from self.push_event
+                trace!("Pushing {}", self.debug().display_event(&evt));
+                self.event_queue.push(evt);
             }
 
-            if let Some(evt) = event_queue.take_earliest() {
+            if let Some(evt) = self.event_queue.take_earliest() {
                 if self.is_after_shutdown(evt.tag) {
                     trace!("Event is late, shutting down - event tag: {}", self.debug().display_tag(evt.tag));
                     break;
@@ -155,22 +162,22 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                         // an asynchronous event woke our sleep
                         if async_event.tag < evt.tag {
                             // reinsert both events to order them and try again.
-                            event_queue.push(evt);
-                            event_queue.push(async_event);
+                            self.event_queue.push(evt);
+                            self.event_queue.push(async_event);
                             continue
                         } else {
                             // we can process this event first and not care about the async event
-                            event_queue.push(async_event);
+                            self.event_queue.push(async_event);
                         }
                     }
                 };
 
                 match evt.payload {
-                    EventPayload::Reactions(reactions) => self.step(evt.tag, reactions, reactors, &mut event_queue),
+                    EventPayload::Reactions(reactions) => self.step(evt.tag, reactions),
                     EventPayload::Terminate => break,
                 }
             } else if let Some(evt) = self.receive_event() { // this may block
-                self.do_push_event(&mut event_queue, evt);
+                self.push_event(evt);
                 continue;
             } else {
                 // all senders have hung up, or timeout
@@ -179,7 +186,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         } // end loop
 
         info!("Scheduler is shutting down...");
-        self.shutdown(reactors, &mut event_queue);
+        self.shutdown();
         info!("Scheduler has been shut down")
 
         // self destructor is called here
@@ -193,11 +200,16 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         id_registry: IdRegistry,
         dependency_info: &'x DataflowInfo,
         thread_spawner: &'a Scope<'t>,
+        reactors: ReactorVec<'x>,
     ) -> Self {
         let (tx, rx) = channel::<Event<'x>>();
         Self {
             rx,
             tx,
+
+            event_queue: Default::default(),
+            reactors,
+
             initial_time: None,
             latest_processed_tag: None,
             shutdown_time: None,
@@ -212,7 +224,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Fix the origin of the logical timeline to the current
     /// physical time, and runs the startup reactions
     /// of all reactors.
-    fn startup(&mut self, reactors: &mut ReactorVec<'_>, event_queue: &mut EventQueue<'x>) {
+    fn startup(&mut self) {
         info!("Triggering startup...");
         let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
@@ -221,31 +233,36 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             self.shutdown_time = Some(initial_time + timeout)
         }
 
-        debug_assert!(!reactors.is_empty(), "No registered reactors");
-        self.execute_wave(initial_time, reactors, ReactorBehavior::enqueue_startup, event_queue);
+        debug_assert!(!self.reactors.is_empty(), "No registered reactors");
+        self.execute_wave(initial_time, ReactorBehavior::enqueue_startup);
     }
 
-    fn shutdown(&mut self, reactors: &mut ReactorVec<'_>, event_queue: &mut EventQueue<'x>) {
+    fn shutdown(&mut self) {
         let shutdown_time = self.shutdown_time.unwrap_or_else(LogicalInstant::now);
-        self.execute_wave(shutdown_time, reactors, ReactorBehavior::enqueue_shutdown, event_queue);
+        self.execute_wave(shutdown_time, ReactorBehavior::enqueue_shutdown);
     }
 
-    fn execute_wave<'r>(&mut self,
-                        time: LogicalInstant,
-                        reactors: &mut ReactorVec<'r>,
-                        enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'r), &mut StartupCtx),
-                        event_queue: &mut EventQueue<'x>) {
+    fn execute_wave(&mut self, time: LogicalInstant, enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'x), &mut StartupCtx),
+    ) {
         let mut startup_ctx = StartupCtx { ctx: self.new_reaction_ctx(time, None) };
-        for reactor in reactors.iter() {
+        for reactor in self.reactors.iter() {
             enqueue_fun(reactor.as_ref(), &mut startup_ctx);
         }
-        startup_ctx.ctx.process_entire_tag(self, reactors, event_queue)
+        startup_ctx.ctx.process_entire_tag(self)
     }
 
 
-    fn do_push_event(&self, event_queue: &mut EventQueue<'x>, evt: Event<'x>) {
+    pub(super) fn push_event(&mut self, evt: Event<'x>) {
         trace!("Pushing {}", self.debug().display_event(&evt));
-        event_queue.push(evt);
+        self.event_queue.push(evt);
+    }
+
+    pub(super) fn get_reactor_mut(&mut self, id: ReactorId) -> &mut ReactorBox<'x> {
+        &mut self.reactors[id]
+    }
+
+    pub(super) fn iter_reactors_mut(&mut self) -> impl Iterator<Item=&mut ReactorBox<'x>> {
+        self.reactors.iter_mut()
     }
 
     /// Returns whether the given event should be ignored and
@@ -291,8 +308,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     fn step(&mut self,
             tag: LogicalInstant,
             reactions: Cow<'x, ExecutableReactions>,
-            reactors: &mut ReactorVec<'_>,
-            event_queue: &mut EventQueue<'x>,
     ) {
         if cfg!(debug_assertions) {
             if let Some(t) = self.latest_processed_tag {
@@ -302,7 +317,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         }
 
         let ctx = self.new_reaction_ctx(tag, Some(reactions));
-        ctx.process_entire_tag(self, reactors, event_queue)
+        ctx.process_entire_tag(self)
     }
 
     /// Sleep/wait until the given time OR an asynchronous

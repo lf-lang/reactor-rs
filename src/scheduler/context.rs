@@ -366,12 +366,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
     /// Execute the wave until completion.
     /// The parameter is the list of reactions to start with.
-    pub(in super) fn process_entire_tag(
-        mut self,
-        scheduler: &mut SyncScheduler<'_, 'x, '_>,
-        reactors: &mut ReactorVec<'_>,
-        event_queue: &mut EventQueue<'x>
-    ) {
+    pub(in super) fn process_entire_tag(mut self, scheduler: &mut SyncScheduler<'_, 'x, '_>) {
 
         // The maximum layer number we've seen as of now.
         // This must be increasing monotonically.
@@ -396,7 +391,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                             // the impl for non-parallel runtime
                             for reaction_id in batch {
                                 trace!("  - Executing {}", scheduler.debug().display_reaction(*reaction_id));
-                                let reactor = &mut reactors[reaction_id.0.container()];
+                                let reactor = scheduler.get_reactor_mut(reaction_id.0.container());
 
                                 reactor.react_erased(&mut self, reaction_id.0.local());
                                 // the reaction invocation may have mutated self.0.insides:
@@ -404,7 +399,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                                 // processed in the next loop iteration
                                 // - future_events: handled now
                                 for evt in self.0.insides.future_events.drain(..) {
-                                    event_queue.push(evt)
+                                    scheduler.push_event(evt)
                                 }
                             }
                         }
@@ -426,7 +421,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         // cleanup tag-specific resources, eg clear port values
         let ctx = CleanupCtx { tag: self.get_logical_time() };
         // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
-        for reactor in reactors {
+        for reactor in scheduler.iter_reactors_mut() {
             reactor.cleanup_tag(&ctx)
         }
     }
