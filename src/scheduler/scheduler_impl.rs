@@ -37,12 +37,21 @@ use crate::scheduler::depgraph::DataflowInfo;
 
 use super::*;
 
+/// Construction parameters for the scheduler.
+///
+/// LFC uses target properties to set them. With the "cli"
+/// feature, generated programs also feature CLI options to
+/// override the default at runtime.
 pub struct SchedulerOptions {
     /// If true, we won't shut down the scheduler as soon as
     /// the event queue is empty, provided there are still
     /// live threads that can send messages to the scheduler
     /// asynchronously.
     pub keep_alive: bool,
+
+    /// Timeout of reactor execution. If provided, the reactor
+    /// program will be shut down *at the latest* at `T0 + timeout`.
+    /// Calls to `request_stop` may make the program terminate earlier.
     pub timeout: Option<Duration>,
 }
 
@@ -92,6 +101,8 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// be initiated at least at this physical time step.
     /// todo does this match lf semantics?
     /// This is set when [EventPayload::Terminate] is received.
+    /// todo there are two data flow paths that control shutdown, this one (self.shutdown_time)
+    ///  and Terminate events sent through the sender. Unify them.
     shutdown_time: Option<LogicalInstant>,
     options: SchedulerOptions,
 
