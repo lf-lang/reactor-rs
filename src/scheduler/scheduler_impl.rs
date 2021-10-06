@@ -96,25 +96,36 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// The latest processed logical time (necessarily behind physical time).
     latest_processed_tag: Option<LogicalInstant>,
 
+    /// Reference to the data flow graph, which allows us to
+    /// order reactions properly for each tag.
     dataflow: &'x DataflowInfo,
 
+    /// Can spawn scoped threads, which are used for threads
+    /// producing physical actions.
     thread_spawner: &'a Scope<'t>,
-
-    /// The receiver end of the communication channels. Reactions
-    /// contexts each have their own [Sender]. The main event loop
-    /// polls this to make progress.
-    ///
-    /// The receiver is unique.
-    rx: Receiver<Event<'x>>,
-
-    /// A sender bound to the receiver, which may be cloned.
-    tx: Sender<Event<'x>>,
 
     /// All reactors.
     pub(super) reactors: ReactorVec<'x>,
 
     /// Pending events/ tags to process.
     event_queue: EventQueue<'x>,
+
+    /// The receiver end of the communication channels. Reactions
+    /// contexts each have their own [Sender]. The main event loop
+    /// polls this to make progress.
+    ///
+    /// The receiver is unique.
+    ///
+    /// Since at least one sender ([tx]) is alive, this receiver
+    /// will never report being disconnected.
+    rx: Receiver<Event<'x>>,
+
+    /// A sender bound to the receiver, which may be cloned.
+    /// It's carried around in [PhysicalSchedulerLink] to
+    /// handle asynchronous events. Synchronously produced
+    /// go directly into the [event_queue].
+    tx: Sender<Event<'x>>,
+
 
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
