@@ -51,6 +51,7 @@ main reactor Snake(grid_side: usize(32),
     logical action manually_add_more_food;
     /// periodic
     timer add_more_food(0, 5 sec);
+    // state vars for food
     state food_on_grid: u32(0);
     state max_food_on_grid(food_limit);
 
@@ -71,18 +72,6 @@ main reactor Snake(grid_side: usize(32),
         ctx.schedule(screen_refresh, After(delay));
     =}
 
-    // @label handle_key_press
-    reaction(keyboard.arrow_key_pressed) {=
-        // this might be overwritten several times, only committed on screen refreshes
-        self.pending_direction = match ctx.get(keyboard__arrow_key_pressed).unwrap() {
-            Key::Left => Direction::LEFT,
-            Key::Right => Direction::RIGHT,
-            Key::Up => Direction::UP,
-            Key::Down => Direction::DOWN,
-            _ => unreachable!(),
-        };
-    =}
-
     // @label refresh_screen
     reaction(screen_refresh) -> manually_add_more_food {=
         // check that the user's command is valid
@@ -90,7 +79,6 @@ main reactor Snake(grid_side: usize(32),
             self.snake_direction = self.pending_direction;
         }
 
-        // snakes don't "step" forward
         match self.snake.slither_forward(self.snake_direction, &mut self.grid) {
             UpdateResult::GameOver => { ctx.request_stop(Asap); return; },
             UpdateResult::FoodEaten => {
@@ -106,22 +94,27 @@ main reactor Snake(grid_side: usize(32),
         snakes::output::paint_on_raw_console(&self.grid);
     =}
 
+    // @label handle_key_press
+    reaction(keyboard.arrow_key_pressed) {=
+        // this might be overwritten several times, only committed on screen refreshes
+        self.pending_direction = match ctx.get(keyboard__arrow_key_pressed).unwrap() {
+            Key::Left => Direction::LEFT,
+            Key::Right => Direction::RIGHT,
+            Key::Up => Direction::UP,
+            Key::Down => Direction::DOWN,
+            _ => unreachable!(),
+        };
+    =}
+
     // @label add_food
     reaction(manually_add_more_food, add_more_food) {=
         if self.food_on_grid >= self.max_food_on_grid {
             return; // there's enough food there
         }
-        // find a random free cell that will become food
-        let mut rng = thread_rng();
-        for _ in 0..60 { // don't loop infinitely
-            let row = rng.gen_range(0..self.grid.grid_side());
-            let col = rng.gen_range(0..self.grid.grid_side());
-            if self.grid[cell(row, col)] == CellState::Free {
-                self.grid[cell(row, col)] = CellState::Food; // next screen update will catch this.
-                self.food_on_grid += 1;
-                break;
-            }
-            // otherwise try again
+
+        if let Some(cell) = self.grid.find_random_free_cell() {
+            self.grid[cell] = CellState::Food; // next screen update will catch this.
+            self.food_on_grid += 1;
         }
     =}
 
