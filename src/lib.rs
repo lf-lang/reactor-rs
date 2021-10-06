@@ -40,7 +40,7 @@
 //! - `graph-dump` (internal): dumps the dependency graph to stdout
 //! before starting execution.
 
-#![deny(unused_crate_dependencies)]
+// #![deny(unused_crate_dependencies)]
 #![deny(unused_extern_crates)]
 // #![warn(unreachable_pub)]
 #![warn(unused_lifetimes)]
@@ -49,9 +49,6 @@
 
 #[macro_use]
 extern crate array_macro;
-#[cfg(any(test, feature = "test-utils"))]
-#[macro_use]
-extern crate assert_matches;
 #[macro_use]
 extern crate index_vec;
 #[macro_use]
@@ -60,6 +57,9 @@ extern crate log;
 extern crate smallvec;
 #[cfg(feature = "parallel_runtime")]
 extern crate rayon;
+#[cfg(any(test, feature = "test-utils"))]
+#[macro_use]
+extern crate assert_matches;
 
 pub use std::time::Duration;
 // reexport those to complement our LogicalInstant

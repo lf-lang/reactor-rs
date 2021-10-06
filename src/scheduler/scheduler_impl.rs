@@ -129,7 +129,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     }
 
     /// Launch the event loop in this thread.
-    fn launch_event_loop<'r>(mut self, reactors: &mut ReactorVec<'r>) {
+    fn launch_event_loop(mut self, reactors: &mut ReactorVec<'_>) {
         let mut event_queue: EventQueue<'x> = Default::default();
 
         self.startup(reactors, &mut event_queue);
@@ -212,7 +212,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Fix the origin of the logical timeline to the current
     /// physical time, and runs the startup reactions
     /// of all reactors.
-    fn startup<'r>(&mut self, reactors: &mut ReactorVec<'r>, event_queue: &mut EventQueue<'x>) {
+    fn startup(&mut self, reactors: &mut ReactorVec<'_>, event_queue: &mut EventQueue<'x>) {
         info!("Triggering startup...");
         let initial_time = LogicalInstant::now();
         self.initial_time = Some(initial_time);
@@ -225,7 +225,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         self.execute_wave(initial_time, reactors, ReactorBehavior::enqueue_startup, event_queue);
     }
 
-    fn shutdown<'r>(&mut self, reactors: &mut ReactorVec<'r>, event_queue: &mut EventQueue<'x>) {
+    fn shutdown(&mut self, reactors: &mut ReactorVec<'_>, event_queue: &mut EventQueue<'x>) {
         let shutdown_time = self.shutdown_time.unwrap_or_else(LogicalInstant::now);
         self.execute_wave(shutdown_time, reactors, ReactorBehavior::enqueue_shutdown, event_queue);
     }
@@ -288,11 +288,11 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Execute a wave. This may make the calling thread
     /// (the scheduler one) sleep, if the expected processing
     /// time (logical) is ahead of current physical time.
-    fn step<'r>(&mut self,
-                tag: LogicalInstant,
-                reactions: Cow<'x, ExecutableReactions>,
-                reactors: &mut ReactorVec<'r>,
-                event_queue: &mut EventQueue<'x>,
+    fn step(&mut self,
+            tag: LogicalInstant,
+            reactions: Cow<'x, ExecutableReactions>,
+            reactors: &mut ReactorVec<'_>,
+            event_queue: &mut EventQueue<'x>,
     ) {
         if cfg!(debug_assertions) {
             if let Some(t) = self.latest_processed_tag {

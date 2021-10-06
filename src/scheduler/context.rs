@@ -19,7 +19,7 @@ use super::*;
 // ReactionCtx is an API built around a ReactionWave. A single
 // ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&mut).
-pub struct ReactionCtx<'a, 'x, 't>(RContextInner<'a, 'x, 't>) where 'x: 't;
+pub struct ReactionCtx<'a, 'x, 't>(RContextInner<'a, 'x, 't>) ;
 
 
 impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
@@ -366,10 +366,10 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
     /// Execute the wave until completion.
     /// The parameter is the list of reactions to start with.
-    pub(in super) fn process_entire_tag<'r>(
+    pub(in super) fn process_entire_tag(
         mut self,
         scheduler: &mut SyncScheduler<'_, 'x, '_>,
-        reactors: &mut ReactorVec<'r>,
+        reactors: &mut ReactorVec<'_>,
         event_queue: &mut EventQueue<'x>
     ) {
 
