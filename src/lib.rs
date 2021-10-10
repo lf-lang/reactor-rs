@@ -56,6 +56,9 @@ extern crate log;
 extern crate rayon;
 #[macro_use]
 extern crate smallvec;
+#[cfg(test)]
+#[macro_use]
+extern crate assert_matches;
 
 pub use std::time::Duration;
 // reexport those to complement our LogicalInstant

@@ -827,8 +827,12 @@ impl<'a, 'x, 't> StartupCtx<'a, 'x, 't> {
         Self { ctx }
     }
 
-    pub(super) fn todo_now(self) -> Option<Cow<'x, ExecutableReactions>> {
-        self.ctx.0.insides.todo_now
+    pub(super) fn take_todo_now(&mut self) -> Option<Cow<'x, ExecutableReactions>> {
+        self.ctx.0.insides.todo_now.take()
+    }
+
+    pub(super) fn take_future_events<'p>(&'p mut self) -> impl Iterator<Item=Event<'x>> + 'p{
+        self.ctx.0.insides.future_events.drain(..)
     }
 
     #[inline]

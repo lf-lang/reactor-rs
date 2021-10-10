@@ -295,7 +295,10 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         for reactor in self.reactors.iter() {
             enqueue_fun(reactor.as_ref(), &mut startup_ctx);
         }
-        self.process_tag(tag, startup_ctx.todo_now())
+        for evt in startup_ctx.take_future_events() {
+            self.event_queue.push(evt);
+        }
+        self.process_tag(tag, startup_ctx.take_todo_now())
     }
 
     /// Returns whether the given event should be ignored and
