@@ -59,16 +59,30 @@ pub struct EventTag {
 
 impl EventTag {
 
+    /// Returns the logical instant for this tag, using the
+    /// initial time `t0`.
     #[inline]
     pub fn to_logical_time(&self, t0: Instant) -> Instant {
         t0 + self.offset_from_t0
     }
 
+    /// Returns the amount of time elapsed since the start
+    /// of the app.
+    ///
+    /// ```no_run
+    /// # use std::time::Instant;
+    /// # use reactor_rt::EventTag;
+    /// # let t0: Instant = todo!();
+    /// # let tag1: EventTag = todo!();
+    /// # let tag2: EventTag = todo!();
+    /// assert_eq!(tag1.duration_since_start(t0), tag1.to_logical_time(t0) - t0)
+    /// ```
     #[inline]
     pub fn duration_since_start(&self, _t0: Instant) -> Duration {
         self.offset_from_t0
     }
 
+    /// Returns the microstep of this tag.
     #[inline]
     pub fn microstep(&self) -> MicroStep {
         self.microstep
