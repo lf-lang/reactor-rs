@@ -696,8 +696,8 @@ impl TagSpec {
     fn to_tag(self, t0: Instant) -> EventTag {
         match self {
             TagSpec::T0 => EventTag::pure(t0, t0),
-            TagSpec::At(offset) => EventTag::offset(t0, offset),
-            TagSpec::Tag(offset, step) => EventTag::offset_with_micro(t0, offset, MicroStep::new(step)),
+            TagSpec::At(offset) => EventTag::offset(t0, offset, MicroStep::ZERO),
+            TagSpec::Tag(offset, step) => EventTag::offset(t0, offset, MicroStep::new(step)),
         }
     }
 }

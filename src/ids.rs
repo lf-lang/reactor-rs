@@ -211,7 +211,8 @@ impl IdRegistry {
         format!("{}:{}", self.get_debug_info(id.container()), id.local())
     }
 
-    pub fn fmt_component(&self, id: GlobalId) -> String {
+    #[cfg(feature = "graph-dump")]
+    pub(crate) fn fmt_component(&self, id: GlobalId) -> String {
         if let Some(label) = self.get_debug_label(id) {
             format!("{}:{}", self.get_debug_info(id.container()), label)
         } else {

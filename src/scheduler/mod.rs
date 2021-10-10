@@ -97,13 +97,8 @@ impl EventTag {
     }
 
     #[inline]
-    pub(crate) fn offset(t0: Instant, offset: Duration) -> Self {
-        Self::offset_with_micro(t0, offset, MicroStep::ZERO)
-    }
-
-
-    #[inline]
-    pub(crate) fn offset_with_micro(_t0: Instant, offset_from_t0: Duration, microstep: MicroStep) -> Self {
+    #[allow(unused)]
+    pub(crate) fn offset(_t0: Instant, offset_from_t0: Duration, microstep: MicroStep) -> Self {
         Self { offset_from_t0, microstep }
     }
 

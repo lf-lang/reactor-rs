@@ -139,7 +139,7 @@ mod reactors {
                 if self.count != params.expected {
                     panic!("Pong expected to receive {} inputs, but it received {}.", params.expected, self.count);
                 }
-                println!("---- Elapsed physical time (in nsec): {}", ctx.get_elapsed_physical_time().as_nanos());
+                // println!("---- Elapsed physical time (in nsec): {}", ctx.get_elapsed_physical_time().as_nanos());
             }
 
         }
