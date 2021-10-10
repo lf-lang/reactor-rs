@@ -41,7 +41,7 @@ use super::*;
 ///
 /// LFC uses target properties to set them. With the "cli"
 /// feature, generated programs also feature CLI options to
-/// override the default at runtime.
+/// override the defaults at runtime.
 pub struct SchedulerOptions {
     /// If true, we won't shut down the scheduler as soon as
     /// the event queue is empty, provided there are still
@@ -72,7 +72,7 @@ impl Default for SchedulerOptions {
 macro_rules! debug_info {
     ($e:expr) => {
         DebugInfoProvider {
-            initial_time: $e.initial_time.unwrap(),
+            initial_time: $e.initial_time,
             id_registry: &$e.id_registry,
         }
     };
@@ -129,7 +129,7 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
-    initial_time: Option<LogicalInstant>,// todo unwrap this always
+    initial_time: LogicalInstant,
 
     /// Scheduled shutdown time. If not None, shutdown must
     /// be initiated at least at this physical time step.
@@ -168,12 +168,14 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         // contexts can be spawned in a thread that captures references
         // to 'x.
         scope(|scope| {
+            let initial_time = LogicalInstant::now();
             let scheduler = SyncScheduler::new(
                 options,
                 id_registry,
                 &dataflow_info,
                 scope,
                 reactors,
+                initial_time,
             );
 
             scheduler.launch_event_loop();
@@ -244,6 +246,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         dependency_info: &'x DataflowInfo,
         thread_spawner: &'a Scope<'t>,
         reactors: ReactorVec<'x>,
+        initial_time: LogicalInstant,
     ) -> Self {
         let (tx, rx) = channel::<Event<'x>>();
         Self {
@@ -253,7 +256,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             event_queue: Default::default(),
             reactors,
 
-            initial_time: None,
+            initial_time,
             latest_processed_tag: None,
             shutdown_time: None,
             options,
@@ -269,8 +272,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// of all reactors.
     fn startup(&mut self) {
         info!("Triggering startup...");
-        let initial_time = LogicalInstant::now();
-        self.initial_time = Some(initial_time);
+        let initial_time = self.initial_time;
         if let Some(timeout) = self.options.timeout {
             trace!("Timeout specified, will shut down at tag {}", self.debug().display_tag(initial_time + timeout));
             self.shutdown_time = Some(initial_time + timeout)
@@ -389,10 +391,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         ReactionCtx::new(
             self.tx.clone(),
             current_time,
-            // note: initializing self.initial_time is the
-            // first thing done during startup so the unwrap
-            // should never panic
-            self.initial_time.unwrap(),
+            self.initial_time,
             todo,
             self.dataflow,
             self.thread_spawner,
