@@ -114,6 +114,39 @@ macro_rules! delay {
     ($amount:tt minutes)  => { delay!($amount min) };
 }
 
+/// Convenient macro to wrap [assert_tag_is](crate::ReactionCtx::assert_tag_is).
+/// This is just a shorthand for using that method together with
+/// the syntax of [delay].
+///
+/// ```no_run
+/// use reactor_rt::{assert_tag_is, delay, ReactionCtx};
+/// let ctx : ReactionCtx = todo!();
+///
+/// assert_tag_is!(ctx, T0 + 20 ms);
+/// assert_tag_is!(ctx, T0 + 60 ms);
+/// assert_tag_is!(ctx, T0);
+/// // with a microstep, add parentheses
+/// assert_tag_is!(ctx, (T0, 1));
+/// assert_tag_is!(ctx, (T0 + 3 sec, 1));
+/// ```
+#[macro_export]
+#[cfg(feature = "test-utils")]
+macro_rules! assert_tag_is {
+    ($ctx:tt, T0) => {
+        assert_tag_is!($ctx, (T0 + 0 sec, 0))
+    };
+    ($ctx:tt, (T0, $microstep:tt)) => {
+        assert_tag_is!($ctx, (T0 + 0 sec, $microstep))
+    };
+    ($ctx:tt, T0 + $amount:tt $unit:ident) => {
+        assert_tag_is!($ctx, (T0 + $amount $unit, 0))
+    };
+    ($ctx:tt, (T0 + $amount:tt $unit:ident, $microstep:tt)) => {
+        $ctx.assert_tag_is($crate::TagSpec::Tag($crate::delay!($amount $unit), $microstep))
+    };
+}
+
+
 /// A unit of time, used in LF.
 #[derive(Debug)]
 pub enum TimeUnit {

@@ -95,7 +95,7 @@ pub mod prelude {
     pub use crate::Offset::*;
     pub use crate::ReactionCtx;
     #[cfg(feature = "test-utils")]
-    pub use crate::TagSpec::*;
+    pub use crate::{TagSpec::*, assert_tag_is};
 }
 
 /// Wrapper around the user struct for safe dispatch.
