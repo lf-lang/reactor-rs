@@ -216,9 +216,14 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                     }
                 };
 
+                // at this point we're at the correct time
                 match evt.payload {
                     EventPayload::Reactions(reactions) => self.process_tag(evt.tag, Some(reactions)),
-                    EventPayload::Terminate => break,
+                    EventPayload::Terminate => {
+                        // may overwrite a future shutdown time
+                        self.shutdown_time = Some(evt.tag);
+                        break
+                    },
                 }
             } else if let Some(evt) = self.receive_event() { // this may block
                 push_event!(self, evt);
@@ -296,7 +301,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             enqueue_fun(reactor.as_ref(), &mut startup_ctx);
         }
         for evt in startup_ctx.take_future_events() {
-            self.event_queue.push(evt);
+            push_event!(self, evt);
         }
         self.process_tag(tag, startup_ctx.take_todo_now())
     }
