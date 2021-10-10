@@ -286,7 +286,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     }
 
     fn shutdown(&mut self) {
-        let shutdown_time = self.shutdown_time.unwrap_or_else(EventTag::now);
+        let shutdown_time = self.shutdown_time.unwrap_or_else(|| EventTag::now(self.initial_time));
         self.execute_wave(shutdown_time, ReactorBehavior::enqueue_shutdown);
     }
 

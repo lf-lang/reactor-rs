@@ -53,21 +53,16 @@ mod assembly;
 ///
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Debug, Ord, PartialOrd)]
 pub struct EventTag {
-    // offset_from_t0: Duration,
-    instant: PhysicalInstant,
+    offset_from_t0: Duration,
     microstep: MicroStep,
 }
 
 impl EventTag {
-    /// Create a tag for the zeroth microstep of the given instant.
-    // #[inline]
-    // pub(crate) fn pure(instant: Instant) -> Self {
-    //     Self { instant, microstep: MicroStep::ZERO }
-    // }
+
     /// Create a tag for the zeroth microstep of the given instant.
     #[inline]
-    pub(crate) fn pure(_t0: Instant, instant: Instant) -> Self {
-        Self { instant, microstep: MicroStep::ZERO }
+    pub(crate) fn pure(t0: Instant, instant: Instant) -> Self {
+        Self { offset_from_t0: instant - t0, microstep: MicroStep::ZERO }
     }
 
     #[inline]
@@ -77,18 +72,18 @@ impl EventTag {
 
 
     #[inline]
-    pub(crate) fn offset_with_micro(t0: Instant, offset: Duration, microstep: MicroStep) -> Self {
-        Self { instant: t0 + offset, microstep }
+    pub(crate) fn offset_with_micro(_t0: Instant, offset_from_t0: Duration, microstep: MicroStep) -> Self {
+        Self { offset_from_t0, microstep }
     }
 
     #[inline]
-    pub fn to_logical_time(&self, _t0: Instant) -> Instant {
-        self.instant
+    pub fn to_logical_time(&self, t0: Instant) -> Instant {
+        t0 + self.offset_from_t0
     }
 
     #[inline]
-    pub fn duration_since_start(&self, t0: Instant) -> Duration {
-        self.instant - t0
+    pub fn duration_since_start(&self, _t0: Instant) -> Duration {
+        self.offset_from_t0
     }
 
     #[inline]
@@ -98,26 +93,31 @@ impl EventTag {
 
     /// Returns a tag that is strictly greater than this one.
     #[inline]
-    pub(crate) fn successor(self, t0: Instant, offset: Duration) -> Self {
+    pub(crate) fn successor(self, _t0: Instant, offset: Duration) -> Self {
         if offset.is_zero() {
             self.next_microstep()
         } else {
-            Self::pure(t0, self.instant + offset)
+            Self {
+                offset_from_t0: self.offset_from_t0 + offset,
+                microstep: MicroStep::ZERO
+            }
+            // Self::pure(t0, self.instant + offset)
         }
     }
 
     #[inline]
     pub fn next_microstep(&self) -> Self {
         Self {
-            instant: self.instant,
+            offset_from_t0: self.offset_from_t0,
+            // instant: self.instant,
             microstep: self.microstep + 1,
         }
     }
 
     #[inline]
-    pub fn now() -> Self {
+    pub fn now(t0: Instant) -> Self {
         Self {
-            instant: PhysicalInstant::now(),
+            offset_from_t0: PhysicalInstant::now() - t0,
             microstep: MicroStep::ZERO,
         }
     }
