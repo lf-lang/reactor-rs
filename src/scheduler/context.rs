@@ -3,7 +3,7 @@ use std::borrow::{Borrow, BorrowMut};
 use std::cmp::max;
 use std::sync::mpsc::{Sender, SendError};
 
-use crossbeam::thread::{Scope, ScopedJoinHandle};
+use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
 
 use crate::*;

@@ -29,8 +29,7 @@
 use std::fmt::Write;
 use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 
-use crossbeam::scope;
-use crossbeam::thread::Scope;
+use crossbeam_utils::{thread::Scope, thread::scope};
 
 use crate::*;
 use crate::scheduler::depgraph::DataflowInfo;

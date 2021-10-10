@@ -15,7 +15,7 @@ smallvec = "1.6"
 petgraph = "0.6"
 array-macro = "2.1"
 atomic_refcell = "0.1"
-crossbeam = "0.8"
+crossbeam-utils = "0.8"
 rayon = { version = "1.5", optional = true }
 regex = { version = "1", optional = true }
 assert_matches = { version = "1", optional = true }
