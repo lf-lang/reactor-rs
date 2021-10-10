@@ -48,9 +48,6 @@
 
 #[macro_use]
 extern crate array_macro;
-#[cfg(any(test, feature = "test-utils"))]
-#[macro_use]
-extern crate assert_matches;
 #[macro_use]
 extern crate index_vec;
 #[macro_use]

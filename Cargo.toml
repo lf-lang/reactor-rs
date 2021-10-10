@@ -18,7 +18,6 @@ atomic_refcell = "0.1"
 crossbeam-utils = "0.8"
 rayon = { version = "1.5", optional = true }
 regex = { version = "1", optional = true }
-assert_matches = { version = "1", optional = true }
 
 [dev-dependencies]
 criterion = "0.3"
@@ -29,7 +28,7 @@ regex = { version = "1" }
 [features]
 # dump the graph to a DOT representation
 graph-dump=["regex"]
-test-utils=["assert_matches"]
+test-utils=[]
 parallel_runtime=["rayon"]
 
 [[bench]]
