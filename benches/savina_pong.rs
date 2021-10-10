@@ -49,6 +49,12 @@ criterion_group!(benches, reactor_main);
 criterion_main!(benches);
 
 fn reactor_main(c: &mut Criterion) {
+    fn init_logger() {
+        env_logger::Builder::from_env(env_logger::Env::default())
+            .format_target(false)
+            .init();
+    }
+    init_logger();
 
     let mut group = c.benchmark_group("savina_pong");
     for num_pongs in [1000, 10_000, 100_000].iter() {
@@ -60,7 +66,7 @@ fn reactor_main(c: &mut Criterion) {
                     let timeout = Some(Duration::from_secs(5));
                     launch(1, size, timeout);
                 });
-            }
+            },
         );
     }
     group.finish();
@@ -133,6 +139,7 @@ mod reactors {
                 if self.count != params.expected {
                     panic!("Pong expected to receive {} inputs, but it received {}.", params.expected, self.count);
                 }
+                println!("---- Elapsed physical time (in nsec): {}", ctx.get_elapsed_physical_time().as_nanos());
             }
 
         }

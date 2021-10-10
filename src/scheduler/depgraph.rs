@@ -35,6 +35,8 @@ use petgraph::visit::EdgeRef;
 
 use crate::*;
 
+use super::DebugInfoProvider;
+
 type GraphIx = NodeIndex<u32>;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
@@ -101,23 +103,21 @@ impl DepGraph {
 
         let formatted = format!("{:?}", dot);
         let replaced = re.replace_all(formatted.as_str(), |captures: &Captures| {
-            let kind = captures[1].as_str();
-            let reactor_number = ReactorId::new_const(captures[2].as_str().parse().unwrap());
-            let component_number = LocalReactionId::new_const(captures[3].as_str().parse().unwrap());
+            let kind = &captures[1];
+            let reactor_number = ReactorId::new_const(captures[2].parse().unwrap());
+            let component_number = LocalReactionId::new_const(captures[3].parse().unwrap());
 
-            if kind != "Reaction" {
-                let comp_id = GlobalId::new(reactor_number, component_number);
-                if let Some(nice_name) = id_registry.get_debug_label(comp_id) {
-                    format!("{}({}/{})", kind, comp_id.container(), nice_name)
-                } else {
-                    captures[0].as_str().to_owned()
-                }
+            let comp_id = GlobalId::new(reactor_number, component_number);
+            let nice_str = if kind != "Reaction" {
+                id_registry.fmt_component(comp_id)
             } else {
-                captures[0].as_str().to_owned()
-            }
+                id_registry.fmt_reaction(GlobalReactionId(comp_id))
+            };
+
+            format!("{}({})", kind, nice_str)
         });
 
-        replaced
+        replaced.into_owned()
     }
 
     pub(in super) fn record_port(&mut self, id: GlobalId) {
@@ -206,9 +206,13 @@ impl DepGraph {
         while !todo.is_empty() {
             for ix in todo.drain(..) {
                 let id = self.dataflow.node_weight(ix).unwrap().id;
-                if let Entry::Vacant(v) = layer_numbers.entry(GlobalReactionId(id)) {
-                    // if entry is occupied, then it already has its correct minimal layer number
-                    v.insert(cur_layer);
+                match layer_numbers.entry(GlobalReactionId(id)) {
+                    Entry::Vacant(v) => {
+                        v.insert(cur_layer);
+                    }
+                    Entry::Occupied(mut e) => {
+                        e.insert(cur_layer.max(*e.get()));
+                    }
                 }
                 for out_edge in self.dataflow.edges_directed(ix, Outgoing) {
                     todo_next.push(out_edge.target())

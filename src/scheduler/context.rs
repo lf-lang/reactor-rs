@@ -431,7 +431,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                         }
 
                         if cfg!(debug_assertions) {
-                            debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected {} < {}", layer_no, max_layer);
+                            debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected ({} < {})", layer_no, max_layer);
                             max_layer = max(max_layer, layer_no);
                         }
                     }

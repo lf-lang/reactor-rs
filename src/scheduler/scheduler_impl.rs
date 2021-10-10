@@ -441,4 +441,14 @@ impl DebugInfoProvider<'_> {
     pub(in super) fn display_reaction(&self, global: GlobalReactionId) -> String {
         self.id_registry.fmt_reaction(global)
     }
+
+    #[inline]
+    pub(in super) fn display_component(&self, global: TriggerId) -> String {
+        self.id_registry.fmt_component(global.0)
+    }
+
+    #[inline]
+    pub(in super) fn get_debug_label(&self, global: GlobalId) -> Option<&'static str> {
+        self.id_registry.get_debug_label(global)
+    }
 }

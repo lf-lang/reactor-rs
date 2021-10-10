@@ -199,7 +199,6 @@ pub(in crate) struct IdRegistry {
 }
 
 impl IdRegistry {
-
     pub fn get_debug_label(&self, id: GlobalId) -> Option<&'static str> {
         self.debug_ids.get(&id).map(|it| *it)
     }
@@ -208,9 +207,21 @@ impl IdRegistry {
         &self.reactor_infos[id]
     }
 
+    fn fmt_component_path(&self, id: GlobalId) -> String {
+        format!("{}:{}", self.get_debug_info(id.container()), id.local())
+    }
+
+    pub fn fmt_component(&self, id: GlobalId) -> String {
+        if let Some(label) = self.get_debug_label(id) {
+            format!("{}:{}", self.get_debug_info(id.container()), label)
+        } else {
+            self.fmt_component_path(id)
+        }
+    }
+
     #[inline]
     pub fn fmt_reaction(&self, id: GlobalReactionId) -> String {
-        let mut str = format!("{}:{}", self.get_debug_info(id.0.container()), id.0.local());
+        let mut str = self.fmt_component_path(id.0);
         // reactions may have labels too
         if let Some(label) = self.get_debug_label(id.0) {
             write!(str, "@{}", label).unwrap();
