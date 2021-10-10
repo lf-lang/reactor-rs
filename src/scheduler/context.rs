@@ -367,10 +367,10 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     }
 
     /// Asserts that the current tag is equals to the tag
-    /// `(T0 + duration_since_t0, microstep)`. Panics if
-    /// that is not the case.
+    /// described by the given [TagSpec]. Panics if that
+    /// is not the case. This is not a debug_assertion.
     #[cfg(feature = "test-utils")]
-    pub fn assert_tag_eq(&self, tag_spec: TagSpec) {
+    pub fn assert_tag_is(&self, tag_spec: TagSpec) {
         let expected_tag = tag_spec.to_tag(self.get_start_time());
 
         if expected_tag != self.get_tag() {
@@ -677,7 +677,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
 }
 
 
-/// See [ReactionCtx::assert_tag_eq]
+/// See [ReactionCtx::assert_tag_is]
 #[cfg(feature = "test-utils")]
 #[derive(Debug, Copy, Clone)]
 pub enum TagSpec {
