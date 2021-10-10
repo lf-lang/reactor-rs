@@ -94,7 +94,7 @@ macro_rules! push_event {
 /// useless but is needed to compile.
 pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// The latest processed logical time (necessarily behind physical time).
-    latest_processed_tag: Option<LogicalInstant>,
+    latest_processed_tag: Option<EventTag>,
 
     /// Reference to the data flow graph, which allows us to
     /// order reactions properly for each tag.
@@ -129,7 +129,7 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     /// Initial time of the logical system. Only filled in
     /// when startup has been called.
-    initial_time: LogicalInstant,
+    initial_time: Instant,
 
     /// Scheduled shutdown time. If not None, shutdown must
     /// be initiated at least at this physical time step.
@@ -137,7 +137,7 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// This is set when [EventPayload::Terminate] is received.
     /// todo there are two data flow paths that control shutdown, this one (self.shutdown_time)
     ///  and Terminate events sent through the sender. Unify them.
-    shutdown_time: Option<LogicalInstant>,
+    shutdown_time: Option<EventTag>,
     options: SchedulerOptions,
 
     id_registry: IdRegistry,
@@ -168,7 +168,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         // contexts can be spawned in a thread that captures references
         // to 'x.
         scope(|scope| {
-            let initial_time = LogicalInstant::now();
+            let initial_time = Instant::now();
             let scheduler = SyncScheduler::new(
                 options,
                 id_registry,
@@ -201,7 +201,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                     break;
                 }
                 trace!("Processing event for tag {}", self.debug().display_tag(evt.tag));
-                match self.catch_up_physical_time(&evt.tag) {
+                match self.catch_up_physical_time(evt.tag.to_logical_time(self.initial_time)) {
                     Ok(_) => {},
                     Err(async_event) => {
                         // an asynchronous event woke our sleep
@@ -246,7 +246,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         dependency_info: &'x DataflowInfo,
         thread_spawner: &'a Scope<'t>,
         reactors: ReactorVec<'x>,
-        initial_time: LogicalInstant,
+        initial_time: Instant,
     ) -> Self {
         let (tx, rx) = channel::<Event<'x>>();
         Self {
@@ -273,27 +273,30 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     fn startup(&mut self) {
         info!("Triggering startup...");
         let initial_time = self.initial_time;
+        let initial_tag = EventTag::pure(initial_time, initial_time);
         if let Some(timeout) = self.options.timeout {
-            trace!("Timeout specified, will shut down at tag {}", self.debug().display_tag(initial_time + timeout));
-            self.shutdown_time = Some(initial_time + timeout)
+            let shutdown_tag = initial_tag.successor(initial_time, timeout);
+            trace!("Timeout specified, will shut down at tag {}", self.debug().display_tag(shutdown_tag));
+            self.shutdown_time = Some(shutdown_tag)
         }
 
         debug_assert!(!self.reactors.is_empty(), "No registered reactors");
-        self.execute_wave(initial_time, ReactorBehavior::enqueue_startup);
+
+        self.execute_wave(initial_tag, ReactorBehavior::enqueue_startup);
     }
 
     fn shutdown(&mut self) {
-        let shutdown_time = self.shutdown_time.unwrap_or_else(LogicalInstant::now);
+        let shutdown_time = self.shutdown_time.unwrap_or_else(EventTag::now);
         self.execute_wave(shutdown_time, ReactorBehavior::enqueue_shutdown);
     }
 
-    fn execute_wave(&mut self, time: LogicalInstant, enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'x), &mut StartupCtx),
+    fn execute_wave(&mut self, tag: EventTag, enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'x), &mut StartupCtx),
     ) {
-        let mut startup_ctx = StartupCtx::new(self.new_reaction_ctx(time, None));
+        let mut startup_ctx = StartupCtx::new(self.new_reaction_ctx(tag, None));
         for reactor in self.reactors.iter() {
             enqueue_fun(reactor.as_ref(), &mut startup_ctx);
         }
-        self.process_tag(time, startup_ctx.todo_now())
+        self.process_tag(tag, startup_ctx.todo_now())
     }
 
     /// Returns whether the given event should be ignored and
@@ -301,7 +304,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// if the tag of the event is later than the projected
     /// shutdown time. Such 'late' events may be emitted by
     /// the shutdown wave.
-    fn is_after_shutdown(&self, t: LogicalInstant) -> bool {
+    fn is_after_shutdown(&self, t: EventTag) -> bool {
         self.shutdown_time.map(|shutdown_t| shutdown_t < t).unwrap_or(false)
     }
 
@@ -317,8 +320,9 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
         return match self.shutdown_time {
             Some(shutdown_t) => {
-                if now < shutdown_t.instant {
-                    let timeout = shutdown_t.instant.duration_since(now);
+                let shutdown_t = shutdown_t.to_logical_time(self.initial_time);
+                if now < shutdown_t {
+                    let timeout = shutdown_t.duration_since(now);
                     trace!("Will wait for asynchronous event {} ns", timeout.as_nanos());
                     self.rx.recv_timeout(timeout).map_err(|_| unreachable!("self.tx is alive")).ok()
                 } else {
@@ -335,7 +339,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     /// Actually process a tag. The provided reactions are the
     /// root reactions that startup the "wave".
-    fn process_tag(&mut self, tag: LogicalInstant, reactions: Option<Cow<'x, ExecutableReactions>>) {
+    fn process_tag(&mut self, tag: EventTag, reactions: Option<Cow<'x, ExecutableReactions>>) {
         if cfg!(debug_assertions) {
             if let Some(t) = self.latest_processed_tag {
                 debug_assert!(tag > t, "Tag ordering mismatch")
@@ -358,10 +362,9 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     /// Sleep/wait until the given time OR an asynchronous
     /// event is received first.
-    fn catch_up_physical_time(&mut self, up_to_time: &LogicalInstant) -> Result<(), Event<'x>> {
+    fn catch_up_physical_time(&mut self, target: Instant) -> Result<(), Event<'x>> {
         let now = PhysicalInstant::now();
 
-        let target = up_to_time.instant;
         if now < target {
             let t = target - now;
             trace!("  - Need to sleep {} ns", t.as_nanos());
@@ -387,10 +390,10 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    fn new_reaction_ctx(&self, current_time: LogicalInstant, todo: Option<Cow<'x, ExecutableReactions>>) -> ReactionCtx<'a, 'x, 't> {
+    fn new_reaction_ctx(&self, tag: EventTag, todo: Option<Cow<'x, ExecutableReactions>>) -> ReactionCtx<'a, 'x, 't> {
         ReactionCtx::new(
             self.tx.clone(),
-            current_time,
+            tag,
             self.initial_time,
             todo,
             self.dataflow,
@@ -408,11 +411,11 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 #[derive(Clone)]
 pub(in super) struct DebugInfoProvider<'a> {
     id_registry: &'a IdRegistry,
-    initial_time: LogicalInstant,
+    initial_time: Instant,
 }
 
 impl DebugInfoProvider<'_> {
-    pub fn display_tag(&self, tag: LogicalInstant) -> String {
+    pub fn display_tag(&self, tag: EventTag) -> String {
         display_tag_impl(self.initial_time, tag)
     }
 

@@ -27,10 +27,11 @@ use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
+use std::time::Instant;
 
 use atomic_refcell::{AtomicRef, AtomicRefCell};
 
-use crate::{AssemblyError, GlobalId, LogicalInstant, PortId, ReactionTrigger, TriggerId, TriggerLike};
+use crate::{AssemblyError, EventTag, GlobalId, PortId, ReactionTrigger, TriggerId, TriggerLike};
 
 /// A read-only reference to a port.
 #[repr(transparent)]
@@ -45,12 +46,12 @@ impl<'a, T: Send> ReadablePort<'a, T> {
 
 impl<T: Send> ReactionTrigger<T> for ReadablePort<'_, T> {
     #[inline]
-    fn get_value(&self, _now: &LogicalInstant, _start: &LogicalInstant) -> Option<T> where T: Copy {
+    fn get_value(&self, _now: &EventTag, _start: &Instant) -> Option<T> where T: Copy {
         self.0.get()
     }
 
     #[inline]
-    fn use_value_ref<O>(&self, _now: &LogicalInstant, _start: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
+    fn use_value_ref<O>(&self, _now: &EventTag, _start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
         self.0.use_ref(|opt| action(opt.as_ref()))
     }
 }

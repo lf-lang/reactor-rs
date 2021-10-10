@@ -23,7 +23,8 @@
  */
 
 
-use crate::{LogicalInstant, TriggerId};
+use std::time::Instant;
+use crate::{EventTag, TriggerId};
 
 /// Common trait for actions, ports, and timer objects handed
 /// to reaction functions. This is meant to be used through the
@@ -32,19 +33,19 @@ pub trait ReactionTrigger<T> {
     /// Returns whether the trigger is present, given that
     /// the current logical time is the parameter.
     #[inline]
-    fn is_present(&self, now: &LogicalInstant, start: &LogicalInstant) -> bool {
+    fn is_present(&self, now: &EventTag, start: &Instant) -> bool {
         self.use_value_ref(now, start, |opt| opt.is_some())
     }
 
     /// Copies the value out, if it is present. Whether a *value*
     /// is present is not in general the same thing as whether *this trigger*
     /// [Self::is_present]. See [crate::ReactionCtx::get].
-    fn get_value(&self, now: &LogicalInstant, start: &LogicalInstant) -> Option<T> where T: Copy;
+    fn get_value(&self, now: &EventTag, start: &Instant) -> Option<T> where T: Copy;
 
     /// Execute an action using the current value of this trigger.
     /// The closure is called even if the value is absent (with a [None]
     /// argument).
-    fn use_value_ref<O>(&self, now: &LogicalInstant, start: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O;
+    fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O;
 }
 
 /// Something on which we can declare a trigger dependency

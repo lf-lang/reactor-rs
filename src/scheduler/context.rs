@@ -1,3 +1,4 @@
+
 use std::borrow::{Borrow, BorrowMut};
 use std::cmp::max;
 use std::sync::mpsc::{Sender, SendError};
@@ -24,8 +25,8 @@ pub struct ReactionCtx<'a, 'x, 't>(RContextInner<'a, 'x, 't>) ;
 
 impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     pub(in super) fn new(tx: Sender<Event<'x>>,
-                         current_time: LogicalInstant,
-                         initial_time: LogicalInstant,
+                         tag: EventTag,
+                         initial_time: PhysicalInstant,
                          todo: Option<Cow<'x, ExecutableReactions>>,
                          dataflow: &'x DataflowInfo,
                          thread_spawner: &'a Scope<'t>) -> Self {
@@ -34,7 +35,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                 todo_now: todo,
                 future_events: Default::default(),
             },
-            current_time,
+            tag,
             tx,
             initial_time,
             dataflow,
@@ -64,7 +65,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ```
     #[inline]
     pub fn get<T: Copy>(&self, container: &impl ReactionTrigger<T>) -> Option<T> {
-        container.borrow().get_value(&self.get_logical_time(), &self.get_start_time())
+        container.borrow().get_value(&self.get_tag(), &self.get_start_time())
     }
 
     /// Executes the provided closure on the value of the port
@@ -94,7 +95,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// See also the similar [Self::use_ref_opt].
     #[inline]
     pub fn use_ref<T, O>(&self, container: &impl ReactionTrigger<T>, action: impl FnOnce(Option<&T>) -> O) -> O {
-        container.borrow().use_value_ref(&self.get_logical_time(), &self.get_start_time(), action)
+        container.borrow().use_value_ref(&self.get_tag(), &self.get_start_time(), action)
     }
 
     /// Executes the provided closure on the value of the port,
@@ -127,7 +128,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// If so, then it may, but must not, present a value ([Self::get]).
     #[inline]
     pub fn is_present<T>(&self, action: &impl ReactionTrigger<T>) -> bool {
-        action.is_present(&self.get_logical_time(), &self.get_start_time())
+        action.is_present(&self.get_tag(), &self.get_start_time())
     }
 
     /// Schedule an action to trigger at some point in the future.
@@ -183,8 +184,8 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     }
 
     #[inline]
-    fn schedule_impl<K, T: Send>(&mut self, action: &mut Action<K, T>, value: Option<T>, offset: Offset) {
-        let eta = action.make_eta(self.get_logical_time(), offset.to_duration());
+    fn schedule_impl<T: Send>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
+        let eta = self.make_successor_tag(action.min_delay + offset.to_duration());
         action.schedule_future_value(eta, value);
         let downstream = self.0.dataflow.reactions_triggered_by(&action.get_id());
         self.enqueue_later(downstream, eta);
@@ -199,7 +200,8 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     pub fn maybe_reschedule(&mut self, timer: &Timer) {
         if timer.is_periodic() {
             let downstream = self.0.dataflow.reactions_triggered_by(&timer.get_id());
-            self.enqueue_later(downstream, self.get_logical_time() + timer.period);
+            let tag = self.make_successor_tag(timer.period);
+            self.enqueue_later(downstream, tag);
         }
     }
 
@@ -208,11 +210,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     ///
     /// This is used for actions.
     #[inline]
-    pub(in crate) fn enqueue_later(&mut self, downstream: &'x ExecutableReactions, process_at: LogicalInstant) {
-        debug_assert!(process_at > self.get_logical_time());
+    pub(in crate) fn enqueue_later(&mut self, downstream: &'x ExecutableReactions, tag: EventTag) {
+        debug_assert!(tag > self.get_tag());
 
         let evt = Event {
-            tag: process_at,
+            tag,
             payload: EventPayload::Reactions(Cow::Borrowed(downstream)),
         };
         self.0.insides.future_events.push(evt);
@@ -236,8 +238,12 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
             })
     }
 
-    pub(in crate) fn reactions_triggered_by(&self, trigger: TriggerId) -> &'x ExecutableReactions {
+    fn reactions_triggered_by(&self, trigger: TriggerId) -> &'x ExecutableReactions {
         self.0.dataflow.reactions_triggered_by(&trigger)
+    }
+
+    fn make_successor_tag(&self, offset_from_now: Duration) -> EventTag {
+        self.get_tag().successor(self.get_start_time(), offset_from_now)
     }
 
     /// Spawn a new thread that can use a [PhysicalSchedulerLink]
@@ -272,11 +278,13 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
               R: 'x + Send {
         let tx = self.0.tx.clone();
         let dataflow = self.0.dataflow;
+        let initial_time = self.0.initial_time;
 
         self.0.thread_spawner.spawn(move |subscope| {
             let mut link = PhysicalSchedulerLink {
                 tx,
                 dataflow,
+                initial_time,
                 thread_spawner: subscope,
             };
             f(&mut link)
@@ -288,9 +296,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// processed until completion.
     #[inline]
     pub fn request_stop(&mut self, offset: Offset) {
-        let tag = (self.get_logical_time() + offset.to_duration())
-            // add at least one microstep
-            .max(self.get_logical_time().next_microstep());
+        let tag = self.make_successor_tag(offset.to_duration());
 
         let evt = Event { tag, payload: EventPayload::Terminate };
         self.0.insides.future_events.push(evt);
@@ -300,7 +306,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     ///
     /// This is a logical instant with microstep zero.
     #[inline]
-    pub fn get_start_time(&self) -> LogicalInstant {
+    pub fn get_start_time(&self) -> PhysicalInstant {
         self.0.initial_time
     }
 
@@ -320,8 +326,17 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// Repeated invocation of this method will always produce
     /// the same value.
     #[inline]
-    pub fn get_logical_time(&self) -> LogicalInstant {
-        self.0.current_time
+    pub fn get_logical_time(&self) -> Instant {
+        self.0.tag.to_logical_time(self.get_start_time())
+    }
+
+    /// Returns the tag at which the reaction executes.
+    ///
+    /// Repeated invocation of this method will always produce
+    /// the same value.
+    #[inline]
+    fn get_tag(&self) -> EventTag {
+        self.0.tag
     }
 
     /// Returns the amount of logical time elapsed since the
@@ -329,7 +344,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// into account.
     #[inline]
     pub fn get_elapsed_logical_time(&self) -> Duration {
-        self.get_logical_time().instant - self.get_start_time().instant
+        self.get_logical_time() - self.get_start_time()
     }
 
     /// Returns the amount of physical time elapsed since the
@@ -339,7 +354,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// this function's result may change over time.
     #[inline]
     pub fn get_elapsed_physical_time(&self) -> Duration {
-        self.get_physical_time() - self.get_start_time().instant
+        self.get_physical_time() - self.get_start_time()
     }
 
     /// Returns a string representation of the given time.
@@ -347,7 +362,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// The string is nicer than just using Debug, because
     /// it is relative to the start time of the execution ([Self::get_start_time]).
     #[inline]
-    pub fn display_tag(&self, tag: LogicalInstant) -> String {
+    pub fn display_tag(&self, tag: EventTag) -> String {
         display_tag_impl(self.0.initial_time, tag)
     }
 
@@ -358,10 +373,10 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     pub fn assert_tag_eq(&self, tag_spec: TagSpec) {
         let expected_tag = tag_spec.to_tag(self.get_start_time());
 
-        if expected_tag != self.get_logical_time() {
+        if expected_tag != self.get_tag() {
             panic!("Expected tag to be {}, but found {}",
                    self.display_tag(expected_tag),
-                   self.display_tag(self.get_logical_time()))
+                   self.display_tag(self.get_tag()))
         }
     }
 
@@ -430,7 +445,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         }
 
         // cleanup tag-specific resources, eg clear port values
-        let ctx = CleanupCtx { tag: self.get_logical_time() };
+        let ctx = CleanupCtx { tag: self.get_tag() };
         // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
         for reactor in reactors {
             reactor.cleanup_tag(&ctx)
@@ -509,13 +524,13 @@ struct RContextInner<'a, 'x, 't> where 'x: 't {
 
     /// Logical time of the execution of this wave, constant
     /// during the existence of the object
-    current_time: LogicalInstant,
+    tag: EventTag,
 
     /// Sender to schedule events that should be executed later than this wave.
     tx: Sender<Event<'x>>,
 
     /// Start time of the program.
-    initial_time: LogicalInstant,
+    initial_time: PhysicalInstant,
 
     // globals
     thread_spawner: &'a Scope<'t>,
@@ -531,7 +546,7 @@ impl<'x, 't> RContextInner<'_, 'x, 't> where 'x: 't {
             insides: Default::default(),
 
             // all of that is common to all contexts
-            current_time: self.current_time,
+            tag: self.tag,
             tx: self.tx.clone(),
             initial_time: self.initial_time,
             thread_spawner: self.thread_spawner,
@@ -599,6 +614,7 @@ impl<'x> RContextForwardableStuff<'x> {
 #[derive(Clone)]
 pub struct PhysicalSchedulerLink<'a, 'x, 't> {
     tx: Sender<Event<'x>>,
+    initial_time: Instant,
     dataflow: &'x DataflowInfo,
     #[allow(unused)] // maybe add a spawn_physical_thread to this type
     thread_spawner: &'a Scope<'t>,
@@ -613,7 +629,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     pub fn request_stop(&mut self, offset: Offset) -> Result<(), SendError<()>> {
         // physical time must be ahead of logical time so
         // this event is scheduled for the future
-        let tag = LogicalInstant::now() + offset.to_duration();
+        let tag = EventTag::pure(self.initial_time, Instant::now() + offset.to_duration());
 
         let evt = Event { tag, payload: EventPayload::Terminate };
         self.tx.send(evt).map_err(|e| {
@@ -647,7 +663,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
         // physical time must be ahead of logical time so
         // this event is scheduled for the future
         action.use_mut(|action| {
-            let tag = action.make_eta(LogicalInstant::now(), offset.to_duration());
+            let tag = EventTag::pure(self.initial_time, Instant::now() + offset.to_duration());
             action.schedule_future_value(tag, value);
 
             let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
@@ -665,29 +681,23 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
 #[cfg(feature = "test-utils")]
 #[derive(Debug, Copy, Clone)]
 pub enum TagSpec {
+    /// The initial time of the application. This is the tag
+    /// at which the `startup` trigger is triggered.
     T0,
-    Milli(u64),
-    MilliStep(u64, crate::time::MS),
+    /// Represents the tag that is at the given offset from
+    /// the initial tag ([T0]).
+    At(Duration),
+    /// Like [At](Self::At), but you can mention a microstep.
     Tag(Duration, crate::time::MS),
 }
 
 #[cfg(feature = "test-utils")]
 impl TagSpec {
-    fn to_tag(self, t0: LogicalInstant) -> LogicalInstant {
+    fn to_tag(self, t0: Instant) -> EventTag {
         match self {
-            TagSpec::T0 => t0,
-            TagSpec::Milli(ms) => LogicalInstant {
-                instant: t0.instant + Duration::from_millis(ms),
-                microstep: MicroStep::ZERO,
-            },
-            TagSpec::MilliStep(ms, step) => LogicalInstant {
-                instant: t0.instant + Duration::from_millis(ms),
-                microstep: MicroStep::new(step),
-            },
-            TagSpec::Tag(offset, step) => LogicalInstant {
-                instant: t0.instant + offset,
-                microstep: MicroStep::new(step),
-            }
+            TagSpec::T0 => EventTag::pure(t0, t0),
+            TagSpec::At(offset) => EventTag::offset(t0, offset),
+            TagSpec::Tag(offset, step) => EventTag::offset_with_micro(t0, offset, MicroStep::new(step)),
         }
     }
 }
@@ -758,11 +768,14 @@ pub enum Offset {
 }
 
 impl Offset {
+    pub(crate) const ZERO: Duration = Duration::from_millis(0);
+
     #[inline]
     pub(in crate) fn to_duration(&self) -> Duration {
         match self {
             Offset::After(d) => d.clone(),
-            Offset::Asap => Duration::from_millis(0),
+            Offset::Asap => Offset::ZERO,
+            // todo remove those
             Offset::AfterSeconds(s) => Duration::from_secs(*s),
             Offset::AfterMillis(ms) => Duration::from_millis(*ms),
             Offset::AfterMicros(us) => Duration::from_micros(*us),
@@ -776,7 +789,7 @@ impl Offset {
 #[doc(hidden)]
 pub struct CleanupCtx {
     /// Tag we're cleaning up
-    pub tag: LogicalInstant,
+    pub tag: EventTag,
 }
 
 impl CleanupCtx {
@@ -826,7 +839,7 @@ impl<'a, 'x, 't> StartupCtx<'a, 'x, 't> {
             // no offset
             self.ctx.enqueue_now(Cow::Borrowed(downstream))
         } else {
-            self.ctx.enqueue_later(downstream, self.ctx.get_logical_time() + t.offset)
+            self.ctx.enqueue_later(downstream, self.ctx.make_successor_tag(t.offset))
         }
     }
 }

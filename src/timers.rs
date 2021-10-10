@@ -21,6 +21,7 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+use std::time::Instant;
 use super::*;
 
 /// A timer is conceptually a logical action that may re-schedule
@@ -63,8 +64,8 @@ impl TriggerLike for Timer {
 }
 
 impl ReactionTrigger<()> for Timer {
-    fn is_present(&self, now: &LogicalInstant, start: &LogicalInstant) -> bool {
-        let elapsed = now.instant - start.instant;
+    fn is_present(&self, now: &EventTag, start: &Instant) -> bool {
+        let elapsed = now.duration_since_start(*start);
         if elapsed == self.offset {
             true
         } else if elapsed < self.offset || !self.is_periodic() {
@@ -75,12 +76,12 @@ impl ReactionTrigger<()> for Timer {
     }
 
     #[inline]
-    fn get_value(&self, now: &LogicalInstant, start: &LogicalInstant) -> Option<()> {
+    fn get_value(&self, now: &EventTag, start: &Instant) -> Option<()> {
         if self.is_present(now, start) { Some(()) } else { None }
     }
 
     #[inline]
-    fn use_value_ref<O>(&self, now: &LogicalInstant, start: &LogicalInstant, action: impl FnOnce(Option<&()>) -> O) -> O {
+    fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&()>) -> O) -> O {
         if self.is_present(now, start) { action(Some(&())) } else { action(None) }
     }
 }

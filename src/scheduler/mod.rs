@@ -24,6 +24,7 @@
 
 
 use std::borrow::Cow;
+use std::time::Instant;
 
 use index_vec::IndexVec;
 
@@ -32,7 +33,7 @@ pub use context::*;
 pub(in self) use event_queue::*;
 pub use scheduler_impl::*;
 
-use crate::{LogicalInstant, ReactorBehavior, ReactorId};
+use crate::{Duration, MicroStep, PhysicalInstant, ReactorBehavior, ReactorId};
 
 use self::depgraph::ExecutableReactions;
 
@@ -41,6 +42,86 @@ mod scheduler_impl;
 mod event_queue;
 mod depgraph;
 mod assembly;
+
+/// The tag of an event.
+///
+/// Tags correspond to a point on the logical timeline, and also
+/// implement *superdense time*, which means an
+/// infinite sequence of tags may be processed for any logical
+/// instant. The label on this sequence is called the *microstep*
+/// of the tag.
+///
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug, Ord, PartialOrd)]
+pub struct EventTag {
+    // offset_from_t0: Duration,
+    instant: PhysicalInstant,
+    microstep: MicroStep,
+}
+
+impl EventTag {
+    /// Create a tag for the zeroth microstep of the given instant.
+    // #[inline]
+    // pub(crate) fn pure(instant: Instant) -> Self {
+    //     Self { instant, microstep: MicroStep::ZERO }
+    // }
+    /// Create a tag for the zeroth microstep of the given instant.
+    #[inline]
+    pub(crate) fn pure(_t0: Instant, instant: Instant) -> Self {
+        Self { instant, microstep: MicroStep::ZERO }
+    }
+
+    #[inline]
+    pub(crate) fn offset(t0: Instant, offset: Duration) -> Self {
+        Self::offset_with_micro(t0, offset, MicroStep::ZERO)
+    }
+
+
+    #[inline]
+    pub(crate) fn offset_with_micro(t0: Instant, offset: Duration, microstep: MicroStep) -> Self {
+        Self { instant: t0 + offset, microstep }
+    }
+
+    #[inline]
+    pub fn to_logical_time(&self, _t0: Instant) -> Instant {
+        self.instant
+    }
+
+    #[inline]
+    pub fn duration_since_start(&self, t0: Instant) -> Duration {
+        self.instant - t0
+    }
+
+    #[inline]
+    pub fn microstep(&self) -> MicroStep {
+        self.microstep
+    }
+
+    /// Returns a tag that is strictly greater than this one.
+    #[inline]
+    pub(crate) fn successor(self, t0: Instant, offset: Duration) -> Self {
+        if offset.is_zero() {
+            self.next_microstep()
+        } else {
+            Self::pure(t0, self.instant + offset)
+        }
+    }
+
+    #[inline]
+    pub fn next_microstep(&self) -> Self {
+        Self {
+            instant: self.instant,
+            microstep: self.microstep + 1,
+        }
+    }
+
+    #[inline]
+    pub fn now() -> Self {
+        Self {
+            instant: PhysicalInstant::now(),
+            microstep: MicroStep::ZERO,
+        }
+    }
+}
 
 
 /// A tagged event of the reactor program. Events are tagged
@@ -54,7 +135,7 @@ pub(self) struct Event<'x> {
     /// The tag at which the reactions to this event must be executed.
     /// This is always > to the latest *processed* tag, by construction
     /// of the reactor application.
-    pub(in self) tag: LogicalInstant,
+    pub(in self) tag: EventTag,
     /// The payload.
     pub payload: EventPayload<'x>,
 }
@@ -89,9 +170,9 @@ pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + Send + Sync + 'a>;
 pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
 
 #[inline]
-pub(self) fn display_tag_impl(initial_time: LogicalInstant, tag: LogicalInstant) -> String {
-    let elapsed = tag.instant - initial_time.instant;
-    format!("(T0 + {} ns = {} ms, {})", elapsed.as_nanos(), elapsed.as_millis(), tag.microstep)
+pub(self) fn display_tag_impl(initial_time: Instant, tag: EventTag) -> String {
+    let elapsed = tag.duration_since_start(initial_time);
+    format!("(T0 + {} ns = {} ms, {})", elapsed.as_nanos(), elapsed.as_millis(), tag.microstep())
 }
 
 

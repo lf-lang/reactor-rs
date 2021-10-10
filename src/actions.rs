@@ -33,7 +33,7 @@ use atomic_refcell::AtomicRefCell;
 use crate::*;
 use crate::TriggerLike;
 
-use super::LogicalInstant;
+
 
 #[doc(hidden)]
 pub struct Logical;
@@ -45,9 +45,9 @@ pub type LogicalAction<T> = Action<Logical, T>;
 pub type PhysicalAction<T> = Action<Physical, T>;
 
 pub struct Action<Kind, T: Send> {
-    pub min_delay: Duration,
+    pub(crate) min_delay: Duration,
     id: GlobalId,
-    is_logical: bool,
+    // is_logical: bool,
     _logical: PhantomData<Kind>,
 
     /// Stores values of an action for future scheduled events.
@@ -60,7 +60,7 @@ pub struct Action<Kind, T: Send> {
     // todo a simple linked list of entries should be simpler and sufficient
     // Most actions probably only need a single cell as a swap.
 
-    map: HashMap<LogicalInstant, Option<T>>,
+    map: HashMap<EventTag, Option<T>>,
 }
 
 impl<K, T: Send> Action<K, T> {
@@ -70,46 +70,21 @@ impl<K, T: Send> Action<K, T> {
     ///
     ///
     #[inline]
-    pub(in crate) fn schedule_future_value(&mut self, time: LogicalInstant, value: Option<T>) {
+    pub(in crate) fn schedule_future_value(&mut self, time: EventTag, value: Option<T>) {
         self.map.insert(time, value);
         // todo log when overwriting value
     }
 
 
     #[inline]
-    pub(in crate) fn forget_value(&mut self, time: &LogicalInstant) -> Option<T> {
+    pub(in crate) fn forget_value(&mut self, time: &EventTag) -> Option<T> {
         self.map.remove(time).flatten()
     }
 
-    /// Compute the logical time at which an action must be scheduled
-    ///
-    ///
-    pub fn make_eta(&self, time_in_logical_subsystem: LogicalInstant, additional_delay: Duration) -> LogicalInstant {
-        let min_delay = self.min_delay + additional_delay;
-        let mut instant = time_in_logical_subsystem.instant + min_delay;
-        if !self.is_logical {
-            // physical actions are adjusted to physical time if needed
-            instant = Instant::max(instant, Instant::now());
-        }
-
-        let microstep = // there must be a non-zero delay
-            if instant == time_in_logical_subsystem.instant {
-                time_in_logical_subsystem.microstep + 1
-            } else {
-                debug_assert!(instant > time_in_logical_subsystem.instant);
-                MicroStep::ZERO
-            };
-
-        LogicalInstant {
-            instant,
-            microstep,
-        }
-    }
-
-    fn new_impl(id: GlobalId, min_delay: Option<Duration>, is_logical: bool) -> Self {
+    fn new_impl(id: GlobalId, min_delay: Option<Duration>, _is_logical: bool) -> Self {
         Action {
-            min_delay: min_delay.unwrap_or(Duration::new(0, 0)),
-            is_logical,
+            min_delay: min_delay.unwrap_or(Offset::ZERO),
+            // is_logical,
             id,
             _logical: PhantomData,
             map: Default::default(),
@@ -119,17 +94,17 @@ impl<K, T: Send> Action<K, T> {
 
 impl<T: Send, K> ReactionTrigger<T> for Action<K, T> {
     #[inline]
-    fn is_present(&self, now: &LogicalInstant, _start: &LogicalInstant) -> bool {
+    fn is_present(&self, now: &EventTag, _start: &Instant) -> bool {
         self.map.contains_key(now)
     }
 
     #[inline]
-    fn get_value(&self, now: &LogicalInstant, _start: &LogicalInstant) -> Option<T> where T: Copy {
+    fn get_value(&self, now: &EventTag, _start: &Instant) -> Option<T> where T: Copy {
         self.map.get(&now).cloned().flatten()
     }
 
     #[inline]
-    fn use_value_ref<O>(&self, now: &LogicalInstant, _start: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
+    fn use_value_ref<O>(&self, now: &EventTag, _start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
         let inmap: Option<&Option<T>> = self.map.get(now);
         let v = inmap.map(|i| i.as_ref()).flatten();
         action(v)
@@ -239,15 +214,15 @@ impl<T: Send> TriggerLike for PhysicalActionRef<T> {
 }
 
 impl<T: Send> ReactionTrigger<T> for PhysicalActionRef<T> {
-    fn is_present(&self, now: &LogicalInstant, start: &LogicalInstant) -> bool {
+    fn is_present(&self, now: &EventTag, start: &Instant) -> bool {
         self.use_value(|a| a.is_present(now, start))
     }
 
-    fn get_value(&self, now: &LogicalInstant, start: &LogicalInstant) -> Option<T> where T: Copy {
+    fn get_value(&self, now: &EventTag, start: &Instant) -> Option<T> where T: Copy {
         self.use_value(|a| a.get_value(now, start))
     }
 
-    fn use_value_ref<O>(&self, now: &LogicalInstant, start: &LogicalInstant, action: impl FnOnce(Option<&T>) -> O) -> O {
+    fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
         self.use_value(|a| a.use_value_ref(now, start, action))
     }
 }
