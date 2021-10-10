@@ -17,12 +17,14 @@ reactor Ping(count: u32(1000000)) {
         if self.pingsLeft > 0 {
             ctx.schedule(serve, Asap);
         } else {
-            ctx.request_stop();
+            ctx.request_stop(Asap);
         }
     =}
 }
 
 reactor Pong(expected: u32(1000000)) {
+    state expected(expected);
+
     input receive: u32;
     output send: u32;
     state count: u32(0);
@@ -33,9 +35,7 @@ reactor Pong(expected: u32(1000000)) {
     =}
 
     reaction(shutdown) {=
-        if self.count != params.expected {
-            panic!("Pong expected to receive {} inputs, but it received {}.", params.expected, self.count);
-        }
+        assert_eq!(self.count, self.expected);
     =}
 }
 
