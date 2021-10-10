@@ -335,7 +335,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// Repeated invocation of this method will always produce
     /// the same value.
     #[inline]
-    fn get_tag(&self) -> EventTag {
+    pub fn get_tag(&self) -> EventTag {
         self.0.tag
     }
 
@@ -371,7 +371,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// is not the case. This is not a debug_assertion.
     #[cfg(feature = "test-utils")]
     pub fn assert_tag_is(&self, tag_spec: TagSpec) {
-        let expected_tag = tag_spec.to_tag(self.get_start_time());
+        let expected_tag = self.make_tag(tag_spec);
 
         if expected_tag != self.get_tag() {
             panic!("Expected tag to be {}, but found {}",
@@ -380,6 +380,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         }
     }
 
+    /// Create and return a tag corresponding to the tag spec.
+    #[cfg(feature = "test-utils")]
+    pub fn make_tag(&self, tag_spec: TagSpec) -> EventTag {
+        tag_spec.to_tag(self.get_start_time())
+    }
 
     /// Execute the wave until completion.
     /// The parameter is the list of reactions to start with.
@@ -387,7 +392,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         mut self,
         debug: DebugInfoProvider<'_>,
         reactors: &mut ReactorVec<'_>,
-        mut push_future_event:  impl FnMut(Event<'x>),
+        mut push_future_event: impl FnMut(Event<'x>),
     ) {
 
         // The maximum layer number we've seen as of now.
