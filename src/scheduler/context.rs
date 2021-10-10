@@ -685,6 +685,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
 /// See [ReactionCtx::assert_tag_is]
 #[cfg(feature = "test-utils")]
 #[derive(Debug, Copy, Clone)]
+// todo this can probably be removed and replaced with macros
 pub enum TagSpec {
     /// The initial time of the application. This is the tag
     /// at which the `startup` trigger is triggered.
@@ -716,10 +717,12 @@ pub enum Offset {
     /// Will be scheduled at least after the provided duration.
     /// The other variants are just shorthands for common use-cases.
     ///
-    /// You can use this in conjunction with the [after!()](crate::after)
-    /// macro, for instance:
+    /// You can use the [after!()](crate::after) macro, instead
+    /// of using this directly. For instance:
     /// ```
-    /// # use reactor_rt::Duration;
+    /// # use reactor_rt::{Duration, Offset::After, after};
+    /// assert_eq!(After(Duration::from_millis(15)),
+    ///            after!(15 ms)) // more concise
     /// ```
     After(Duration),
 
@@ -733,43 +736,6 @@ pub enum Offset {
     /// After(Duration::ZERO)
     /// ```
     Asap,
-
-    /// Will be scheduled at least after the provided duration,
-    /// which is given in seconds. This is equivalent
-    /// to
-    /// ```no_compile
-    /// # use reactor_rt::Duration;
-    /// After(Duration::from_secs(_))
-    /// ```
-    AfterSeconds(u64),
-
-    /// Will be scheduled at least after the provided duration,
-    /// which is given in milliseconds (ms). This is equivalent
-    /// to
-    /// ```no_compile
-    /// # use reactor_rt::Duration;
-    /// After(Duration::from_millis(_))
-    /// ```
-    AfterMillis(u64),
-
-    /// Will be scheduled at least after the provided duration,
-    /// which is given in microseconds (µs). This is equivalent
-    /// to
-    /// ```no_compile
-    /// # use reactor_rt::Duration;
-    /// After(Duration::from_micros(_))
-    /// ```
-    AfterMicros(u64),
-
-    /// Will be scheduled at least after the provided duration,
-    /// which is given in microseconds (µs). This is equivalent
-    /// to
-    /// ```no_compile
-    /// # use reactor_rt::Duration;
-    /// After(Duration::from_nanos(_))
-    /// ```
-    AfterNanos(u64),
-
 }
 
 impl Offset {
@@ -780,11 +746,6 @@ impl Offset {
         match self {
             Offset::After(d) => d.clone(),
             Offset::Asap => Offset::ZERO,
-            // todo remove those
-            Offset::AfterSeconds(s) => Duration::from_secs(*s),
-            Offset::AfterMillis(ms) => Duration::from_millis(*ms),
-            Offset::AfterMicros(us) => Duration::from_micros(*us),
-            Offset::AfterNanos(us) => Duration::from_nanos(*us),
         }
     }
 }

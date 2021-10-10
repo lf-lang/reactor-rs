@@ -89,6 +89,14 @@ impl EventTag {
     }
 
     // creator methods
+    // note: these all take t0, even if they don't need them,
+    // to be able to change the implementation easily. Eg we
+    // previously used an absolute Instant instead of a relative duration.
+    // todo at some point we might commit to this representation,
+    //  which is more convenient and has no performance impact.
+    //  Then, we could write methods to create tag without a ctx,
+    //  like tag!(T0 + 1 ms), which would be convenient, but there
+    //  wouldn't be a way back.
 
     /// Create a tag for the zeroth microstep of the given instant.
     #[inline]
