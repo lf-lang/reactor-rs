@@ -59,6 +59,23 @@ pub struct EventTag {
 
 impl EventTag {
 
+    #[inline]
+    pub fn to_logical_time(&self, t0: Instant) -> Instant {
+        t0 + self.offset_from_t0
+    }
+
+    #[inline]
+    pub fn duration_since_start(&self, _t0: Instant) -> Duration {
+        self.offset_from_t0
+    }
+
+    #[inline]
+    pub fn microstep(&self) -> MicroStep {
+        self.microstep
+    }
+
+    // creator methods
+
     /// Create a tag for the zeroth microstep of the given instant.
     #[inline]
     pub(crate) fn pure(t0: Instant, instant: Instant) -> Self {
@@ -76,21 +93,6 @@ impl EventTag {
         Self { offset_from_t0, microstep }
     }
 
-    #[inline]
-    pub fn to_logical_time(&self, t0: Instant) -> Instant {
-        t0 + self.offset_from_t0
-    }
-
-    #[inline]
-    pub fn duration_since_start(&self, _t0: Instant) -> Duration {
-        self.offset_from_t0
-    }
-
-    #[inline]
-    pub fn microstep(&self) -> MicroStep {
-        self.microstep
-    }
-
     /// Returns a tag that is strictly greater than this one.
     #[inline]
     pub(crate) fn successor(self, _t0: Instant, offset: Duration) -> Self {
@@ -106,7 +108,7 @@ impl EventTag {
     }
 
     #[inline]
-    pub fn next_microstep(&self) -> Self {
+    pub(crate) fn next_microstep(&self) -> Self {
         Self {
             offset_from_t0: self.offset_from_t0,
             // instant: self.instant,
@@ -115,7 +117,7 @@ impl EventTag {
     }
 
     #[inline]
-    pub fn now(t0: Instant) -> Self {
+    pub(crate) fn now(t0: Instant) -> Self {
         Self {
             offset_from_t0: PhysicalInstant::now() - t0,
             microstep: MicroStep::ZERO,
