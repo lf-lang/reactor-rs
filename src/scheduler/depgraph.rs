@@ -398,6 +398,10 @@ impl DataflowInfo {
         self.layer_info.augment(reactions, reaction)
     }
 
+    pub fn layer_no(&self, reaction: GlobalReactionId) -> usize {
+        self.layer_info.layer_numbers[&reaction] as usize
+    }
+
     /// Returns the set of reactions that needs to be scheduled
     /// when the given trigger is triggered.
     ///
@@ -445,6 +449,10 @@ impl ExecutableReactions {
     /// and avoid more allocation.
     pub fn batches(&self) -> impl Iterator<Item=(usize, &HashSet<GlobalReactionId>)> {
         self.0.iter().enumerate().filter(|it| !it.1.is_empty())
+    }
+
+    pub fn next_batch(&self, min_layer: usize) -> Option<(usize, &HashSet<GlobalReactionId>)> {
+        self.0.iter().enumerate().skip(min_layer).filter(|it| !it.1.is_empty()).next()
     }
 
     /// Merge the given set of reactions into this one.

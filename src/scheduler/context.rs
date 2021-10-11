@@ -394,53 +394,46 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         // This must be increasing monotonically.
         let mut max_layer = 0usize;
 
+        let mut reaction_plan: ReactionPlan<'x> = None;
+
         loop {
-            let mut progress = false;
-            match self.0.insides.todo_now.take() {
+
+            reaction_plan = ExecutableReactions::merge_cows(reaction_plan, self.0.insides.todo_now.take());
+
+            match reaction_plan.as_ref().and_then(|todo| todo.next_batch(max_layer)) {
                 None => {
                     // nothing to do
                     break;
                 }
-                Some(todo) => {
-                    for (layer_no, batch) in todo.batches() {
-                        // none of the reactions in the batch have data dependencies
-                        progress = true;
+                Some((layer_no, batch)) => {
+                    debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected ({} < {})", layer_no, max_layer);
+                    max_layer = layer_no+1; // the next layer to fetch
 
-                        if cfg!(feature = "parallel_runtime") {
-                            #[cfg(feature = "parallel_runtime")]
-                                parallel_rt_impl::process_batch(&mut self, &debug, reactors, batch);
+                    if cfg!(feature = "parallel_runtime") {
+                        #[cfg(feature = "parallel_runtime")]
+                        parallel_rt_impl::process_batch(&mut self, &debug, reactors, batch);
 
+                        for evt in self.0.insides.future_events.drain(..) {
+                            push_future_event(evt)
+                        }
+                    } else {
+                        // the impl for non-parallel runtime
+                        for reaction_id in batch {
+                            trace!("  - Executing {} (layer {})", debug.display_reaction(*reaction_id), layer_no);
+                            let reactor = &mut reactors[reaction_id.0.container()];
+
+                            reactor.react_erased(&mut self, reaction_id.0.local());
+
+                            // the reaction invocation may have mutated self.0.insides:
+                            // - todo_now: reactions that need to be executed next -> they're
+                            // processed in the next loop iteration
+                            // - future_events: handled now
                             for evt in self.0.insides.future_events.drain(..) {
                                 push_future_event(evt)
                             }
-                        } else {
-                            // the impl for non-parallel runtime
-                            for reaction_id in batch {
-                                trace!("  - Executing {}", debug.display_reaction(*reaction_id));
-                                let reactor = &mut reactors[reaction_id.0.container()];
-
-                                reactor.react_erased(&mut self, reaction_id.0.local());
-                                // the reaction invocation may have mutated self.0.insides:
-                                // - todo_now: reactions that need to be executed next -> they're
-                                // processed in the next loop iteration
-                                // - future_events: handled now
-                                for evt in self.0.insides.future_events.drain(..) {
-                                    push_future_event(evt)
-                                }
-                            }
-                        }
-
-                        if cfg!(debug_assertions) {
-                            debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected ({} < {})", layer_no, max_layer);
-                            max_layer = max(max_layer, layer_no);
                         }
                     }
                 }
-            }
-
-            if !progress {
-                // no new batch, we're done
-                break;
             }
         }
 

@@ -115,7 +115,7 @@ pub enum TriggerId {
 
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
-#[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Debug, Copy, Clone)]
+#[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Copy, Clone)]
 pub struct GlobalId {
     _raw: GlobalIdImpl,
 }
@@ -145,6 +145,12 @@ impl GlobalId {
 
     pub(in crate) const fn local(&self) -> LocalReactionId {
         LocalReactionId::new_const((self._raw & 0xffff) as u16)
+    }
+}
+
+impl Debug for GlobalId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        <Self as Display>::fmt(self, f)
     }
 }
 
