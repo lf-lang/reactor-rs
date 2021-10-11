@@ -276,10 +276,9 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// of all reactors.
     fn startup(&mut self) {
         info!("Triggering startup...");
-        let initial_time = self.initial_time;
-        let initial_tag = EventTag::pure(initial_time, initial_time);
+        let initial_tag = EventTag::ORIGIN;
         if let Some(timeout) = self.options.timeout {
-            let shutdown_tag = initial_tag.successor(initial_time, timeout);
+            let shutdown_tag = initial_tag.successor(timeout);
             trace!("Timeout specified, will shut down at tag {}", self.debug().display_tag(shutdown_tag));
             self.shutdown_time = Some(shutdown_tag)
         }

@@ -64,8 +64,8 @@ impl TriggerLike for Timer {
 }
 
 impl ReactionTrigger<()> for Timer {
-    fn is_present(&self, now: &EventTag, start: &Instant) -> bool {
-        let elapsed = now.duration_since_start(*start);
+    fn is_present(&self, now: &EventTag, _start: &Instant) -> bool {
+        let elapsed = now.duration_since_start();
         if elapsed == self.offset {
             true
         } else if elapsed < self.offset || !self.is_periodic() {

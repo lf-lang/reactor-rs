@@ -24,6 +24,7 @@
 
 
 use std::borrow::Cow;
+use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
 use index_vec::IndexVec;
@@ -51,13 +52,21 @@ mod assembly;
 /// instant. The label on this sequence is called the *microstep*
 /// of the tag.
 ///
+/// Use the [tag!](crate::tag) macro to create this struct with
+/// convenient syntax.
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Debug, Ord, PartialOrd)]
 pub struct EventTag {
-    offset_from_t0: Duration,
-    microstep: MicroStep,
+    pub offset_from_t0: Duration,
+    /// The microstep of this tag.
+    pub microstep: MicroStep,
 }
 
 impl EventTag {
+    /// The tag of the startup event.
+    pub const ORIGIN: EventTag = EventTag {
+        offset_from_t0: Duration::from_millis(0),
+        microstep: MicroStep::ZERO
+    };
 
     /// Returns the logical instant for this tag, using the
     /// initial time `t0`.
@@ -74,11 +83,10 @@ impl EventTag {
     /// # use reactor_rt::EventTag;
     /// # let t0: Instant = todo!();
     /// # let tag1: EventTag = todo!();
-    /// # let tag2: EventTag = todo!();
-    /// assert_eq!(tag1.duration_since_start(t0), tag1.to_logical_time(t0) - t0)
+    /// assert_eq!(tag1.duration_since_start(), tag1.to_logical_time(t0) - t0)
     /// ```
     #[inline]
-    pub fn duration_since_start(&self, _t0: Instant) -> Duration {
+    pub fn duration_since_start(&self) -> Duration {
         self.offset_from_t0
     }
 
@@ -88,31 +96,22 @@ impl EventTag {
         self.microstep
     }
 
-    // creator methods
-    // note: these all take t0, even if they don't need them,
-    // to be able to change the implementation easily. Eg we
-    // previously used an absolute Instant instead of a relative duration.
-    // todo at some point we might commit to this representation,
-    //  which is more convenient and has no performance impact.
-    //  Then, we could write methods to create tag without a ctx,
-    //  like tag!(T0 + 1 ms), which would be convenient, but there
-    //  wouldn't be a way back.
-
     /// Create a tag for the zeroth microstep of the given instant.
     #[inline]
-    pub(crate) fn pure(t0: Instant, instant: Instant) -> Self {
+    pub(crate) fn absolute(t0: Instant, instant: Instant) -> Self {
         Self { offset_from_t0: instant - t0, microstep: MicroStep::ZERO }
     }
 
+    /// Create a new tag from its offset from t0 and a microstep.
+    /// Use the [tag!](crate::tag) macro for more convenient syntax.
     #[inline]
-    #[allow(unused)]
-    pub(crate) fn offset(_t0: Instant, offset_from_t0: Duration, microstep: MicroStep) -> Self {
-        Self { offset_from_t0, microstep }
+    pub fn offset(offset_from_t0: Duration, microstep: crate::time::MS) -> Self {
+        Self { offset_from_t0, microstep: MicroStep::new(microstep) }
     }
 
     /// Returns a tag that is strictly greater than this one.
     #[inline]
-    pub(crate) fn successor(self, _t0: Instant, offset: Duration) -> Self {
+    pub(crate) fn successor(self, offset: Duration) -> Self {
         if offset.is_zero() {
             self.next_microstep()
         } else {
@@ -120,7 +119,6 @@ impl EventTag {
                 offset_from_t0: self.offset_from_t0 + offset,
                 microstep: MicroStep::ZERO
             }
-            // Self::pure(t0, self.instant + offset)
         }
     }
 
@@ -128,7 +126,6 @@ impl EventTag {
     pub(crate) fn next_microstep(&self) -> Self {
         Self {
             offset_from_t0: self.offset_from_t0,
-            // instant: self.instant,
             microstep: self.microstep + 1,
         }
     }
@@ -139,6 +136,13 @@ impl EventTag {
             offset_from_t0: PhysicalInstant::now() - t0,
             microstep: MicroStep::ZERO,
         }
+    }
+}
+
+impl Display for EventTag {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let elapsed = self.offset_from_t0;
+        write!(f, "(T0 + {} ns = {} ms, {})", elapsed.as_nanos(), elapsed.as_millis(), self.microstep)
     }
 }
 
@@ -183,8 +187,8 @@ pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a>;
 pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
 
 #[inline]
-pub(self) fn display_tag_impl(initial_time: Instant, tag: EventTag) -> String {
-    let elapsed = tag.duration_since_start(initial_time);
+pub(self) fn display_tag_impl(_initial_time: Instant, tag: EventTag) -> String {
+    let elapsed = tag.duration_since_start();
     format!("(T0 + {} ns = {} ms, {})", elapsed.as_nanos(), elapsed.as_millis(), tag.microstep())
 }
 

@@ -136,7 +136,34 @@ macro_rules! assert_tag_is {
     ($ctx:tt, (T0, $microstep:tt))         => {assert_tag_is!($ctx, (T0 + 0 sec, $microstep))};
     ($ctx:tt, T0 + $amount:tt $unit:ident) => {assert_tag_is!($ctx, (T0 + $amount $unit, 0))};
     ($ctx:tt, (T0 + $amount:tt $unit:ident, $microstep:tt)) => {
-        $ctx.assert_tag_is($crate::TagSpec::Tag($crate::delay!($amount $unit), $microstep))
+        assert_eq!(
+            $crate::tag!(T0 + $amount $unit, $microstep),
+            $ctx.get_tag()
+        )
+    };
+}
+
+/// Convenient macro to [create a tag](crate::EventTag::new).
+/// This is just a shorthand for using the constructor together
+/// with the syntax of [delay].
+///
+/// ```no_run
+/// use reactor_rt::{tag, delay};
+///
+/// tag!(T0 + 20 ms);
+/// tag!(T0 + 60 ms);
+/// tag!(T0); // the origin tag
+/// // with a microstep:
+/// tag!(T0, 1);
+/// tag!(T0 + 3 sec, 1);
+/// ```
+#[macro_export]
+macro_rules! tag {
+    (T0)                          => {$crate::EventTag::ORIGIN};
+    (T0, $microstep:tt)           => {tag!(T0 + 0 sec, $microstep)};
+    (T0 + $amount:tt $unit:ident) => {tag!(T0 + $amount $unit, 0)};
+    (T0 + $amount:tt $unit:ident, $microstep:tt) => {
+        $crate::EventTag::offset($crate::delay!($amount $unit), $microstep)
     };
 }
 

@@ -217,7 +217,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     }
 
     fn make_successor_tag(&self, offset_from_now: Duration) -> EventTag {
-        self.get_tag().successor(self.get_start_time(), offset_from_now)
+        self.get_tag().successor(offset_from_now)
     }
 
     /// Spawn a new thread that can use a [PhysicalSchedulerLink]
@@ -329,35 +329,6 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     #[inline]
     pub fn get_elapsed_physical_time(&self) -> Duration {
         self.get_physical_time() - self.get_start_time()
-    }
-
-    /// Returns a string representation of the given time.
-    ///
-    /// The string is nicer than just using Debug, because
-    /// it is relative to the start time of the execution ([Self::get_start_time]).
-    #[inline]
-    pub fn display_tag(&self, tag: EventTag) -> String {
-        display_tag_impl(self.0.initial_time, tag)
-    }
-
-    /// Asserts that the current tag is equals to the tag
-    /// described by the given [TagSpec]. Panics if that
-    /// is not the case. This is not a debug_assertion.
-    #[cfg(feature = "test-utils")]
-    pub fn assert_tag_is(&self, tag_spec: TagSpec) {
-        let expected_tag = self.make_tag(tag_spec);
-
-        if expected_tag != self.get_tag() {
-            panic!("Expected tag to be {}, but found {}",
-                   self.display_tag(expected_tag),
-                   self.display_tag(self.get_tag()))
-        }
-    }
-
-    /// Create and return a tag corresponding to the tag spec.
-    #[cfg(feature = "test-utils")]
-    pub fn make_tag(&self, tag_spec: TagSpec) -> EventTag {
-        tag_spec.to_tag(self.get_start_time())
     }
 
     /// Reschedule a periodic timer if need be.
@@ -614,7 +585,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     pub fn request_stop(&mut self, offset: Offset) -> Result<(), SendError<()>> {
         // physical time must be ahead of logical time so
         // this event is scheduled for the future
-        let tag = EventTag::pure(self.initial_time, Instant::now() + offset.to_duration());
+        let tag = EventTag::absolute(self.initial_time, Instant::now() + offset.to_duration());
 
         let evt = Event::terminate_at(tag);
         self.tx.send(evt).map_err(|e| {
@@ -648,7 +619,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
         // physical time must be ahead of logical time so
         // this event is scheduled for the future
         action.use_mut(|action| {
-            let tag = EventTag::pure(self.initial_time, Instant::now() + offset.to_duration());
+            let tag = EventTag::absolute(self.initial_time, Instant::now() + offset.to_duration());
             action.schedule_future_value(tag, value);
 
             let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
@@ -661,32 +632,6 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     }
 }
 
-
-/// See [ReactionCtx::assert_tag_is]
-#[cfg(feature = "test-utils")]
-#[derive(Debug, Copy, Clone)]
-// todo this can probably be removed and replaced with macros
-pub enum TagSpec {
-    /// The initial time of the application. This is the tag
-    /// at which the `startup` trigger is triggered.
-    T0,
-    /// Represents the tag that is at the given offset from
-    /// the initial tag ([T0]).
-    At(Duration),
-    /// Like [At](Self::At), but you can mention a microstep.
-    Tag(Duration, crate::time::MS),
-}
-
-#[cfg(feature = "test-utils")]
-impl TagSpec {
-    fn to_tag(self, t0: Instant) -> EventTag {
-        match self {
-            TagSpec::T0 => EventTag::pure(t0, t0),
-            TagSpec::At(offset) => EventTag::offset(t0, offset, MicroStep::ZERO),
-            TagSpec::Tag(offset, step) => EventTag::offset(t0, offset, MicroStep::new(step)),
-        }
-    }
-}
 
 /// The offset from the current logical time after which an
 /// action is triggered.
