@@ -35,6 +35,7 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 
 use crate::*;
+
 use super::ReactionPlan;
 
 type GraphIx = NodeIndex<u32>;
@@ -49,7 +50,39 @@ enum NodeKind {
 /// Weight of graph nodes.
 struct GraphNode {
     kind: NodeKind,
-    id: GlobalId, // is this necessary? probs
+    id: GraphId,
+}
+
+#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
+enum GraphId { Startup, Shutdown, Id(GlobalId) }
+
+impl From<TriggerId> for GraphId {
+    fn from(id: TriggerId) -> Self {
+        match id {
+            TriggerId::Startup => Self::Startup,
+            TriggerId::Shutdown => Self::Shutdown,
+            TriggerId::Component(id) => Self::Id(id),
+        }
+    }
+}
+
+impl From<GraphId> for TriggerId {
+    fn from(id: GraphId) -> Self {
+        match id {
+            GraphId::Startup => TriggerId::Startup,
+            GraphId::Shutdown => TriggerId::Shutdown,
+            GraphId::Id(id) => {
+                // we don't assert that it's indeed a trigger and not a reaction...
+                TriggerId::Component(id)
+            },
+        }
+    }
+}
+
+impl From<GlobalReactionId> for GraphId {
+    fn from(id: GlobalReactionId) -> Self {
+        Self::Id(id.0)
+    }
 }
 
 type DepGraphImpl = DiGraph<GraphNode, EdgeWeight, GlobalIdImpl>;
@@ -80,12 +113,12 @@ pub(in super) struct DepGraph {
     dataflow: DepGraphImpl,
 
     /// Maps global IDs back to graph indices.
-    ix_by_id: HashMap<GlobalId, GraphIx>,
+    ix_by_id: HashMap<GraphId, GraphIx>,
 }
 
 impl Debug for GraphNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}({})", self.kind, self.id)
+        write!(f, "{:?}({:?})", self.kind, self.id)
     }
 }
 
@@ -138,8 +171,8 @@ impl DepGraph {
 
     pub fn reaction_priority(&mut self, n: GlobalReactionId, m: GlobalReactionId) {
         self.dataflow.add_edge(
-            self.get_ix(n.0),
-            self.get_ix(m.0),
+            self.get_ix(n.into()),
+            self.get_ix(m.into()),
             EdgeWeight::Default,
         );
     }
@@ -147,8 +180,8 @@ impl DepGraph {
     pub fn port_bind<T: Send>(&mut self, p1: &Port<T>, p2: &Port<T>) {
         // upstream (settable) -> downstream (bound)
         self.dataflow.add_edge(
-            self.get_ix(p1.get_id().0),
-            self.get_ix(p2.get_id().0),
+            self.get_ix(p1.get_id().into()),
+            self.get_ix(p2.get_id().into()),
             EdgeWeight::Default,
         );
     }
@@ -156,8 +189,8 @@ impl DepGraph {
     pub fn triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
         // trigger -> reaction
         self.dataflow.add_edge(
-            self.get_ix(trigger.0),
-            self.get_ix(reaction.0),
+            self.get_ix(trigger.into()),
+            self.get_ix(reaction.into()),
             EdgeWeight::Default,
         );
     }
@@ -165,27 +198,28 @@ impl DepGraph {
     pub fn reaction_effects(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
         // reaction -> trigger
         self.dataflow.add_edge(
-            self.get_ix(reaction.0),
-            self.get_ix(trigger.0),
-            EdgeWeight::Default
+            self.get_ix(reaction.into()),
+            self.get_ix(trigger.into()),
+            EdgeWeight::Default,
         );
     }
 
     pub fn reaction_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
         // trigger -> reaction
         self.dataflow.add_edge(
-            self.get_ix(trigger.0),
-            self.get_ix(reaction.0),
+            self.get_ix(trigger.into()),
+            self.get_ix(reaction.into()),
             EdgeWeight::Use,
         );
     }
 
-    fn get_ix(&self, id: GlobalId) -> GraphIx {
+    fn get_ix(&self, id: GraphId) -> GraphIx {
         self.ix_by_id[&id]
     }
 
 
     fn record(&mut self, id: GlobalId, kind: NodeKind) {
+        let id = GraphId::Id(id);
         match self.ix_by_id.entry(id) {
             Entry::Occupied(_) => panic!("Duplicate id {:?}", id),
             Entry::Vacant(v) => {
@@ -205,13 +239,16 @@ impl DepGraph {
         let mut cur_layer: u32 = 0;
         while !todo.is_empty() {
             for ix in todo.drain(..) {
-                let id = self.dataflow.node_weight(ix).unwrap().id;
-                match layer_numbers.entry(GlobalReactionId(id)) {
-                    Entry::Vacant(v) => {
-                        v.insert(cur_layer);
-                    }
-                    Entry::Occupied(mut e) => {
-                        e.insert(cur_layer.max(*e.get()));
+                let node = self.dataflow.node_weight(ix).unwrap();
+
+                if let GraphId::Id(id) = node.id {
+                    match layer_numbers.entry(GlobalReactionId(id)) {
+                        Entry::Vacant(v) => {
+                            v.insert(cur_layer);
+                        }
+                        Entry::Occupied(mut e) => {
+                            e.insert(cur_layer.max(*e.get()));
+                        }
                     }
                 }
                 for out_edge in self.dataflow.edges_directed(ix, Outgoing) {
@@ -255,7 +292,7 @@ impl ReactionLayerInfo {
                ExecutableReactions(layers): &mut ExecutableReactions,
                reaction: GlobalReactionId,
     ) {
-        let ix = self.layer_numbers.get(&reaction).copied().unwrap() as usize;
+        let ix = self.layer_numbers.get(&reaction).copied().expect("reaction was not recorded in the graph") as usize;
 
         if let Some(layer) = layers.get_mut(ix) {
             layer.insert(reaction);
@@ -306,7 +343,8 @@ impl DataflowInfo {
         for trigger in triggers {
             let mut reactions = ExecutableReactions::new();
             Self::collect_reactions_rec(&dataflow, trigger, layer_info, &mut reactions);
-            h.insert(TriggerId(dataflow[trigger].id), reactions);
+            let graph_id = dataflow[trigger].id;
+            h.insert(graph_id.into(), reactions);
         }
 
         h
@@ -324,10 +362,14 @@ impl DataflowInfo {
                     Self::collect_reactions_rec(dataflow, downstr.target(), layer_info, reactions)
                 }
                 NodeKind::Reaction => {
+                    let rid = match node.id {
+                        GraphId::Id(rid) => GlobalReactionId(rid),
+                        _ => unreachable!("this is a reaction")
+                    };
                     // trigger->reaction
                     if downstr.weight() != &EdgeWeight::Use {
                         // so it's a trigger dependency
-                        layer_info.augment(reactions, GlobalReactionId(node.id))
+                        layer_info.augment(reactions, rid)
                     }
                 }
                 NodeKind::Action => {
@@ -453,21 +495,22 @@ pub mod test {
         let n1 = GlobalReactionId::new(r1, LocalReactionId::new(0));
         let n2 = GlobalReactionId::new(r1, LocalReactionId::new(1));
 
-        let p0 = TriggerId::new(r1, LocalReactionId::new(3));
+        let p0 = GlobalId::new(r1, LocalReactionId::new(3));
+        // let p0 = TriggerId::Component(p0);
 
         graph.record_reaction(n1);
         graph.record_reaction(n2);
-        graph.record_port(p0.0);
+        graph.record_port(p0);
 
         // n1 > n2
         graph.reaction_priority(n1, n2);
 
-        graph.reaction_effects(n1, p0);
-        graph.triggers_reaction(p0, n2);
+        graph.reaction_effects(n1, TriggerId::Component(p0));
+        graph.triggers_reaction(TriggerId::Component(p0), n2);
 
 
         let roots = graph.get_roots();
         // graph.eprintln_dot(&IdRegistry::default());
-        assert_eq!(roots, vec![graph.get_ix(n1.0)]);
+        assert_eq!(roots, vec![graph.get_ix(n1.into())]);
     }
 }

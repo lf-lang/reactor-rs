@@ -100,10 +100,17 @@ global_id_newtype! {
     GlobalReactionId
 }
 
-global_id_newtype! {
-    /// Global identifier for a trigger (port, action, timer)
-    TriggerId
+#[derive(Debug, Eq, PartialEq, Hash)]
+pub enum TriggerId {
+    Startup,
+    Shutdown,
+    Component(GlobalId)
 }
+//
+// global_id_newtype! {
+//     /// Global identifier for a trigger (port, action, timer)
+//     ComponentId
+// }
 
 
 /// Identifies a component of a reactor using the ID of its container

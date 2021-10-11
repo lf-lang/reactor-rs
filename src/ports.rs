@@ -186,7 +186,7 @@ impl<T: Send> Debug for Port<T> {
 
 impl<T: Send> TriggerLike for Port<T> {
     fn get_id(&self) -> TriggerId {
-        TriggerId(self.id)
+        TriggerId::Component(self.id)
     }
 }
 

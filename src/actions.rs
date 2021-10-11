@@ -126,7 +126,7 @@ impl<T: Send> PhysicalAction<T> {
 
 impl<K, T: Send> TriggerLike for Action<K, T> {
     fn get_id(&self) -> TriggerId {
-        TriggerId(self.id)
+        TriggerId::Component(self.id)
     }
 }
 
