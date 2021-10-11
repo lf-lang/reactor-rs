@@ -286,26 +286,17 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
         debug_assert!(!self.reactors.is_empty(), "No registered reactors");
 
-        self.execute_wave(initial_tag, None, ReactorBehavior::enqueue_startup);
+        let startup_reactions = self.dataflow.reactions_triggered_by(&TriggerId::Startup);
+        self.process_tag(initial_tag, Some(Cow::Borrowed(startup_reactions)))
     }
 
     fn shutdown(&mut self, reactions: ReactionPlan<'x>) {
-        let shutdown_time = self.shutdown_time.unwrap_or_else(|| EventTag::now(self.initial_time));
-        self.execute_wave(shutdown_time, reactions, ReactorBehavior::enqueue_shutdown);
-    }
+        let shutdown_tag = self.shutdown_time.unwrap_or_else(|| EventTag::now(self.initial_time));
 
-    fn execute_wave(&mut self,
-                    tag: EventTag,
-                    reaction_plan: ReactionPlan<'x>,
-                    enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'x), &mut StartupCtx), ) {
-        let mut startup_ctx = StartupCtx::new(self.new_reaction_ctx(tag, reaction_plan));
-        for reactor in self.reactors.iter() {
-            enqueue_fun(reactor.as_ref(), &mut startup_ctx);
-        }
-        for evt in startup_ctx.take_future_events() {
-            push_event!(self, evt);
-        }
-        self.process_tag(tag, startup_ctx.take_todo_now())
+        let default_plan: ReactionPlan<'x> = Some(Cow::Borrowed(self.dataflow.reactions_triggered_by(&TriggerId::Shutdown)));
+        let reactions = ExecutableReactions::merge_cows(reactions, default_plan);
+
+        self.process_tag(shutdown_tag, reactions);
     }
 
     /// Returns whether the given event should be ignored and
@@ -353,8 +344,8 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             if let Some(t) = self.latest_processed_tag {
                 debug_assert!(tag > t, "Tag ordering mismatch")
             }
-            self.latest_processed_tag = Some(tag);
         }
+        self.latest_processed_tag = Some(tag);
 
         if reactions.is_none() {
             return;

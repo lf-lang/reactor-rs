@@ -42,6 +42,8 @@ type GraphIx = NodeIndex<u32>;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 enum NodeKind {
+    Special,
+    // startup/shutdown
     Port,
     Action,
     Reaction,
@@ -95,7 +97,6 @@ type DepGraphImpl = DiGraph<GraphNode, EdgeWeight, GlobalIdImpl>;
 /// Initialization completes when that instance is turned into
 /// a [DataflowInfo], which is the data structure used at runtime.
 ///
-#[derive(Default)]
 pub(in super) struct DepGraph {
     /// Instantaneous data flow. Must be acyclic. Edges from
     /// reactions to actions are not represented, as they are
@@ -123,6 +124,13 @@ impl Debug for GraphNode {
 }
 
 impl DepGraph {
+    pub fn new() -> Self {
+        let mut ich = Self { dataflow: Default::default(), ix_by_id: Default::default() };
+        ich.record_special(false);
+        ich.record_special(true);
+        ich
+    }
+
     /// Produce a dot representation of the graph.
     #[cfg(feature = "graph-dump")]
     pub fn format_dot(&self, id_registry: &IdRegistry) -> impl Display {
@@ -217,7 +225,6 @@ impl DepGraph {
         self.ix_by_id[&id]
     }
 
-
     fn record(&mut self, id: GlobalId, kind: NodeKind) {
         let id = GraphId::Id(id);
         match self.ix_by_id.entry(id) {
@@ -227,6 +234,11 @@ impl DepGraph {
                 v.insert(ix);
             }
         }
+    }
+    fn record_special(&mut self, shutdown: bool) {
+        let id = if shutdown { GraphId::Shutdown } else { GraphId::Startup };
+        let node = GraphNode { kind: NodeKind::Special, id };
+        self.ix_by_id.insert(id, self.dataflow.add_node(node));
     }
 }
 
@@ -372,7 +384,7 @@ impl DataflowInfo {
                         layer_info.augment(reactions, rid)
                     }
                 }
-                NodeKind::Action => {
+                NodeKind::Action | NodeKind::Special => {
                     // trigger->action? this is malformed
                     panic!("malformed dependency graph")
                 }
@@ -490,7 +502,7 @@ pub mod test {
 
     #[test]
     fn test_roots() {
-        let mut graph = DepGraph::default();
+        let mut graph = DepGraph::new();
         let r1 = ReactorId::new(0);
         let n1 = GlobalReactionId::new(r1, LocalReactionId::new(0));
         let n2 = GlobalReactionId::new(r1, LocalReactionId::new(1));
@@ -511,6 +523,8 @@ pub mod test {
 
         let roots = graph.get_roots();
         // graph.eprintln_dot(&IdRegistry::default());
-        assert_eq!(roots, vec![graph.get_ix(n1.into())]);
+        assert_eq!(roots, vec![graph.get_ix(GraphId::Startup),
+                               graph.get_ix(GraphId::Shutdown),
+                               graph.get_ix(n1.into())]);
     }
 }

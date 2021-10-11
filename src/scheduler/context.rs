@@ -191,19 +191,6 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         self.enqueue_later(downstream, eta);
     }
 
-    /// Reschedule a timer if need be. This is used by synthetic
-    /// reactions that reschedule timers.
-    // todo hide this better: this would require synthesizing
-    //  the reaction within the runtime and not with the code generator
-    #[doc(hidden)]
-    #[inline]
-    pub fn maybe_reschedule(&mut self, timer: &Timer) {
-        if timer.is_periodic() {
-            let downstream = self.0.dataflow.reactions_triggered_by(&timer.get_id());
-            let tag = self.make_successor_tag(timer.period);
-            self.enqueue_later(downstream, tag);
-        }
-    }
 
 
     /// Add new reactions to execute later (at least 1 microstep later).
@@ -223,16 +210,6 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
             Some(ref mut do_next) => do_next.to_mut().absorb(downstream.as_ref()),
             None => self.0.insides.todo_now = Some(downstream)
         }
-    }
-
-    #[inline]
-    pub(in crate) fn make_executable(&self, reactions: &ReactionSet) -> ExecutableReactions {
-        reactions.iter().fold(
-            ExecutableReactions::new(),
-            |mut acc, r| {
-                self.0.dataflow.augment(&mut acc, *r);
-                acc
-            })
     }
 
     fn reactions_triggered_by(&self, trigger: TriggerId) -> &'x ExecutableReactions {
@@ -381,6 +358,27 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     #[cfg(feature = "test-utils")]
     pub fn make_tag(&self, tag_spec: TagSpec) -> EventTag {
         tag_spec.to_tag(self.get_start_time())
+    }
+
+    /// Schedule or reschedule a timer if need be. This is used by synthetic
+    /// reactions that reschedule timers.
+    // note: reactions can't call this as they're only passed a shared reference to a timer.
+    #[doc(hidden)]
+    #[inline]
+    pub fn schedule_timer(&mut self, timer: &mut Timer) {
+        if self.get_tag() == EventTag::pure(self.get_start_time(), self.get_start_time()) {
+            // we're in startup
+            let downstream = self.reactions_triggered_by(timer.get_id());
+            if timer.offset.is_zero() {
+                // no offset
+                self.enqueue_now(Cow::Borrowed(downstream))
+            } else {
+                self.enqueue_later(downstream, self.make_successor_tag(timer.offset))
+            }
+        } else if timer.is_periodic() {
+            let downstream = self.reactions_triggered_by(timer.get_id());
+            self.enqueue_later(downstream, self.make_successor_tag(timer.period));
+        }
     }
 
     /// Execute the wave until completion.
@@ -750,47 +748,5 @@ impl CleanupCtx {
 
     pub fn cleanup_physical_action<T: Send>(&self, action: &mut PhysicalActionRef<T>) {
         action.use_mut(|a| a.forget_value(&self.tag));
-    }
-}
-
-/// Allows directly enqueuing reactions for a future,
-/// unspecified logical time. This is only relevant
-/// during the initialization of reactors.
-pub struct StartupCtx<'a, 'x, 't> {
-    ctx: ReactionCtx<'a, 'x, 't>,
-}
-
-/// A set of reactions.
-#[doc(hidden)]
-pub type ReactionSet = Vec<GlobalReactionId>;
-
-impl<'a, 'x, 't> StartupCtx<'a, 'x, 't> {
-    pub(super) fn new(ctx: ReactionCtx<'a, 'x, 't>) -> Self {
-        Self { ctx }
-    }
-
-    pub(super) fn take_todo_now(&mut self) -> ReactionPlan<'x> {
-        self.ctx.0.insides.todo_now.take()
-    }
-
-    pub(super) fn take_future_events<'p>(&'p mut self) -> impl Iterator<Item=Event<'x>> + 'p{
-        self.ctx.0.insides.future_events.drain(..)
-    }
-
-    #[inline]
-    #[doc(hidden)]
-    pub fn enqueue(&mut self, reactions: &ReactionSet) {
-        self.ctx.enqueue_now(Cow::Owned(self.ctx.make_executable(reactions)))
-    }
-
-    #[doc(hidden)]
-    pub fn start_timer(&mut self, t: &Timer) {
-        let downstream = self.ctx.reactions_triggered_by(t.get_id());
-        if t.offset.is_zero() {
-            // no offset
-            self.ctx.enqueue_now(Cow::Borrowed(downstream))
-        } else {
-            self.ctx.enqueue_later(downstream, self.ctx.make_successor_tag(t.offset))
-        }
     }
 }

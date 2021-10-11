@@ -145,19 +145,4 @@ pub trait ReactorBehavior {
     /// Acknowledge that the given tag is done executing and
     /// free resources if need be.
     fn cleanup_tag(&mut self, ctx: &CleanupCtx);
-
-    /// Enqueue the startup reactions of this reactor into
-    /// the parameter. Timers are also started at this point,
-    /// meaning, their first triggering is scheduled.
-    ///
-    /// During startup of the program, this method is called
-    /// on every reactor of the program to build the first
-    /// reaction wave. This is then executed to completion,
-    /// producing new events which drive the program further.
-    ///
-    fn enqueue_startup(&self, ctx: &mut StartupCtx);
-
-    /// Enqueue the shutdown reactions of this reactor.
-    /// See [Self::enqueue_startup].
-    fn enqueue_shutdown(&self, ctx: &mut StartupCtx);
 }

@@ -43,7 +43,7 @@ impl Default for RootAssembler {
     fn default() -> Self {
         Self {
             reactor_id: ReactorId::new(0),
-            graph: Default::default(),
+            graph: DepGraph::new(),
             id_registry: Default::default(),
             reactors: Default::default(),
         }
