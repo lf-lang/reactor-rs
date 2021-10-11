@@ -56,6 +56,9 @@ mod assembly;
 /// convenient syntax.
 #[derive(Copy, Clone, Hash, Eq, PartialEq, Debug, Ord, PartialOrd)]
 pub struct EventTag {
+    /// The time offset from the origin of the logical timeline.
+    /// Knowing the start time of the application is necessary to
+    /// convert this to an absolute [Instant] (see [Self::to_logical_time]).
     pub offset_from_t0: Duration,
     /// The microstep of this tag.
     pub microstep: MicroStep,
@@ -185,11 +188,5 @@ impl<'x> Event<'x> {
 pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions>>;
 pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a>;
 pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
-
-#[inline]
-pub(self) fn display_tag_impl(_initial_time: Instant, tag: EventTag) -> String {
-    let elapsed = tag.duration_since_start();
-    format!("(T0 + {} ns = {} ms, {})", elapsed.as_nanos(), elapsed.as_millis(), tag.microstep())
-}
 
 

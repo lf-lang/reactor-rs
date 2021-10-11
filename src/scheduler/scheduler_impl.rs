@@ -198,7 +198,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
             if let Some(evt) = self.event_queue.take_earliest() {
                 if self.is_after_shutdown(evt.tag) {
-                    trace!("Event is late, shutting down - event tag: {}", self.debug().display_tag(evt.tag));
+                    trace!("Event is late, shutting down - event tag: {}", evt.tag);
                     break;
                 }
                 trace!("Processing event {}", self.debug().display_event(&evt));
@@ -279,7 +279,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         let initial_tag = EventTag::ORIGIN;
         if let Some(timeout) = self.options.timeout {
             let shutdown_tag = initial_tag.successor(timeout);
-            trace!("Timeout specified, will shut down at tag {}", self.debug().display_tag(shutdown_tag));
+            trace!("Timeout specified, will shut down at tag {}", shutdown_tag);
             self.shutdown_time = Some(shutdown_tag)
         }
 
@@ -372,7 +372,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             // event arrives
             match self.rx.recv_timeout(t) {
                 Ok(async_evt) => {
-                    trace!("  - Sleep interrupted by async event for tag {}, going back to queue", self.debug().display_tag(async_evt.tag));
+                    trace!("  - Sleep interrupted by async event for tag {}, going back to queue", async_evt.tag);
                     return Err(async_evt)
                 },
                 Err(RecvTimeoutError::Timeout) => { /*great*/ },
@@ -414,14 +414,11 @@ pub(in super) struct DebugInfoProvider<'a> {
 }
 
 impl DebugInfoProvider<'_> {
-    pub fn display_tag(&self, tag: EventTag) -> String {
-        display_tag_impl(self.initial_time, tag)
-    }
 
     pub fn display_event(&self, evt: &Event) -> String {
         match evt {
             Event { tag, reactions, terminate } => {
-                let mut str = format!("at {}: run [", self.display_tag(*tag));
+                let mut str = format!("at {}: run [", tag);
 
                 if let Some(reactions) = reactions {
                     for (layer_no, batch) in reactions.batches() {
