@@ -179,7 +179,7 @@ impl<'x> Event<'x> {
 }
 
 pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions>>;
-pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + Send + Sync + 'a>;
+pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a>;
 pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
 
 #[inline]

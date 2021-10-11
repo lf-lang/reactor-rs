@@ -193,9 +193,9 @@ impl<'x> AssemblyCtx<'x> {
     }
 
     /// Register a child reactor.
-    pub fn register_reactor<S: ReactorInitializer + Send + Sync + 'static>(&mut self, child: S) {
+    pub fn register_reactor<S: ReactorInitializer + 'static>(&mut self, child: S) {
         let vec_id = self.globals.reactors.push(Box::new(child));
-        debug_assert_eq!(self.globals.reactors[vec_id].id(), vec_id, "Improper initialization order!");
+        assert_eq!(self.globals.reactors[vec_id].id(), vec_id, "Improper initialization order!");
     }
 
     /// Assemble a child reactor. The child needs to be registered
