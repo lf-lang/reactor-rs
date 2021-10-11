@@ -111,12 +111,18 @@ impl<'x> AssemblyCtx<'x> {
 
     pub fn new_timer(&mut self, lf_name: &'static str, offset: Duration, period: Duration) -> Timer {
         let id = self.next_comp_id(Some(lf_name));
-        self.globals.graph.record_paction(id);
+        self.globals.graph.record_timer(id);
         Timer::new(id, offset, period)
     }
 
-    /// Create N reactions
-    pub fn new_reactions<const N: usize>(&mut self, names: [Option<&'static str>; N]) -> [GlobalReactionId; N] {
+    /// Create N reactions. The first `num_non_synthetic` get
+    /// priority edges, as they are taken to be those declared
+    /// in LF by the user.
+    /// The rest do not have priority edges, and their
+    /// implementation must hence have no observable side-effect.
+    pub fn new_reactions<const N: usize>(&mut self,
+                                         num_non_synthetic: usize,
+                                         names: [Option<&'static str>; N]) -> [GlobalReactionId; N] {
         assert!(!self.reactions_done, "May only create reactions once");
         self.reactions_done = true;
 
@@ -128,10 +134,12 @@ impl<'x> AssemblyCtx<'x> {
                 self.globals.id_registry.record(r.0, label)
             }
             self.globals.graph.record_reaction(r);
-            if let Some(prev) = prev {
-                // Add an edge that represents that the
-                // previous reaction takes precedence
-                self.globals.graph.reaction_priority(prev, r);
+            if i < num_non_synthetic {
+                if let Some(prev) = prev {
+                    // Add an edge that represents that the
+                    // previous reaction takes precedence
+                    self.globals.graph.reaction_priority(prev, r);
+                }
             }
             prev = Some(r);
         }
@@ -148,7 +156,13 @@ impl<'x> AssemblyCtx<'x> {
     }
 
     pub fn effects_port<T: Send>(&mut self, reaction: GlobalReactionId, port: &Port<T>) -> Result<(), AssemblyError> {
-        self.globals.graph.reaction_effects(reaction, port.get_id());
+        self.effects_instantaneous(reaction, port.get_id())
+    }
+
+    // the trigger should be a port or timer
+    #[doc(hidden)]
+    pub fn effects_instantaneous(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> Result<(), AssemblyError> {
+        self.globals.graph.reaction_effects(reaction, trigger);
         Ok(())
     }
 

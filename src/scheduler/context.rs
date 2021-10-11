@@ -360,24 +360,31 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         tag_spec.to_tag(self.get_start_time())
     }
 
-    /// Schedule or reschedule a timer if need be. This is used by synthetic
-    /// reactions that reschedule timers.
+    /// Reschedule a periodic timer if need be.
+    /// This is called by a reaction synthesized for each timer.
     // note: reactions can't call this as they're only passed a shared reference to a timer.
     #[doc(hidden)]
     #[inline]
-    pub fn schedule_timer(&mut self, timer: &mut Timer) {
-        if self.get_tag() == EventTag::pure(self.get_start_time(), self.get_start_time()) {
-            // we're in startup
-            let downstream = self.reactions_triggered_by(timer.get_id());
-            if timer.offset.is_zero() {
-                // no offset
-                self.enqueue_now(Cow::Borrowed(downstream))
-            } else {
-                self.enqueue_later(downstream, self.make_successor_tag(timer.offset))
-            }
-        } else if timer.is_periodic() {
+    pub fn reschedule_timer(&mut self, timer: &mut Timer) {
+        if timer.is_periodic() {
             let downstream = self.reactions_triggered_by(timer.get_id());
             self.enqueue_later(downstream, self.make_successor_tag(timer.period));
+        }
+    }
+
+    /// Schedule the first triggering of the given timer.
+    /// This is called by a reaction synthesized for each timer.
+    // note: reactions can't call this as they're only passed a shared references to timers.
+    #[doc(hidden)]
+    #[inline]
+    pub fn bootstrap_timer(&mut self, timer: &mut Timer) {
+        // we're in startup
+        let downstream = self.reactions_triggered_by(timer.get_id());
+        if timer.offset.is_zero() {
+            // no offset
+            self.enqueue_now(Cow::Borrowed(downstream))
+        } else {
+            self.enqueue_later(downstream, self.make_successor_tag(timer.offset))
         }
     }
 

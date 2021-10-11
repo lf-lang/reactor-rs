@@ -183,8 +183,8 @@ impl ReactorDebugInfo {
     pub(in crate) fn root<R>() -> Self {
         Self {
             type_name: type_name::<R>(),
-            inst_name: "<main>",
-            inst_path: "<main>".into(),
+            inst_name: "/",
+            inst_path: "/".into(),
         }
     }
 
@@ -192,7 +192,7 @@ impl ReactorDebugInfo {
         Self {
             type_name: type_name::<R::Wrapped>(),
             inst_name,
-            inst_path: format!("{}/{}", self.inst_path, inst_name),
+            inst_path: format!("{}{}/", self.inst_path, inst_name),
         }
     }
 }
@@ -221,13 +221,13 @@ impl IdRegistry {
     }
 
     fn fmt_component_path(&self, id: GlobalId) -> String {
-        format!("{}:{}", self.get_debug_info(id.container()), id.local())
+        format!("{}{}", self.get_debug_info(id.container()), id.local())
     }
 
     #[cfg(feature = "graph-dump")]
     pub(crate) fn fmt_component(&self, id: GlobalId) -> String {
         if let Some(label) = self.get_debug_label(id) {
-            format!("{}:{}", self.get_debug_info(id.container()), label)
+            format!("{}{}", self.get_debug_info(id.container()), label)
         } else {
             self.fmt_component_path(id)
         }

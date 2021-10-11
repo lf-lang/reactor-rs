@@ -42,10 +42,11 @@ type GraphIx = NodeIndex<u32>;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 enum NodeKind {
+    /// startup/shutdown
     Special,
-    // startup/shutdown
     Port,
     Action,
+    Timer,
     Reaction,
 }
 
@@ -140,7 +141,7 @@ impl DepGraph {
 
         let dot = Dot::with_config(&self.dataflow, &[Config::EdgeNoLabel]);
 
-        let re = Regex::new(r"(Reaction|Action|Port)\((\d++)/(\d++)\)").unwrap();
+        let re = Regex::new(r"(Reaction|Action|Port|Timer)\(Id\((\d++)/(\d++)\)\)").unwrap();
 
         let formatted = format!("{:?}", dot);
         let replaced = re.replace_all(formatted.as_str(), |captures: &Captures| {
@@ -171,6 +172,10 @@ impl DepGraph {
 
     pub(in super) fn record_paction(&mut self, id: GlobalId) {
         self.record(id, NodeKind::Action);
+    }
+
+    pub(in super) fn record_timer(&mut self, id: GlobalId) {
+        self.record(id, NodeKind::Timer);
     }
 
     pub(in super) fn record_reaction(&mut self, id: GlobalReactionId) {
@@ -365,12 +370,12 @@ impl DataflowInfo {
                              trigger: GraphIx,
                              layer_info: &ReactionLayerInfo,
                              reactions: &mut ExecutableReactions) {
-        for downstr in dataflow.edges_directed(trigger, Outgoing) {
-            let node = &dataflow[downstr.target()];
+        for downstream in dataflow.edges_directed(trigger, Outgoing) {
+            let node = &dataflow[downstream.target()];
             match node.kind {
                 NodeKind::Port => {
                     // this is necessarily a port->port binding
-                    Self::collect_reactions_rec(dataflow, downstr.target(), layer_info, reactions)
+                    Self::collect_reactions_rec(dataflow, downstream.target(), layer_info, reactions)
                 }
                 NodeKind::Reaction => {
                     let rid = match node.id {
@@ -378,12 +383,12 @@ impl DataflowInfo {
                         _ => unreachable!("this is a reaction")
                     };
                     // trigger->reaction
-                    if downstr.weight() != &EdgeWeight::Use {
+                    if downstream.weight() != &EdgeWeight::Use {
                         // so it's a trigger dependency
                         layer_info.augment(reactions, rid)
                     }
                 }
-                NodeKind::Action | NodeKind::Special => {
+                _ => {
                     // trigger->action? this is malformed
                     panic!("malformed dependency graph")
                 }
