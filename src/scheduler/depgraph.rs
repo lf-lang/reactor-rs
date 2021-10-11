@@ -331,7 +331,6 @@ pub(in super) struct DataflowInfo {
     /// to be scheduled when it is triggered.
     trigger_to_plan: HashMap<TriggerId, ExecutableReactions>,
 
-    layer_info: ReactionLayerInfo,
 }
 
 impl DataflowInfo {
@@ -343,7 +342,7 @@ impl DataflowInfo {
         let layer_info = ReactionLayerInfo { layer_numbers: graph.number_reactions_by_layer() };
         let trigger_to_plan = Self::collect_trigger_to_plan(&mut graph, &layer_info);
 
-        Ok(DataflowInfo { trigger_to_plan, layer_info })
+        Ok(DataflowInfo { trigger_to_plan })
     }
 
     fn collect_trigger_to_plan(DepGraph { dataflow, .. }: &mut DepGraph,
@@ -392,15 +391,6 @@ impl DataflowInfo {
         }
     }
 
-
-    /// Append a reaction to the given reaction collection
-    pub fn augment(&self, reactions: &mut ExecutableReactions, reaction: GlobalReactionId) {
-        self.layer_info.augment(reactions, reaction)
-    }
-
-    pub fn layer_no(&self, reaction: GlobalReactionId) -> usize {
-        self.layer_info.layer_numbers[&reaction] as usize
-    }
 
     /// Returns the set of reactions that needs to be scheduled
     /// when the given trigger is triggered.
