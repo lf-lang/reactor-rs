@@ -185,6 +185,8 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     fn launch_event_loop(mut self) {
         self.startup();
 
+        let mut shutdown_reactions: ReactionPlan<'x> = None;
+
         /************************************************
          * This is the main event loop of the scheduler *
          ************************************************/
@@ -199,7 +201,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                     trace!("Event is late, shutting down - event tag: {}", self.debug().display_tag(evt.tag));
                     break;
                 }
-                trace!("Processing event for tag {}", self.debug().display_tag(evt.tag));
+                trace!("Processing event {}", self.debug().display_event(&evt));
                 match self.catch_up_physical_time(evt.tag.to_logical_time(self.initial_time)) {
                     Ok(_) => {},
                     Err(async_event) => {
@@ -215,16 +217,14 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                         }
                     }
                 };
-
                 // at this point we're at the correct time
-                match evt.payload {
-                    EventPayload::Reactions(reactions) => self.process_tag(evt.tag, Some(reactions)),
-                    EventPayload::Terminate => {
-                        // may overwrite a future shutdown time
-                        self.shutdown_time = Some(evt.tag);
-                        break
-                    },
+
+                if evt.terminate { // means someone called request_stop
+                    shutdown_reactions = evt.reactions;
+                    self.shutdown_time = Some(evt.tag);
+                    break
                 }
+                self.process_tag(evt.tag, evt.reactions);
             } else if let Some(evt) = self.receive_event() { // this may block
                 push_event!(self, evt);
                 continue;
@@ -235,7 +235,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         } // end loop
 
         info!("Scheduler is shutting down...");
-        self.shutdown();
+        self.shutdown(shutdown_reactions);
         info!("Scheduler has been shut down")
 
         // self destructor is called here
@@ -286,17 +286,19 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
         debug_assert!(!self.reactors.is_empty(), "No registered reactors");
 
-        self.execute_wave(initial_tag, ReactorBehavior::enqueue_startup);
+        self.execute_wave(initial_tag, None, ReactorBehavior::enqueue_startup);
     }
 
-    fn shutdown(&mut self) {
+    fn shutdown(&mut self, reactions: ReactionPlan<'x>) {
         let shutdown_time = self.shutdown_time.unwrap_or_else(|| EventTag::now(self.initial_time));
-        self.execute_wave(shutdown_time, ReactorBehavior::enqueue_shutdown);
+        self.execute_wave(shutdown_time, reactions, ReactorBehavior::enqueue_shutdown);
     }
 
-    fn execute_wave(&mut self, tag: EventTag, enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'x), &mut StartupCtx),
-    ) {
-        let mut startup_ctx = StartupCtx::new(self.new_reaction_ctx(tag, None));
+    fn execute_wave(&mut self,
+                    tag: EventTag,
+                    reaction_plan: ReactionPlan<'x>,
+                    enqueue_fun: fn(&(dyn ReactorBehavior + Send + 'x), &mut StartupCtx), ) {
+        let mut startup_ctx = StartupCtx::new(self.new_reaction_ctx(tag, reaction_plan));
         for reactor in self.reactors.iter() {
             enqueue_fun(reactor.as_ref(), &mut startup_ctx);
         }
@@ -346,7 +348,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     /// Actually process a tag. The provided reactions are the
     /// root reactions that startup the "wave".
-    fn process_tag(&mut self, tag: EventTag, reactions: Option<Cow<'x, ExecutableReactions>>) {
+    fn process_tag(&mut self, tag: EventTag, reactions: ReactionPlan<'x>) {
         if cfg!(debug_assertions) {
             if let Some(t) = self.latest_processed_tag {
                 debug_assert!(tag > t, "Tag ordering mismatch")
@@ -397,7 +399,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    fn new_reaction_ctx(&self, tag: EventTag, todo: Option<Cow<'x, ExecutableReactions>>) -> ReactionCtx<'a, 'x, 't> {
+    fn new_reaction_ctx(&self, tag: EventTag, todo: ReactionPlan<'x>) -> ReactionCtx<'a, 'x, 't> {
         ReactionCtx::new(
             self.tx.clone(),
             tag,
@@ -428,19 +430,22 @@ impl DebugInfoProvider<'_> {
 
     pub fn display_event(&self, evt: &Event) -> String {
         match evt {
-            Event { tag, payload: EventPayload::Reactions(reactions) } => {
-                let mut str = format!("Event(at {}: run [", self.display_tag(*tag));
+            Event { tag, reactions, terminate } => {
+                let mut str = format!("at {}: run [", self.display_tag(*tag));
 
-                for (layer_no, batch) in reactions.batches() {
-                    write!(str, "{}: ", layer_no).unwrap();
-                    join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| self.display_reaction(*x)).unwrap();
+                if let Some(reactions) = reactions {
+                    for (layer_no, batch) in reactions.batches() {
+                        write!(str, "{}: ", layer_no).unwrap();
+                        join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| self.display_reaction(*x)).unwrap();
+                    }
                 }
 
-                str += "])";
+                str += "]";
+                if *terminate {
+                    str += ", then terminate"
+                }
+                str += "";
                 str
-            }
-            Event { tag, payload: EventPayload::Terminate } => {
-                format!("Event(at {}: terminate program", self.display_tag(*tag))
             }
         }
     }

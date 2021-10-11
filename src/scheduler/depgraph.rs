@@ -24,6 +24,7 @@
 
 
 
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry;
 use std::default::Default;
@@ -34,8 +35,7 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 
 use crate::*;
-
-
+use super::ReactionPlan;
 
 type GraphIx = NodeIndex<u32>;
 
@@ -411,6 +411,21 @@ impl ExecutableReactions {
                 // note that we could probs replace get_mut(i).unwrap() with (unsafe) get_unchecked_mut(i)
                 let dst_layer = dst.get_mut(i).unwrap();
                 dst_layer.extend(src_layer);
+            }
+        }
+    }
+
+    pub(super) fn merge_cows<'x>(x: ReactionPlan<'x>, y: ReactionPlan<'x>) -> ReactionPlan<'x> {
+        match (x, y) {
+            (None, None) => None,
+            (Some(x), None) | (None, Some(x)) => Some(x),
+            (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
+                x.absorb(&y);
+                Some(Cow::Owned(x))
+            },
+            (Some(mut x), Some(y)) => {
+                x.to_mut().absorb(&y);
+                Some(x)
             }
         }
     }

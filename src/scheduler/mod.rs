@@ -155,36 +155,30 @@ pub(self) struct Event<'x> {
     /// This is always > to the latest *processed* tag, by construction
     /// of the reactor application.
     pub(in self) tag: EventTag,
-    /// The payload.
-    pub payload: EventPayload<'x>,
+    /// A set of reactions to execute.
+    pub reactions: ReactionPlan<'x>,
+    /// Whether we should terminate the application at
+    /// the tag of this event (after processing the tag).
+    pub terminate: bool,
 }
 
 impl<'x> Event<'x> {
     pub fn absorb(&mut self, other: Event<'x>) {
-        use EventPayload::*;
         debug_assert_eq!(self.tag, other.tag);
-        match (&mut self.payload, other.payload) {
-            (Reactions(ref mut r1), Reactions(ref r2)) => {
-                r1.to_mut().absorb(r2.as_ref())
-            }
-            _ => {
-                // Terminate wins against reactions
-                self.payload = Terminate
-            }
-        }
+        // let Event { reactions, terminate } = other;
+        self.reactions = ExecutableReactions::merge_cows(self.reactions.take(), other.reactions);
+        self.terminate |= other.terminate;
+    }
+
+    pub fn execute(tag: EventTag, reactions: Cow<'x, ExecutableReactions>) -> Self {
+        Self { tag, reactions: Some(reactions), terminate: false }
+    }
+    pub fn terminate_at(tag: EventTag) -> Self {
+        Self { tag, reactions: None, terminate: true }
     }
 }
 
-/// Identifies different kind of events.
-#[derive(Debug)]
-pub(self) enum EventPayload<'x> {
-    /// A set of reactions to execute.
-    Reactions(Cow<'x, ExecutableReactions>),
-    /// Means we should terminate the application at the tag
-    /// of this event.
-    Terminate,
-}
-
+pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions>>;
 pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + Send + Sync + 'a>;
 pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
 

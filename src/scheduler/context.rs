@@ -27,7 +27,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     pub(in super) fn new(tx: Sender<Event<'x>>,
                          tag: EventTag,
                          initial_time: PhysicalInstant,
-                         todo: Option<Cow<'x, ExecutableReactions>>,
+                         todo: ReactionPlan<'x>,
                          dataflow: &'x DataflowInfo,
                          thread_spawner: &'a Scope<'t>) -> Self {
         Self(RContextInner {
@@ -213,10 +213,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     pub(in crate) fn enqueue_later(&mut self, downstream: &'x ExecutableReactions, tag: EventTag) {
         debug_assert!(tag > self.get_tag());
 
-        let evt = Event {
-            tag,
-            payload: EventPayload::Reactions(Cow::Borrowed(downstream)),
-        };
+        let evt = Event::execute(tag, Cow::Borrowed(downstream));
         self.0.insides.future_events.push(evt);
     }
 
@@ -298,7 +295,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     pub fn request_stop(&mut self, offset: Offset) {
         let tag = self.make_successor_tag(offset.to_duration());
 
-        let evt = Event { tag, payload: EventPayload::Terminate };
+        let evt = Event::terminate_at(tag);
         self.0.insides.future_events.push(evt);
     }
 
@@ -570,7 +567,7 @@ struct RContextForwardableStuff<'x> {
     /// This is mutable: if a reaction sets a port, then the
     /// downstream of that port is inserted in into this
     /// data structure.
-    todo_now: Option<Cow<'x, ExecutableReactions>>,
+    todo_now: ReactionPlan<'x>,
 
     /// Events that were produced for a strictly greater
     /// logical time than a current one.
@@ -589,25 +586,9 @@ impl Default for RContextForwardableStuff<'_> {
 #[cfg(feature = "parallel_runtime")]
 impl<'x> RContextForwardableStuff<'x> {
     fn merge(mut self, mut other: Self) -> Self {
-        self.todo_now = Self::merge_cows(self.todo_now, other.todo_now);
+        self.todo_now = ExecutableReactions::merge_cows(self.todo_now, other.todo_now);
         self.future_events.append(&mut other.future_events);
         self
-    }
-
-    fn merge_cows(x: Option<Cow<'x, ExecutableReactions>>,
-                  y: Option<Cow<'x, ExecutableReactions>>) -> Option<Cow<'x, ExecutableReactions>> {
-        match (x, y) {
-            (None, None) => None,
-            (Some(x), None) | (None, Some(x)) => Some(x),
-            (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
-                x.absorb(&y);
-                Some(Cow::Owned(x))
-            },
-            (Some(mut x), Some(y)) => {
-                x.to_mut().absorb(&y);
-                Some(x)
-            }
-        }
     }
 }
 
@@ -636,7 +617,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
         // this event is scheduled for the future
         let tag = EventTag::pure(self.initial_time, Instant::now() + offset.to_duration());
 
-        let evt = Event { tag, payload: EventPayload::Terminate };
+        let evt = Event::terminate_at(tag);
         self.tx.send(evt).map_err(|e| {
             warn!("Event could not be sent! {:?}", e);
             SendError(())
@@ -672,7 +653,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
             action.schedule_future_value(tag, value);
 
             let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
-            let evt = Event { tag, payload: EventPayload::Reactions(Cow::Borrowed(downstream)) };
+            let evt = Event::execute(tag, Cow::Borrowed(downstream));
             self.tx.send(evt).map_err(|e| {
                 warn!("Event could not be sent! {:?}", e);
                 SendError(action.forget_value(&tag))
@@ -788,7 +769,7 @@ impl<'a, 'x, 't> StartupCtx<'a, 'x, 't> {
         Self { ctx }
     }
 
-    pub(super) fn take_todo_now(&mut self) -> Option<Cow<'x, ExecutableReactions>> {
+    pub(super) fn take_todo_now(&mut self) -> ReactionPlan<'x> {
         self.ctx.0.insides.todo_now.take()
     }
 
