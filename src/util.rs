@@ -112,6 +112,7 @@ macro_rules! delay {
     ($amount:tt mins)     => { delay!($amount min) };
     ($amount:tt minute)   => { delay!($amount min) };
     ($amount:tt minutes)  => { delay!($amount min) };
+    ($amount:tt $i:ident) => { compile_error!(concat!("Unknown time unit `", stringify!($i), "`")) };
 }
 
 /// Convenient macro to wrap [assert_tag_is](crate::ReactionCtx::assert_tag_is).
@@ -119,8 +120,10 @@ macro_rules! delay {
 /// the syntax of [delay].
 ///
 /// ```no_run
-/// use reactor_rt::{assert_tag_is, delay, ReactionCtx};
-/// let ctx : ReactionCtx = todo!();
+/// # use reactor_rt::{assert_tag_is, delay, ReactionCtx};
+/// # let ctx : ReactionCtx = todo!();
+/// # struct Foo { i: u32 }
+/// # let foo = Foo { i: 0 };
 ///
 /// assert_tag_is!(ctx, T0 + 20 ms);
 /// assert_tag_is!(ctx, T0 + 60 ms);
@@ -128,13 +131,14 @@ macro_rules! delay {
 /// // with a microstep, add parentheses
 /// assert_tag_is!(ctx, (T0, 1));
 /// assert_tag_is!(ctx, (T0 + 3 sec, 1));
+/// assert_tag_is!(ctx, (T0 + 3 sec, foo.i));
 /// ```
 #[macro_export]
 macro_rules! assert_tag_is {
     ($ctx:tt, T0)                          => {assert_tag_is!($ctx, (T0 + 0 sec, 0))};
-    ($ctx:tt, (T0, $microstep:tt))         => {assert_tag_is!($ctx, (T0 + 0 sec, $microstep))};
+    ($ctx:tt, (T0, $microstep:expr))       => {assert_tag_is!($ctx, (T0 + 0 sec, $microstep))};
     ($ctx:tt, T0 + $amount:tt $unit:ident) => {assert_tag_is!($ctx, (T0 + $amount $unit, 0))};
-    ($ctx:tt, (T0 + $amount:tt $unit:ident, $microstep:tt)) => {
+    ($ctx:tt, (T0 + $amount:tt $unit:ident, $microstep:expr)) => {
         assert_eq!(
             $crate::tag!(T0 + $amount $unit, $microstep),
             $ctx.get_tag()
@@ -159,9 +163,9 @@ macro_rules! assert_tag_is {
 #[macro_export]
 macro_rules! tag {
     (T0)                          => {$crate::EventTag::ORIGIN};
-    (T0, $microstep:tt)           => {tag!(T0 + 0 sec, $microstep)};
+    (T0, $microstep:expr)         => {tag!(T0 + 0 sec, $microstep)};
     (T0 + $amount:tt $unit:ident) => {tag!(T0 + $amount $unit, 0)};
-    (T0 + $amount:tt $unit:ident, $microstep:tt) => {
+    (T0 + $amount:tt $unit:ident, $microstep:expr) => {
         $crate::EventTag::offset($crate::delay!($amount $unit), $microstep)
     };
 }
