@@ -1,6 +1,6 @@
 
 use std::borrow::{Borrow, BorrowMut};
-use std::cmp::max;
+
 use std::sync::mpsc::{Sender, SendError};
 
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
@@ -398,6 +398,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
         loop {
 
+            // todo this merge actually doesn't need to care about past layers.
             reaction_plan = ExecutableReactions::merge_cows(reaction_plan, self.0.insides.todo_now.take());
 
             match reaction_plan.as_ref().and_then(|todo| todo.next_batch(max_layer)) {

@@ -451,8 +451,14 @@ impl ExecutableReactions {
         self.0.iter().enumerate().filter(|it| !it.1.is_empty())
     }
 
+    #[inline]
     pub fn next_batch(&self, min_layer: usize) -> Option<(usize, &HashSet<GlobalReactionId>)> {
-        self.0.iter().enumerate().skip(min_layer).filter(|it| !it.1.is_empty()).next()
+        for (i, layer) in self.0[min_layer..].iter().enumerate() {
+            if !layer.is_empty() {
+                return Some((min_layer + i, layer))
+            }
+        }
+        None
     }
 
     /// Merge the given set of reactions into this one.
