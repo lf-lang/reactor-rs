@@ -388,8 +388,8 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                     debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected ({} < {})", layer_no, max_layer);
                     max_layer = layer_no+1; // the next layer to fetch
 
-                    if cfg!(feature = "parallel_runtime") {
-                        #[cfg(feature = "parallel_runtime")]
+                    if cfg!(feature = "parallel-runtime") {
+                        #[cfg(feature = "parallel-runtime")]
                         parallel_rt_impl::process_batch(&mut self, &debug, reactors, batch);
 
                         for evt in self.0.insides.future_events.drain(..) {
@@ -425,7 +425,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     }
 }
 
-#[cfg(feature = "parallel_runtime")]
+#[cfg(feature = "parallel-runtime")]
 mod parallel_rt_impl {
     use std::collections::HashSet;
 
@@ -512,7 +512,7 @@ struct RContextInner<'a, 'x, 't> where 'x: 't {
 impl<'x, 't> RContextInner<'_, 'x, 't> where 'x: 't {
     /// Fork a context. Some things are shared, but not the
     /// mutable stuff.
-    #[cfg(feature = "parallel_runtime")]
+    #[cfg(feature = "parallel-runtime")]
     fn fork(&self) -> Self {
         Self {
             insides: Default::default(),
@@ -553,7 +553,7 @@ impl Default for RContextForwardableStuff<'_> {
     }
 }
 
-#[cfg(feature = "parallel_runtime")]
+#[cfg(feature = "parallel-runtime")]
 impl RContextForwardableStuff<'_> {
     fn merge(mut self, mut other: Self) -> Self {
         self.todo_now = ExecutableReactions::merge_cows(self.todo_now, other.todo_now);

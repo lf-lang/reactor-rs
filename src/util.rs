@@ -130,7 +130,6 @@ macro_rules! delay {
 /// assert_tag_is!(ctx, (T0 + 3 sec, 1));
 /// ```
 #[macro_export]
-#[cfg(feature = "test-utils")]
 macro_rules! assert_tag_is {
     ($ctx:tt, T0)                          => {assert_tag_is!($ctx, (T0 + 0 sec, 0))};
     ($ctx:tt, (T0, $microstep:tt))         => {assert_tag_is!($ctx, (T0 + 0 sec, $microstep))};

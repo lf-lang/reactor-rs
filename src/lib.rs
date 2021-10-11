@@ -31,7 +31,7 @@
 //! point for user documentation.
 //!
 //! Crate-level features include:
-//! - `parallel_runtime`: use Rayon to execute reactions in parallel
+//! - `parallel-runtime`: use Rayon to execute reactions in parallel
 //! when possible. For some applications, where there is no data parallelism,
 //! this *kills* performance. This is off by default.
 //! - `test-utils`: utilities to write tests of reactor programs,
@@ -52,7 +52,7 @@ extern crate array_macro;
 extern crate index_vec;
 #[macro_use]
 extern crate log;
-#[cfg(feature = "parallel_runtime")]
+#[cfg(feature = "parallel-runtime")]
 extern crate rayon;
 #[macro_use]
 extern crate smallvec;

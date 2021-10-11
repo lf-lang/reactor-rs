@@ -29,7 +29,7 @@ regex = { version = "1" }
 # dump the graph to a DOT representation
 graph-dump=["regex"]
 test-utils=[]
-parallel_runtime=["rayon"]
+parallel-runtime=["rayon"]
 
 [[bench]]
 name = "savina_pong"
