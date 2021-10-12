@@ -33,6 +33,7 @@ pub struct VecMap<V> {
     size: usize,
 }
 
+#[allow(unused)]
 impl<V> VecMap<V> {
     pub fn new() -> Self {
         Self { v: Vec::new(), size: 0 }
@@ -43,12 +44,6 @@ impl<V> VecMap<V> {
         if len >= cur_len {
             self.v.reserve(len - cur_len);
         }
-    }
-
-    pub fn shrink_to_fit(&mut self) {
-        // strip off trailing `None`s
-        self.trim();
-        self.v.shrink_to_fit()
     }
 
     fn trim(&mut self) {

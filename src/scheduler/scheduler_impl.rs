@@ -432,8 +432,8 @@ mod parallel_rt_impl {
 
     use super::*;
 
-    pub(super) fn process_batch<'x>(
-        ctx: &mut ReactionCtx<'_, 'x, '_>,
+    pub(super) fn process_batch(
+        ctx: &mut ReactionCtx<'_, '_, '_>,
         debug: &DebugInfoProvider<'_>,
         reactors: &mut ReactorVec<'_>,
         batch: &HashSet<GlobalReactionId>,

@@ -377,16 +377,8 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         }
     }
 
-    pub(super) fn take_reactions_enqueued_now(&mut self) -> ReactionPlan<'x> {
-        self.insides.todo_now.take()
-    }
-
     pub(super) fn set_cur_layer(&mut self, cur_layer: usize) {
         self.cur_layer = cur_layer;
-    }
-
-    pub(super) fn drain_reactions_enqueued_later(&mut self) -> impl Iterator<Item=Event<'x>> + '_ {
-        self.insides.future_events.drain(..)
     }
 
     /// Fork a context. Some things are shared, but not the
@@ -398,7 +390,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
             // all of that is common to all contexts
             tag: self.tag,
-            tx: self.tx.clone(),
+            rx: self.rx,
             cur_layer: self.cur_layer,
             initial_time: self.initial_time,
             thread_spawner: self.thread_spawner,
