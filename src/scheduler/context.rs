@@ -203,14 +203,14 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     }
 
     #[inline]
-    pub(in crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions>) {
+    pub(in crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions<'x>>) {
         match &mut self.0.insides.todo_now {
             Some(ref mut do_next) => do_next.to_mut().absorb(downstream.as_ref()),
             None => self.0.insides.todo_now = Some(downstream)
         }
     }
 
-    fn reactions_triggered_by(&self, trigger: TriggerId) -> &'x ExecutableReactions {
+    fn reactions_triggered_by(&self, trigger: TriggerId) -> &'x ExecutableReactions<'x> {
         self.0.dataflow.reactions_triggered_by(&trigger)
     }
 

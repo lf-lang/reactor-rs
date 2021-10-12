@@ -43,6 +43,7 @@ mod scheduler_impl;
 mod event_queue;
 mod depgraph;
 mod assembly;
+pub(self) mod vecmap;
 
 /// The tag of an event.
 ///
@@ -177,7 +178,7 @@ impl<'x> Event<'x> {
         self.terminate |= other.terminate;
     }
 
-    pub fn execute(tag: EventTag, reactions: Cow<'x, ExecutableReactions>) -> Self {
+    pub fn execute(tag: EventTag, reactions: Cow<'x, ExecutableReactions<'x>>) -> Self {
         Self { tag, reactions: Some(reactions), terminate: false }
     }
     pub fn terminate_at(tag: EventTag) -> Self {
@@ -185,7 +186,7 @@ impl<'x> Event<'x> {
     }
 }
 
-pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions>>;
+pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions<'x>>>;
 pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a>;
 pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
 
