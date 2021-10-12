@@ -22,7 +22,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::collections::HashMap;
+
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -31,6 +31,7 @@ use std::time::{Duration, Instant};
 use atomic_refcell::AtomicRefCell;
 
 use crate::*;
+use crate::tagmap::TagIndexedMap;
 use crate::TriggerLike;
 
 #[doc(hidden)]
@@ -52,13 +53,7 @@ pub struct Action<Kind, T: Send> {
     /// We rely strongly on the fact that any value put in there by [Action.schedule_future_value]
     /// will be cleaned up after that tag. Otherwise the map will
     /// blow up the heap.
-    ///
-    /// A logical instant is the thing about
-    ///
-    // todo a simple linked list of entries should be simpler and sufficient
-    // Most actions probably only need a single cell as a swap.
-
-    map: HashMap<EventTag, Option<T>>,
+    map: TagIndexedMap<(EventTag, Option<T>), 1>,
 }
 
 impl<K, T: Send> Action<K, T> {
@@ -69,14 +64,14 @@ impl<K, T: Send> Action<K, T> {
     ///
     #[inline]
     pub(in crate) fn schedule_future_value(&mut self, time: EventTag, value: Option<T>) {
-        self.map.insert(time, value);
+        self.map.insert((time, value), |a, b| *a = b);
         // todo log when overwriting value
     }
 
 
     #[inline]
     pub(in crate) fn forget_value(&mut self, time: &EventTag) -> Option<T> {
-        self.map.remove(time).flatten()
+        self.map.remove(time).map(|k| k.1).flatten()
     }
 
     fn new_impl(id: GlobalId, min_delay: Option<Duration>, _is_logical: bool) -> Self {
@@ -85,7 +80,7 @@ impl<K, T: Send> Action<K, T> {
             // is_logical,
             id,
             _logical: PhantomData,
-            map: Default::default(),
+            map: TagIndexedMap::new(),
         }
     }
 }
@@ -93,17 +88,17 @@ impl<K, T: Send> Action<K, T> {
 impl<T: Send, K> ReactionTrigger<T> for Action<K, T> {
     #[inline]
     fn is_present(&self, now: &EventTag, _start: &Instant) -> bool {
-        self.map.contains_key(now)
+        self.map.get(now).is_some()
     }
 
     #[inline]
     fn get_value(&self, now: &EventTag, _start: &Instant) -> Option<T> where T: Copy {
-        self.map.get(&now).cloned().flatten()
+        self.map.get_v(now).cloned().flatten()
     }
 
     #[inline]
     fn use_value_ref<O>(&self, now: &EventTag, _start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
-        let inmap: Option<&Option<T>> = self.map.get(now);
+        let inmap: Option<&Option<T>> = self.map.get_v(now);
         let v = inmap.map(|i| i.as_ref()).flatten();
         action(v)
     }
