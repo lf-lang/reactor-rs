@@ -186,14 +186,14 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 }
                 trace!("Processing event {}", self.debug().display_event(&evt));
                 match self.catch_up_physical_time(evt.tag.to_logical_time(self.initial_time)) {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(async_event) => {
                         // an asynchronous event woke our sleep
                         if async_event.tag < evt.tag {
                             // reinsert both events to order them and try again.
                             push_event!(self, evt);
                             push_event!(self, async_event);
-                            continue
+                            continue;
                         } else {
                             // we can process this event first and not care about the async event
                             push_event!(self, async_event);
@@ -205,10 +205,11 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 if evt.terminate { // means someone called request_stop
                     shutdown_reactions = evt.reactions;
                     self.shutdown_time = Some(evt.tag);
-                    break
+                    break;
                 }
                 self.process_tag(evt.tag, evt.reactions);
-            } else if let Some(evt) = self.receive_event() { // this may block
+            } else if let Some(evt) = self.receive_event() {
+                // this may block
                 push_event!(self, evt);
                 continue;
             } else {
@@ -344,9 +345,12 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    fn new_reaction_ctx(&self, tag: EventTag, todo: ReactionPlan<'x>) -> ReactionCtx<'a, 'x, 't> {
+    fn new_reaction_ctx(&self,
+                        tag: EventTag,
+                        todo: ReactionPlan<'x>,
+                        rx: &'a ReconnectableReceiver<Event<'x>>) -> ReactionCtx<'a, 'x, 't> {
         ReactionCtx::new(
-            self.rx.new_sender(),
+            rx,
             tag,
             self.initial_time,
             todo,
@@ -374,7 +378,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             return;
         }
 
-        let mut ctx = self.new_reaction_ctx(tag, None);
+        let mut ctx = self.new_reaction_ctx(tag, None, &self.rx);
         let debug = debug_info!(self);
 
         // The maximum layer number we've seen as of now.

@@ -1,6 +1,6 @@
 use std::borrow::{Borrow, BorrowMut};
 
-use crossbeam_channel::{Sender, SendError};
+use crossbeam_channel::{ReconnectableReceiver, Sender, SendError};
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
 
@@ -29,7 +29,7 @@ pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
     cur_layer: usize,
 
     /// Sender to schedule events that should be executed later than this wave.
-    tx: Sender<Event<'x>>,
+    rx: &'a ReconnectableReceiver<Event<'x>>,
 
     /// Start time of the program.
     initial_time: PhysicalInstant,
@@ -41,7 +41,7 @@ pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
 
 
 impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
-    pub(in super) fn new(tx: Sender<Event<'x>>,
+    pub(in super) fn new(rx: &'a ReconnectableReceiver<Event<'x>>,
                          tag: EventTag,
                          initial_time: PhysicalInstant,
                          todo: ReactionPlan<'x>,
@@ -54,7 +54,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
             },
             cur_layer: 0,
             tag,
-            tx,
+            rx,
             initial_time,
             dataflow,
             thread_spawner,
@@ -268,7 +268,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         where F: FnOnce(&mut PhysicalSchedulerLink<'_, 'x, 't>) -> R,
               F: 'x + Send,
               R: 'x + Send {
-        let tx = self.tx.clone();
+        let tx = self.rx.new_sender();
         let dataflow = self.dataflow;
         let initial_time = self.initial_time;
 
