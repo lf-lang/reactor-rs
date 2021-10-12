@@ -368,23 +368,25 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
         // The maximum layer number we've seen as of now.
         // This must be increasing monotonically.
-        let mut max_layer = 0usize;
+        let mut min_layer = 0usize;
 
         let mut reaction_plan: ReactionPlan<'x> = None;
 
         loop {
+            reaction_plan = ExecutableReactions::merge_cows_after(
+                reaction_plan,
+                self.0.insides.todo_now.take(),
+                min_layer,
+            );
 
-            // todo this merge actually doesn't need to care about past layers.
-            reaction_plan = ExecutableReactions::merge_cows(reaction_plan, self.0.insides.todo_now.take());
-
-            match reaction_plan.as_ref().and_then(|todo| todo.next_batch(max_layer)) {
+            match reaction_plan.as_ref().and_then(|todo| todo.next_batch(min_layer)) {
                 None => {
                     // nothing to do
                     break;
                 }
                 Some((layer_no, batch)) => {
-                    debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected ({} < {})", layer_no, max_layer);
-                    max_layer = layer_no + 1; // the next layer to fetch
+                    debug_assert!(layer_no >= min_layer, "Reaction dependencies were not respected ({} < {})", layer_no, min_layer);
+                    min_layer = layer_no + 1; // the next layer to fetch
 
                     if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
                         #[cfg(feature = "parallel-runtime")]

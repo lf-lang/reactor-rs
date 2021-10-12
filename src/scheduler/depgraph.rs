@@ -305,27 +305,9 @@ struct ReactionLayerInfo {
 
 impl ReactionLayerInfo {
     /// Append a reaction to the given reaction collection
-    fn augment(&self,
-               ExecutableReactions(layers): &mut ExecutableReactions,
-               reaction: GlobalReactionId,
-    ) {
+    fn augment(&self, collection: &mut ExecutableReactions, reaction: GlobalReactionId) {
         let ix = self.layer_numbers.get(&reaction).copied().expect("reaction was not recorded in the graph") as usize;
-
-        if let Some(layer) = layers.get_mut(ix) {
-            layer.insert(reaction);
-        } else {
-            debug_assert!(ix >= layers.len());
-            let new_layer_count = ix - layers.len() + 1; // len 0, ix 0 => 1 new layer
-            layers.reserve(new_layer_count);
-
-            // add a bunch of empty layers to fill holes
-            for _ in 1..new_layer_count { // (new_layer_count - 1) iterations
-                layers.push(Default::default());
-            }
-            let mut new_layer: Layer = HashSet::with_capacity(2);
-            new_layer.insert(reaction);
-            layers.push(new_layer);
-        }
+        collection.insert(reaction, ix);
     }
 }
 
@@ -359,6 +341,7 @@ impl DataflowInfo {
         for trigger in triggers {
             let mut reactions = ExecutableReactions::new();
             Self::collect_reactions_rec(&dataflow, trigger, layer_info, &mut reactions);
+            // reactions.trim();
             let graph_id = dataflow[trigger].id;
             h.insert(graph_id.into(), reactions);
         }
@@ -416,7 +399,7 @@ type Layer = HashSet<GlobalReactionId>;
 /// 1. they may be merged together (by a [DataflowInfo]).
 /// 2. merging two plans eliminates duplicates
 #[derive(Clone, Debug, Default)]
-pub(in crate) struct ExecutableReactions(
+pub(in crate) struct ExecutableReactions {
     /// An ordered list of layers to execute.
     ///
     /// It must by construction be the case that a reaction
@@ -430,12 +413,16 @@ pub(in crate) struct ExecutableReactions(
     /// Note that by construction, no two reactions in the same
     /// layer may belong to the same reactor, as all of them
     /// are ordered by priority edges.
-    Vec<Layer>
-);
+    ///
+    /// Note also that the last layer in the list must be
+    /// non-empty by construction.
+    layers: Vec<Layer>,
+    offset: usize,
+}
 
 impl ExecutableReactions {
     pub fn new() -> Self {
-        Self(Vec::new())
+        Self { layers: Vec::new(), offset: 0 }
     }
 
     /// Returns an iterator which associates batches of reactions
@@ -443,38 +430,80 @@ impl ExecutableReactions {
     /// (eg drain it), because that way we can use borrowed Cows
     /// and avoid more allocation.
     pub fn batches(&self) -> impl Iterator<Item=(usize, &HashSet<GlobalReactionId>)> {
-        self.0.iter().enumerate().filter(|it| !it.1.is_empty())
+        self.layers.iter().enumerate().filter(|it| !it.1.is_empty())
     }
 
     #[inline]
     pub fn next_batch(&self, min_layer: usize) -> Option<(usize, &HashSet<GlobalReactionId>)> {
-        for (i, layer) in self.0[min_layer..].iter().enumerate() {
-            if !layer.is_empty() {
-                return Some((min_layer + i, layer))
+        if let Some(min) = min_layer.checked_sub(self.offset) {
+            for (i, layer) in self.layers[min..].iter().enumerate() {
+                if !layer.is_empty() {
+                    return Some((min_layer + i, layer))
+                }
             }
         }
         None
     }
 
+    fn last_layer(&self) -> usize {
+        self.layers.len() + self.offset
+    }
+
+    pub fn absorb(&mut self, src: &ExecutableReactions) {
+        self.absorb_after(src, 0)
+    }
+
     /// Merge the given set of reactions into this one.
-    pub fn absorb(&mut self, ExecutableReactions(src): &ExecutableReactions) {
-        let ExecutableReactions(dst) = self;
-        if src.len() > dst.len() {
-            dst.reserve(src.len() - dst.len());
+    /// Ignore layers that come strictly before first_layer, clear them if need be.
+    pub fn absorb_after(&mut self, src: &ExecutableReactions, first_layer: usize) {
+        if let Some(diff) = src.last_layer().checked_sub(self.last_layer()) {
+            self.layers.reserve(diff);
         }
 
-        let dst_end = dst.len();
-
-        for (i, src_layer) in src.iter().enumerate() {
-            if i >= dst_end {
-                debug_assert_eq!(i, dst.len());
-                dst.push(src_layer.clone());
-            } else {
+        for (i, src_layer) in src.layers.iter().enumerate().skip(first_layer) {
+            let layer_no = i + src.offset;
+            if layer_no - self.offset < self.layers.len() {
                 // merge into existing layer
                 // note that we could probs replace get_mut(i).unwrap() with (unsafe) get_unchecked_mut(i)
-                let dst_layer = dst.get_mut(i).unwrap();
+                let dst_layer = self.layers.get_mut(layer_no - self.offset).unwrap();
                 dst_layer.extend(src_layer);
+            } else {
+                debug_assert_eq!(layer_no, self.offset + self.layers.len());
+                self.layers.push(src_layer.clone()); // todo cow
             }
+        }
+
+        if first_layer > self.offset {
+            let empty_prefix_len = first_layer - self.offset;
+            self.layers.drain(0..empty_prefix_len);
+            self.offset += empty_prefix_len;
+        }
+    }
+
+    /// Remove empty layers at the beginning.
+    fn trim(&mut self) {
+        let empty_prefix_len = self.layers.iter().take_while(|p| p.is_empty()).count();
+        self.layers.drain(0..empty_prefix_len);
+        self.offset += empty_prefix_len;
+    }
+
+    /// Insert doesn't mutate the offset.
+    fn insert(&mut self, reaction: GlobalReactionId, layer_ix: usize) {
+        let real_layer_ix = layer_ix - self.offset;
+        if let Some(layer) = self.layers.get_mut(real_layer_ix) {
+            layer.insert(reaction);
+        } else {
+            debug_assert!(real_layer_ix >= self.layers.len());
+            let new_layer_count = real_layer_ix - self.layers.len() + 1; // len 0, ix 0 => 1 new layer
+            self.layers.reserve(new_layer_count);
+
+            // add a bunch of empty layers to fill holes
+            for _ in 1..new_layer_count { // (new_layer_count - 1) iterations
+                self.layers.push(Default::default());
+            }
+            let mut new_layer: Layer = HashSet::with_capacity(2);
+            new_layer.insert(reaction);
+            self.layers.push(new_layer);
         }
     }
 
@@ -492,12 +521,27 @@ impl ExecutableReactions {
             }
         }
     }
+
+    pub(super) fn merge_cows_after<'x>(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_layer: usize) -> ReactionPlan<'x> {
+        match (x, y) {
+            (None, None) => None,
+            (Some(x), None) | (None, Some(x)) => Some(x),
+            (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
+                x.absorb_after(&y, min_layer);
+                Some(Cow::Owned(x))
+            },
+            (Some(mut x), Some(y)) => {
+                x.to_mut().absorb_after(&y, min_layer);
+                Some(x)
+            }
+        }
+    }
 }
 
 impl Display for ExecutableReactions {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[")?;
-        for layer in &self.0 {
+        for layer in &self.layers {
             join_to!(f, layer.iter(), ", ", "{", "} ; ")?;
         }
         write!(f, "]")
