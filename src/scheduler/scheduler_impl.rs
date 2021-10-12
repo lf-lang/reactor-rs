@@ -381,42 +381,34 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         // This must be increasing monotonically.
         let mut min_layer = 0usize;
 
-        loop {
-            match reactions.as_ref().and_then(|todo| todo.next_batch(min_layer)) {
-                None => {
-                    // nothing to do
-                    break;
-                }
-                Some((layer_no, batch)) => {
-                    ctx.set_cur_layer(layer_no);
+        while let Some((layer_no, batch)) = reactions.as_ref().and_then(|todo| todo.next_batch(min_layer)) {
+            ctx.set_cur_layer(layer_no);
 
-                    debug_assert!(layer_no >= min_layer, "Reaction dependencies were not respected ({} < {})", layer_no, min_layer);
-                    min_layer = layer_no + 1; // the next layer to fetch
+            debug_assert!(layer_no >= min_layer, "Reaction dependencies were not respected ({} < {})", layer_no, min_layer);
+            min_layer = layer_no + 1; // the next layer to fetch
 
-                    if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
-                        #[cfg(feature = "parallel-runtime")]
-                            parallel_rt_impl::process_batch(&mut ctx, &debug, &mut self.reactors, batch);
-                    } else {
-                        // the impl for non-parallel runtime
-                        for reaction_id in batch {
-                            trace!("  - Executing {} (layer {})", debug.display_reaction(*reaction_id), layer_no);
-                            let reactor = &mut self.reactors[reaction_id.0.container()];
+            if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
+                #[cfg(feature = "parallel-runtime")]
+                    parallel_rt_impl::process_batch(&mut ctx, &debug, &mut self.reactors, batch);
+            } else {
+                // the impl for non-parallel runtime
+                for reaction_id in batch {
+                    trace!("  - Executing {} (layer {})", debug.display_reaction(*reaction_id), layer_no);
+                    let reactor = &mut self.reactors[reaction_id.0.container()];
 
-                            reactor.react_erased(&mut ctx, reaction_id.0.local());
-                        }
-                    }
-
-                    for evt in ctx.insides.future_events.drain(..) {
-                        push_event!(self, evt)
-                    }
-
-                    reactions = ExecutableReactions::merge_cows_after(
-                        reactions,
-                        ctx.insides.todo_now.take(),
-                        min_layer,
-                    );
+                    reactor.react_erased(&mut ctx, reaction_id.0.local());
                 }
             }
+
+            for evt in ctx.insides.future_events.drain(..) {
+                push_event!(self, evt)
+            }
+
+            reactions = ExecutableReactions::merge_cows_after(
+                reactions,
+                ctx.insides.todo_now.take(),
+                min_layer,
+            );
         }
 
         // cleanup tag-specific resources, eg clear port values
