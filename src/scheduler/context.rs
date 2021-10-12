@@ -1,8 +1,6 @@
-
 use std::borrow::{Borrow, BorrowMut};
 
-use std::sync::mpsc::{Sender, SendError};
-
+use crossbeam_channel::{Sender, SendError};
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
 

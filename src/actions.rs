@@ -33,8 +33,6 @@ use atomic_refcell::AtomicRefCell;
 use crate::*;
 use crate::TriggerLike;
 
-
-
 #[doc(hidden)]
 pub struct Logical;
 

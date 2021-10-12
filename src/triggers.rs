@@ -24,6 +24,7 @@
 
 
 use std::time::Instant;
+
 use crate::{EventTag, TriggerId};
 
 /// Common trait for actions, ports, and timer objects handed

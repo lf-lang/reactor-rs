@@ -22,6 +22,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 use std::time::Instant;
+
 use super::*;
 
 /// A timer is conceptually a logical action that may re-schedule

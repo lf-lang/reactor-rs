@@ -27,8 +27,8 @@
 
 
 use std::fmt::Write;
-use std::sync::mpsc::{channel, Receiver, RecvTimeoutError, Sender};
 
+use crossbeam_channel::{ReconnectableReceiver, RecvTimeoutError};
 use crossbeam_utils::{thread::Scope, thread::scope};
 
 use crate::*;
@@ -104,38 +104,25 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     thread_spawner: &'a Scope<'t>,
 
     /// All reactors.
-    pub(super) reactors: ReactorVec<'x>,
+    reactors: ReactorVec<'x>,
 
     /// Pending events/ tags to process.
     event_queue: EventQueue<'x>,
 
-    /// The receiver end of the communication channels. Reactions
-    /// contexts each have their own [Sender]. The main event loop
-    /// polls this to make progress.
-    ///
-    /// The receiver is unique.
-    ///
-    /// Since at least one sender ([tx]) is alive, this receiver
-    /// will never report being disconnected.
-    rx: Receiver<Event<'x>>,
+    /// Receiver through which asynchronous events are
+    /// communicated to the scheduler. We only block when
+    /// no events are ready to be processed.
+    rx: ReconnectableReceiver<Event<'x>>,
 
-    /// A sender bound to the receiver, which may be cloned.
-    /// It's carried around in [PhysicalSchedulerLink] to
-    /// handle asynchronous events. Synchronously produced
-    /// go directly into the [event_queue].
-    tx: Sender<Event<'x>>,
-
-
-    /// Initial time of the logical system. Only filled in
-    /// when startup has been called.
+    /// Initial time of the logical system.
     initial_time: Instant,
 
-    /// Scheduled shutdown time. If not None, shutdown must
+    /// Scheduled shutdown time. If Some, shutdown must
     /// be initiated at least at this physical time step.
-    /// todo does this match lf semantics?
-    /// This is set when [EventPayload::Terminate] is received.
-    /// todo there are two data flow paths that control shutdown, this one (self.shutdown_time)
-    ///  and Terminate events sent through the sender. Unify them.
+    /// todo does that match lf semantics?
+    /// This is set when an event caused by a [ReactionCtx::request_stop]
+    /// is received, and upon initialization if a timeout was
+    /// specified.
     shutdown_time: Option<EventTag>,
     options: SchedulerOptions,
 
@@ -252,10 +239,9 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         reactors: ReactorVec<'x>,
         initial_time: Instant,
     ) -> Self {
-        let (tx, rx) = channel::<Event<'x>>();
+        let (_, rx) = crossbeam_channel::unbounded_reconnectable::<Event<'x>>();
         Self {
             rx,
-            tx,
 
             event_queue: Default::default(),
             reactors,
@@ -310,30 +296,19 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Wait for an asynchronous event for as long as we can
     /// expect it.
     fn receive_event(&mut self) -> Option<Event<'x>> {
-        let now = PhysicalInstant::now();
-
-        if !self.options.keep_alive {
-            trace!("Won't wait without keepalive option");
-            return None
+        if let Some(shutdown_t) = self.shutdown_time {
+            let absolute = shutdown_t.to_logical_time(self.initial_time);
+            if let Some(timeout) = absolute.checked_duration_since(PhysicalInstant::now()) {
+                trace!("Will wait for asynchronous event {} ns", timeout.as_nanos());
+                self.rx.recv_timeout(timeout).ok()
+            } else {
+                trace!("Cannot wait, already past programmed shutdown time...");
+                None
+            }
+        } else {
+            trace!("Will wait for asynchronous event without timeout");
+            self.rx.recv().ok()
         }
-
-        return match self.shutdown_time {
-            Some(shutdown_t) => {
-                let shutdown_t = shutdown_t.to_logical_time(self.initial_time);
-                if now < shutdown_t {
-                    let timeout = shutdown_t.duration_since(now);
-                    trace!("Will wait for asynchronous event {} ns", timeout.as_nanos());
-                    self.rx.recv_timeout(timeout).map_err(|_| unreachable!("self.tx is alive")).ok()
-                } else {
-                    trace!("Cannot wait, already past programmed shutdown time...");
-                    None
-                }
-            }
-            None => {
-                trace!("Will wait for asynchronous event indefinitely");
-                self.rx.recv().map_err(|_| unreachable!("self.tx is alive")).ok()
-            }
-        };
     }
 
     /// Actually process a tag. The provided reactions are the
@@ -373,10 +348,16 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             match self.rx.recv_timeout(t) {
                 Ok(async_evt) => {
                     trace!("  - Sleep interrupted by async event for tag {}, going back to queue", async_evt.tag);
-                    return Err(async_evt)
-                },
-                Err(RecvTimeoutError::Timeout) => { /*great*/ },
-                Err(RecvTimeoutError::Disconnected) => unreachable!("at least one sender should be alive in this scheduler instance")
+                    return Err(async_evt);
+                }
+                Err(RecvTimeoutError::Timeout) => { /*great*/ }
+                Err(RecvTimeoutError::Disconnected) => {
+                    // ok, there are no physical actions in the program so it's useless to block on self.rx
+                    // we still need to wait though..
+                    if let Some(remaining) = target.checked_duration_since(Instant::now()) {
+                        std::thread::sleep(remaining);
+                    }
+                }
             }
         }
 
@@ -391,7 +372,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// reactions at some point in time.
     fn new_reaction_ctx(&self, tag: EventTag, todo: ReactionPlan<'x>) -> ReactionCtx<'a, 'x, 't> {
         ReactionCtx::new(
-            self.tx.clone(),
+            self.rx.new_sender(),
             tag,
             self.initial_time,
             todo,

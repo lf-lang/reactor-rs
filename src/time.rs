@@ -25,9 +25,6 @@
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Add;
 
-
-
-
 /// Private concrete type of a microstep.
 pub(in crate) type MS = u32;
 
