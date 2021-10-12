@@ -448,9 +448,14 @@ impl<'x> ExecutableReactions<'x> {
         self.absorb_after(src, 0)
     }
 
+    /// The greatest layer with non-empty value.
+    pub fn max_layer(&self) -> usize {
+        self.layers.max_key()
+    }
+
     /// Merge the given set of reactions into this one.
     /// Ignore layers that come strictly before first_layer, may clear them if need be.
-    pub fn absorb_after(&mut self, src: &ExecutableReactions<'x>, min_layer: usize) {
+    pub fn absorb_after(&mut self, src: &ExecutableReactions<'x>, min_layer_inclusive: usize) {
         let src = &src.layers;
         let dst = &mut self.layers;
 
@@ -458,11 +463,12 @@ impl<'x> ExecutableReactions<'x> {
             dst.reserve_len(src.max_key());
         }
 
-        for (i, src_layer) in src.iter_from(min_layer) {
+        for (i, src_layer) in src.iter_from(min_layer_inclusive) {
             if let Some(existing) = dst.get_mut(i) {
                 if existing.is_empty() {
                     *existing = src_layer.clone();
                 } else {
+                    // todo maybe set is not modified
                     existing.to_mut().extend(src_layer.iter());
                 }
             } else {
@@ -499,13 +505,17 @@ impl<'x> ExecutableReactions<'x> {
 
     pub(super) fn merge_cows_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_layer: usize) -> ReactionPlan<'x> {
         match (x, y) {
-            (None, None) => None,
-            (Some(x), None) | (None, Some(x)) => Some(x),
+            (x, None) | (None, x) => x,
+            (Some(x), y) | (y, Some(x)) if x.max_layer() < min_layer  => y,
             (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
                 x.absorb_after(&y, min_layer);
                 Some(Cow::Owned(x))
             },
-            (Some(mut x), Some(y)) => {
+            (Some(mut x), Some(mut y)) => {
+                if x.max_layer() > y.max_layer() {
+                    std::mem::swap(&mut x, &mut y);
+                }
+                // x is the largest one here
                 x.to_mut().absorb_after(&y, min_layer);
                 Some(x)
             }

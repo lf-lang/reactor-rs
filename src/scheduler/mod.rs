@@ -34,7 +34,7 @@ pub use context::*;
 pub(in self) use event_queue::*;
 pub use scheduler_impl::*;
 
-use crate::{Duration, MicroStep, PhysicalInstant, ReactorBehavior, ReactorId};
+use crate::*;
 
 use self::depgraph::ExecutableReactions;
 
@@ -189,5 +189,44 @@ impl<'x> Event<'x> {
 pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions<'x>>>;
 pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a>;
 pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
+
+
+/// Can format stuff for trace messages.
+#[derive(Clone)]
+pub(self) struct DebugInfoProvider<'a> {
+    id_registry: &'a IdRegistry,
+    initial_time: Instant,
+}
+
+impl DebugInfoProvider<'_> {
+    pub(self) fn display_event(&self, evt: &Event) -> String {
+        use std::fmt::*;
+
+        match evt {
+            Event { tag, reactions, terminate } => {
+                let mut str = format!("at {}: run [", tag);
+
+                if let Some(reactions) = reactions {
+                    for (layer_no, batch) in reactions.batches() {
+                        write!(str, "{}: ", layer_no).unwrap();
+                        join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| self.display_reaction(*x)).unwrap();
+                    }
+                }
+
+                str += "]";
+                if *terminate {
+                    str += ", then terminate"
+                }
+                str += "";
+                str
+            }
+        }
+    }
+
+    #[inline]
+    pub(self) fn display_reaction(&self, global: GlobalReactionId) -> String {
+        self.id_registry.fmt_reaction(global)
+    }
+}
 
 

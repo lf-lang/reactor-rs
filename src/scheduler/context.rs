@@ -18,7 +18,26 @@ use super::*;
 // ReactionCtx is an API built around a ReactionWave. A single
 // ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&mut).
-pub struct ReactionCtx<'a, 'x, 't>(RContextInner<'a, 'x, 't>) ;
+pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
+    pub(super) insides: RContextForwardableStuff<'x>,
+
+    /// Logical time of the execution of this wave, constant
+    /// during the existence of the object
+    tag: EventTag,
+
+    /// Layer of the reaction being executed.
+    cur_layer: usize,
+
+    /// Sender to schedule events that should be executed later than this wave.
+    tx: Sender<Event<'x>>,
+
+    /// Start time of the program.
+    initial_time: PhysicalInstant,
+
+    // globals
+    thread_spawner: &'a Scope<'t>,
+    dataflow: &'x DataflowInfo,
+}
 
 
 impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
@@ -28,17 +47,18 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                          todo: ReactionPlan<'x>,
                          dataflow: &'x DataflowInfo,
                          thread_spawner: &'a Scope<'t>) -> Self {
-        Self(RContextInner {
+        Self {
             insides: RContextForwardableStuff {
                 todo_now: todo,
                 future_events: Default::default(),
             },
+            cur_layer: 0,
             tag,
             tx,
             initial_time,
             dataflow,
             thread_spawner,
-        })
+        }
     }
 
 
@@ -185,7 +205,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     fn schedule_impl<T: Send>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
         let eta = self.make_successor_tag(action.min_delay + offset.to_duration());
         action.schedule_future_value(eta, value);
-        let downstream = self.0.dataflow.reactions_triggered_by(&action.get_id());
+        let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
         self.enqueue_later(downstream, eta);
     }
 
@@ -199,19 +219,19 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         debug_assert!(tag > self.get_tag());
 
         let evt = Event::execute(tag, Cow::Borrowed(downstream));
-        self.0.insides.future_events.push(evt);
+        self.insides.future_events.push(evt);
     }
 
     #[inline]
     pub(in crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions<'x>>) {
-        match &mut self.0.insides.todo_now {
-            Some(ref mut do_next) => do_next.to_mut().absorb(downstream.as_ref()),
-            None => self.0.insides.todo_now = Some(downstream)
+        match &mut self.insides.todo_now {
+            Some(ref mut do_next) => do_next.to_mut().absorb_after(downstream.as_ref(), self.cur_layer + 1),
+            None => self.insides.todo_now = Some(downstream)
         }
     }
 
     fn reactions_triggered_by(&self, trigger: TriggerId) -> &'x ExecutableReactions<'x> {
-        self.0.dataflow.reactions_triggered_by(&trigger)
+        self.dataflow.reactions_triggered_by(&trigger)
     }
 
     fn make_successor_tag(&self, offset_from_now: Duration) -> EventTag {
@@ -248,11 +268,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         where F: FnOnce(&mut PhysicalSchedulerLink<'_, 'x, 't>) -> R,
               F: 'x + Send,
               R: 'x + Send {
-        let tx = self.0.tx.clone();
-        let dataflow = self.0.dataflow;
-        let initial_time = self.0.initial_time;
+        let tx = self.tx.clone();
+        let dataflow = self.dataflow;
+        let initial_time = self.initial_time;
 
-        self.0.thread_spawner.spawn(move |subscope| {
+        self.thread_spawner.spawn(move |subscope| {
             let mut link = PhysicalSchedulerLink {
                 tx,
                 dataflow,
@@ -271,7 +291,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         let tag = self.make_successor_tag(offset.to_duration());
 
         let evt = Event::terminate_at(tag);
-        self.0.insides.future_events.push(evt);
+        self.insides.future_events.push(evt);
     }
 
     /// Returns the start time of the execution of this program.
@@ -279,7 +299,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// This is a logical instant with microstep zero.
     #[inline]
     pub fn get_start_time(&self) -> PhysicalInstant {
-        self.0.initial_time
+        self.initial_time
     }
 
     /// Returns the current physical time.
@@ -299,7 +319,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// the same value.
     #[inline]
     pub fn get_logical_time(&self) -> Instant {
-        self.0.tag.to_logical_time(self.get_start_time())
+        self.tag.to_logical_time(self.get_start_time())
     }
 
     /// Returns the tag at which the reaction executes.
@@ -308,7 +328,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// the same value.
     #[inline]
     pub fn get_tag(&self) -> EventTag {
-        self.0.tag
+        self.tag
     }
 
     /// Returns the amount of logical time elapsed since the
@@ -357,169 +377,29 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         }
     }
 
-    /// Execute the wave until completion.
-    /// The parameter is the list of reactions to start with.
-    pub(in super) fn process_entire_tag(
-        mut self,
-        debug: DebugInfoProvider<'_>,
-        reactors: &mut ReactorVec<'_>,
-        mut push_future_event: impl FnMut(Event<'x>),
-    ) {
-
-        // The maximum layer number we've seen as of now.
-        // This must be increasing monotonically.
-        let mut min_layer = 0usize;
-
-        let mut reaction_plan: ReactionPlan<'x> = None;
-
-        loop {
-            reaction_plan = ExecutableReactions::merge_cows_after(
-                reaction_plan,
-                self.0.insides.todo_now.take(),
-                min_layer,
-            );
-
-            match reaction_plan.as_ref().and_then(|todo| todo.next_batch(min_layer)) {
-                None => {
-                    // nothing to do
-                    break;
-                }
-                Some((layer_no, batch)) => {
-                    debug_assert!(layer_no >= min_layer, "Reaction dependencies were not respected ({} < {})", layer_no, min_layer);
-                    min_layer = layer_no + 1; // the next layer to fetch
-
-                    if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
-                        #[cfg(feature = "parallel-runtime")]
-                        parallel_rt_impl::process_batch(&mut self, &debug, reactors, batch);
-
-                        for evt in self.0.insides.future_events.drain(..) {
-                            push_future_event(evt)
-                        }
-                    } else {
-                        // the impl for non-parallel runtime
-                        for reaction_id in batch {
-                            trace!("  - Executing {} (layer {})", debug.display_reaction(*reaction_id), layer_no);
-                            let reactor = &mut reactors[reaction_id.0.container()];
-
-                            reactor.react_erased(&mut self, reaction_id.0.local());
-
-                            // the reaction invocation may have mutated self.0.insides:
-                            // - todo_now: reactions that need to be executed next -> they're
-                            // processed in the next loop iteration
-                            // - future_events: handled now
-                            for evt in self.0.insides.future_events.drain(..) {
-                                push_future_event(evt)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // cleanup tag-specific resources, eg clear port values
-        let ctx = CleanupCtx { tag: self.get_tag() };
-        // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
-        for reactor in reactors {
-            reactor.cleanup_tag(&ctx)
-        }
-    }
-}
-
-#[cfg(feature = "parallel-runtime")]
-mod parallel_rt_impl {
-    use std::collections::HashSet;
-
-    use rayon::prelude::*;
-
-    use super::*;
-
-    pub(super) fn process_batch(
-        ctx: &mut ReactionCtx<'_, '_, '_>,
-        debug: &DebugInfoProvider<'_>,
-        reactors: &mut ReactorVec<'_>,
-        batch: &HashSet<GlobalReactionId>,
-    ) {
-        let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
-
-        let final_result =
-            batch.iter()
-                .par_bridge()
-                .fold_with(
-                    CloneableCtx(ctx.0.fork()),
-                    |CloneableCtx(ctx_inner), reaction_id| {
-                        trace!("  - Executing {}", debug.display_reaction(*reaction_id));
-                        let reactor = unsafe {
-                            // safety:
-                            // - no two reactions in the batch refer belong to the same reactor
-                            // - the vec does not change size so there is no reallocation
-                            &mut *reactors_mut.0.add(reaction_id.0.container().index())
-                        };
-
-                        // this may append new elements into the queue,
-                        // which is why we can't use an iterator
-                        let mut ctx = ReactionCtx(ctx_inner);
-                        reactor.react_erased(&mut ctx, reaction_id.0.local());
-
-                        CloneableCtx(ctx.0)
-                    },
-                )
-                // .fold_with(ctx.0.fork(),
-                //            |ctx_inner, reaction_id| {
-                //            })
-                .fold(|| RContextForwardableStuff::default(), |cx1, cx2| cx1.merge(cx2.0.insides))
-                .reduce(|| Default::default(), RContextForwardableStuff::merge);
-
-        ctx.0.insides = final_result;
+    pub(super) fn take_reactions_enqueued_now(&mut self) -> ReactionPlan<'x> {
+        self.insides.todo_now.take()
     }
 
-
-    struct UnsafeSharedPointer<T>(*mut T);
-
-    unsafe impl<T> Send for UnsafeSharedPointer<T> {}
-
-    unsafe impl<T> Sync for UnsafeSharedPointer<T> {}
-
-
-    /// We need a Clone bound to use fold_with, but this clone
-    /// implementation is not general purpose so I hide it.
-    struct CloneableCtx<'a, 'x, 't>(RContextInner<'a, 'x, 't>);
-
-    impl Clone for CloneableCtx<'_, '_, '_> {
-        fn clone(&self) -> Self {
-            Self(self.0.fork())
-        }
+    pub(super) fn set_cur_layer(&mut self, cur_layer: usize) {
+        self.cur_layer = cur_layer;
     }
-}
 
-struct RContextInner<'a, 'x, 't> where 'x: 't {
-    insides: RContextForwardableStuff<'x>,
+    pub(super) fn drain_reactions_enqueued_later(&mut self) -> impl Iterator<Item=Event<'x>> + '_ {
+        self.insides.future_events.drain(..)
+    }
 
-    /// Logical time of the execution of this wave, constant
-    /// during the existence of the object
-    tag: EventTag,
-
-    /// Sender to schedule events that should be executed later than this wave.
-    tx: Sender<Event<'x>>,
-
-    /// Start time of the program.
-    initial_time: PhysicalInstant,
-
-    // globals
-    thread_spawner: &'a Scope<'t>,
-    dataflow: &'x DataflowInfo,
-}
-
-impl<'x, 't> RContextInner<'_, 'x, 't> where 'x: 't {
     /// Fork a context. Some things are shared, but not the
     /// mutable stuff.
     #[cfg(feature = "parallel-runtime")]
-    fn fork(&self) -> Self {
+    pub(super) fn fork(&self) -> Self {
         Self {
             insides: Default::default(),
 
             // all of that is common to all contexts
             tag: self.tag,
             tx: self.tx.clone(),
+            cur_layer: self.cur_layer,
             initial_time: self.initial_time,
             thread_spawner: self.thread_spawner,
             dataflow: self.dataflow,
@@ -528,7 +408,7 @@ impl<'x, 't> RContextInner<'_, 'x, 't> where 'x: 't {
 }
 
 /// Info that executing reactions need to make known to the scheduler.
-struct RContextForwardableStuff<'x> {
+pub(super) struct RContextForwardableStuff<'x> {
     /// Remaining reactions to execute before the wave dies.
     /// Using [Option] and [Cow] optimises for the case where
     /// zero or exactly one port/action is set, and minimises
@@ -537,11 +417,11 @@ struct RContextForwardableStuff<'x> {
     /// This is mutable: if a reaction sets a port, then the
     /// downstream of that port is inserted in into this
     /// data structure.
-    todo_now: ReactionPlan<'x>,
+    pub(super) todo_now: ReactionPlan<'x>,
 
     /// Events that were produced for a strictly greater
     /// logical time than a current one.
-    future_events: SmallVec<[Event<'x>; 4]>,
+    pub(super) future_events: SmallVec<[Event<'x>; 4]>,
 }
 
 impl Default for RContextForwardableStuff<'_> {
@@ -555,7 +435,7 @@ impl Default for RContextForwardableStuff<'_> {
 
 #[cfg(feature = "parallel-runtime")]
 impl RContextForwardableStuff<'_> {
-    fn merge(mut self, mut other: Self) -> Self {
+    pub(super) fn merge(mut self, mut other: Self) -> Self {
         self.todo_now = ExecutableReactions::merge_cows(self.todo_now, other.todo_now);
         self.future_events.append(&mut other.future_events);
         self

@@ -24,10 +24,6 @@
 
 //! Home of the scheduler component.
 
-
-
-use std::fmt::Write;
-
 use crossbeam_channel::{ReconnectableReceiver, RecvTimeoutError};
 use crossbeam_utils::{thread::Scope, thread::scope};
 
@@ -311,28 +307,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         }
     }
 
-    /// Actually process a tag. The provided reactions are the
-    /// root reactions that startup the "wave".
-    fn process_tag(&mut self, tag: EventTag, reactions: ReactionPlan<'x>) {
-        if cfg!(debug_assertions) {
-            if let Some(t) = self.latest_processed_tag {
-                debug_assert!(tag > t, "Tag ordering mismatch")
-            }
-        }
-        self.latest_processed_tag = Some(tag);
-
-        if reactions.is_none() {
-            return;
-        }
-
-        // note: we have to inline all this to prove to the
-        // compiler that we're borrowing disjoint parts of self
-
-        let ctx = self.new_reaction_ctx(tag, reactions);
-        let event_q_borrow = &mut self.event_queue;
-        let debug = debug_info!(self);
-        ctx.process_entire_tag(debug, &mut self.reactors, |evt| event_q_borrow.push(evt))
-    }
 
     /// Sleep/wait until the given time OR an asynchronous
     /// event is received first.
@@ -385,41 +359,132 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     pub(in super) fn debug(&self) -> DebugInfoProvider {
         debug_info!(self)
     }
-}
 
-/// Can format stuff for trace messages.
-#[derive(Clone)]
-pub(in super) struct DebugInfoProvider<'a> {
-    id_registry: &'a IdRegistry,
-    initial_time: Instant,
-}
-
-impl DebugInfoProvider<'_> {
-
-    pub fn display_event(&self, evt: &Event) -> String {
-        match evt {
-            Event { tag, reactions, terminate } => {
-                let mut str = format!("at {}: run [", tag);
-
-                if let Some(reactions) = reactions {
-                    for (layer_no, batch) in reactions.batches() {
-                        write!(str, "{}: ", layer_no).unwrap();
-                        join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| self.display_reaction(*x)).unwrap();
-                    }
-                }
-
-                str += "]";
-                if *terminate {
-                    str += ", then terminate"
-                }
-                str += "";
-                str
+    /// Actually process a tag. The provided reactions are the
+    /// root reactions that startup the "wave".
+    fn process_tag(&mut self, tag: EventTag, mut reactions: ReactionPlan<'x>) {
+        if cfg!(debug_assertions) {
+            if let Some(t) = self.latest_processed_tag {
+                debug_assert!(tag > t, "Tag ordering mismatch")
             }
         }
+        self.latest_processed_tag = Some(tag);
+
+        if reactions.is_none() {
+            return;
+        }
+
+        let mut ctx = self.new_reaction_ctx(tag, None);
+        let debug = debug_info!(self);
+
+        // The maximum layer number we've seen as of now.
+        // This must be increasing monotonically.
+        let mut min_layer = 0usize;
+
+        loop {
+            match reactions.as_ref().and_then(|todo| todo.next_batch(min_layer)) {
+                None => {
+                    // nothing to do
+                    break;
+                }
+                Some((layer_no, batch)) => {
+                    ctx.set_cur_layer(layer_no);
+
+                    debug_assert!(layer_no >= min_layer, "Reaction dependencies were not respected ({} < {})", layer_no, min_layer);
+                    min_layer = layer_no + 1; // the next layer to fetch
+
+                    if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
+                        #[cfg(feature = "parallel-runtime")]
+                            parallel_rt_impl::process_batch(&mut ctx, &debug, &mut self.reactors, batch);
+                    } else {
+                        // the impl for non-parallel runtime
+                        for reaction_id in batch {
+                            trace!("  - Executing {} (layer {})", debug.display_reaction(*reaction_id), layer_no);
+                            let reactor = &mut self.reactors[reaction_id.0.container()];
+
+                            reactor.react_erased(&mut ctx, reaction_id.0.local());
+                        }
+                    }
+
+                    for evt in ctx.insides.future_events.drain(..) {
+                        push_event!(self, evt)
+                    }
+
+                    reactions = ExecutableReactions::merge_cows_after(
+                        reactions,
+                        ctx.insides.todo_now.take(),
+                        min_layer,
+                    );
+                }
+            }
+        }
+
+        // cleanup tag-specific resources, eg clear port values
+        let ctx = CleanupCtx { tag };
+        // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
+        for reactor in &mut self.reactors {
+            reactor.cleanup_tag(&ctx)
+        }
+    }
+}
+
+
+#[cfg(feature = "parallel-runtime")]
+mod parallel_rt_impl {
+    use std::collections::HashSet;
+
+    use rayon::prelude::*;
+
+    use super::*;
+
+    pub(super) fn process_batch<'x>(
+        ctx: &mut ReactionCtx<'_, 'x, '_>,
+        debug: &DebugInfoProvider<'_>,
+        reactors: &mut ReactorVec<'_>,
+        batch: &HashSet<GlobalReactionId>,
+    ) {
+        let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
+
+        ctx.insides =
+            batch.iter()
+                .par_bridge()
+                .fold_with(
+                    CloneableCtx(ctx.fork()),
+                    |CloneableCtx(mut ctx), reaction_id| {
+                        trace!("  - Executing {}", debug.display_reaction(*reaction_id));
+                        let reactor = unsafe {
+                            // safety:
+                            // - no two reactions in the batch refer belong to the same reactor
+                            // - the vec does not change size so there is no reallocation
+                            &mut *reactors_mut.0.add(reaction_id.0.container().index())
+                        };
+
+                        // this may append new elements into the queue,
+                        // which is why we can't use an iterator
+                        reactor.react_erased(&mut ctx, reaction_id.0.local());
+
+                        CloneableCtx(ctx)
+                    },
+                )
+                .fold(|| RContextForwardableStuff::default(), |cx1, cx2| cx1.merge(cx2.0.insides))
+                .reduce(|| Default::default(), RContextForwardableStuff::merge);
     }
 
-    #[inline]
-    pub(in super) fn display_reaction(&self, global: GlobalReactionId) -> String {
-        self.id_registry.fmt_reaction(global)
+
+    struct UnsafeSharedPointer<T>(*mut T);
+
+    unsafe impl<T> Send for UnsafeSharedPointer<T> {}
+
+    unsafe impl<T> Sync for UnsafeSharedPointer<T> {}
+
+
+    /// We need a Clone bound to use fold_with, but this clone
+    /// implementation is not general purpose so I hide it.
+    struct CloneableCtx<'a, 'x, 't>(ReactionCtx<'a, 'x, 't>);
+
+    impl Clone for CloneableCtx<'_, '_, '_> {
+        fn clone(&self) -> Self {
+            Self(self.0.fork())
+        }
     }
 }
