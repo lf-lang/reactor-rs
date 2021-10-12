@@ -384,9 +384,9 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                 }
                 Some((layer_no, batch)) => {
                     debug_assert!(layer_no >= max_layer, "Reaction dependencies were not respected ({} < {})", layer_no, max_layer);
-                    max_layer = layer_no+1; // the next layer to fetch
+                    max_layer = layer_no + 1; // the next layer to fetch
 
-                    if cfg!(feature = "parallel-runtime") {
+                    if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
                         #[cfg(feature = "parallel-runtime")]
                         parallel_rt_impl::process_batch(&mut self, &debug, reactors, batch);
 
