@@ -489,18 +489,7 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     pub(super) fn merge_cows(x: ReactionPlan<'x>, y: ReactionPlan<'x>) -> ReactionPlan<'x> {
-        match (x, y) {
-            (None, None) => None,
-            (Some(x), None) | (None, Some(x)) => Some(x),
-            (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
-                x.absorb(&y);
-                Some(Cow::Owned(x))
-            },
-            (Some(mut x), Some(y)) => {
-                x.to_mut().absorb(&y);
-                Some(x)
-            }
-        }
+        Self::merge_cows_after(x, y, 0)
     }
 
     /// todo would be nice to simplify this, it's hot
