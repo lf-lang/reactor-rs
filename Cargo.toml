@@ -36,6 +36,6 @@ parallel-runtime=["rayon"]
 name = "savina_pong"
 harness = false
 
-[profile.bench]
+[profile.release]
 debug = true
 

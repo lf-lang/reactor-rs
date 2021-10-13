@@ -28,7 +28,6 @@ use std::fmt::{Debug, Formatter};
 ///
 /// Used in [crate::ExecutableReactions]
 ///
-#[derive(Default)]
 pub struct VecMap<K, V> where K: Eq + Ord {
     v: Vec<(K, V)>,
 }
@@ -72,6 +71,12 @@ impl<K: Clone + Eq + Ord, V: Clone> Clone for VecMap<K, V> {
 impl<K: Ord + Eq + Debug, V: Debug> Debug for VecMap<K, V> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.v.iter().collect::<Vec<&(K, V)>>().fmt(f)
+    }
+}
+
+impl<K: Ord + Eq, V> Default for VecMap<K, V> {
+    fn default() -> Self {
+        Self { v: Vec::new() }
     }
 }
 

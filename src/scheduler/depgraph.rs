@@ -254,7 +254,7 @@ impl DepGraph {
         let mut layer_numbers = HashMap::<GlobalReactionId, LayerIx>::new();
         let mut todo = self.get_roots();
         let mut todo_next = Vec::new();
-        let mut cur_layer: LayerIx = 0;
+        let mut cur_layer: LayerIx = LayerIx(0);
         while !todo.is_empty() {
             for ix in todo.drain(..) {
                 let node = self.dataflow.node_weight(ix).unwrap();
@@ -273,7 +273,7 @@ impl DepGraph {
                     todo_next.push(out_edge.target())
                 }
             }
-            cur_layer += 1;
+            cur_layer = cur_layer.next();
             std::mem::swap(&mut todo, &mut todo_next)
         }
         layer_numbers
@@ -397,7 +397,20 @@ type Layer = HashSet<GlobalReactionId>;
 
 /// Type of the label of a layer. The max value is the maximum
 /// depth of the dependency graph.
-pub(crate) type LayerIx = u32;
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default)]
+pub(crate) struct LayerIx(u32);
+
+impl LayerIx {
+    pub fn next(self) -> Self {
+        LayerIx(self.0 + 1)
+    }
+}
+
+impl Display for LayerIx {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// A set of reactions ordered by relative dependency.
 /// The key characteristic of instances is
@@ -434,7 +447,7 @@ impl<'x> ExecutableReactions<'x> {
     /// (eg drain it), because that way we can use borrowed Cows
     /// and avoid more allocation.
     pub fn batches(&self) -> impl Iterator<Item=&(LayerIx, Cow<'x, Layer>)> +'_{
-        self.layers.iter_from(0)
+        self.layers.iter_from(LayerIx(0))
     }
 
     #[inline]
@@ -444,7 +457,7 @@ impl<'x> ExecutableReactions<'x> {
 
     /// The greatest layer with non-empty value.
     pub fn max_layer(&self) -> LayerIx {
-        self.layers.max_key().cloned().unwrap_or(0)
+        self.layers.max_key().cloned().unwrap_or_default()
     }
 
     /// Merge the given set of reactions into this one.
@@ -485,7 +498,7 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     pub(super) fn merge_cows(x: ReactionPlan<'x>, y: ReactionPlan<'x>) -> ReactionPlan<'x> {
-        Self::merge_cows_after(x, y, 0)
+        Self::merge_cows_after(x, y, LayerIx(0))
     }
 
     /// todo would be nice to simplify this, it's hot
@@ -512,7 +525,7 @@ impl<'x> ExecutableReactions<'x> {
 impl Display for ExecutableReactions<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[")?;
-        for (_, layer) in self.layers.iter_from(0) {
+        for (_, layer) in self.layers.iter_from(LayerIx(0)) {
             join_to!(f, layer.iter(), ", ", "{", "} ; ")?;
         }
         write!(f, "]")

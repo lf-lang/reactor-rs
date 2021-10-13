@@ -383,12 +383,12 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
         // The maximum layer number we've seen as of now.
         // This must be increasing monotonically.
-        let mut min_layer = 0 as LayerIx;
+        let mut min_layer: LayerIx = Default::default();
 
         while let Some((layer_no, batch)) = reactions.as_ref().and_then(|todo| todo.next_batch(min_layer)) {
             debug_assert!(layer_no >= min_layer, "Reaction dependencies were not respected ({} < {})", layer_no, min_layer);
             ctx.set_cur_layer(layer_no);
-            min_layer = layer_no + 1; // the next layer to fetch
+            min_layer = layer_no.next(); // the next layer to fetch
 
             if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
                 #[cfg(feature = "parallel-runtime")]
