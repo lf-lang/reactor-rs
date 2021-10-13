@@ -1,7 +1,7 @@
-use std::cmp::Reverse;
+
 use std::collections::VecDeque;
 
-use smallvec::SmallVec;
+
 
 use super::Event;
 

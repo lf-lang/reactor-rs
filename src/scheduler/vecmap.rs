@@ -27,88 +27,51 @@ use std::fmt::{Debug, Formatter};
 /// Mostly copied from https://crates.io/crates/vec_map
 ///
 #[derive(Default)]
-pub struct VecMap<V> {
-    v: Vec<Option<V>>,
+pub struct VecMap<K, V> where K: Eq + Ord {
+    v: Vec<(K, V)>,
     /// Number of non-None values
     size: usize,
 }
 
 #[allow(unused)]
-impl<V> VecMap<V> {
+impl<K, V> VecMap<K, V> where K: Eq + Ord {
     pub fn new() -> Self {
         Self { v: Vec::new(), size: 0 }
     }
 
-    pub fn reserve_len(&mut self, len: usize) {
-        let cur_len = self.v.len();
-        if len >= cur_len {
-            self.v.reserve(len - cur_len);
+    pub fn reserve_len(&mut self, len: usize) {}
+
+    fn trim(&mut self) {}
+
+    pub fn entry(&mut self, key: K) -> Entry<K, V> {
+        match self.find_k(&key) {
+            Ok(index) => Entry::Occupied(key, &mut self.v[index].1),
+            Err(index) => Entry::Vacant(VacantEntry { map: self, index, key })
         }
     }
 
-    fn trim(&mut self) {
-        if let Some(idx) = self.v.iter().rposition(Option::is_some) {
-            self.v.truncate(idx + 1);
-        } else {
-            self.v.clear();
-        }
+    fn find_k(&self, key: &K) -> Result<usize, usize> {
+        self.v.binary_search_by_key(&key, |(k, _)| k)
     }
 
-    pub fn get(&self, key: usize) -> Option<&V> {
-        if key < self.v.len() {
-            self.v[key].as_ref()
-        } else {
-            None
-        }
+    pub fn insert_internal(&mut self, idx: usize, key: K, value: V) {
+        self.v.insert(idx, (key, value))
     }
 
-    pub fn get_mut(&mut self, key: usize) -> Option<&mut V> {
-        if key < self.v.len() {
-            self.v[key].as_mut()
-        } else {
-            None
-        }
-    }
-
-    pub fn insert(&mut self, key: usize, value: V) -> Option<V> {
-        let len = self.v.len();
-        if len <= key {
-            self.v.extend((0..key - len + 1).map(|_| None));
-        }
-        let was = std::mem::replace(&mut self.v[key], Some(value));
-        if was.is_none() {
-            self.size += 1;
-        }
-        was
-    }
-
-    pub fn remove(&mut self, key: usize) -> Option<V> {
-        if key >= self.v.len() {
-            return None;
-        }
-        let result = &mut self.v[key];
-        let was = result.take();
-        if was.is_some() {
-            self.size -= 1;
-        }
-        self.trim(); // remove trailing None
-        was
-    }
-
-    pub fn iter_from(&self, min_key: usize) -> impl Iterator<Item=(usize, &V)> + '_ {
-        self.v.iter().enumerate().skip(min_key).filter_map(|(k, v)| v.as_ref().map(|v| (k, v)))
+    pub fn iter_from(&self, min_key: K) -> impl Iterator<Item=&(K, V)> + '_ {
+        self.v.iter().skip_while(move |(k, _)| k < &min_key)
     }
 
     pub fn capacity(&self) -> usize {
         self.v.capacity()
     }
 
-    pub fn max_key(&self) -> usize {
-        self.v.len()
+    pub fn max_key(&self) -> Option<&K> {
+        self.v.last().map(|e| &e.0)
     }
 }
 
-impl<V: Clone> Clone for VecMap<V> {
+impl<K: Clone + Eq + Ord, V: Clone> Clone for VecMap<K, V> {
     fn clone(&self) -> Self {
         VecMap {
             v: self.v.clone(),
@@ -118,8 +81,35 @@ impl<V: Clone> Clone for VecMap<V> {
 }
 
 
-impl<V: Debug> Debug for VecMap<V> {
+impl<K: Ord + Eq + Debug, V: Debug> Debug for VecMap<K, V> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        self.iter_from(0).collect::<Vec<(usize, &V)>>().fmt(f)
+        self.v.iter().collect::<Vec<&(K, V)>>().fmt(f)
     }
 }
+
+
+/// A view into a single entry in a map, which may either be vacant or occupied.
+pub enum Entry<'a, K, V> where K: Ord + Eq {
+    /// A vacant Entry
+    Vacant(VacantEntry<'a, K, V>),
+
+    /// An occupied Entry
+    Occupied(K, &'a mut V),
+}
+
+/// A vacant Entry.
+pub struct VacantEntry<'a, K, V> where K: Ord + Eq {
+    map: &'a mut VecMap<K, V>,
+    key: K,
+    index: usize,
+}
+
+impl< K, V> VacantEntry<'_, K, V> where K: Ord + Eq {
+    /// Sets the value of the entry with the VacantEntry's key,
+    /// and returns a mutable reference to it.
+    pub fn insert(self, value: V) {
+        let index = self.index;
+        self.map.insert_internal(index, self.key, value)
+    }
+}
+

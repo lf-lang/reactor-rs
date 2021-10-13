@@ -26,7 +26,7 @@
 
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-use std::collections::hash_map::Entry;
+use std::collections::hash_map::Entry as HEntry;
 use std::default::Default;
 use std::fmt::{Debug, Display, Formatter};
 
@@ -35,7 +35,7 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 
 use crate::*;
-use crate::scheduler::vecmap::VecMap;
+use crate::scheduler::vecmap::{VecMap, Entry as VEntry};
 
 use super::ReactionPlan;
 
@@ -234,8 +234,8 @@ impl DepGraph {
     fn record(&mut self, id: GlobalId, kind: NodeKind) {
         let id = GraphId::Id(id);
         match self.ix_by_id.entry(id) {
-            Entry::Occupied(_) => panic!("Duplicate id {:?}", id),
-            Entry::Vacant(v) => {
+            HEntry::Occupied(_) => panic!("Duplicate id {:?}", id),
+            HEntry::Vacant(v) => {
                 let ix = self.dataflow.add_node(GraphNode { kind, id });
                 v.insert(ix);
             }
@@ -261,10 +261,10 @@ impl DepGraph {
 
                 if let GraphId::Id(id) = node.id {
                     match layer_numbers.entry(GlobalReactionId(id)) {
-                        Entry::Vacant(v) => {
+                        HEntry::Vacant(v) => {
                             v.insert(cur_layer);
                         }
-                        Entry::Occupied(mut e) => {
+                        HEntry::Occupied(mut e) => {
                             e.insert(cur_layer.max(*e.get()));
                         }
                     }
@@ -417,7 +417,7 @@ pub(in crate) struct ExecutableReactions<'x> {
     ///
     /// Note also that the last layer in the list must be
     /// non-empty by construction.
-    layers: VecMap<Cow<'x, Layer>>,
+    layers: VecMap<usize, Cow<'x, Layer>>,
 }
 
 impl<'x> ExecutableReactions<'x> {
@@ -429,7 +429,7 @@ impl<'x> ExecutableReactions<'x> {
     /// with their layer. Note that this does not mutate this collection
     /// (eg drain it), because that way we can use borrowed Cows
     /// and avoid more allocation.
-    pub fn batches(&self) -> impl Iterator<Item=(usize, &Cow<'x, Layer>)> +'_{
+    pub fn batches(&self) -> impl Iterator<Item=&(usize, Cow<'x, Layer>)> +'_{
         self.layers.iter_from(0)
     }
 
@@ -450,7 +450,7 @@ impl<'x> ExecutableReactions<'x> {
 
     /// The greatest layer with non-empty value.
     pub fn max_layer(&self) -> usize {
-        self.layers.max_key()
+        self.layers.max_key().cloned().unwrap_or(0)
     }
 
     /// Merge the given set of reactions into this one.
@@ -459,32 +459,34 @@ impl<'x> ExecutableReactions<'x> {
         let src = &src.layers;
         let dst = &mut self.layers;
 
-        if src.max_key() > dst.max_key() {
-            dst.reserve_len(src.max_key());
-        }
-
         for (i, src_layer) in src.iter_from(min_layer_inclusive) {
-            if let Some(existing) = dst.get_mut(i) {
-                if existing.is_empty() {
-                    *existing = src_layer.clone();
-                } else {
-                    // todo maybe set is not modified
-                    existing.to_mut().extend(src_layer.iter());
+            match dst.entry(*i) {
+                VEntry::Vacant(e) => {
+                    e.insert(src_layer.clone());
+                },
+                VEntry::Occupied(_, e) => {
+                    if e.is_empty() {
+                        *e = src_layer.clone();
+                    } else {
+                        // todo maybe set is not modified
+                        e.to_mut().extend(src_layer.iter());
+                    }
                 }
-            } else {
-                dst.insert(i, src_layer.clone());
             }
         }
     }
 
     /// Insert doesn't mutate the offset.
     fn insert(&mut self, reaction: GlobalReactionId, layer_ix: usize) {
-        if let Some(layer) = self.layers.get_mut(layer_ix) {
-            layer.to_mut().insert(reaction);
-        } else {
-            let mut new_layer: Layer = HashSet::with_capacity(2);
-            new_layer.insert(reaction);
-            self.layers.insert(layer_ix, Cow::Owned(new_layer));
+        match self.layers.entry(layer_ix) {
+            VEntry::Vacant(e) => {
+                let mut new_layer: Layer = HashSet::with_capacity(1);
+                new_layer.insert(reaction);
+                e.insert(Cow::Owned(new_layer));
+            }
+            VEntry::Occupied(_, e) => {
+                e.to_mut().insert(reaction);
+            },
         }
     }
 
