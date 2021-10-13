@@ -24,24 +24,19 @@
 
 use std::fmt::{Debug, Formatter};
 
-/// Mostly copied from https://crates.io/crates/vec_map
+/// A sparse map representation over a totally ordered key type.
+///
+/// Used in [crate::ExecutableReactions]
 ///
 #[derive(Default)]
 pub struct VecMap<K, V> where K: Eq + Ord {
     v: Vec<(K, V)>,
-    /// Number of non-None values
-    size: usize,
 }
 
-#[allow(unused)]
 impl<K, V> VecMap<K, V> where K: Eq + Ord {
     pub fn new() -> Self {
-        Self { v: Vec::new(), size: 0 }
+        Self { v: Vec::new(), }
     }
-
-    pub fn reserve_len(&mut self, len: usize) {}
-
-    fn trim(&mut self) {}
 
     pub fn entry(&mut self, key: K) -> Entry<K, V> {
         match self.find_k(&key) {
@@ -62,10 +57,6 @@ impl<K, V> VecMap<K, V> where K: Eq + Ord {
         self.v.iter().skip_while(move |(k, _)| k < &min_key)
     }
 
-    pub fn capacity(&self) -> usize {
-        self.v.capacity()
-    }
-
     pub fn max_key(&self) -> Option<&K> {
         self.v.last().map(|e| &e.0)
     }
@@ -73,10 +64,7 @@ impl<K, V> VecMap<K, V> where K: Eq + Ord {
 
 impl<K: Clone + Eq + Ord, V: Clone> Clone for VecMap<K, V> {
     fn clone(&self) -> Self {
-        VecMap {
-            v: self.v.clone(),
-            size: self.size,
-        }
+        VecMap { v: self.v.clone() }
     }
 }
 

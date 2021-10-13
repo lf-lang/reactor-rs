@@ -439,17 +439,7 @@ impl<'x> ExecutableReactions<'x> {
 
     #[inline]
     pub fn next_batch(&self, min_layer: LayerIx) -> Option<(LayerIx, &HashSet<GlobalReactionId>)> {
-        for (i, layer) in self.layers.iter_from(min_layer) {
-            if !layer.is_empty() {
-                return Some((*i, layer.as_ref()))
-            }
-        }
-        None
-    }
-
-
-    pub fn absorb(&mut self, src: &ExecutableReactions<'x>) {
-        self.absorb_after(src, 0)
+        self.layers.iter_from(min_layer).next().map(|(ix, cow)| (*ix, cow.as_ref()))
     }
 
     /// The greatest layer with non-empty value.
