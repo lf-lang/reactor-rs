@@ -503,6 +503,7 @@ impl<'x> ExecutableReactions<'x> {
         }
     }
 
+    /// todo would be nice to simplify this, it's hot
     pub(super) fn merge_cows_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_layer: usize) -> ReactionPlan<'x> {
         match (x, y) {
             (x, None) | (None, x) => x,

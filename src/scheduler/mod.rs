@@ -173,7 +173,6 @@ pub(self) struct Event<'x> {
 impl<'x> Event<'x> {
     pub fn absorb(&mut self, other: Event<'x>) {
         debug_assert_eq!(self.tag, other.tag);
-        // let Event { reactions, terminate } = other;
         self.reactions = ExecutableReactions::merge_cows(self.reactions.take(), other.reactions);
         self.terminate |= other.terminate;
     }
@@ -245,9 +244,9 @@ pub(crate) mod tagmap {
         where [V; N]: Array<Item=V>, V: TagIndexedData {
         queue: SmallVec<[V; N]>,
 
-        ///    .
-        ///  ...
-        /// ....
+        //    .
+        //  ...
+        // ....
 
     }
 
