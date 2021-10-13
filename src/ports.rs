@@ -144,18 +144,24 @@ impl<'a, T: Send> ReadableMultiPort<'a, T> {
 ///
 pub struct Port<T: Send> {
     id: GlobalId,
+    is_input: bool,
     bind_status: BindStatus,
     upstream_binding: Arc<AtomicRefCell<Arc<PortCell<T>>>>,
 }
 
 impl<T: Send> Port<T> {
     /// Create a new port
-    pub fn new(id: GlobalId) -> Self {
+    pub fn new(id: GlobalId, is_input: bool) -> Self {
         Self {
             id,
+            is_input,
             bind_status: BindStatus::Free,
             upstream_binding: Arc::new(AtomicRefCell::new(Default::default())),
         }
+    }
+
+    pub fn is_input(&self) -> bool {
+        self.is_input
     }
 
     #[inline]

@@ -549,6 +549,9 @@ impl Offset {
 
 
 /// Cleans up a tag
+/// TODO get rid of this!
+///  At least for multiports it's really bad
+///  Maybe we can keep a set of the ports that are present in
 #[doc(hidden)]
 pub struct CleanupCtx {
     /// Tag we're cleaning up
@@ -556,6 +559,13 @@ pub struct CleanupCtx {
 }
 
 impl CleanupCtx {
+    pub fn cleanup_multiport<T: Send>(&self, port: &mut MultiPort<T>) {
+        // todo bound ports don't need to be cleared
+        for channel in port {
+            channel.clear_value()
+        }
+    }
+
     pub fn cleanup_port<T: Send>(&self, port: &mut Port<T>) {
         port.clear_value()
     }

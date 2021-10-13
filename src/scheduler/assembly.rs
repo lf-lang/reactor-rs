@@ -88,30 +88,28 @@ impl<'x> AssemblyCtx<'x> {
         id
     }
 
-    pub fn new_port<T: Send>(&mut self, lf_name: &'static str) -> Port<T> {
-        let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
-        self.globals.graph.record_port(id);
-        Port::new(id)
+    pub fn new_port<T: Send>(&mut self, lf_name: &'static str, is_input: bool) -> Port<T> {
+         self.new_port_impl(Cow::Borrowed(lf_name), is_input)
     }
 
-    fn new_port_impl<T: Send>(&mut self, lf_name: Cow<'static, str>) -> Port<T> {
+    fn new_port_impl<T: Send>(&mut self, lf_name: Cow<'static, str>, is_input: bool) -> Port<T> {
         let id = self.next_comp_id(Some(lf_name));
         self.globals.graph.record_port(id);
-        Port::new(id)
+        Port::new(id, is_input)
     }
 
     // not sure if this will ever serve
-    pub fn new_port_bank_const<T: Send, const N: usize>(&mut self, lf_name: &'static str) -> [Port<T>; N] {
-        array![i => self.new_port_bank_component(lf_name, i); N]
+    pub fn new_port_bank_const<T: Send, const N: usize>(&mut self, lf_name: &'static str, is_input: bool) -> [Port<T>; N] {
+        array![i => self.new_port_bank_component(lf_name, is_input, i); N]
     }
 
-    pub fn new_port_bank<T: Send>(&mut self, lf_name: &'static str, len: usize) -> Vec<Port<T>> {
-        (0..len).into_iter().map(|i| self.new_port_bank_component(lf_name, i)).collect()
+    pub fn new_port_bank<T: Send>(&mut self, lf_name: &'static str, is_input: bool, len: usize) -> Vec<Port<T>> {
+        (0..len).into_iter().map(|i| self.new_port_bank_component(lf_name, is_input, i)).collect()
     }
 
-    fn new_port_bank_component<T: Send>(&mut self, lf_name: &'static str, index: usize) -> Port<T> {
+    fn new_port_bank_component<T: Send>(&mut self, lf_name: &'static str, is_input: bool, index: usize) -> Port<T> {
         let label = Cow::Owned(format!("{}[{}]", lf_name, index));
-        self.new_port_impl::<T>(label)
+        self.new_port_impl::<T>(label, is_input)
     }
 
     pub fn new_logical_action<T: Send>(&mut self,

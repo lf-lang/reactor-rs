@@ -36,7 +36,7 @@ fn new_port() -> Port<i32> {
         i
     };
 
-    Port::<i32>::new(id)
+    Port::<i32>::new(id, true)
 }
 
 #[test]
