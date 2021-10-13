@@ -100,11 +100,18 @@ impl<'x> AssemblyCtx<'x> {
         Port::new(id)
     }
 
-    pub fn new_port_bank<T: Send, const N: usize>(&mut self, lf_name: &'static str) -> [Port<T>; N] {
-        array![i => {
-            let label = Cow::Owned(format!("{}[{}]", lf_name, i));
-            self.new_port_impl::<T>(label)
-        } ; N]
+    // not sure if this will ever serve
+    pub fn new_port_bank_const<T: Send, const N: usize>(&mut self, lf_name: &'static str) -> [Port<T>; N] {
+        array![i => self.new_port_bank_component(lf_name, i); N]
+    }
+
+    pub fn new_port_bank<T: Send>(&mut self, lf_name: &'static str, len: usize) -> Vec<Port<T>> {
+        (0..len).into_iter().map(|i| self.new_port_bank_component(lf_name, i)).collect()
+    }
+
+    fn new_port_bank_component<T: Send>(&mut self, lf_name: &'static str, index: usize) -> Port<T> {
+        let label = Cow::Owned(format!("{}[{}]", lf_name, index));
+        self.new_port_impl::<T>(label)
     }
 
     pub fn new_logical_action<T: Send>(&mut self,
