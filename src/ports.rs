@@ -25,7 +25,7 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
-use std::ops::{Deref, DerefMut};
+use std::ops::{Deref, DerefMut, Index};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -78,6 +78,51 @@ impl<'a, T: Send> WritablePort<'a, T> {
     }
 }
 
+// internal type, not communicated to reactions
+pub type MultiPort<T> = Vec<Port<T>>;
+
+/// A read-only reference to a multiport.
+pub struct ReadableMultiPort<'a, T: Send>(&'a MultiPort<T>);
+
+impl<'a, T: Send> ReadableMultiPort<'a, T> {
+    #[inline(always)]
+    pub fn new(port: &'a MultiPort<T>) -> Self {
+        Self(port)
+    }
+}
+
+impl<'a, T: Send> Index<usize> for ReadableMultiPort<'a, T> {
+    type Output = ReadablePort<'a, T>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        unsafe {
+            // safety: ReadablePort has a repr(transparent)
+            std::mem::transmute(&self.0[index])
+        }
+    }
+}
+
+impl<'a, T: Send> IntoIterator for ReadableMultiPort<'a, T> {
+    type Item = ReadablePort<'a, T>;
+    type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> ReadablePort<'a, T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter().map(ReadablePort)
+    }
+}
+
+impl<'a, T: Send> ReadableMultiPort<'a, T> {
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn get(&self, index: usize) -> &ReadablePort<'a, T> {
+        unsafe {
+            // safety: ReadablePort has a repr(transparent)
+            std::mem::transmute(&self.0[index])
+        }
+    }
+}
 
 /// Represents a port, which carries values of type `T`.
 /// Ports reify the data inputs and outputs of a reactor.
