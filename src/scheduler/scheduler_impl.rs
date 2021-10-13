@@ -28,7 +28,7 @@ use crossbeam_channel::{ReconnectableReceiver, RecvTimeoutError};
 use crossbeam_utils::{thread::Scope, thread::scope};
 
 use crate::*;
-use crate::scheduler::depgraph::DataflowInfo;
+use crate::scheduler::depgraph::{DataflowInfo, LayerIx};
 
 use super::*;
 
@@ -383,7 +383,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
         // The maximum layer number we've seen as of now.
         // This must be increasing monotonically.
-        let mut min_layer = 0usize;
+        let mut min_layer = 0 as LayerIx;
 
         while let Some((layer_no, batch)) = reactions.as_ref().and_then(|todo| todo.next_batch(min_layer)) {
             debug_assert!(layer_no >= min_layer, "Reaction dependencies were not respected ({} < {})", layer_no, min_layer);

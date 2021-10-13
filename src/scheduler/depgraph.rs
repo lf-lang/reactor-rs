@@ -249,12 +249,12 @@ impl DepGraph {
 }
 
 impl DepGraph {
-    pub(in self) fn number_reactions_by_layer(&self) -> HashMap<GlobalReactionId, u32> {
+    pub(in self) fn number_reactions_by_layer(&self) -> HashMap<GlobalReactionId, LayerIx> {
         // note: this will infinitely recurse with a cyclic graph
-        let mut layer_numbers = HashMap::<GlobalReactionId, u32>::new();
+        let mut layer_numbers = HashMap::<GlobalReactionId, LayerIx>::new();
         let mut todo = self.get_roots();
         let mut todo_next = Vec::new();
-        let mut cur_layer: u32 = 0;
+        let mut cur_layer: LayerIx = 0;
         while !todo.is_empty() {
             for ix in todo.drain(..) {
                 let node = self.dataflow.node_weight(ix).unwrap();
@@ -301,13 +301,13 @@ enum EdgeWeight {
 
 struct ReactionLayerInfo {
     /// The level of each reaction.
-    layer_numbers: HashMap<GlobalReactionId, u32>,
+    layer_numbers: HashMap<GlobalReactionId, LayerIx>,
 }
 
 impl ReactionLayerInfo {
     /// Append a reaction to the given reaction collection
     fn augment(&self, collection: &mut ExecutableReactions, reaction: GlobalReactionId) {
-        let ix = self.layer_numbers.get(&reaction).copied().expect("reaction was not recorded in the graph") as usize;
+        let ix = self.layer_numbers.get(&reaction).copied().expect("reaction was not recorded in the graph");
         collection.insert(reaction, ix);
     }
 }
@@ -395,6 +395,10 @@ impl DataflowInfo {
 
 type Layer = HashSet<GlobalReactionId>;
 
+/// Type of the label of a layer. The max value is the maximum
+/// depth of the dependency graph.
+pub(crate) type LayerIx = u32;
+
 /// A set of reactions ordered by relative dependency.
 /// The key characteristic of instances is
 /// 1. they may be merged together (by a [DataflowInfo]).
@@ -417,7 +421,7 @@ pub(in crate) struct ExecutableReactions<'x> {
     ///
     /// Note also that the last layer in the list must be
     /// non-empty by construction.
-    layers: VecMap<usize, Cow<'x, Layer>>,
+    layers: VecMap<LayerIx, Cow<'x, Layer>>,
 }
 
 impl<'x> ExecutableReactions<'x> {
@@ -429,15 +433,15 @@ impl<'x> ExecutableReactions<'x> {
     /// with their layer. Note that this does not mutate this collection
     /// (eg drain it), because that way we can use borrowed Cows
     /// and avoid more allocation.
-    pub fn batches(&self) -> impl Iterator<Item=&(usize, Cow<'x, Layer>)> +'_{
+    pub fn batches(&self) -> impl Iterator<Item=&(LayerIx, Cow<'x, Layer>)> +'_{
         self.layers.iter_from(0)
     }
 
     #[inline]
-    pub fn next_batch(&self, min_layer: usize) -> Option<(usize, &HashSet<GlobalReactionId>)> {
+    pub fn next_batch(&self, min_layer: LayerIx) -> Option<(LayerIx, &HashSet<GlobalReactionId>)> {
         for (i, layer) in self.layers.iter_from(min_layer) {
             if !layer.is_empty() {
-                return Some((min_layer + i, layer.as_ref()))
+                return Some((*i, layer.as_ref()))
             }
         }
         None
@@ -449,13 +453,13 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     /// The greatest layer with non-empty value.
-    pub fn max_layer(&self) -> usize {
+    pub fn max_layer(&self) -> LayerIx {
         self.layers.max_key().cloned().unwrap_or(0)
     }
 
     /// Merge the given set of reactions into this one.
     /// Ignore layers that come strictly before first_layer, may clear them if need be.
-    pub fn absorb_after(&mut self, src: &ExecutableReactions<'x>, min_layer_inclusive: usize) {
+    pub fn absorb_after(&mut self, src: &ExecutableReactions<'x>, min_layer_inclusive: LayerIx) {
         let src = &src.layers;
         let dst = &mut self.layers;
 
@@ -477,7 +481,7 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     /// Insert doesn't mutate the offset.
-    fn insert(&mut self, reaction: GlobalReactionId, layer_ix: usize) {
+    fn insert(&mut self, reaction: GlobalReactionId, layer_ix: LayerIx) {
         match self.layers.entry(layer_ix) {
             VEntry::Vacant(e) => {
                 let mut new_layer: Layer = HashSet::with_capacity(1);
@@ -495,7 +499,7 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     /// todo would be nice to simplify this, it's hot
-    pub(super) fn merge_cows_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_layer: usize) -> ReactionPlan<'x> {
+    pub(super) fn merge_cows_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_layer: LayerIx) -> ReactionPlan<'x> {
         match (x, y) {
             (x, None) | (None, x) => x,
             (Some(x), y) | (y, Some(x)) if x.max_layer() < min_layer  => y,

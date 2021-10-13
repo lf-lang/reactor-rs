@@ -5,7 +5,7 @@ use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
 
 use crate::*;
-use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions};
+use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions, LayerIx};
 
 use super::*;
 
@@ -26,7 +26,7 @@ pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
     tag: EventTag,
 
     /// Layer of the reaction being executed.
-    cur_layer: usize,
+    cur_layer: LayerIx,
 
     /// Sender to schedule events that should be executed later than this wave.
     rx: &'a ReconnectableReceiver<Event<'x>>,
@@ -377,7 +377,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         }
     }
 
-    pub(super) fn set_cur_layer(&mut self, cur_layer: usize) {
+    pub(super) fn set_cur_layer(&mut self, cur_layer: LayerIx) {
         self.cur_layer = cur_layer;
     }
 
