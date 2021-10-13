@@ -24,6 +24,7 @@
 
 
 
+use std::borrow::Cow;
 use crate::*;
 use crate::scheduler::depgraph::DepGraph;
 
@@ -88,15 +89,28 @@ impl<'x> AssemblyCtx<'x> {
     }
 
     pub fn new_port<T: Send>(&mut self, lf_name: &'static str) -> Port<T> {
+        let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
+        self.globals.graph.record_port(id);
+        Port::new(id)
+    }
+
+    fn new_port_impl<T: Send>(&mut self, lf_name: Cow<'static, str>) -> Port<T> {
         let id = self.next_comp_id(Some(lf_name));
         self.globals.graph.record_port(id);
         Port::new(id)
     }
 
+    pub fn new_port_bank<T: Send, const N: usize>(&mut self, lf_name: &'static str) -> [Port<T>; N] {
+        array![i => {
+            let label = Cow::Owned(format!("{}[{}]", lf_name, i));
+            self.new_port_impl::<T>(label)
+        } ; N]
+    }
+
     pub fn new_logical_action<T: Send>(&mut self,
                                        lf_name: &'static str,
                                        min_delay: Option<Duration>) -> LogicalAction<T> {
-        let id = self.next_comp_id(Some(lf_name));
+        let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
         self.globals.graph.record_laction(id);
         LogicalAction::new(id, min_delay)
     }
@@ -104,13 +118,13 @@ impl<'x> AssemblyCtx<'x> {
     pub fn new_physical_action<T: Send>(&mut self,
                                         lf_name: &'static str,
                                         min_delay: Option<Duration>) -> PhysicalActionRef<T> {
-        let id = self.next_comp_id(Some(lf_name));
+        let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
         self.globals.graph.record_paction(id);
         PhysicalActionRef::new(id, min_delay)
     }
 
     pub fn new_timer(&mut self, lf_name: &'static str, offset: Duration, period: Duration) -> Timer {
-        let id = self.next_comp_id(Some(lf_name));
+        let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
         self.globals.graph.record_timer(id);
         Timer::new(id, offset, period)
     }
@@ -131,7 +145,7 @@ impl<'x> AssemblyCtx<'x> {
         let mut prev: Option<GlobalReactionId> = None;
         for (i, r) in result.iter().cloned().enumerate() {
             if let Some(label) = names[i] {
-                self.globals.id_registry.record(r.0, label)
+                self.globals.id_registry.record(r.0, Cow::Borrowed(label))
             }
             self.globals.graph.record_reaction(r);
             if i < num_non_synthetic {
@@ -183,7 +197,7 @@ impl<'x> AssemblyCtx<'x> {
     /// ### Panics
     ///
     /// See [get_id].
-    fn next_comp_id(&mut self, debug_name: Option<&'static str>) -> GlobalId {
+    fn next_comp_id(&mut self, debug_name: Option<Cow<'static, str>>) -> GlobalId {
         let id = GlobalId::new(self.get_id(), self.cur_local);
         if let Some(label) = debug_name {
             self.globals.id_registry.record(id, label);

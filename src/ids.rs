@@ -24,6 +24,7 @@
 
 
 use core::any::type_name;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter, Result, Write};
 
@@ -207,13 +208,13 @@ impl Display for ReactorDebugInfo {
 /// Stores a mapping from global Id to debug label
 #[derive(Default)]
 pub(in crate) struct IdRegistry {
-    debug_ids: HashMap<GlobalId, &'static str>,
+    debug_ids: HashMap<GlobalId, Cow<'static, str>>,
     reactor_infos: IndexVec<ReactorId, ReactorDebugInfo>,
 }
 
 impl IdRegistry {
-    pub fn get_debug_label(&self, id: GlobalId) -> Option<&'static str> {
-        self.debug_ids.get(&id).map(|it| *it)
+    pub fn get_debug_label(&self, id: GlobalId) -> Option<&str> {
+        self.debug_ids.get(&id).map(Cow::as_ref)
     }
 
     pub fn get_debug_info(&self, id: ReactorId) -> &ReactorDebugInfo {
@@ -243,7 +244,7 @@ impl IdRegistry {
         str
     }
 
-    pub(in super) fn record(&mut self, id: GlobalId, name: &'static str) {
+    pub(in super) fn record(&mut self, id: GlobalId, name: Cow<'static, str>) {
         let existing = self.debug_ids.insert(id, name);
         debug_assert!(existing.is_none())
     }
