@@ -26,8 +26,17 @@ jobs:
       run: cargo test --verbose
     - name: Run benchmark tests
       run: cargo test --benches --verbose
+
+    # documentation
     - name: Build documentation
-      run: cargo doc --verbose
+      run: cargo doc --verbose --frozen --no-deps
+    - name: Patch documentation
+      # cargo doc does not generate a top-level index,
+      # create a redirect to our own crate doc
+      run: |
+        cat << EOF > target/doc/index.html
+        <meta http-equiv="refresh" content="0; url=https://lf-lang.github.io/reactor-rust/reactor_rt/index.html" />
+        EOF
     - name: Publish documentation
       uses: peaceiris/actions-gh-pages@v3.7.3
       with:
