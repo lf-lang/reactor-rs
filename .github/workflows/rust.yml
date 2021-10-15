@@ -30,11 +30,13 @@ jobs:
     - name: Build documentation
       run: cargo doc --frozen --no-deps
     - name: Patch documentation
+      run: mv target/doc/reactor_rt target/doc/docs
+    - name: Create documentation index
       # cargo doc does not generate a top-level index,
       # create a redirect to our own crate doc
       run: |
         cat << EOF > target/doc/index.html
-        <meta http-equiv="refresh" content="0; url=https://lf-lang.github.io/reactor-rust/reactor_rt/index.html" />
+        <meta http-equiv="refresh" content="0; url=./docs/index.html" />
         EOF
     - name: Publish documentation
       uses: peaceiris/actions-gh-pages@v3.7.3
