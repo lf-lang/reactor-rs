@@ -571,13 +571,6 @@
 <span id="571">571</span>
 <span id="572">572</span>
 <span id="573">573</span>
-<span id="574">574</span>
-<span id="575">575</span>
-<span id="576">576</span>
-<span id="577">577</span>
-<span id="578">578</span>
-<span id="579">579</span>
-<span id="580">580</span>
 </pre><pre class="rust">
 <span class="kw">use</span> <span class="ident">std::borrow</span>::{<span class="ident">Borrow</span>, <span class="ident">BorrowMut</span>};
 
@@ -779,18 +772,11 @@
     <span class="doccomment">/// ```</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">schedule_with_v</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LogicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">value</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">offset</span>: <span class="ident">Offset</span>) {
-        <span class="self">self</span>.<span class="ident">schedule_impl</span>(<span class="ident">action</span>, <span class="ident">value</span>, <span class="ident">offset</span>);
-    }
-
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">schedule_impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LogicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">value</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">offset</span>: <span class="ident">Offset</span>) {
-        <span class="kw">let</span> <span class="ident">eta</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">make_successor_tag</span>(<span class="ident">action</span>.<span class="ident">min_delay</span> <span class="op">+</span> <span class="ident">offset</span>.<span class="ident">to_duration</span>());
-        <span class="ident">action</span>.<span class="ident">schedule_future_value</span>(<span class="ident">eta</span>, <span class="ident">value</span>);
+        <span class="kw">let</span> <span class="ident">eta</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">make_successor_tag</span>(<span class="ident">action</span>.<span class="number">0</span>.<span class="ident">min_delay</span> <span class="op">+</span> <span class="ident">offset</span>.<span class="ident">to_duration</span>());
+        <span class="ident">action</span>.<span class="number">0</span>.<span class="ident">schedule_future_value</span>(<span class="ident">eta</span>, <span class="ident">value</span>);
         <span class="kw">let</span> <span class="ident">downstream</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="ident">action</span>.<span class="ident">get_id</span>());
         <span class="self">self</span>.<span class="ident">enqueue_later</span>(<span class="ident">downstream</span>, <span class="ident">eta</span>);
     }
-
-
 
     <span class="doccomment">/// Add new reactions to execute later (at least 1 microstep later).</span>
     <span class="doccomment">///</span>
@@ -1073,13 +1059,13 @@
         <span class="comment">// this event is scheduled for the future</span>
         <span class="ident">action</span>.<span class="ident">use_mut</span>(<span class="op">|</span><span class="ident">action</span><span class="op">|</span> {
             <span class="kw">let</span> <span class="ident">tag</span> <span class="op">=</span> <span class="ident">EventTag::absolute</span>(<span class="self">self</span>.<span class="ident">initial_time</span>, <span class="ident">Instant::now</span>() <span class="op">+</span> <span class="ident">offset</span>.<span class="ident">to_duration</span>());
-            <span class="ident">action</span>.<span class="ident">schedule_future_value</span>(<span class="ident">tag</span>, <span class="ident">value</span>);
+            <span class="ident">action</span>.<span class="number">0</span>.<span class="ident">schedule_future_value</span>(<span class="ident">tag</span>, <span class="ident">value</span>);
 
             <span class="kw">let</span> <span class="ident">downstream</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="ident">action</span>.<span class="ident">get_id</span>());
             <span class="kw">let</span> <span class="ident">evt</span> <span class="op">=</span> <span class="ident">Event::execute</span>(<span class="ident">tag</span>, <span class="ident">Cow::Borrowed</span>(<span class="ident">downstream</span>));
             <span class="self">self</span>.<span class="ident">tx</span>.<span class="ident">send</span>(<span class="ident">evt</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> {
                 <span class="macro">warn!</span>(<span class="string">&quot;Event could not be sent! {:?}&quot;</span>, <span class="ident">e</span>);
-                <span class="ident">SendError</span>(<span class="ident">action</span>.<span class="ident">forget_value</span>(<span class="kw-2">&amp;</span><span class="ident">tag</span>))
+                <span class="ident">SendError</span>(<span class="ident">action</span>.<span class="number">0</span>.<span class="ident">forget_value</span>(<span class="kw-2">&amp;</span><span class="ident">tag</span>))
             })
         })
     }
@@ -1152,11 +1138,11 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_logical_action</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LogicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
-        <span class="ident">action</span>.<span class="ident">forget_value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">tag</span>);
+        <span class="ident">action</span>.<span class="number">0</span>.<span class="ident">forget_value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">tag</span>);
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_physical_action</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PhysicalActionRef</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
-        <span class="ident">action</span>.<span class="ident">use_mut</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="ident">forget_value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">tag</span>));
+        <span class="ident">action</span>.<span class="ident">use_mut</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="number">0</span>.<span class="ident">forget_value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">tag</span>));
     }
 }
 </pre></div>

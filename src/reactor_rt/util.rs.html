@@ -384,9 +384,9 @@
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span>:<span class="ident">ident</span>) <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">compile_error!</span>(<span class="macro">concat!</span>(<span class="string">&quot;Unknown time unit `&quot;</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span>), <span class="string">&quot;`&quot;</span>)) };
 }
 
-<span class="doccomment">/// Convenient macro to wrap [assert_tag_is](crate::ReactionCtx::assert_tag_is).</span>
-<span class="doccomment">/// This is just a shorthand for using that method together with</span>
-<span class="doccomment">/// the syntax of [delay].</span>
+<span class="doccomment">/// Convenient macro to assert equality of the current tag.</span>
+<span class="doccomment">/// This is just shorthand for using `assert_eq!` with the</span>
+<span class="doccomment">/// syntax of [tag].</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// ```no_run</span>
 <span class="doccomment">/// # use reactor_rt::{assert_tag_is, delay, ReactionCtx};</span>
@@ -415,7 +415,7 @@
     };
 }
 
-<span class="doccomment">/// Convenient macro to [create a tag](crate::EventTag::new).</span>
+<span class="doccomment">/// Convenient macro to [create a tag](crate::EventTag).</span>
 <span class="doccomment">/// This is just a shorthand for using the constructor together</span>
 <span class="doccomment">/// with the syntax of [delay].</span>
 <span class="doccomment">///</span>
