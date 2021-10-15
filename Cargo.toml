@@ -31,6 +31,7 @@ regex = { version = "1" }
 graph-dump=["regex"]
 test-utils=[]
 parallel-runtime=["rayon"]
+no-unsafe=[]
 
 [[bench]]
 name = "savina_pong"
