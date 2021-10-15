@@ -27,6 +27,7 @@ use core::any::type_name;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter, Result, Write};
+use std::hash::{Hash, Hasher};
 
 use index_vec::IndexVec;
 
@@ -101,11 +102,25 @@ global_id_newtype! {
     GlobalReactionId
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum TriggerId {
     Startup,
     Shutdown,
-    Component(GlobalId)
+    Component(GlobalId),
+}
+
+
+impl Hash for TriggerId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // this hash function is very hot (because of get_reactions_trigerred_by)
+        // so we give it an implementation that's basically free.
+        let h: u32 = match *self {
+            // we don't care about collisions, esp bc they occur once per app
+            TriggerId::Startup | TriggerId::Shutdown => u32::MAX,
+            TriggerId::Component(GlobalId { _raw }) => _raw
+        };
+        state.write_u32(h)
+    }
 }
 //
 // global_id_newtype! {
@@ -116,7 +131,7 @@ pub enum TriggerId {
 
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
-#[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Copy, Clone)]
+#[derive(Eq, Ord, PartialOrd, PartialEq, Copy, Clone)]
 pub struct GlobalId {
     _raw: GlobalIdImpl,
 }
@@ -146,6 +161,12 @@ impl GlobalId {
 
     pub(in crate) const fn local(&self) -> LocalReactionId {
         LocalReactionId::new_const((self._raw & 0xffff) as u16)
+    }
+}
+
+impl Hash for GlobalId {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        state.write_u32(self._raw)
     }
 }
 
