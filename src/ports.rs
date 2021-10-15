@@ -26,7 +26,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut, Index};
-use std::sync::Arc;
+use std::rc::Rc;
 use std::time::Instant;
 
 use atomic_refcell::{AtomicRef, AtomicRefCell};
@@ -35,16 +35,16 @@ use crate::{AssemblyError, EventTag, GlobalId, PortId, ReactionTrigger, TriggerI
 
 /// A read-only reference to a port.
 #[repr(transparent)]
-pub struct ReadablePort<'a, T: Send>(&'a Port<T>);
+pub struct ReadablePort<'a, T: Sync>(&'a Port<T>);
 
-impl<'a, T: Send> ReadablePort<'a, T> {
+impl<'a, T: Sync> ReadablePort<'a, T> {
     #[inline(always)]
     pub fn new(port: &'a Port<T>) -> Self {
         Self(port)
     }
 }
 
-impl<T: Send> ReactionTrigger<T> for ReadablePort<'_, T> {
+impl<T: Sync> ReactionTrigger<T> for ReadablePort<'_, T> {
     #[inline]
     fn get_value(&self, _now: &EventTag, _start: &Instant) -> Option<T> where T: Copy {
         self.0.get()
@@ -57,11 +57,11 @@ impl<T: Send> ReactionTrigger<T> for ReadablePort<'_, T> {
 }
 
 /// A write-only reference to a port.
-pub struct WritablePort<'a, T: Send> {
+pub struct WritablePort<'a, T: Sync> {
     port: &'a mut Port<T>,
 }
 
-impl<'a, T: Send> WritablePort<'a, T> {
+impl<'a, T: Sync> WritablePort<'a, T> {
     pub fn new(port: &'a mut Port<T>) -> Self {
         Self { port }
     }
@@ -82,16 +82,16 @@ impl<'a, T: Send> WritablePort<'a, T> {
 pub type MultiPort<T> = Vec<Port<T>>;
 
 /// A read-only reference to a multiport.
-pub struct ReadableMultiPort<'a, T: Send>(&'a MultiPort<T>);
+pub struct ReadableMultiPort<'a, T: Sync>(&'a MultiPort<T>);
 
-impl<'a, T: Send> ReadableMultiPort<'a, T> {
+impl<'a, T: Sync> ReadableMultiPort<'a, T> {
     #[inline(always)]
     pub fn new(port: &'a MultiPort<T>) -> Self {
         Self(port)
     }
 }
 
-impl<'a, T: Send> Index<usize> for ReadableMultiPort<'a, T> {
+impl<'a, T: Sync> Index<usize> for ReadableMultiPort<'a, T> {
     type Output = ReadablePort<'a, T>;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -102,7 +102,7 @@ impl<'a, T: Send> Index<usize> for ReadableMultiPort<'a, T> {
     }
 }
 
-impl<'a, T: Send> IntoIterator for ReadableMultiPort<'a, T> {
+impl<'a, T: Sync> IntoIterator for ReadableMultiPort<'a, T> {
     type Item = ReadablePort<'a, T>;
     type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> ReadablePort<'a, T>>;
 
@@ -111,7 +111,7 @@ impl<'a, T: Send> IntoIterator for ReadableMultiPort<'a, T> {
     }
 }
 
-impl<'a, T: Send> ReadableMultiPort<'a, T> {
+impl<'a, T: Sync> ReadableMultiPort<'a, T> {
     pub fn len(&self) -> usize {
         self.0.len()
     }
@@ -142,21 +142,21 @@ impl<'a, T: Send> ReadableMultiPort<'a, T> {
 /// runtime checks.
 ///
 ///
-pub struct Port<T: Send> {
+pub struct Port<T: Sync> {
     id: GlobalId,
     is_input: bool,
     bind_status: BindStatus,
-    upstream_binding: Arc<AtomicRefCell<Arc<PortCell<T>>>>,
+    upstream_binding: Rc<AtomicRefCell<Rc<PortCell<T>>>>,
 }
 
-impl<T: Send> Port<T> {
+impl<T: Sync> Port<T> {
     /// Create a new port
     pub fn new(id: GlobalId, is_input: bool) -> Self {
         Self {
             id,
             is_input,
             bind_status: BindStatus::Free,
-            upstream_binding: Arc::new(AtomicRefCell::new(Default::default())),
+            upstream_binding: Rc::new(AtomicRefCell::new(Default::default())),
         }
     }
 
@@ -171,9 +171,9 @@ impl<T: Send> Port<T> {
 
     #[inline]
     pub(in crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
-        let cell_ref: AtomicRef<Arc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
-        let binding: &Arc<PortCell<T>> = cell_ref.deref();
-        let class_cell: &PortCell<T> = Arc::borrow(binding);
+        let cell_ref: AtomicRef<Rc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
+        let binding: &Rc<PortCell<T>> = cell_ref.deref();
+        let class_cell: &PortCell<T> = Rc::borrow(binding);
         let cell_borrow: &AtomicRef<Option<T>> = &class_cell.cell.borrow();
 
         f(cell_borrow.deref())
@@ -186,8 +186,8 @@ impl<T: Send> Port<T> {
     pub(in crate) fn set_impl(&mut self, new_value: Option<T>) {
         debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port ({})", self.id);
 
-        let cell_ref: AtomicRef<Arc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
-        let class_cell: &PortCell<T> = Arc::borrow(cell_ref.deref());
+        let cell_ref: AtomicRef<Rc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
+        let class_cell: &PortCell<T> = Rc::borrow(cell_ref.deref());
 
         *class_cell.cell.borrow_mut() = new_value;
     }
@@ -215,10 +215,10 @@ impl<T: Send> Port<T> {
 
         my_class.downstreams.borrow_mut().insert(
             downstream.id.clone(),
-            Arc::clone(&downstream.upstream_binding),
+            Rc::clone(&downstream.upstream_binding),
         );
 
-        let new_binding = Arc::clone(&my_class);
+        let new_binding = Rc::clone(&my_class);
 
         mut_downstream_cell.check_cycle(&self.id, &downstream.id)?;
 
@@ -229,13 +229,13 @@ impl<T: Send> Port<T> {
 }
 
 
-impl<T: Send> Debug for Port<T> {
+impl<T: Sync> Debug for Port<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.id)
     }
 }
 
-impl<T: Send> TriggerLike for Port<T> {
+impl<T: Sync> TriggerLike for Port<T> {
     fn get_id(&self) -> TriggerId {
         TriggerId::Component(self.id)
     }
@@ -248,7 +248,7 @@ impl<T: Send> TriggerLike for Port<T> {
 ///
 /// If the downstream port was already bound to some other port.
 ///
-pub(in crate) fn bind_ports<T: Send>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), AssemblyError> {
+pub(in crate) fn bind_ports<T: Sync>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), AssemblyError> {
     up.forward_to(down)
 }
 
@@ -270,7 +270,7 @@ enum BindStatus {
 
 
 /// This is the internal cell type that is shared by ports.
-struct PortCell<T: Send> {
+struct PortCell<T: Sync> {
     /// Cell for the value.
     cell: AtomicRefCell<Option<T>>,
 
@@ -290,10 +290,10 @@ struct PortCell<T: Send> {
     /// - so all three refer to the equiv class of A, whose downstream is now {B, C}
     /// - if you then try binding C -> A, then we can know
     /// that C is in the downstream of A, indicating that there is a cycle.
-    downstreams: AtomicRefCell<HashMap<PortId, Arc<AtomicRefCell<Arc<PortCell<T>>>>>>,
+    downstreams: AtomicRefCell<HashMap<PortId, Rc<AtomicRefCell<Rc<PortCell<T>>>>>>,
 }
 
-impl<T: Send> PortCell<T> {
+impl<T: Sync> PortCell<T> {
     fn check_cycle(&self, upstream_id: &PortId, downstream_id: &PortId) -> Result<(), AssemblyError> {
         if (&*self.downstreams.borrow()).contains_key(upstream_id) {
             Err(AssemblyError::CyclicDependency(*upstream_id, *downstream_id))
@@ -303,15 +303,15 @@ impl<T: Send> PortCell<T> {
     }
 
     /// This updates all downstreams to point to the given equiv class instead of `self`
-    fn set_upstream(&self, new_binding: &Arc<PortCell<T>>) {
+    fn set_upstream(&self, new_binding: &Rc<PortCell<T>>) {
         for (_, cell_rc) in &*self.downstreams.borrow() {
             let mut ref_mut = cell_rc.borrow_mut();
-            *ref_mut.deref_mut() = Arc::clone(new_binding);
+            *ref_mut.deref_mut() = Rc::clone(new_binding);
         }
     }
 }
 
-impl<T: Send> Default for PortCell<T> {
+impl<T: Sync> Default for PortCell<T> {
     fn default() -> Self {
         PortCell {
             cell: Default::default(),

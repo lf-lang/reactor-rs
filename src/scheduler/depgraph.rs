@@ -191,7 +191,7 @@ impl DepGraph {
         );
     }
 
-    pub fn port_bind<T: Send>(&mut self, p1: &Port<T>, p2: &Port<T>) {
+    pub fn port_bind<T: Sync>(&mut self, p1: &Port<T>, p2: &Port<T>) {
         // upstream (settable) -> downstream (bound)
         self.dataflow.add_edge(
             self.get_ix(p1.get_id().into()),

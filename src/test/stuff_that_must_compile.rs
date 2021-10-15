@@ -66,22 +66,22 @@ fn physical_spawn_elided(ctx: &mut ReactionCtx, mut action: PhysicalActionRef<u3
     });
 }
 
-fn port_is_send(ctx: &mut AssemblyCtx, port: Port<u32>) {
-    struct FooReactor {
-        port: Port<u32>,
-    }
-    let foo: &dyn Send = &FooReactor { port };
-}
+// fn port_is_send(ctx: &mut AssemblyCtx, port: Port<u32>) {
+//     struct FooReactor {
+//         port: Port<u32>,
+//     }
+//     let foo: &dyn Sync = &FooReactor { port };
+// }
 
 fn physical_action_ref_is_send(ctx: &mut AssemblyCtx, port: PhysicalActionRef<u32>) {
     let foo: &dyn Send = &port;
 }
 
-fn action_is_send<K: Send>(ctx: &mut AssemblyCtx, action: LogicalAction<K>) {
-    struct FooReactor<K: Send> {
+fn action_is_send<K: Sync>(ctx: &mut AssemblyCtx, action: LogicalAction<K>) {
+    struct FooReactor<K: Sync> {
         action: LogicalAction<K>,
     }
-    let foo: &dyn Send = &FooReactor { action };
+    let foo: &dyn Sync = &FooReactor { action };
 }
 
 fn cleanup(

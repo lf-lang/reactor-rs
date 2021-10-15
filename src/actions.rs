@@ -36,17 +36,17 @@ use crate::TriggerLike;
 
 
 /// A logical action.
-pub struct LogicalAction<T: Send>(pub(crate) Action<Logical, T>);
+pub struct LogicalAction<T: Sync>(pub(crate) Action<Logical, T>);
 
 /// A physical action. Physical actions may only be used with
 /// the API of [PhysicalSchedulerLink](crate::PhysicalSchedulerLink).
 /// See [ReactionCtx::spawn_physical_thread](crate::ReactionCtx::spawn_physical_thread).
-pub struct PhysicalAction<T: Send>(pub(crate) Action<Physical, T>);
+pub struct PhysicalAction<T: Sync>(pub(crate) Action<Physical, T>);
 
 pub(crate) struct Logical;
 pub(crate) struct Physical;
 
-pub(crate) struct Action<Kind, T: Send> {
+pub(crate) struct Action<Kind, T: Sync> {
     pub(crate) min_delay: Duration,
     id: GlobalId,
     // is_logical: bool,
@@ -59,7 +59,7 @@ pub(crate) struct Action<Kind, T: Send> {
     map: TagIndexedMap<(EventTag, Option<T>), 1>,
 }
 
-impl<K, T: Send> Action<K, T> {
+impl<K, T: Sync> Action<K, T> {
     /// Record a future value that can be queried at a future logical time.
     /// Note that we don't check that the given time is in the future. If it's
     /// in the past, the value will never be reclaimed.
@@ -88,7 +88,7 @@ impl<K, T: Send> Action<K, T> {
     }
 }
 
-impl<T: Send, K> ReactionTrigger<T> for Action<K, T> {
+impl<T: Sync, K> ReactionTrigger<T> for Action<K, T> {
     #[inline]
     fn is_present(&self, now: &EventTag, _start: &Instant) -> bool {
         self.map.get(now).is_some()
@@ -107,7 +107,7 @@ impl<T: Send, K> ReactionTrigger<T> for Action<K, T> {
     }
 }
 
-impl<T: Send> ReactionTrigger<T> for LogicalAction<T> {
+impl<T: Sync> ReactionTrigger<T> for LogicalAction<T> {
     #[inline]
     fn is_present(&self, now: &EventTag, start: &Instant) -> bool {
         self.0.is_present(now, start)
@@ -125,25 +125,25 @@ impl<T: Send> ReactionTrigger<T> for LogicalAction<T> {
 }
 
 
-impl<T: Send> LogicalAction<T> {
+impl<T: Sync> LogicalAction<T> {
     pub(crate) fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
         Self(Action::new_impl(id, min_delay, true))
     }
 }
 
-impl<T: Send> PhysicalAction<T> {
+impl<T: Sync> PhysicalAction<T> {
     fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
         Self(Action::new_impl(id, min_delay, false))
     }
 }
 
-impl<T: Send> TriggerLike for PhysicalAction<T> {
+impl<T: Sync> TriggerLike for PhysicalAction<T> {
     fn get_id(&self) -> TriggerId {
         TriggerId::Component(self.0.id)
     }
 }
 
-impl<T: Send> TriggerLike for LogicalAction<T> {
+impl<T: Sync> TriggerLike for LogicalAction<T> {
     fn get_id(&self) -> TriggerId {
         TriggerId::Component(self.0.id)
     }
@@ -206,9 +206,9 @@ mod test {
 ///
 /// See [crate::ReactionCtx::spawn_physical_thread].
 #[derive(Clone)]
-pub struct PhysicalActionRef<T: Send>(Arc<AtomicRefCell<PhysicalAction<T>>>);
+pub struct PhysicalActionRef<T: Sync>(Arc<AtomicRefCell<PhysicalAction<T>>>);
 
-impl<T: Send> PhysicalActionRef<T> {
+impl<T: Sync> PhysicalActionRef<T> {
     pub(crate) fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
         Self(Arc::new(AtomicRefCell::new(PhysicalAction::new(id, min_delay))))
     }
@@ -226,13 +226,13 @@ impl<T: Send> PhysicalActionRef<T> {
     }
 }
 
-impl<T: Send> TriggerLike for PhysicalActionRef<T> {
+impl<T: Sync> TriggerLike for PhysicalActionRef<T> {
     fn get_id(&self) -> TriggerId {
         self.use_value(|a| a.get_id())
     }
 }
 
-impl<T: Send> ReactionTrigger<T> for PhysicalActionRef<T> {
+impl<T: Sync> ReactionTrigger<T> for PhysicalActionRef<T> {
     fn is_present(&self, now: &EventTag, start: &Instant) -> bool {
         self.use_value(|a| a.0.is_present(now, start))
     }

@@ -88,31 +88,31 @@ impl<'x> AssemblyCtx<'x> {
         id
     }
 
-    pub fn new_port<T: Send>(&mut self, lf_name: &'static str, is_input: bool) -> Port<T> {
+    pub fn new_port<T: Sync>(&mut self, lf_name: &'static str, is_input: bool) -> Port<T> {
          self.new_port_impl(Cow::Borrowed(lf_name), is_input)
     }
 
-    fn new_port_impl<T: Send>(&mut self, lf_name: Cow<'static, str>, is_input: bool) -> Port<T> {
+    fn new_port_impl<T: Sync>(&mut self, lf_name: Cow<'static, str>, is_input: bool) -> Port<T> {
         let id = self.next_comp_id(Some(lf_name));
         self.globals.graph.record_port(id);
         Port::new(id, is_input)
     }
 
     // not sure if this will ever serve
-    pub fn new_port_bank_const<T: Send, const N: usize>(&mut self, lf_name: &'static str, is_input: bool) -> [Port<T>; N] {
+    pub fn new_port_bank_const<T: Sync, const N: usize>(&mut self, lf_name: &'static str, is_input: bool) -> [Port<T>; N] {
         array![i => self.new_port_bank_component(lf_name, is_input, i); N]
     }
 
-    pub fn new_port_bank<T: Send>(&mut self, lf_name: &'static str, is_input: bool, len: usize) -> Vec<Port<T>> {
+    pub fn new_port_bank<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, len: usize) -> Vec<Port<T>> {
         (0..len).into_iter().map(|i| self.new_port_bank_component(lf_name, is_input, i)).collect()
     }
 
-    fn new_port_bank_component<T: Send>(&mut self, lf_name: &'static str, is_input: bool, index: usize) -> Port<T> {
+    fn new_port_bank_component<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, index: usize) -> Port<T> {
         let label = Cow::Owned(format!("{}[{}]", lf_name, index));
         self.new_port_impl::<T>(label, is_input)
     }
 
-    pub fn new_logical_action<T: Send>(&mut self,
+    pub fn new_logical_action<T: Sync>(&mut self,
                                        lf_name: &'static str,
                                        min_delay: Option<Duration>) -> LogicalAction<T> {
         let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
@@ -120,7 +120,7 @@ impl<'x> AssemblyCtx<'x> {
         LogicalAction::new(id, min_delay)
     }
 
-    pub fn new_physical_action<T: Send>(&mut self,
+    pub fn new_physical_action<T: Sync>(&mut self,
                                         lf_name: &'static str,
                                         min_delay: Option<Duration>) -> PhysicalActionRef<T> {
         let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
@@ -174,7 +174,7 @@ impl<'x> AssemblyCtx<'x> {
         Ok(())
     }
 
-    pub fn effects_port<T: Send>(&mut self, reaction: GlobalReactionId, port: &Port<T>) -> Result<(), AssemblyError> {
+    pub fn effects_port<T: Sync>(&mut self, reaction: GlobalReactionId, port: &Port<T>) -> Result<(), AssemblyError> {
         self.effects_instantaneous(reaction, port.get_id())
     }
 
@@ -190,7 +190,7 @@ impl<'x> AssemblyCtx<'x> {
         Ok(())
     }
 
-    pub fn bind_ports<T: Send>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
+    pub fn bind_ports<T: Sync>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
         crate::bind_ports(upstream, downstream)?;
         self.globals.graph.port_bind(upstream, downstream);
         Ok(())

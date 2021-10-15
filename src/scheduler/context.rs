@@ -133,7 +133,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// same logical time.
     #[inline]
     pub fn set<'b, T, W>(&mut self, mut port: W, value: T)
-        where T: Send + 'b,
+        where T: Sync + 'b,
               W: BorrowMut<WritablePort<'b, T>> {
         let port = port.borrow_mut();
         port.set_impl(value);
@@ -167,7 +167,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ctx.schedule(action, After(Duration::from_millis(2))); // equivalent to the previous
     /// ```
     #[inline]
-    pub fn schedule<T: Send>(&mut self, action: &mut LogicalAction<T>, offset: Offset) {
+    pub fn schedule<T: Sync>(&mut self, action: &mut LogicalAction<T>, offset: Offset) {
         self.schedule_with_v(action, None, offset)
     }
 
@@ -197,7 +197,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ctx.schedule(action, Asap);
     /// ```
     #[inline]
-    pub fn schedule_with_v<T: Send>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
+    pub fn schedule_with_v<T: Sync>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
         let eta = self.make_successor_tag(action.0.min_delay + offset.to_duration());
         action.0.schedule_future_value(eta, value);
         let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
@@ -465,7 +465,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     ///
     /// This may fail if this is called while the scheduler has already
     /// been shutdown. todo prevent this
-    pub fn schedule_physical<T: Send>(&mut self, action: &PhysicalActionRef<T>, offset: Offset) -> Result<(), SendError<Option<T>>> {
+    pub fn schedule_physical<T: Sync>(&mut self, action: &PhysicalActionRef<T>, offset: Offset) -> Result<(), SendError<Option<T>>> {
         self.schedule_physical_with_v(action, None, offset)
     }
 
@@ -475,7 +475,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     ///
     /// This may fail if this is called while the scheduler has already
     /// been shutdown. todo prevent this
-    pub fn schedule_physical_with_v<T: Send>(
+    pub fn schedule_physical_with_v<T: Sync>(
         &mut self,
         action: &PhysicalActionRef<T>,
         value: Option<T>,
@@ -552,22 +552,22 @@ pub struct CleanupCtx {
 }
 
 impl CleanupCtx {
-    pub fn cleanup_multiport<T: Send>(&self, port: &mut MultiPort<T>) {
+    pub fn cleanup_multiport<T: Sync>(&self, port: &mut MultiPort<T>) {
         // todo bound ports don't need to be cleared
         for channel in port {
             channel.clear_value()
         }
     }
 
-    pub fn cleanup_port<T: Send>(&self, port: &mut Port<T>) {
+    pub fn cleanup_port<T: Sync>(&self, port: &mut Port<T>) {
         port.clear_value()
     }
 
-    pub fn cleanup_logical_action<T: Send>(&self, action: &mut LogicalAction<T>) {
+    pub fn cleanup_logical_action<T: Sync>(&self, action: &mut LogicalAction<T>) {
         action.0.forget_value(&self.tag);
     }
 
-    pub fn cleanup_physical_action<T: Send>(&self, action: &mut PhysicalActionRef<T>) {
+    pub fn cleanup_physical_action<T: Sync>(&self, action: &mut PhysicalActionRef<T>) {
         action.use_mut(|a| a.0.forget_value(&self.tag));
     }
 }
