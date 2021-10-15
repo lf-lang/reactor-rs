@@ -21,15 +21,14 @@ jobs:
         profile: minimal
         toolchain: stable
     - name: Build
-      run: cargo build --verbose
+      run: cargo build
     - name: Run tests
-      run: cargo test --verbose
+      run: cargo test
     - name: Run benchmark tests
-      run: cargo test --benches --verbose
-
+      run: cargo test --benches
     # documentation
     - name: Build documentation
-      run: cargo doc --verbose --frozen --no-deps
+      run: cargo doc --frozen --no-deps
     - name: Patch documentation
       # cargo doc does not generate a top-level index,
       # create a redirect to our own crate doc
