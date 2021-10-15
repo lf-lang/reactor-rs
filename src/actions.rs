@@ -34,7 +34,6 @@ use crate::*;
 use crate::tagmap::TagIndexedMap;
 use crate::TriggerLike;
 
-
 /// A logical action.
 pub struct LogicalAction<T: Sync>(pub(crate) Action<Logical, T>);
 

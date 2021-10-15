@@ -36,6 +36,8 @@
 //! this *kills* performance. This is off by default.
 //! - `test-utils`: utilities to write tests of reactor programs,
 //! e.g, to check time invariants from within reactions.
+//! - `no-unsafe`: disable optimisations that use unsafe code in this runtime.
+//! Just provided for comparison, should probably be removed (unsafe code is fine).
 //! - `graph-dump` (internal): dumps the dependency graph to stdout
 //! before starting execution.
 

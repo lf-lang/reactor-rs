@@ -35,7 +35,7 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 
 use crate::*;
-use crate::scheduler::vecmap::{VecMap, Entry as VEntry};
+use crate::scheduler::vecmap::{Entry as VEntry, VecMap};
 
 use super::ReactionPlan;
 

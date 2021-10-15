@@ -233,7 +233,9 @@ pub(crate) mod tagmap {
     use std::cmp::Reverse;
 
     use smallvec::{Array, SmallVec};
+
     use crate::EventTag;
+
     use super::Event;
 
     /// A map that stores data indexed by tag. This is more
