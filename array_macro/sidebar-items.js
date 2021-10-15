@@ -1,1 +1,0 @@
-initSidebarItems({"macro":[["array","Creates an array containing the arguments."]]});

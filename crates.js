@@ -1,1 +1,1 @@
-window.ALL_CRATES = ["array_macro","atomic_refcell","cfg_if","crossbeam_channel","crossbeam_utils","fixedbitset","hashbrown","index_vec","indexmap","lazy_static","log","petgraph","reactor_rt","smallvec"];
+window.ALL_CRATES = ["reactor_rt"];
