@@ -198,18 +198,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ```
     #[inline]
     pub fn schedule_with_v<T: Send>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
-        self.schedule_impl(action, value, offset);
-    }
-
-    #[inline]
-    fn schedule_impl<T: Send>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
-        let eta = self.make_successor_tag(action.min_delay + offset.to_duration());
-        action.schedule_future_value(eta, value);
+        let eta = self.make_successor_tag(action.0.min_delay + offset.to_duration());
+        action.0.schedule_future_value(eta, value);
         let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
         self.enqueue_later(downstream, eta);
     }
-
-
 
     /// Add new reactions to execute later (at least 1 microstep later).
     ///
@@ -492,13 +485,13 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
         // this event is scheduled for the future
         action.use_mut(|action| {
             let tag = EventTag::absolute(self.initial_time, Instant::now() + offset.to_duration());
-            action.schedule_future_value(tag, value);
+            action.0.schedule_future_value(tag, value);
 
             let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
             let evt = Event::execute(tag, Cow::Borrowed(downstream));
             self.tx.send(evt).map_err(|e| {
                 warn!("Event could not be sent! {:?}", e);
-                SendError(action.forget_value(&tag))
+                SendError(action.0.forget_value(&tag))
             })
         })
     }
@@ -571,10 +564,10 @@ impl CleanupCtx {
     }
 
     pub fn cleanup_logical_action<T: Send>(&self, action: &mut LogicalAction<T>) {
-        action.forget_value(&self.tag);
+        action.0.forget_value(&self.tag);
     }
 
     pub fn cleanup_physical_action<T: Send>(&self, action: &mut PhysicalActionRef<T>) {
-        action.use_mut(|a| a.forget_value(&self.tag));
+        action.use_mut(|a| a.0.forget_value(&self.tag));
     }
 }

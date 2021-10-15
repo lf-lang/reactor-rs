@@ -34,16 +34,19 @@ use crate::*;
 use crate::tagmap::TagIndexedMap;
 use crate::TriggerLike;
 
-#[doc(hidden)]
-pub struct Logical;
 
-#[doc(hidden)]
-pub struct Physical;
+/// A logical action.
+pub struct LogicalAction<T: Send>(pub(crate) Action<Logical, T>);
 
-pub type LogicalAction<T> = Action<Logical, T>;
-pub type PhysicalAction<T> = Action<Physical, T>;
+/// A physical action. Physical actions may only be used with
+/// the API of [PhysicalSchedulerLink](crate::PhysicalSchedulerLink).
+/// See [ReactionCtx::spawn_physical_thread](crate::ReactionCtx::spawn_physical_thread).
+pub struct PhysicalAction<T: Send>(pub(crate) Action<Physical, T>);
 
-pub struct Action<Kind, T: Send> {
+pub(crate) struct Logical;
+pub(crate) struct Physical;
+
+pub(crate) struct Action<Kind, T: Send> {
     pub(crate) min_delay: Duration,
     id: GlobalId,
     // is_logical: bool,
@@ -104,22 +107,45 @@ impl<T: Send, K> ReactionTrigger<T> for Action<K, T> {
     }
 }
 
+impl<T: Send> ReactionTrigger<T> for LogicalAction<T> {
+    #[inline]
+    fn is_present(&self, now: &EventTag, start: &Instant) -> bool {
+        self.0.is_present(now, start)
+    }
+
+    #[inline]
+    fn get_value(&self, now: &EventTag, start: &Instant) -> Option<T> where T: Copy {
+        self.0.get_value(now, start)
+    }
+
+    #[inline]
+    fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
+        self.0.use_value_ref(now, start, action)
+    }
+}
+
 
 impl<T: Send> LogicalAction<T> {
     pub(crate) fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
-        Self::new_impl(id, min_delay, true)
+        Self(Action::new_impl(id, min_delay, true))
     }
 }
 
 impl<T: Send> PhysicalAction<T> {
     fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
-        Self::new_impl(id, min_delay, false)
+        Self(Action::new_impl(id, min_delay, false))
     }
 }
 
-impl<K, T: Send> TriggerLike for Action<K, T> {
+impl<T: Send> TriggerLike for PhysicalAction<T> {
     fn get_id(&self) -> TriggerId {
-        TriggerId::Component(self.id)
+        TriggerId::Component(self.0.id)
+    }
+}
+
+impl<T: Send> TriggerLike for LogicalAction<T> {
+    fn get_id(&self) -> TriggerId {
+        TriggerId::Component(self.0.id)
     }
 }
 
@@ -208,14 +234,14 @@ impl<T: Send> TriggerLike for PhysicalActionRef<T> {
 
 impl<T: Send> ReactionTrigger<T> for PhysicalActionRef<T> {
     fn is_present(&self, now: &EventTag, start: &Instant) -> bool {
-        self.use_value(|a| a.is_present(now, start))
+        self.use_value(|a| a.0.is_present(now, start))
     }
 
     fn get_value(&self, now: &EventTag, start: &Instant) -> Option<T> where T: Copy {
-        self.use_value(|a| a.get_value(now, start))
+        self.use_value(|a| a.0.get_value(now, start))
     }
 
     fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
-        self.use_value(|a| a.use_value_ref(now, start, action))
+        self.use_value(|a| a.0.use_value_ref(now, start, action))
     }
 }

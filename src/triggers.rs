@@ -29,7 +29,7 @@ use crate::{EventTag, TriggerId};
 
 /// Common trait for actions, ports, and timer objects handed
 /// to reaction functions. This is meant to be used through the
-/// API of [crate::ReactionCtx] instead of directly.
+/// API of [ReactionCtx](crate::ReactionCtx) instead of directly.
 pub trait ReactionTrigger<T> {
     /// Returns whether the trigger is present, given that
     /// the current logical time is the parameter.
