@@ -115,9 +115,9 @@ macro_rules! delay {
     ($amount:tt $i:ident) => { compile_error!(concat!("Unknown time unit `", stringify!($i), "`")) };
 }
 
-/// Convenient macro to wrap [assert_tag_is](crate::ReactionCtx::assert_tag_is).
-/// This is just a shorthand for using that method together with
-/// the syntax of [delay].
+/// Convenient macro to assert equality of the current tag.
+/// This is just shorthand for using `assert_eq!` with the
+/// syntax of [tag].
 ///
 /// ```no_run
 /// # use reactor_rt::{assert_tag_is, delay, ReactionCtx};
@@ -146,7 +146,7 @@ macro_rules! assert_tag_is {
     };
 }
 
-/// Convenient macro to [create a tag](crate::EventTag::new).
+/// Convenient macro to [create a tag](crate::EventTag).
 /// This is just a shorthand for using the constructor together
 /// with the syntax of [delay].
 ///
