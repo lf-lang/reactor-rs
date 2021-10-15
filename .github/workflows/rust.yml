@@ -34,4 +34,4 @@ jobs:
       with:
         publish_branch: gh_pages
         publish_dir: target/doc
-
+        github_token: ${{ secrets.GITHUB_TOKEN }}
