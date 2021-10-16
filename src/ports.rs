@@ -27,7 +27,7 @@ use std::borrow::Borrow;
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
-use std::ops::{DerefMut, Index};
+use std::ops::{DerefMut, Index, IndexMut};
 #[cfg(feature = "no-unsafe")]
 use std::ops::Deref;
 use std::rc::Rc;
@@ -82,8 +82,48 @@ impl<'a, T: Sync> WritablePort<'a, T> {
     }
 }
 
-// internal type, not communicated to reactions
-pub type MultiPort<T> = Vec<Port<T>>;
+/// Internal type, not communicated to reactions.
+pub struct MultiPort<T: Sync> {
+    ports: Vec<Port<T>>,
+    id: GlobalId,
+}
+
+impl<T: Sync> MultiPort<T> {
+    pub(crate) fn new(ports: Vec<Port<T>>,
+                      id: GlobalId) -> Self {
+        Self { ports, id }
+    }
+}
+
+impl<T: Sync> TriggerLike for MultiPort<T> {
+    fn get_id(&self) -> TriggerId {
+        TriggerId::Component(self.id)
+    }
+}
+
+impl<'a, T: Sync> IntoIterator for &'a mut MultiPort<T> {
+    type Item = &'a mut Port<T>;
+    type IntoIter = std::slice::IterMut<'a, Port<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.ports.iter_mut()
+    }
+}
+
+impl<T: Sync> Index<usize> for MultiPort<T> {
+    type Output = Port<T>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.ports[index]
+    }
+}
+
+impl<T: Sync> IndexMut<usize> for MultiPort<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.ports[index]
+    }
+}
+
 
 /// A read-only reference to a multiport.
 pub struct ReadableMultiPort<'a, T: Sync>(&'a MultiPort<T>);
@@ -101,7 +141,7 @@ impl<'a, T: Sync> Index<usize> for ReadableMultiPort<'a, T> {
     fn index(&self, index: usize) -> &Self::Output {
         unsafe {
             // safety: ReadablePort has a repr(transparent)
-            std::mem::transmute(&self.0[index])
+            std::mem::transmute(&self.0.ports[index])
         }
     }
 }
@@ -111,19 +151,19 @@ impl<'a, T: Sync> IntoIterator for ReadableMultiPort<'a, T> {
     type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> ReadablePort<'a, T>>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.iter().map(ReadablePort)
+        self.0.ports.iter().map(ReadablePort)
     }
 }
 
 impl<'a, T: Sync> ReadableMultiPort<'a, T> {
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.0.ports.len()
     }
 
     pub fn get(&self, index: usize) -> &ReadablePort<'a, T> {
         unsafe {
             // safety: ReadablePort has a repr(transparent)
-            std::mem::transmute(&self.0[index])
+            std::mem::transmute(&self.0.ports[index])
         }
     }
 }
@@ -154,6 +194,23 @@ pub struct Port<T: Sync> {
     upstream_binding: Rc<AtomicRefCell<Rc<PortCell<T>>>>,
     #[cfg(not(feature = "no-unsafe"))]
     upstream_binding: Rc<UnsafeCell<Rc<PortCell<T>>>>,
+    //                              ^^
+    // Note that manipulating this Rc is really unsafe and
+    // requires care to avoid UB.
+    // - Cloning the Rc from different threads concurrently is UB.
+    // But in this framework, that Rc is cloned only during the
+    // assembly phase, which occurs entirely in the main
+    // scheduler thread.
+    // - Modifying the contents concurrently is also UB.
+    // But, by construction of the dependency graph,
+    //   - there is at most one reaction that may set the port,
+    // so we never borrow the PortCell mutably twice concurrently.
+    //   - that reaction, if any, must be executed BEFORE any
+    // reaction that reads the port. That BEFORE is a
+    // synchronization barrier in the parallel runtime
+    // implementation, so there is no simultaneous mutable and immutable borrow.
+    //
+    //
 }
 
 impl<T: Sync> Port<T> {
@@ -185,7 +242,7 @@ impl<T: Sync> Port<T> {
         let cell_ref: AtomicRef<Rc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
         let binding: &Rc<PortCell<T>> = cell_ref.deref();
         let class_cell: &PortCell<T> = Rc::borrow(binding);
-        let cell_borrow: &AtomicRef<Option<T>> = &class_cell.cell.borrow();
+        let cell_borrow: &AtomicRef<Option<T>> = &class_cell.value.borrow();
 
         f(cell_borrow.deref())
     }
@@ -203,16 +260,16 @@ impl<T: Sync> Port<T> {
         let cell_ref: AtomicRef<Rc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
         let class_cell: &PortCell<T> = Rc::borrow(cell_ref.deref());
 
-        *class_cell.cell.borrow_mut() = new_value;
+        *class_cell.value.borrow_mut() = new_value;
     }
 
     #[inline]
     #[cfg(not(feature = "no-unsafe"))]
     pub(in crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
-        let cell: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
-        let opt = unsafe {
-            let x = &*cell.get();
-            &*x.cell.get()
+        let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
+        let opt: &Option<T> = unsafe {
+            let cell = &*binding.get();
+            &*cell.value.get()
         };
         f(opt)
     }
@@ -221,12 +278,12 @@ impl<T: Sync> Port<T> {
     pub(in crate) fn set_impl(&mut self, new_value: Option<T>) {
         debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port ({})", self.id);
 
-        let cell: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
+        let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
 
         unsafe {
-            let cell: &Rc<PortCell<T>> = &*cell.get();
-            let value: *mut Option<T> = cell.cell.get();
-            *value = new_value;
+            let cell: &Rc<PortCell<T>> = &*binding.get();
+            // note: using write instead of replace would not drop the old value
+            cell.value.get().replace(new_value);
         }
     }
 
@@ -319,7 +376,7 @@ struct PortCell<T: Sync> {
     #[cfg(feature = "no-unsafe")]
     cell: AtomicRefCell<Option<T>>,
     #[cfg(not(feature = "no-unsafe"))]
-    cell: UnsafeCell<Option<T>>,
+    value: UnsafeCell<Option<T>>,
 
     /// This is the set of ports that are "forwarded to".
     /// When you bind 2 ports A -> B, then the binding of B
@@ -369,7 +426,7 @@ impl<T: Sync> PortCell<T> {
 impl<T: Sync> Default for PortCell<T> {
     fn default() -> Self {
         PortCell {
-            cell: Default::default(),
+            value: Default::default(),
             downstreams: Default::default(),
         }
     }

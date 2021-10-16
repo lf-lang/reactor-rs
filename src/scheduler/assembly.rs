@@ -104,8 +104,12 @@ impl<'x> AssemblyCtx<'x> {
         array![i => self.new_port_bank_component(lf_name, is_input, i); N]
     }
 
-    pub fn new_port_bank<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, len: usize) -> Vec<Port<T>> {
-        (0..len).into_iter().map(|i| self.new_port_bank_component(lf_name, is_input, i)).collect()
+    pub fn new_port_bank<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, len: usize) -> MultiPort<T> {
+        let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
+        MultiPort::new(
+            (0..len).into_iter().map(|i| self.new_port_bank_component(lf_name, is_input, i)).collect(),
+            id,
+        )
     }
 
     fn new_port_bank_component<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, index: usize) -> Port<T> {
