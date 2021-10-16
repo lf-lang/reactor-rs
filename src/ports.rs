@@ -86,6 +86,7 @@ impl<'a, T: Sync> WritablePort<'a, T> {
 }
 
 /// Internal type, not communicated to reactions.
+/// todo Rename to Multiport (single word)
 pub struct MultiPort<T: Sync> {
     ports: Vec<Port<T>>,
     id: GlobalId,

@@ -96,6 +96,7 @@ pub mod prelude {
     pub use crate::{after, assert_tag_is, delay, tag};
     pub use crate::Offset::*;
     pub use crate::ReactionCtx;
+    pub use crate::EventTag;
 }
 
 /// Wrapper around the user struct for safe dispatch.
