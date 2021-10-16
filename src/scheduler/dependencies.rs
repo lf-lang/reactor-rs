@@ -337,6 +337,15 @@ impl ReactionLayerInfo {
 pub(in super) struct DataflowInfo {
     /// Maps each trigger to the set of reactions that need
     /// to be scheduled when it is triggered.
+
+    /// TODO using a hashmap is not so cool, when we could
+    ///  just allocate all trigger IDs compactly and use a vecmap.
+    ///  Only reaction ids need to contain a reference to their
+    ///  reactor. This would also lift restrictions on the number
+    ///  of components:
+    ///  currently (2^16 (reactions + components)) per reactor
+    ///  then, (2^16 reactions/reactor) + (range(usize) total components)
+    ///  Debug info needs to be updated though.
     trigger_to_plan: HashMap<TriggerId, Arc<ExecutableReactions<'static>>>,
 
 }
