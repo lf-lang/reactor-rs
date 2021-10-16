@@ -26,8 +26,10 @@
 use core::any::type_name;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::fmt::{Debug, Display, Formatter, Result, Write};
 use std::hash::{Hash, Hasher};
+use std::ops::Range;
 
 use index_vec::IndexVec;
 
@@ -143,11 +145,20 @@ impl GlobalId {
         Self { _raw }
     }
 
-    #[cfg(test)]
-    pub fn next_id(&self) -> GlobalId {
-        // todo check overflow
+    // fixme replace panic by AssemblyError
+
+    pub(crate) fn next_id(&self) -> GlobalId {
         assert_ne!(self.local(), 0xffff, "Overflow while allocating next id");
         Self { _raw: self._raw + 1 }
+    }
+
+    pub(crate) fn id_range(&self, len: usize) -> Range<GlobalId> {
+        match ReactionIdImpl::try_from(self.local().index() + len) {
+            Ok(_) =>
+                Range { start: *self, end: Self { _raw: self._raw + (len as GlobalIdImpl) } }
+            ,
+            Err(..) => panic!("Overflow while creating ID range"),
+        }
     }
 
     #[cfg(test)]
@@ -161,6 +172,26 @@ impl GlobalId {
 
     pub(in crate) const fn local(&self) -> LocalReactionId {
         LocalReactionId::new_const((self._raw & 0xffff) as u16)
+    }
+}
+
+// todo commit and remove
+#[cfg(nightly)]
+impl std::iter::Step for GlobalId {
+    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+        (end._raw as usize).checked_sub(start._raw as usize)
+    }
+
+    fn forward_checked(start: Self, count: usize) -> Option<Self> {
+        GlobalIdImpl::try_from(count).ok()
+            .and_then(|c| start._raw.checked_add(c))
+            .map(|_raw| Self { _raw })
+    }
+
+    fn backward_checked(start: Self, count: usize) -> Option<Self> {
+        GlobalIdImpl::try_from(count).ok()
+            .and_then(|c| start._raw.checked_sub(c))
+            .map(|_raw| Self { _raw })
     }
 }
 

@@ -106,6 +106,7 @@ impl<'x> AssemblyCtx<'x> {
 
     pub fn new_port_bank<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, len: usize) -> MultiPort<T> {
         let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
+        self.globals.graph.record_multiport(id, len);
         MultiPort::new(
             (0..len).into_iter().map(|i| self.new_port_bank_component(lf_name, is_input, i)).collect(),
             id,

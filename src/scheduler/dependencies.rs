@@ -29,6 +29,7 @@ use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry as HEntry;
 use std::default::Default;
 use std::fmt::{Debug, Display, Formatter};
+use std::sync::Arc;
 
 use petgraph::Direction::{Incoming, Outgoing};
 use petgraph::graph::{DiGraph, NodeIndex};
@@ -45,6 +46,7 @@ type GraphIx = NodeIndex<u32>;
 enum NodeKind {
     /// startup/shutdown
     Special,
+    Multiport,
     Port,
     Action,
     Timer,
@@ -117,6 +119,10 @@ pub(in super) struct DepGraph {
 
     /// Maps global IDs back to graph indices.
     ix_by_id: HashMap<GraphId, GraphIx>,
+
+    /// Map of multiport component ID -> multiport ID.
+    /// todo data structure is bad.
+    multiport_containment: HashMap<GraphId, GlobalId>,
 }
 
 impl Debug for GraphNode {
@@ -127,7 +133,11 @@ impl Debug for GraphNode {
 
 impl DepGraph {
     pub fn new() -> Self {
-        let mut ich = Self { dataflow: Default::default(), ix_by_id: Default::default() };
+        let mut ich = Self {
+            dataflow: Default::default(),
+            ix_by_id: Default::default(),
+            multiport_containment: Default::default(),
+        };
         ich.record_special(false);
         ich.record_special(true);
         ich
@@ -165,6 +175,16 @@ impl DepGraph {
 
     pub(in super) fn record_port(&mut self, id: GlobalId) {
         self.record(id, NodeKind::Port);
+    }
+
+    pub(in super) fn record_multiport(&mut self, id: GlobalId, len: usize) {
+        assert!(len > 0, "empty multiport");
+        self.record(id, NodeKind::Multiport);
+        let mut channel_id = id.next_id();
+        for _ in 0..len {
+            self.multiport_containment.insert(GraphId::Id(channel_id), id);
+            channel_id = id.next_id();
+        }
     }
 
     pub(in super) fn record_laction(&mut self, id: GlobalId) {
@@ -317,7 +337,7 @@ impl ReactionLayerInfo {
 pub(in super) struct DataflowInfo {
     /// Maps each trigger to the set of reactions that need
     /// to be scheduled when it is triggered.
-    trigger_to_plan: HashMap<TriggerId, ExecutableReactions<'static>>,
+    trigger_to_plan: HashMap<TriggerId, Arc<ExecutableReactions<'static>>>,
 
 }
 
@@ -333,18 +353,31 @@ impl DataflowInfo {
         Ok(DataflowInfo { trigger_to_plan })
     }
 
-    fn collect_trigger_to_plan(DepGraph { dataflow, .. }: &mut DepGraph,
-                               layer_info: &ReactionLayerInfo) -> HashMap<TriggerId, ExecutableReactions<'static>> {
+    fn collect_trigger_to_plan(DepGraph { dataflow, multiport_containment, .. }: &mut DepGraph,
+                               layer_info: &ReactionLayerInfo) -> HashMap<TriggerId, Arc<ExecutableReactions<'static>>> {
         let mut h = HashMap::with_capacity(dataflow.node_count() / 2);
 
         let triggers: Vec<_> = dataflow.node_indices().filter(|ix| dataflow[*ix].kind != NodeKind::Reaction).collect();
 
         for trigger in triggers {
+            if let Some(multiport_id) = multiport_containment.get(&dataflow[trigger].id) {
+                assert_eq!(dataflow[trigger].kind, NodeKind::Port);
+                todo!("multiports")
+                // todo this is a multiport channel:
+                //  1. if someone has declared a dependency on this individual channel, collect dependencies into DEPS
+                //  2. else add trigger to DELAY goto 4
+                //  3. merge DEPS into dependencies ALL for the whole multiport
+                //  4. goto next iteration while some channels of the multiport remain to be processed
+                //  5. assign all triggers in DELAY the dependencies ALL
+                //
+                //  This requires all components of a given multiport to be processed consecutively.
+            }
+
             let mut reactions = ExecutableReactions::new();
             Self::collect_reactions_rec(&dataflow, trigger, layer_info, &mut reactions);
             // reactions.trim();
             let graph_id = dataflow[trigger].id;
-            h.insert(graph_id.into(), reactions);
+            h.insert(graph_id.into(), Arc::new(reactions));
         }
 
         h
