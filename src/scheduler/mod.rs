@@ -43,7 +43,6 @@ mod scheduler_impl;
 mod event_queue;
 mod depgraph;
 mod assembly;
-pub(self) mod vecmap;
 
 /// The tag of an event.
 ///
@@ -225,86 +224,5 @@ impl DebugInfoProvider<'_> {
     #[inline]
     pub(self) fn display_reaction(&self, global: GlobalReactionId) -> String {
         self.id_registry.fmt_reaction(global)
-    }
-}
-
-
-pub(crate) mod tagmap {
-    use std::cmp::Reverse;
-
-    use smallvec::{Array, SmallVec};
-
-    use crate::EventTag;
-
-    use super::Event;
-
-    /// A map that stores data indexed by tag. This is more
-    /// performant than hash map, assuming that insertions and removals
-    /// occur in a FIFO manner (which should be the case of
-    /// most action schedulings).
-    pub(crate) struct TagIndexedMap<V, const N: usize>
-        where [V; N]: Array<Item=V>, V: TagIndexedData {
-        queue: SmallVec<[V; N]>,
-
-        //    .
-        //  ...
-        // ....
-
-    }
-
-    impl<V: TagIndexedData, const N: usize> TagIndexedMap<V, N> where [V; N]: Array<Item=V> {
-        pub fn new() -> Self {
-            Self { queue: SmallVec::new() }
-        }
-
-        pub fn insert(&mut self, value: V, merge: fn(&mut V, V)) {
-            let k = value.key();
-            match self.queue.binary_search_by_key(&Reverse(k), |e| Reverse(e.key())) {
-                Ok(idx) => merge(&mut self.queue[idx], value),
-                Err(idx) => self.queue.insert(idx, value),
-            }
-        }
-
-        pub fn get(&self, tag: &EventTag) -> Option<&V> {
-            self.queue.binary_search_by_key(&Reverse(tag), |e| Reverse(e.key()))
-                .ok()
-                .and_then(|i| self.queue.get(i))
-        }
-
-        pub fn remove(&mut self, tag: &EventTag) -> Option<V> {
-            if let Ok(i) = self.queue.binary_search_by_key(&Reverse(tag), |e| Reverse(e.key())) {
-                if i == self.queue.len() - 1 {
-                    self.queue.pop()
-                } else {
-                    Some(self.queue.remove(i))
-                }
-            } else {
-                None
-            }
-        }
-    }
-
-    impl<V, const N: usize> TagIndexedMap<(EventTag, V), N>
-        where [(EventTag, V); N]: Array<Item=(EventTag, V)> {
-        pub fn get_v(&self, tag: &EventTag) -> Option<&V> {
-            self.get(tag).map(|(_, b)| b)
-        }
-    }
-
-
-    pub(crate) trait TagIndexedData {
-        fn key(&self) -> &EventTag;
-    }
-
-    impl<V> TagIndexedData for (EventTag, V) {
-        fn key(&self) -> &EventTag {
-            &self.0
-        }
-    }
-
-    impl TagIndexedData for Event<'_> {
-        fn key(&self) -> &EventTag {
-            &self.tag
-        }
     }
 }

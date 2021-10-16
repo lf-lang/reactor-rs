@@ -28,13 +28,13 @@ use std::fmt::{Debug, Formatter};
 ///
 /// Used in [crate::ExecutableReactions]
 ///
-pub struct VecMap<K, V> where K: Eq + Ord {
+pub(crate) struct VecMap<K, V> where K: Eq + Ord {
     v: Vec<(K, V)>,
 }
 
 impl<K, V> VecMap<K, V> where K: Eq + Ord {
     pub fn new() -> Self {
-        Self { v: Vec::new(), }
+        Self { v: Vec::new() }
     }
 
     pub fn entry(&mut self, key: K) -> Entry<K, V> {
@@ -44,12 +44,22 @@ impl<K, V> VecMap<K, V> where K: Eq + Ord {
         }
     }
 
-    fn find_k(&self, key: &K) -> Result<usize, usize> {
-        self.v.binary_search_by_key(&key, |(k, _)| k)
+    pub fn remove(&mut self, key: &K) -> Option<V> {
+        match self.find_k(key) {
+            Ok(index) => Some(self.v.remove(index).1),
+            Err(_) => None
+        }
     }
 
-    pub fn insert_internal(&mut self, idx: usize, key: K, value: V) {
-        self.v.insert(idx, (key, value))
+    pub fn get(&self, key: &K) -> Option<&V> {
+        match self.find_k(key) {
+            Ok(index) => Some(&self.v[index].1),
+            Err(_) => None
+        }
+    }
+
+    pub fn contains_key(&self, key: &K) -> bool {
+        self.find_k(key).is_ok()
     }
 
     pub fn iter_from(&self, min_key: K) -> impl Iterator<Item=&(K, V)> + '_ {
@@ -58,6 +68,15 @@ impl<K, V> VecMap<K, V> where K: Eq + Ord {
 
     pub fn max_key(&self) -> Option<&K> {
         self.v.last().map(|e| &e.0)
+    }
+
+
+    fn find_k(&self, key: &K) -> Result<usize, usize> {
+        self.v.binary_search_by_key(&key, |(k, _)| k)
+    }
+
+    fn insert_internal(&mut self, idx: usize, key: K, value: V) {
+        self.v.insert(idx, (key, value))
     }
 }
 
