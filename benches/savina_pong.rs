@@ -212,7 +212,7 @@ mod reactors {
                     __assembler.declare_triggers(__self.__receive.get_id(), react_0)?;
                     __assembler.effects_port(react_0, &__self.__send)?;
                     // --- reaction(shutdown) {= ... =}
-                    __assembler.declare_triggers(::reactor_rt::TriggerId::Shutdown, react_1)?;
+                    __assembler.declare_triggers(::reactor_rt::TriggerId::SHUTDOWN, react_1)?;
 
                     // Declare connections
 
@@ -365,7 +365,7 @@ mod reactors {
 
                     // --- reaction(startup, serve) -> send {= ... =}
                     __assembler.declare_triggers(__self.__serve.get_id(), react_0)?;
-                    __assembler.declare_triggers(::reactor_rt::TriggerId::Startup, react_0)?;
+                    __assembler.declare_triggers(::reactor_rt::TriggerId::STARTUP, react_0)?;
                     __assembler.effects_port(react_0, &__self.__send)?;
                     // --- reaction (receive) -> serve {= ... =}
                     __assembler.declare_triggers(__self.__receive.get_id(), react_1)?;

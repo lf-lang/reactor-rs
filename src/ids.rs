@@ -105,7 +105,19 @@ global_id_newtype! {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum TriggerId {
+pub struct TriggerId(pub(crate) TriggerIdImpl);
+
+impl TriggerId {
+    pub const STARTUP: TriggerId = TriggerId(TriggerIdImpl::Startup);
+    pub const SHUTDOWN: TriggerId = TriggerId(TriggerIdImpl::Shutdown);
+
+    pub(crate) fn new(id: GlobalId) -> Self {
+        TriggerId(TriggerIdImpl::Component(id))
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) enum TriggerIdImpl {
     Startup,
     Shutdown,
     Component(GlobalId),
@@ -116,10 +128,10 @@ impl Hash for TriggerId {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // this hash function is very hot (because of get_reactions_trigerred_by)
         // so we give it an implementation that's basically free.
-        let h: u32 = match *self {
+        let h: u32 = match self.0 {
             // we don't care about collisions, esp bc they occur once per app
-            TriggerId::Startup | TriggerId::Shutdown => u32::MAX,
-            TriggerId::Component(GlobalId { _raw }) => _raw
+            TriggerIdImpl::Startup | TriggerIdImpl::Shutdown => u32::MAX,
+            TriggerIdImpl::Component(GlobalId { _raw }) => _raw
         };
         state.write_u32(h)
     }
@@ -134,7 +146,7 @@ impl Hash for TriggerId {
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Copy, Clone)]
-pub struct GlobalId {
+pub(crate) struct GlobalId {
     _raw: GlobalIdImpl,
 }
 
@@ -218,7 +230,7 @@ pub(in crate) trait GloballyIdentified {
     fn get_id(&self) -> GlobalId;
 }
 
-pub type PortId = GlobalId;
+pub(crate) type PortId = GlobalId;
 
 #[derive(Clone)]
 pub(in crate) struct ReactorDebugInfo {

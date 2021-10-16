@@ -183,5 +183,5 @@ fn repeated_binding_panics() {
     let mut downstream = new_port();
 
     assert_matches!(bind_ports(&mut upstream, &mut downstream), Ok(_));
-    assert_matches!(bind_ports(&mut upstream, &mut downstream), Err(AssemblyError::CannotBind(_, _)));
+    assert_matches!(bind_ports(&mut upstream, &mut downstream), Err(AssemblyError(AssemblyErrorImpl::CannotBind(_, _))));
 }

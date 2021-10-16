@@ -268,14 +268,14 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
         debug_assert!(!self.reactors.is_empty(), "No registered reactors");
 
-        let startup_reactions = self.dataflow.reactions_triggered_by(&TriggerId::Startup);
+        let startup_reactions = self.dataflow.reactions_triggered_by(&TriggerId::STARTUP);
         self.process_tag(initial_tag, Some(Cow::Borrowed(startup_reactions)))
     }
 
     fn shutdown(&mut self, reactions: ReactionPlan<'x>) {
         let shutdown_tag = self.shutdown_time.unwrap_or_else(|| EventTag::now(self.initial_time));
 
-        let default_plan: ReactionPlan<'x> = Some(Cow::Borrowed(self.dataflow.reactions_triggered_by(&TriggerId::Shutdown)));
+        let default_plan: ReactionPlan<'x> = Some(Cow::Borrowed(self.dataflow.reactions_triggered_by(&TriggerId::SHUTDOWN)));
         let reactions = ExecutableReactions::merge_cows(reactions, default_plan);
 
         self.process_tag(shutdown_tag, reactions);

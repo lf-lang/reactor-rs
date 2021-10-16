@@ -64,10 +64,10 @@ enum GraphId { Startup, Shutdown, Id(GlobalId) }
 
 impl From<TriggerId> for GraphId {
     fn from(id: TriggerId) -> Self {
-        match id {
-            TriggerId::Startup => Self::Startup,
-            TriggerId::Shutdown => Self::Shutdown,
-            TriggerId::Component(id) => Self::Id(id),
+        match id.0 {
+            TriggerIdImpl::Startup => Self::Startup,
+            TriggerIdImpl::Shutdown => Self::Shutdown,
+            TriggerIdImpl::Component(id) => Self::Id(id),
         }
     }
 }
@@ -75,11 +75,11 @@ impl From<TriggerId> for GraphId {
 impl From<GraphId> for TriggerId {
     fn from(id: GraphId) -> Self {
         match id {
-            GraphId::Startup => TriggerId::Startup,
-            GraphId::Shutdown => TriggerId::Shutdown,
+            GraphId::Startup => TriggerId::STARTUP,
+            GraphId::Shutdown => TriggerId::SHUTDOWN,
             GraphId::Id(id) => {
                 // we don't assert that it's indeed a trigger and not a reaction...
-                TriggerId::Component(id)
+                TriggerId(TriggerIdImpl::Component(id))
             },
         }
     }
@@ -353,7 +353,7 @@ pub(in super) struct DataflowInfo {
 impl DataflowInfo {
     pub fn new(mut graph: DepGraph) -> Result<Self, AssemblyError> {
         if petgraph::algo::is_cyclic_directed(&graph.dataflow) {
-            return Err(AssemblyError::CyclicDependencyGraph);
+            return Err(AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph));
         }
 
         let layer_info = ReactionLayerInfo { layer_numbers: graph.number_reactions_by_layer() };
@@ -596,8 +596,8 @@ pub mod test {
         // n1 > n2
         graph.reaction_priority(n1, n2);
 
-        graph.reaction_effects(n1, TriggerId::Component(p0));
-        graph.triggers_reaction(TriggerId::Component(p0), n2);
+        graph.reaction_effects(n1, TriggerId::new(p0));
+        graph.triggers_reaction(TriggerId::new(p0), n2);
 
 
         let roots = graph.get_roots();

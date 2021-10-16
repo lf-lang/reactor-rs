@@ -35,7 +35,10 @@ use std::time::Instant;
 
 use atomic_refcell::AtomicRefCell;
 
-use crate::{AssemblyError, EventTag, GlobalId, PortId, ReactionTrigger, TriggerId, TriggerLike};
+use AssemblyErrorImpl::CannotBind;
+
+use crate::{AssemblyError, AssemblyErrorImpl, EventTag, GlobalId, PortId, ReactionTrigger, TriggerId, TriggerLike};
+use crate::AssemblyErrorImpl::CyclicDependency;
 
 /// A read-only reference to a port.
 #[repr(transparent)]
@@ -97,7 +100,7 @@ impl<T: Sync> MultiPort<T> {
 
 impl<T: Sync> TriggerLike for MultiPort<T> {
     fn get_id(&self) -> TriggerId {
-        TriggerId::Component(self.id)
+        TriggerId::new(self.id)
     }
 }
 
@@ -215,7 +218,7 @@ pub struct Port<T: Sync> {
 
 impl<T: Sync> Port<T> {
     /// Create a new port
-    pub fn new(id: GlobalId, is_input: bool) -> Self {
+    pub(crate) fn new(id: GlobalId, is_input: bool) -> Self {
         Self {
             id,
             is_input,
@@ -304,7 +307,7 @@ impl<T: Sync> Port<T> {
             let mut mut_downstream_cell = unsafe { (&downstream.upstream_binding).get().as_mut().unwrap() };
 
         if downstream.bind_status == BindStatus::Bound {
-            return Err(AssemblyError::CannotBind(self.id, downstream.id))
+            return Err(AssemblyError(CannotBind(self.id, downstream.id)))
         }
 
         downstream.bind_status = BindStatus::Bound;
@@ -338,7 +341,7 @@ impl<T: Sync> Debug for Port<T> {
 
 impl<T: Sync> TriggerLike for Port<T> {
     fn get_id(&self) -> TriggerId {
-        TriggerId::Component(self.id)
+        TriggerId::new(self.id)
     }
 }
 
@@ -403,7 +406,7 @@ struct PortCell<T: Sync> {
 impl<T: Sync> PortCell<T> {
     fn check_cycle(&self, upstream_id: &PortId, downstream_id: &PortId) -> Result<(), AssemblyError> {
         if (&*self.downstreams.borrow()).contains_key(upstream_id) {
-            Err(AssemblyError::CyclicDependency(*upstream_id, *downstream_id))
+            Err(AssemblyError(CyclicDependency(*upstream_id, *downstream_id)))
         } else {
             Ok(())
         }

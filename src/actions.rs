@@ -145,13 +145,13 @@ impl<T: Sync> PhysicalAction<T> {
 
 impl<T: Sync> TriggerLike for PhysicalAction<T> {
     fn get_id(&self) -> TriggerId {
-        TriggerId::Component(self.0.id)
+        TriggerId::new(self.0.id)
     }
 }
 
 impl<T: Sync> TriggerLike for LogicalAction<T> {
     fn get_id(&self) -> TriggerId {
-        TriggerId::Component(self.0.id)
+        TriggerId::new(self.0.id)
     }
 }
 

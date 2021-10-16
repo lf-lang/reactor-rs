@@ -60,7 +60,7 @@ impl Timer {
 
 impl TriggerLike for Timer {
     fn get_id(&self) -> TriggerId {
-        TriggerId::Component(self.id)
+        TriggerId::new(self.id)
     }
 }
 
