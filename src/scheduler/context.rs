@@ -5,7 +5,7 @@ use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
 
 use crate::*;
-use crate::scheduler::depgraph::{DataflowInfo, ExecutableReactions, LayerIx};
+use crate::scheduler::dependencies::{DataflowInfo, ExecutableReactions, LayerIx};
 
 use super::*;
 

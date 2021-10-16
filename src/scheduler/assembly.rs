@@ -27,7 +27,7 @@
 use std::borrow::Cow;
 
 use crate::*;
-use crate::scheduler::depgraph::DepGraph;
+use crate::scheduler::dependencies::DepGraph;
 
 use super::ReactorVec;
 

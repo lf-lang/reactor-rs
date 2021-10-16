@@ -28,7 +28,7 @@ use crossbeam_channel::{ReconnectableReceiver, RecvTimeoutError};
 use crossbeam_utils::{thread::Scope, thread::scope};
 
 use crate::*;
-use crate::scheduler::depgraph::{DataflowInfo, LayerIx};
+use crate::scheduler::dependencies::{DataflowInfo, LayerIx};
 
 use super::*;
 
