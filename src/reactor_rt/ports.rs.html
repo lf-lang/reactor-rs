@@ -319,6 +319,118 @@
 <span id="319">319</span>
 <span id="320">320</span>
 <span id="321">321</span>
+<span id="322">322</span>
+<span id="323">323</span>
+<span id="324">324</span>
+<span id="325">325</span>
+<span id="326">326</span>
+<span id="327">327</span>
+<span id="328">328</span>
+<span id="329">329</span>
+<span id="330">330</span>
+<span id="331">331</span>
+<span id="332">332</span>
+<span id="333">333</span>
+<span id="334">334</span>
+<span id="335">335</span>
+<span id="336">336</span>
+<span id="337">337</span>
+<span id="338">338</span>
+<span id="339">339</span>
+<span id="340">340</span>
+<span id="341">341</span>
+<span id="342">342</span>
+<span id="343">343</span>
+<span id="344">344</span>
+<span id="345">345</span>
+<span id="346">346</span>
+<span id="347">347</span>
+<span id="348">348</span>
+<span id="349">349</span>
+<span id="350">350</span>
+<span id="351">351</span>
+<span id="352">352</span>
+<span id="353">353</span>
+<span id="354">354</span>
+<span id="355">355</span>
+<span id="356">356</span>
+<span id="357">357</span>
+<span id="358">358</span>
+<span id="359">359</span>
+<span id="360">360</span>
+<span id="361">361</span>
+<span id="362">362</span>
+<span id="363">363</span>
+<span id="364">364</span>
+<span id="365">365</span>
+<span id="366">366</span>
+<span id="367">367</span>
+<span id="368">368</span>
+<span id="369">369</span>
+<span id="370">370</span>
+<span id="371">371</span>
+<span id="372">372</span>
+<span id="373">373</span>
+<span id="374">374</span>
+<span id="375">375</span>
+<span id="376">376</span>
+<span id="377">377</span>
+<span id="378">378</span>
+<span id="379">379</span>
+<span id="380">380</span>
+<span id="381">381</span>
+<span id="382">382</span>
+<span id="383">383</span>
+<span id="384">384</span>
+<span id="385">385</span>
+<span id="386">386</span>
+<span id="387">387</span>
+<span id="388">388</span>
+<span id="389">389</span>
+<span id="390">390</span>
+<span id="391">391</span>
+<span id="392">392</span>
+<span id="393">393</span>
+<span id="394">394</span>
+<span id="395">395</span>
+<span id="396">396</span>
+<span id="397">397</span>
+<span id="398">398</span>
+<span id="399">399</span>
+<span id="400">400</span>
+<span id="401">401</span>
+<span id="402">402</span>
+<span id="403">403</span>
+<span id="404">404</span>
+<span id="405">405</span>
+<span id="406">406</span>
+<span id="407">407</span>
+<span id="408">408</span>
+<span id="409">409</span>
+<span id="410">410</span>
+<span id="411">411</span>
+<span id="412">412</span>
+<span id="413">413</span>
+<span id="414">414</span>
+<span id="415">415</span>
+<span id="416">416</span>
+<span id="417">417</span>
+<span id="418">418</span>
+<span id="419">419</span>
+<span id="420">420</span>
+<span id="421">421</span>
+<span id="422">422</span>
+<span id="423">423</span>
+<span id="424">424</span>
+<span id="425">425</span>
+<span id="426">426</span>
+<span id="427">427</span>
+<span id="428">428</span>
+<span id="429">429</span>
+<span id="430">430</span>
+<span id="431">431</span>
+<span id="432">432</span>
+<span id="433">433</span>
 </pre><pre class="rust">
 <span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
@@ -345,28 +457,32 @@
  */</span>
 
 <span class="kw">use</span> <span class="ident">std::borrow::Borrow</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>))]</span>
+<span class="kw">use</span> <span class="ident">std::cell::UnsafeCell</span>;
 <span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
 <span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="ident">Debug</span>, <span class="ident">Formatter</span>};
-<span class="kw">use</span> <span class="ident">std::ops</span>::{<span class="ident">Deref</span>, <span class="ident">DerefMut</span>, <span class="ident">Index</span>};
-<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+<span class="kw">use</span> <span class="ident">std::ops</span>::{<span class="ident">DerefMut</span>, <span class="ident">Index</span>, <span class="ident">IndexMut</span>};
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>)]</span>
+<span class="kw">use</span> <span class="ident">std::ops::Deref</span>;
+<span class="kw">use</span> <span class="ident">std::rc::Rc</span>;
 <span class="kw">use</span> <span class="ident">std::time::Instant</span>;
 
-<span class="kw">use</span> <span class="ident">atomic_refcell</span>::{<span class="ident">AtomicRef</span>, <span class="ident">AtomicRefCell</span>};
+<span class="kw">use</span> <span class="ident">atomic_refcell::AtomicRefCell</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">AssemblyError</span>, <span class="ident">EventTag</span>, <span class="ident">GlobalId</span>, <span class="ident">PortId</span>, <span class="ident">ReactionTrigger</span>, <span class="ident">TriggerId</span>, <span class="ident">TriggerLike</span>};
 
 <span class="doccomment">/// A read-only reference to a port.</span>
 <span class="attribute">#[<span class="ident">repr</span>(<span class="ident">transparent</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ReadablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>);
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ReadablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>);
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">ReadablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">ReadablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
     <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">port</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span>(<span class="ident">port</span>)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">ReactionTrigger</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ReadablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">ReactionTrigger</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ReadablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">T</span><span class="op">&gt;</span> {
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">fn</span> <span class="ident">get_value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">_now</span>: <span class="kw-2">&amp;</span><span class="ident">EventTag</span>, <span class="ident">_start</span>: <span class="kw-2">&amp;</span><span class="ident">Instant</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="kw">where</span> <span class="ident">T</span>: <span class="ident">Copy</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">get</span>()
@@ -379,11 +495,11 @@
 }
 
 <span class="doccomment">/// A write-only reference to a port.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WritablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">WritablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> {
     <span class="ident">port</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">WritablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">WritablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">port</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> { <span class="ident">port</span> }
     }
@@ -400,48 +516,88 @@
     }
 }
 
-<span class="comment">// internal type, not communicated to reactions</span>
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+<span class="doccomment">/// Internal type, not communicated to reactions.</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> {
+    <span class="ident">ports</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">id</span>: <span class="ident">GlobalId</span>,
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">ports</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+                      <span class="ident">id</span>: <span class="ident">GlobalId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="self">Self</span> { <span class="ident">ports</span>, <span class="ident">id</span> }
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">TriggerLike</span> <span class="kw">for</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">get_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TriggerId</span> {
+        <span class="ident">TriggerId::Component</span>(<span class="self">self</span>.<span class="ident">id</span>)
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">IntoIterator</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>;
+    <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="ident">std::slice::IterMut</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>;
+
+    <span class="kw">fn</span> <span class="ident">into_iter</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span><span class="ident">::IntoIter</span> {
+        <span class="self">self</span>.<span class="ident">ports</span>.<span class="ident">iter_mut</span>()
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">Index</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>;
+
+    <span class="kw">fn</span> <span class="ident">index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="self">Self</span><span class="ident">::Output</span> {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">ports</span>[<span class="ident">index</span>]
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">IndexMut</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">index_mut</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">index</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">Self</span><span class="ident">::Output</span> {
+        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">ports</span>[<span class="ident">index</span>]
+    }
+}
+
 
 <span class="doccomment">/// A read-only reference to a multiport.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ReadableMultiPort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>);
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ReadableMultiPort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>);
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">ReadableMultiPort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">ReadableMultiPort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
     <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">port</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span>(<span class="ident">port</span>)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">Index</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ReadableMultiPort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">Index</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">ReadableMultiPort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Output</span> <span class="op">=</span> <span class="ident">ReadablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">index</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="self">Self</span><span class="ident">::Output</span> {
         <span class="kw">unsafe</span> {
             <span class="comment">// safety: ReadablePort has a repr(transparent)</span>
-            <span class="ident">std::mem::transmute</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>[<span class="ident">index</span>])
+            <span class="ident">std::mem::transmute</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.<span class="ident">ports</span>[<span class="ident">index</span>])
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">IntoIterator</span> <span class="kw">for</span> <span class="ident">ReadableMultiPort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">IntoIterator</span> <span class="kw">for</span> <span class="ident">ReadableMultiPort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="ident">ReadablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span>;
     <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="ident">std::iter::Map</span><span class="op">&lt;</span><span class="ident">std::slice::Iter</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>, <span class="kw">fn</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ReadablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>;
 
     <span class="kw">fn</span> <span class="ident">into_iter</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span><span class="ident">::IntoIter</span> {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="ident">ReadablePort</span>)
+        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">ports</span>.<span class="ident">iter</span>().<span class="ident">map</span>(<span class="ident">ReadablePort</span>)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">ReadableMultiPort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">ReadableMultiPort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">len</span>()
+        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">ports</span>.<span class="ident">len</span>()
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">index</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw-2">&amp;</span><span class="ident">ReadablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span> {
         <span class="kw">unsafe</span> {
             <span class="comment">// safety: ReadablePort has a repr(transparent)</span>
-            <span class="ident">std::mem::transmute</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>[<span class="ident">index</span>])
+            <span class="ident">std::mem::transmute</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.<span class="ident">ports</span>[<span class="ident">index</span>])
         }
     }
 }
@@ -464,21 +620,44 @@
 <span class="doccomment">/// runtime checks.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">///</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> {
     <span class="ident">id</span>: <span class="ident">GlobalId</span>,
     <span class="ident">is_input</span>: <span class="ident">bool</span>,
     <span class="ident">bind_status</span>: <span class="ident">BindStatus</span>,
-    <span class="ident">upstream_binding</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicRefCell</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>)]</span>
+    <span class="ident">upstream_binding</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">AtomicRefCell</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>))]</span>
+    <span class="ident">upstream_binding</span>: <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">UnsafeCell</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="comment">//                              ^^</span>
+    <span class="comment">// Note that manipulating this Rc is really unsafe and</span>
+    <span class="comment">// requires care to avoid UB.</span>
+    <span class="comment">// - Cloning the Rc from different threads concurrently is UB.</span>
+    <span class="comment">// But in this framework, that Rc is cloned only during the</span>
+    <span class="comment">// assembly phase, which occurs entirely in the main</span>
+    <span class="comment">// scheduler thread.</span>
+    <span class="comment">// - Modifying the contents concurrently is also UB.</span>
+    <span class="comment">// But, by construction of the dependency graph,</span>
+    <span class="comment">//   - there is at most one reaction that may set the port,</span>
+    <span class="comment">// so we never borrow the PortCell mutably twice concurrently.</span>
+    <span class="comment">//   - that reaction, if any, must be executed BEFORE any</span>
+    <span class="comment">// reaction that reads the port. That BEFORE is a</span>
+    <span class="comment">// synchronization barrier in the parallel runtime</span>
+    <span class="comment">// implementation, so there is no simultaneous mutable and immutable borrow.</span>
+    <span class="comment">//</span>
+    <span class="comment">//</span>
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Create a new port</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">id</span>: <span class="ident">GlobalId</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">id</span>,
             <span class="ident">is_input</span>,
             <span class="ident">bind_status</span>: <span class="ident">BindStatus::Free</span>,
-            <span class="ident">upstream_binding</span>: <span class="ident">Arc::new</span>(<span class="ident">AtomicRefCell::new</span>(<span class="ident">Default::default</span>())),
+            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>)]</span>
+            <span class="ident">upstream_binding</span>: <span class="ident">Rc::new</span>(<span class="ident">AtomicRefCell::new</span>(<span class="ident">Default::default</span>())),
+            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>))]</span>
+            <span class="ident">upstream_binding</span>: <span class="ident">Rc::new</span>(<span class="ident">UnsafeCell::new</span>(<span class="ident">Default::default</span>())),
         }
     }
 
@@ -491,12 +670,13 @@
         <span class="self">self</span>.<span class="ident">use_ref</span>(<span class="prelude-ty">Option</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="ident">::clone</span>)
     }
 
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>)]</span>
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">use_ref</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">R</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">R</span> {
-        <span class="kw">let</span> <span class="ident">cell_ref</span>: <span class="ident">AtomicRef</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">AtomicRefCell::borrow</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">upstream_binding</span>);
-        <span class="kw">let</span> <span class="ident">binding</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">cell_ref</span>.<span class="ident">deref</span>();
-        <span class="kw">let</span> <span class="ident">class_cell</span>: <span class="kw-2">&amp;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Arc::borrow</span>(<span class="ident">binding</span>);
-        <span class="kw">let</span> <span class="ident">cell_borrow</span>: <span class="kw-2">&amp;</span><span class="ident">AtomicRef</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">class_cell</span>.<span class="ident">cell</span>.<span class="ident">borrow</span>();
+        <span class="kw">use</span> <span class="ident">atomic_refcell::AtomicRef</span>;
+        <span class="kw">let</span> <span class="ident">cell_ref</span>: <span class="ident">AtomicRef</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">AtomicRefCell::borrow</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">upstream_binding</span>);
+        <span class="kw">let</span> <span class="ident">binding</span>: <span class="kw-2">&amp;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">cell_ref</span>.<span class="ident">deref</span>();
+        <span class="kw">let</span> <span class="ident">class_cell</span>: <span class="kw-2">&amp;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Rc::borrow</span>(<span class="ident">binding</span>);
+        <span class="kw">let</span> <span class="ident">cell_borrow</span>: <span class="kw-2">&amp;</span><span class="ident">AtomicRef</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">class_cell</span>.<span class="ident">value</span>.<span class="ident">borrow</span>();
 
         <span class="ident">f</span>(<span class="ident">cell_borrow</span>.<span class="ident">deref</span>())
     }
@@ -505,13 +685,40 @@
     <span class="doccomment">/// Note: we use a closure to process the dependencies to</span>
     <span class="doccomment">/// avoid having to clone the dependency list just to return it.</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>)]</span>
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_impl</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">new_value</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
+        <span class="kw">use</span> <span class="ident">atomic_refcell::AtomicRef</span>;
+
+        <span class="macro">debug_assert_ne!</span>(<span class="self">self</span>.<span class="ident">bind_status</span>, <span class="ident">BindStatus::Bound</span>, <span class="string">&quot;Cannot set a bound port ({})&quot;</span>, <span class="self">self</span>.<span class="ident">id</span>);
+
+        <span class="kw">let</span> <span class="ident">cell_ref</span>: <span class="ident">AtomicRef</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">AtomicRefCell::borrow</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">upstream_binding</span>);
+        <span class="kw">let</span> <span class="ident">class_cell</span>: <span class="kw-2">&amp;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Rc::borrow</span>(<span class="ident">cell_ref</span>.<span class="ident">deref</span>());
+
+        <span class="kw-2">*</span><span class="ident">class_cell</span>.<span class="ident">value</span>.<span class="ident">borrow_mut</span>() <span class="op">=</span> <span class="ident">new_value</span>;
+    }
+
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>))]</span>
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">use_ref</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">R</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">R</span> {
+        <span class="kw">let</span> <span class="ident">binding</span>: <span class="kw-2">&amp;</span><span class="ident">UnsafeCell</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Rc::borrow</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">upstream_binding</span>);
+        <span class="kw">let</span> <span class="ident">opt</span>: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw">unsafe</span> {
+            <span class="kw">let</span> <span class="ident">cell</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">binding</span>.<span class="ident">get</span>();
+            <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">cell</span>.<span class="ident">value</span>.<span class="ident">get</span>()
+        };
+        <span class="ident">f</span>(<span class="ident">opt</span>)
+    }
+
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>))]</span>
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">set_impl</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">new_value</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
         <span class="macro">debug_assert_ne!</span>(<span class="self">self</span>.<span class="ident">bind_status</span>, <span class="ident">BindStatus::Bound</span>, <span class="string">&quot;Cannot set a bound port ({})&quot;</span>, <span class="self">self</span>.<span class="ident">id</span>);
 
-        <span class="kw">let</span> <span class="ident">cell_ref</span>: <span class="ident">AtomicRef</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">AtomicRefCell::borrow</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">upstream_binding</span>);
-        <span class="kw">let</span> <span class="ident">class_cell</span>: <span class="kw-2">&amp;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Arc::borrow</span>(<span class="ident">cell_ref</span>.<span class="ident">deref</span>());
+        <span class="kw">let</span> <span class="ident">binding</span>: <span class="kw-2">&amp;</span><span class="ident">UnsafeCell</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">Rc::borrow</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">upstream_binding</span>);
 
-        <span class="kw-2">*</span><span class="ident">class_cell</span>.<span class="ident">cell</span>.<span class="ident">borrow_mut</span>() <span class="op">=</span> <span class="ident">new_value</span>;
+        <span class="kw">unsafe</span> {
+            <span class="kw">let</span> <span class="ident">cell</span>: <span class="kw-2">&amp;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="ident">binding</span>.<span class="ident">get</span>();
+            <span class="comment">// note: using write instead of replace would not drop the old value</span>
+            <span class="ident">cell</span>.<span class="ident">value</span>.<span class="ident">get</span>().<span class="ident">replace</span>(<span class="ident">new_value</span>);
+        }
     }
 
     <span class="doccomment">/// Called at the end of a tag.</span>
@@ -525,7 +732,10 @@
     }
 
     <span class="kw">fn</span> <span class="ident">forward_to</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">downstream</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mut_downstream_cell</span> <span class="op">=</span> (<span class="kw-2">&amp;</span><span class="ident">downstream</span>.<span class="ident">upstream_binding</span>).<span class="ident">borrow_mut</span>();
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>)]</span>
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mut_downstream_cell</span> <span class="op">=</span> (<span class="kw-2">&amp;</span><span class="ident">downstream</span>.<span class="ident">upstream_binding</span>).<span class="ident">borrow_mut</span>();
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>))]</span>
+            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mut_downstream_cell</span> <span class="op">=</span> <span class="kw">unsafe</span> { (<span class="kw-2">&amp;</span><span class="ident">downstream</span>.<span class="ident">upstream_binding</span>).<span class="ident">get</span>().<span class="ident">as_mut</span>().<span class="ident">unwrap</span>() };
 
         <span class="kw">if</span> <span class="ident">downstream</span>.<span class="ident">bind_status</span> <span class="op">=</span><span class="op">=</span> <span class="ident">BindStatus::Bound</span> {
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">AssemblyError::CannotBind</span>(<span class="self">self</span>.<span class="ident">id</span>, <span class="ident">downstream</span>.<span class="ident">id</span>))
@@ -533,14 +743,17 @@
 
         <span class="ident">downstream</span>.<span class="ident">bind_status</span> <span class="op">=</span> <span class="ident">BindStatus::Bound</span>;
 
-        <span class="kw">let</span> <span class="ident">my_class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">upstream_binding</span>.<span class="ident">borrow_mut</span>();
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>)]</span>
+            <span class="kw">let</span> <span class="ident">my_class</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">upstream_binding</span>.<span class="ident">borrow_mut</span>();
+        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>))]</span>
+            <span class="kw">let</span> <span class="ident">my_class</span> <span class="op">=</span> <span class="kw">unsafe</span> { <span class="self">self</span>.<span class="ident">upstream_binding</span>.<span class="ident">get</span>().<span class="ident">as_mut</span>().<span class="ident">unwrap</span>() };
 
         <span class="ident">my_class</span>.<span class="ident">downstreams</span>.<span class="ident">borrow_mut</span>().<span class="ident">insert</span>(
             <span class="ident">downstream</span>.<span class="ident">id</span>.<span class="ident">clone</span>(),
-            <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">downstream</span>.<span class="ident">upstream_binding</span>),
+            <span class="ident">Rc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">downstream</span>.<span class="ident">upstream_binding</span>),
         );
 
-        <span class="kw">let</span> <span class="ident">new_binding</span> <span class="op">=</span> <span class="ident">Arc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">my_class</span>);
+        <span class="kw">let</span> <span class="ident">new_binding</span> <span class="op">=</span> <span class="ident">Rc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">my_class</span>);
 
         <span class="ident">mut_downstream_cell</span>.<span class="ident">check_cycle</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">id</span>, <span class="kw-2">&amp;</span><span class="ident">downstream</span>.<span class="ident">id</span>)<span class="question-mark">?</span>;
 
@@ -551,13 +764,13 @@
 }
 
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::fmt::Result</span> {
         <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="ident">id</span>)
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">TriggerLike</span> <span class="kw">for</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">TriggerLike</span> <span class="kw">for</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">get_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TriggerId</span> {
         <span class="ident">TriggerId::Component</span>(<span class="self">self</span>.<span class="ident">id</span>)
     }
@@ -570,7 +783,7 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// If the downstream port was already bound to some other port.</span>
 <span class="doccomment">///</span>
-<span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">bind_ports</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="ident">up</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">down</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
+<span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">bind_ports</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="ident">up</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">down</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
     <span class="ident">up</span>.<span class="ident">forward_to</span>(<span class="ident">down</span>)
 }
 
@@ -592,9 +805,12 @@
 
 
 <span class="doccomment">/// This is the internal cell type that is shared by ports.</span>
-<span class="kw">struct</span> <span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> {
+<span class="kw">struct</span> <span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Cell for the value.</span>
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>)]</span>
     <span class="ident">cell</span>: <span class="ident">AtomicRefCell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>))]</span>
+    <span class="ident">value</span>: <span class="ident">UnsafeCell</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// This is the set of ports that are &quot;forwarded to&quot;.</span>
     <span class="doccomment">/// When you bind 2 ports A -&gt; B, then the binding of B</span>
@@ -612,10 +828,13 @@
     <span class="doccomment">/// - so all three refer to the equiv class of A, whose downstream is now {B, C}</span>
     <span class="doccomment">/// - if you then try binding C -&gt; A, then we can know</span>
     <span class="doccomment">/// that C is in the downstream of A, indicating that there is a cycle.</span>
-    <span class="ident">downstreams</span>: <span class="ident">AtomicRefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">PortId</span>, <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicRefCell</span><span class="op">&lt;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>)]</span>
+    <span class="ident">downstreams</span>: <span class="ident">AtomicRefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">PortId</span>, <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">AtomicRefCell</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>))]</span>
+    <span class="ident">downstreams</span>: <span class="ident">AtomicRefCell</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">PortId</span>, <span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">UnsafeCell</span><span class="op">&lt;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">check_cycle</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">upstream_id</span>: <span class="kw-2">&amp;</span><span class="ident">PortId</span>, <span class="ident">downstream_id</span>: <span class="kw-2">&amp;</span><span class="ident">PortId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
         <span class="kw">if</span> (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">downstreams</span>.<span class="ident">borrow</span>()).<span class="ident">contains_key</span>(<span class="ident">upstream_id</span>) {
             <span class="prelude-val">Err</span>(<span class="ident">AssemblyError::CyclicDependency</span>(<span class="kw-2">*</span><span class="ident">upstream_id</span>, <span class="kw-2">*</span><span class="ident">downstream_id</span>))
@@ -625,18 +844,23 @@
     }
 
     <span class="doccomment">/// This updates all downstreams to point to the given equiv class instead of `self`</span>
-    <span class="kw">fn</span> <span class="ident">set_upstream</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">new_binding</span>: <span class="kw-2">&amp;</span><span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
+    <span class="kw">fn</span> <span class="ident">set_upstream</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">new_binding</span>: <span class="kw-2">&amp;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
         <span class="kw">for</span> (<span class="kw">_</span>, <span class="ident">cell_rc</span>) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">downstreams</span>.<span class="ident">borrow</span>() {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ref_mut</span> <span class="op">=</span> <span class="ident">cell_rc</span>.<span class="ident">borrow_mut</span>();
-            <span class="kw-2">*</span><span class="ident">ref_mut</span>.<span class="ident">deref_mut</span>() <span class="op">=</span> <span class="ident">Arc::clone</span>(<span class="ident">new_binding</span>);
+            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>)]</span> {
+                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ref_mut</span> <span class="op">=</span> <span class="ident">cell_rc</span>.<span class="ident">borrow_mut</span>();
+                <span class="kw-2">*</span><span class="ident">ref_mut</span>.<span class="ident">deref_mut</span>() <span class="op">=</span> <span class="ident">Rc::clone</span>(<span class="ident">new_binding</span>);
+            }
+            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">not</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>))]</span> <span class="kw">unsafe</span> {
+                <span class="kw-2">*</span><span class="ident">cell_rc</span>.<span class="ident">get</span>() <span class="op">=</span> <span class="ident">Rc::clone</span>(<span class="ident">new_binding</span>);
+            }
         }
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="ident">PortCell</span> {
-            <span class="ident">cell</span>: <span class="ident">Default::default</span>(),
+            <span class="ident">value</span>: <span class="ident">Default::default</span>(),
             <span class="ident">downstreams</span>: <span class="ident">Default::default</span>(),
         }
     }

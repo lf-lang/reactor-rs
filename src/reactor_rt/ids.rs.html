@@ -254,6 +254,58 @@
 <span id="254">254</span>
 <span id="255">255</span>
 <span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
+<span id="289">289</span>
+<span id="290">290</span>
+<span id="291">291</span>
+<span id="292">292</span>
+<span id="293">293</span>
+<span id="294">294</span>
+<span id="295">295</span>
+<span id="296">296</span>
+<span id="297">297</span>
+<span id="298">298</span>
+<span id="299">299</span>
+<span id="300">300</span>
+<span id="301">301</span>
+<span id="302">302</span>
+<span id="303">303</span>
+<span id="304">304</span>
+<span id="305">305</span>
+<span id="306">306</span>
+<span id="307">307</span>
+<span id="308">308</span>
 </pre><pre class="rust">
 <span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
@@ -283,7 +335,10 @@
 <span class="kw">use</span> <span class="ident">core::any::type_name</span>;
 <span class="kw">use</span> <span class="ident">std::borrow::Cow</span>;
 <span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
+<span class="kw">use</span> <span class="ident">std::convert::TryFrom</span>;
 <span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">Formatter</span>, <span class="prelude-ty">Result</span>, <span class="ident">Write</span>};
+<span class="kw">use</span> <span class="ident">std::hash</span>::{<span class="ident">Hash</span>, <span class="ident">Hasher</span>};
+<span class="kw">use</span> <span class="ident">std::ops::Range</span>;
 
 <span class="kw">use</span> <span class="ident">index_vec::IndexVec</span>;
 
@@ -358,11 +413,25 @@
     <span class="ident">GlobalReactionId</span>
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Hash</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">TriggerId</span> {
     <span class="ident">Startup</span>,
     <span class="ident">Shutdown</span>,
-    <span class="ident">Component</span>(<span class="ident">GlobalId</span>)
+    <span class="ident">Component</span>(<span class="ident">GlobalId</span>),
+}
+
+
+<span class="kw">impl</span> <span class="ident">Hash</span> <span class="kw">for</span> <span class="ident">TriggerId</span> {
+    <span class="kw">fn</span> <span class="ident">hash</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">Hasher</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">state</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">H</span>) {
+        <span class="comment">// this hash function is very hot (because of get_reactions_trigerred_by)</span>
+        <span class="comment">// so we give it an implementation that&#39;s basically free.</span>
+        <span class="kw">let</span> <span class="ident">h</span>: <span class="ident">u32</span> <span class="op">=</span> <span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
+            <span class="comment">// we don&#39;t care about collisions, esp bc they occur once per app</span>
+            <span class="ident">TriggerId::Startup</span> <span class="op">|</span> <span class="ident">TriggerId::Shutdown</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">u32::MAX</span>,
+            <span class="ident">TriggerId::Component</span>(<span class="ident">GlobalId</span> { <span class="ident">_raw</span> }) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">_raw</span>
+        };
+        <span class="ident">state</span>.<span class="ident">write_u32</span>(<span class="ident">h</span>)
+    }
 }
 <span class="comment">//</span>
 <span class="comment">// global_id_newtype! {</span>
@@ -373,7 +442,7 @@
 
 <span class="doccomment">/// Identifies a component of a reactor using the ID of its container</span>
 <span class="doccomment">/// and a local component ID.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Eq</span>, <span class="ident">Ord</span>, <span class="ident">PartialOrd</span>, <span class="ident">PartialEq</span>, <span class="ident">Hash</span>, <span class="ident">Copy</span>, <span class="ident">Clone</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Eq</span>, <span class="ident">Ord</span>, <span class="ident">PartialOrd</span>, <span class="ident">PartialEq</span>, <span class="ident">Copy</span>, <span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">GlobalId</span> {
     <span class="ident">_raw</span>: <span class="ident">GlobalIdImpl</span>,
 }
@@ -385,11 +454,20 @@
         <span class="self">Self</span> { <span class="ident">_raw</span> }
     }
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">GlobalId</span> {
-        <span class="comment">// todo check overflow</span>
+    <span class="comment">// fixme replace panic by AssemblyError</span>
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">next_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">GlobalId</span> {
         <span class="macro">assert_ne!</span>(<span class="self">self</span>.<span class="ident">local</span>(), <span class="number">0xffff</span>, <span class="string">&quot;Overflow while allocating next id&quot;</span>);
         <span class="self">Self</span> { <span class="ident">_raw</span>: <span class="self">self</span>.<span class="ident">_raw</span> <span class="op">+</span> <span class="number">1</span> }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">id_range</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">len</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Range</span><span class="op">&lt;</span><span class="ident">GlobalId</span><span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="ident">ReactionIdImpl::try_from</span>(<span class="self">self</span>.<span class="ident">local</span>().<span class="ident">index</span>() <span class="op">+</span> <span class="ident">len</span>) {
+            <span class="prelude-val">Ok</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span>
+                <span class="ident">Range</span> { <span class="ident">start</span>: <span class="kw-2">*</span><span class="self">self</span>, <span class="ident">end</span>: <span class="self">Self</span> { <span class="ident">_raw</span>: <span class="self">self</span>.<span class="ident">_raw</span> <span class="op">+</span> (<span class="ident">len</span> <span class="kw">as</span> <span class="ident">GlobalIdImpl</span>) } }
+            ,
+            <span class="prelude-val">Err</span>(..) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">panic!</span>(<span class="string">&quot;Overflow while creating ID range&quot;</span>),
+        }
     }
 
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
@@ -403,6 +481,32 @@
 
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="kw">const</span> <span class="kw">fn</span> <span class="ident">local</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">LocalReactionId</span> {
         <span class="ident">LocalReactionId::new_const</span>((<span class="self">self</span>.<span class="ident">_raw</span> <span class="op">&amp;</span> <span class="number">0xffff</span>) <span class="kw">as</span> <span class="ident">u16</span>)
+    }
+}
+
+<span class="comment">// todo commit and remove</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">nightly</span>)]</span>
+<span class="kw">impl</span> <span class="ident">std::iter::Step</span> <span class="kw">for</span> <span class="ident">GlobalId</span> {
+    <span class="kw">fn</span> <span class="ident">steps_between</span>(<span class="ident">start</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>, <span class="ident">end</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">usize</span><span class="op">&gt;</span> {
+        (<span class="ident">end</span>.<span class="ident">_raw</span> <span class="kw">as</span> <span class="ident">usize</span>).<span class="ident">checked_sub</span>(<span class="ident">start</span>.<span class="ident">_raw</span> <span class="kw">as</span> <span class="ident">usize</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">forward_checked</span>(<span class="ident">start</span>: <span class="self">Self</span>, <span class="ident">count</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+        <span class="ident">GlobalIdImpl::try_from</span>(<span class="ident">count</span>).<span class="ident">ok</span>()
+            .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">start</span>.<span class="ident">_raw</span>.<span class="ident">checked_add</span>(<span class="ident">c</span>))
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">_raw</span><span class="op">|</span> <span class="self">Self</span> { <span class="ident">_raw</span> })
+    }
+
+    <span class="kw">fn</span> <span class="ident">backward_checked</span>(<span class="ident">start</span>: <span class="self">Self</span>, <span class="ident">count</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> {
+        <span class="ident">GlobalIdImpl::try_from</span>(<span class="ident">count</span>).<span class="ident">ok</span>()
+            .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">c</span><span class="op">|</span> <span class="ident">start</span>.<span class="ident">_raw</span>.<span class="ident">checked_sub</span>(<span class="ident">c</span>))
+            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">_raw</span><span class="op">|</span> <span class="self">Self</span> { <span class="ident">_raw</span> })
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">Hash</span> <span class="kw">for</span> <span class="ident">GlobalId</span> {
+    <span class="kw">fn</span> <span class="ident">hash</span><span class="op">&lt;</span><span class="ident">H</span>: <span class="ident">Hasher</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">state</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">H</span>) {
+        <span class="ident">state</span>.<span class="ident">write_u32</span>(<span class="self">self</span>.<span class="ident">_raw</span>)
     }
 }
 

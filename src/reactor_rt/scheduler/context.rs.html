@@ -579,7 +579,7 @@
 <span class="kw">use</span> <span class="ident">smallvec::SmallVec</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::scheduler::depgraph</span>::{<span class="ident">DataflowInfo</span>, <span class="ident">ExecutableReactions</span>, <span class="ident">LayerIx</span>};
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::scheduler::dependencies</span>::{<span class="ident">DataflowInfo</span>, <span class="ident">ExecutableReactions</span>, <span class="ident">LayerIx</span>};
 
 <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
@@ -707,7 +707,7 @@
     <span class="doccomment">/// same logical time.</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">set</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span>, <span class="ident">T</span>, <span class="ident">W</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="kw-2">mut</span> <span class="ident">port</span>: <span class="ident">W</span>, <span class="ident">value</span>: <span class="ident">T</span>)
-        <span class="kw">where</span> <span class="ident">T</span>: <span class="ident">Send</span> <span class="op">+</span> <span class="lifetime">&#39;b</span>,
+        <span class="kw">where</span> <span class="ident">T</span>: <span class="ident">Sync</span> <span class="op">+</span> <span class="lifetime">&#39;b</span>,
               <span class="ident">W</span>: <span class="ident">BorrowMut</span><span class="op">&lt;</span><span class="ident">WritablePort</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span>, <span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">port</span> <span class="op">=</span> <span class="ident">port</span>.<span class="ident">borrow_mut</span>();
         <span class="ident">port</span>.<span class="ident">set_impl</span>(<span class="ident">value</span>);
@@ -741,7 +741,7 @@
     <span class="doccomment">/// ctx.schedule(action, After(Duration::from_millis(2))); // equivalent to the previous</span>
     <span class="doccomment">/// ```</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">schedule</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LogicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">offset</span>: <span class="ident">Offset</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">schedule</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LogicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">offset</span>: <span class="ident">Offset</span>) {
         <span class="self">self</span>.<span class="ident">schedule_with_v</span>(<span class="ident">action</span>, <span class="prelude-val">None</span>, <span class="ident">offset</span>)
     }
 
@@ -771,7 +771,7 @@
     <span class="doccomment">/// ctx.schedule(action, Asap);</span>
     <span class="doccomment">/// ```</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">schedule_with_v</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LogicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">value</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">offset</span>: <span class="ident">Offset</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">schedule_with_v</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LogicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">value</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">offset</span>: <span class="ident">Offset</span>) {
         <span class="kw">let</span> <span class="ident">eta</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">make_successor_tag</span>(<span class="ident">action</span>.<span class="number">0</span>.<span class="ident">min_delay</span> <span class="op">+</span> <span class="ident">offset</span>.<span class="ident">to_duration</span>());
         <span class="ident">action</span>.<span class="number">0</span>.<span class="ident">schedule_future_value</span>(<span class="ident">eta</span>, <span class="ident">value</span>);
         <span class="kw">let</span> <span class="ident">downstream</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="ident">action</span>.<span class="ident">get_id</span>());
@@ -1039,7 +1039,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// This may fail if this is called while the scheduler has already</span>
     <span class="doccomment">/// been shutdown. todo prevent this</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">schedule_physical</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="ident">PhysicalActionRef</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">offset</span>: <span class="ident">Offset</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SendError</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">schedule_physical</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="ident">PhysicalActionRef</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">offset</span>: <span class="ident">Offset</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SendError</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">schedule_physical_with_v</span>(<span class="ident">action</span>, <span class="prelude-val">None</span>, <span class="ident">offset</span>)
     }
 
@@ -1049,7 +1049,7 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// This may fail if this is called while the scheduler has already</span>
     <span class="doccomment">/// been shutdown. todo prevent this</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">schedule_physical_with_v</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">schedule_physical_with_v</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(
         <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
         <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="ident">PhysicalActionRef</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
         <span class="ident">value</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>,
@@ -1126,22 +1126,22 @@
 }
 
 <span class="kw">impl</span> <span class="ident">CleanupCtx</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_multiport</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">port</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_multiport</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">port</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
         <span class="comment">// todo bound ports don&#39;t need to be cleared</span>
         <span class="kw">for</span> <span class="ident">channel</span> <span class="kw">in</span> <span class="ident">port</span> {
             <span class="ident">channel</span>.<span class="ident">clear_value</span>()
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_port</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">port</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_port</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">port</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
         <span class="ident">port</span>.<span class="ident">clear_value</span>()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_logical_action</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LogicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_logical_action</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">LogicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
         <span class="ident">action</span>.<span class="number">0</span>.<span class="ident">forget_value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">tag</span>);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_physical_action</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Send</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PhysicalActionRef</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_physical_action</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PhysicalActionRef</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
         <span class="ident">action</span>.<span class="ident">use_mut</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="number">0</span>.<span class="ident">forget_value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">tag</span>));
     }
 }
