@@ -23,6 +23,7 @@
  */
 
 
+use std::cmp::Reverse;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
@@ -56,7 +57,7 @@ pub(crate) struct Action<Kind, T: Sync> {
     /// We rely strongly on the fact that any value put in there by [Action.schedule_future_value]
     /// will be cleaned up after that tag. Otherwise the map will
     /// blow up the heap.
-    map: VecMap<EventTag, Option<T>>,
+    map: VecMap<Reverse<EventTag>, Option<T>>,
 }
 
 impl<K, T: Sync> Action<K, T> {
@@ -67,7 +68,7 @@ impl<K, T: Sync> Action<K, T> {
     ///
     #[inline]
     pub(in crate) fn schedule_future_value(&mut self, time: EventTag, value: Option<T>) {
-        match self.map.entry(time) {
+        match self.map.entry(Reverse(time)) {
             Entry::Vacant(e) => { e.insert(value) }
             Entry::Occupied(_, v) => {
                 // todo log when overwriting value
@@ -79,7 +80,7 @@ impl<K, T: Sync> Action<K, T> {
 
     #[inline]
     pub(in crate) fn forget_value(&mut self, time: &EventTag) -> Option<T> {
-        self.map.remove(time).flatten()
+        self.map.remove(&Reverse(*time)).flatten()
     }
 
     fn new_impl(id: GlobalId, min_delay: Option<Duration>, _is_logical: bool) -> Self {
@@ -96,17 +97,17 @@ impl<K, T: Sync> Action<K, T> {
 impl<T: Sync, K> ReactionTrigger<T> for Action<K, T> {
     #[inline]
     fn is_present(&self, now: &EventTag, _start: &Instant) -> bool {
-        self.map.contains_key(now)
+        self.map.contains_key(&Reverse(*now))
     }
 
     #[inline]
     fn get_value(&self, now: &EventTag, _start: &Instant) -> Option<T> where T: Copy {
-        self.map.get(now).cloned().flatten()
+        self.map.get(&Reverse(*now)).cloned().flatten()
     }
 
     #[inline]
     fn use_value_ref<O>(&self, now: &EventTag, _start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
-        let inmap: Option<&Option<T>> = self.map.get(now);
+        let inmap: Option<&Option<T>> = self.map.get(&Reverse(*now));
         let v = inmap.map(|i| i.as_ref()).flatten();
         action(v)
     }
