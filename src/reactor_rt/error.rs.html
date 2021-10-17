@@ -29,8 +29,6 @@
 <span id="29">29</span>
 <span id="30">30</span>
 <span id="31">31</span>
-<span id="32">32</span>
-<span id="33">33</span>
 </pre><pre class="rust">
 <span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">Formatter</span>};
 <span class="kw">use</span> <span class="ident">AssemblyErrorImpl</span>::<span class="kw-2">*</span>;
@@ -46,7 +44,6 @@
     <span class="ident">CyclicDependency</span>(<span class="ident">PortId</span>, <span class="ident">PortId</span>),
     <span class="ident">CyclicDependencyGraph</span>,
     <span class="ident">CannotBind</span>(<span class="ident">PortId</span>, <span class="ident">PortId</span>),
-    <span class="ident">CannotSet</span>(<span class="ident">PortId</span>),
 }
 
 <span class="kw">impl</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">AssemblyError</span> {
@@ -55,7 +52,6 @@
             <span class="ident">CyclicDependency</span>(<span class="ident">upstream</span>, <span class="ident">downstream</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;Port {} is already in the downstream of port {}&quot;</span>, <span class="ident">upstream</span>, <span class="ident">downstream</span>),
             <span class="ident">CyclicDependencyGraph</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;Cyclic dependency graph&quot;</span>),
             <span class="ident">CannotBind</span>(<span class="ident">upstream</span>, <span class="ident">downstream</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;Cannot bind {} to {}, downstream is already bound&quot;</span>, <span class="ident">upstream</span>, <span class="ident">downstream</span>),
-            <span class="ident">CannotSet</span>(<span class="ident">port</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;Cannot set {} explicitly as it is bound&quot;</span>, <span class="ident">port</span>),
         }
     }
 }
