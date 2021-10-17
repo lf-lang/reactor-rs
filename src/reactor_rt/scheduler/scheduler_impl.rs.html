@@ -754,14 +754,14 @@
 
         <span class="macro">debug_assert!</span>(<span class="op">!</span><span class="self">self</span>.<span class="ident">reactors</span>.<span class="ident">is_empty</span>(), <span class="string">&quot;No registered reactors&quot;</span>);
 
-        <span class="kw">let</span> <span class="ident">startup_reactions</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="ident">TriggerId::Startup</span>);
+        <span class="kw">let</span> <span class="ident">startup_reactions</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="ident">TriggerId::STARTUP</span>);
         <span class="self">self</span>.<span class="ident">process_tag</span>(<span class="ident">initial_tag</span>, <span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">startup_reactions</span>)))
     }
 
     <span class="kw">fn</span> <span class="ident">shutdown</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">reactions</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>) {
         <span class="kw">let</span> <span class="ident">shutdown_tag</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">shutdown_time</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">EventTag::now</span>(<span class="self">self</span>.<span class="ident">initial_time</span>));
 
-        <span class="kw">let</span> <span class="ident">default_plan</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="ident">TriggerId::Shutdown</span>)));
+        <span class="kw">let</span> <span class="ident">default_plan</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="ident">TriggerId::SHUTDOWN</span>)));
         <span class="kw">let</span> <span class="ident">reactions</span> <span class="op">=</span> <span class="ident">ExecutableReactions::merge_cows</span>(<span class="ident">reactions</span>, <span class="ident">default_plan</span>);
 
         <span class="self">self</span>.<span class="ident">process_tag</span>(<span class="ident">shutdown_tag</span>, <span class="ident">reactions</span>);

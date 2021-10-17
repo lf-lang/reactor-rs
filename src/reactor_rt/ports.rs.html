@@ -431,6 +431,10 @@
 <span id="431">431</span>
 <span id="432">432</span>
 <span id="433">433</span>
+<span id="434">434</span>
+<span id="435">435</span>
+<span id="436">436</span>
+<span id="437">437</span>
 </pre><pre class="rust">
 <span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
@@ -469,7 +473,10 @@
 
 <span class="kw">use</span> <span class="ident">atomic_refcell::AtomicRefCell</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">AssemblyError</span>, <span class="ident">EventTag</span>, <span class="ident">GlobalId</span>, <span class="ident">PortId</span>, <span class="ident">ReactionTrigger</span>, <span class="ident">TriggerId</span>, <span class="ident">TriggerLike</span>};
+<span class="kw">use</span> <span class="ident">AssemblyErrorImpl::CannotBind</span>;
+
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">AssemblyError</span>, <span class="ident">AssemblyErrorImpl</span>, <span class="ident">EventTag</span>, <span class="ident">GlobalId</span>, <span class="ident">PortId</span>, <span class="ident">ReactionTrigger</span>, <span class="ident">TriggerId</span>, <span class="ident">TriggerLike</span>};
+<span class="kw">use</span> <span class="kw">crate</span><span class="ident">::AssemblyErrorImpl::CyclicDependency</span>;
 
 <span class="doccomment">/// A read-only reference to a port.</span>
 <span class="attribute">#[<span class="ident">repr</span>(<span class="ident">transparent</span>)]</span>
@@ -517,6 +524,7 @@
 }
 
 <span class="doccomment">/// Internal type, not communicated to reactions.</span>
+<span class="doccomment">/// todo Rename to Multiport (single word)</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> {
     <span class="ident">ports</span>: <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>,
     <span class="ident">id</span>: <span class="ident">GlobalId</span>,
@@ -531,7 +539,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">TriggerLike</span> <span class="kw">for</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">get_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TriggerId</span> {
-        <span class="ident">TriggerId::Component</span>(<span class="self">self</span>.<span class="ident">id</span>)
+        <span class="ident">TriggerId::new</span>(<span class="self">self</span>.<span class="ident">id</span>)
     }
 }
 
@@ -649,7 +657,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Create a new port</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">id</span>: <span class="ident">GlobalId</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">id</span>: <span class="ident">GlobalId</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">id</span>,
             <span class="ident">is_input</span>,
@@ -738,7 +746,7 @@
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">mut_downstream_cell</span> <span class="op">=</span> <span class="kw">unsafe</span> { (<span class="kw-2">&amp;</span><span class="ident">downstream</span>.<span class="ident">upstream_binding</span>).<span class="ident">get</span>().<span class="ident">as_mut</span>().<span class="ident">unwrap</span>() };
 
         <span class="kw">if</span> <span class="ident">downstream</span>.<span class="ident">bind_status</span> <span class="op">=</span><span class="op">=</span> <span class="ident">BindStatus::Bound</span> {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">AssemblyError::CannotBind</span>(<span class="self">self</span>.<span class="ident">id</span>, <span class="ident">downstream</span>.<span class="ident">id</span>))
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">AssemblyError</span>(<span class="ident">CannotBind</span>(<span class="self">self</span>.<span class="ident">id</span>, <span class="ident">downstream</span>.<span class="ident">id</span>)))
         }
 
         <span class="ident">downstream</span>.<span class="ident">bind_status</span> <span class="op">=</span> <span class="ident">BindStatus::Bound</span>;
@@ -772,7 +780,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">TriggerLike</span> <span class="kw">for</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">get_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TriggerId</span> {
-        <span class="ident">TriggerId::Component</span>(<span class="self">self</span>.<span class="ident">id</span>)
+        <span class="ident">TriggerId::new</span>(<span class="self">self</span>.<span class="ident">id</span>)
     }
 }
 
@@ -837,7 +845,7 @@
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
     <span class="kw">fn</span> <span class="ident">check_cycle</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">upstream_id</span>: <span class="kw-2">&amp;</span><span class="ident">PortId</span>, <span class="ident">downstream_id</span>: <span class="kw-2">&amp;</span><span class="ident">PortId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
         <span class="kw">if</span> (<span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">downstreams</span>.<span class="ident">borrow</span>()).<span class="ident">contains_key</span>(<span class="ident">upstream_id</span>) {
-            <span class="prelude-val">Err</span>(<span class="ident">AssemblyError::CyclicDependency</span>(<span class="kw-2">*</span><span class="ident">upstream_id</span>, <span class="kw-2">*</span><span class="ident">downstream_id</span>))
+            <span class="prelude-val">Err</span>(<span class="ident">AssemblyError</span>(<span class="ident">CyclicDependency</span>(<span class="kw-2">*</span><span class="ident">upstream_id</span>, <span class="kw-2">*</span><span class="ident">downstream_id</span>)))
         } <span class="kw">else</span> {
             <span class="prelude-val">Ok</span>(())
         }

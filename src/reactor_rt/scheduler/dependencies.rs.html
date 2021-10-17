@@ -598,6 +598,15 @@
 <span id="598">598</span>
 <span id="599">599</span>
 <span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
 </pre><pre class="rust">
 <span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
@@ -665,10 +674,10 @@
 
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">TriggerId</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GraphId</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">id</span>: <span class="ident">TriggerId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="kw">match</span> <span class="ident">id</span> {
-            <span class="ident">TriggerId::Startup</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">Self</span><span class="ident">::Startup</span>,
-            <span class="ident">TriggerId::Shutdown</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">Self</span><span class="ident">::Shutdown</span>,
-            <span class="ident">TriggerId::Component</span>(<span class="ident">id</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="self">Self</span><span class="ident">::Id</span>(<span class="ident">id</span>),
+        <span class="kw">match</span> <span class="ident">id</span>.<span class="number">0</span> {
+            <span class="ident">TriggerIdImpl::Startup</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">Self</span><span class="ident">::Startup</span>,
+            <span class="ident">TriggerIdImpl::Shutdown</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">Self</span><span class="ident">::Shutdown</span>,
+            <span class="ident">TriggerIdImpl::Component</span>(<span class="ident">id</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="self">Self</span><span class="ident">::Id</span>(<span class="ident">id</span>),
         }
     }
 }
@@ -676,11 +685,11 @@
 <span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">GraphId</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">TriggerId</span> {
     <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">id</span>: <span class="ident">GraphId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="kw">match</span> <span class="ident">id</span> {
-            <span class="ident">GraphId::Startup</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">TriggerId::Startup</span>,
-            <span class="ident">GraphId::Shutdown</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">TriggerId::Shutdown</span>,
+            <span class="ident">GraphId::Startup</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">TriggerId::STARTUP</span>,
+            <span class="ident">GraphId::Shutdown</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">TriggerId::SHUTDOWN</span>,
             <span class="ident">GraphId::Id</span>(<span class="ident">id</span>) <span class="op">=</span><span class="op">&gt;</span> {
                 <span class="comment">// we don&#39;t assert that it&#39;s indeed a trigger and not a reaction...</span>
-                <span class="ident">TriggerId::Component</span>(<span class="ident">id</span>)
+                <span class="ident">TriggerId</span>(<span class="ident">TriggerIdImpl::Component</span>(<span class="ident">id</span>))
             },
         }
     }
@@ -938,6 +947,15 @@
 <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">super</span>) <span class="kw">struct</span> <span class="ident">DataflowInfo</span> {
     <span class="doccomment">/// Maps each trigger to the set of reactions that need</span>
     <span class="doccomment">/// to be scheduled when it is triggered.</span>
+
+    <span class="doccomment">/// TODO using a hashmap is not so cool, when we could</span>
+    <span class="doccomment">///  just allocate all trigger IDs compactly and use a vecmap.</span>
+    <span class="doccomment">///  Only reaction ids need to contain a reference to their</span>
+    <span class="doccomment">///  reactor. This would also lift restrictions on the number</span>
+    <span class="doccomment">///  of components:</span>
+    <span class="doccomment">///  currently (2^16 (reactions + components)) per reactor</span>
+    <span class="doccomment">///  then, (2^16 reactions/reactor) + (range(usize) total components)</span>
+    <span class="doccomment">///  Debug info needs to be updated though.</span>
     <span class="ident">trigger_to_plan</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">TriggerId</span>, <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ExecutableReactions</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
 }
@@ -945,7 +963,7 @@
 <span class="kw">impl</span> <span class="ident">DataflowInfo</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="kw-2">mut</span> <span class="ident">graph</span>: <span class="ident">DepGraph</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="ident">petgraph::algo::is_cyclic_directed</span>(<span class="kw-2">&amp;</span><span class="ident">graph</span>.<span class="ident">dataflow</span>) {
-            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">AssemblyError::CyclicDependencyGraph</span>);
+            <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">AssemblyError</span>(<span class="ident">AssemblyErrorImpl::CyclicDependencyGraph</span>));
         }
 
         <span class="kw">let</span> <span class="ident">layer_info</span> <span class="op">=</span> <span class="ident">ReactionLayerInfo</span> { <span class="ident">layer_numbers</span>: <span class="ident">graph</span>.<span class="ident">number_reactions_by_layer</span>() };
@@ -1188,8 +1206,8 @@
         <span class="comment">// n1 &gt; n2</span>
         <span class="ident">graph</span>.<span class="ident">reaction_priority</span>(<span class="ident">n1</span>, <span class="ident">n2</span>);
 
-        <span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">TriggerId::Component</span>(<span class="ident">p0</span>));
-        <span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">TriggerId::Component</span>(<span class="ident">p0</span>), <span class="ident">n2</span>);
+        <span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">TriggerId::new</span>(<span class="ident">p0</span>));
+        <span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">TriggerId::new</span>(<span class="ident">p0</span>), <span class="ident">n2</span>);
 
 
         <span class="kw">let</span> <span class="ident">roots</span> <span class="op">=</span> <span class="ident">graph</span>.<span class="ident">get_roots</span>();
