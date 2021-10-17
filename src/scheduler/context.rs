@@ -1,6 +1,6 @@
 use std::borrow::{Borrow, BorrowMut};
 
-use crossbeam_channel::{ReconnectableReceiver, Sender, SendError};
+use crossbeam_channel::reconnectable::{Receiver, Sender, SendError};
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
 
@@ -29,7 +29,7 @@ pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
     cur_layer: LayerIx,
 
     /// Sender to schedule events that should be executed later than this wave.
-    rx: &'a ReconnectableReceiver<Event<'x>>,
+    rx: &'a Receiver<Event<'x>>,
 
     /// Start time of the program.
     initial_time: PhysicalInstant,
@@ -365,7 +365,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     }
 
 
-    pub(super) fn new(rx: &'a ReconnectableReceiver<Event<'x>>,
+    pub(super) fn new(rx: &'a Receiver<Event<'x>>,
                       tag: EventTag,
                       initial_time: PhysicalInstant,
                       todo: ReactionPlan<'x>,

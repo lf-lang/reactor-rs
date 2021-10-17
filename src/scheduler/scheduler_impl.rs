@@ -24,8 +24,8 @@
 
 //! Home of the scheduler component.
 
-use crossbeam_channel::{ReconnectableReceiver, RecvTimeoutError};
-use crossbeam_utils::{thread::Scope, thread::scope};
+use crossbeam_channel::reconnectable::*;
+use crossbeam_utils::thread::{Scope, scope};
 
 use crate::*;
 use crate::scheduler::dependencies::{DataflowInfo, LayerIx};
@@ -108,7 +108,7 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Receiver through which asynchronous events are
     /// communicated to the scheduler. We only block when
     /// no events are ready to be processed.
-    rx: ReconnectableReceiver<Event<'x>>,
+    rx: Receiver<Event<'x>>,
 
     /// Initial time of the logical system.
     initial_time: Instant,
@@ -236,7 +236,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         reactors: ReactorVec<'x>,
         initial_time: Instant,
     ) -> Self {
-        let (_, rx) = crossbeam_channel::unbounded_reconnectable::<Event<'x>>();
+        let (_, rx) = unbounded::<Event<'x>>();
         Self {
             rx,
 
@@ -348,7 +348,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     fn new_reaction_ctx(&self,
                         tag: EventTag,
                         todo: ReactionPlan<'x>,
-                        rx: &'a ReconnectableReceiver<Event<'x>>) -> ReactionCtx<'a, 'x, 't> {
+                        rx: &'a Receiver<Event<'x>>) -> ReactionCtx<'a, 'x, 't> {
         ReactionCtx::new(
             rx,
             tag,
