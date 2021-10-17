@@ -126,7 +126,7 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
 }
 
 impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
-    pub fn run_main<R: ReactorInitializer + Send + Sync + 'static>(options: SchedulerOptions, args: R::Params) {
+    pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
         let mut root_assembler = RootAssembler::default();
         let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler, ReactorDebugInfo::root::<R::Wrapped>());
 

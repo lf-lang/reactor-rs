@@ -27,7 +27,7 @@
 
 #![allow(unused)]
 
-use crate::{AssemblyCtx, CleanupCtx, LogicalAction, PhysicalAction, PhysicalActionRef, Port, ReactionCtx, ReadablePort, WritablePort};
+use crate::{AssemblyCtx, CleanupCtx, LogicalAction, PhysicalAction, PhysicalActionRef, Port, ReactionCtx, ReadablePort, SchedulerOptions, SyncScheduler, WritablePort};
 use crate::Offset::Asap;
 
 fn actions_get(ctx: &mut ReactionCtx, act_mut: &mut LogicalAction<u32>, act: &LogicalAction<u32>) {

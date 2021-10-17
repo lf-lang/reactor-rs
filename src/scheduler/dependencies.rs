@@ -369,7 +369,7 @@ impl DataflowInfo {
         let triggers: Vec<_> = dataflow.node_indices().filter(|ix| dataflow[*ix].kind != NodeKind::Reaction).collect();
 
         for trigger in triggers {
-            if let Some(multiport_id) = multiport_containment.get(&dataflow[trigger].id) {
+            if let Some(_multiport_id) = multiport_containment.get(&dataflow[trigger].id) {
                 assert_eq!(dataflow[trigger].kind, NodeKind::Port);
                 todo!("multiports")
                 // todo this is a multiport channel:
