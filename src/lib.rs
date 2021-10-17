@@ -97,6 +97,7 @@ pub mod prelude {
     pub use crate::Offset::*;
     pub use crate::ReactionCtx;
     pub use crate::EventTag;
+    pub use crate::{LogicalAction, ReadablePort, WritablePort, PhysicalActionRef, Timer};
 }
 
 /// Wrapper around the user struct for safe dispatch.

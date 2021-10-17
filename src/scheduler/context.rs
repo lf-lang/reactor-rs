@@ -41,24 +41,59 @@ pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
 
 
 impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
-    pub(in super) fn new(rx: &'a ReconnectableReceiver<Event<'x>>,
-                         tag: EventTag,
-                         initial_time: PhysicalInstant,
-                         todo: ReactionPlan<'x>,
-                         dataflow: &'x DataflowInfo,
-                         thread_spawner: &'a Scope<'t>) -> Self {
-        Self {
-            insides: RContextForwardableStuff {
-                todo_now: todo,
-                future_events: Default::default(),
-            },
-            cur_layer: Default::default(),
-            tag,
-            rx,
-            initial_time,
-            dataflow,
-            thread_spawner,
-        }
+    /// Returns the start time of the execution of this program.
+    ///
+    /// This is a logical instant with microstep zero.
+    #[inline]
+    pub fn get_start_time(&self) -> PhysicalInstant {
+        self.initial_time
+    }
+
+    /// Returns the current physical time.
+    ///
+    /// Repeated invocation of this method may produce different
+    /// values, although [PhysicalInstant] is monotonic. The
+    /// physical time is necessarily greater than the logical time.
+    #[inline]
+    pub fn get_physical_time(&self) -> PhysicalInstant {
+        PhysicalInstant::now()
+    }
+
+    /// Returns the current logical time.
+    ///
+    /// Logical time is frozen during the execution of a reaction.
+    /// Repeated invocation of this method will always produce
+    /// the same value.
+    #[inline]
+    pub fn get_logical_time(&self) -> Instant {
+        self.tag.to_logical_time(self.get_start_time())
+    }
+
+    /// Returns the tag at which the reaction executes.
+    ///
+    /// Repeated invocation of this method will always produce
+    /// the same value.
+    #[inline]
+    pub fn get_tag(&self) -> EventTag {
+        self.tag
+    }
+
+    /// Returns the amount of logical time elapsed since the
+    /// start of the program. This does not take microsteps
+    /// into account.
+    #[inline]
+    pub fn get_elapsed_logical_time(&self) -> Duration {
+        self.get_logical_time() - self.get_start_time()
+    }
+
+    /// Returns the amount of physical time elapsed since the
+    /// start of the program.
+    ///
+    /// Since this uses [Self::get_physical_time], be aware that
+    /// this function's result may change over time.
+    #[inline]
+    pub fn get_elapsed_physical_time(&self) -> Duration {
+        self.get_physical_time() - self.get_start_time()
     }
 
 
@@ -158,7 +193,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ### Examples
     ///
     /// ```no_run
-    /// # use reactor_rt::{Duration, ReactionCtx, LogicalAction, Offset::*, after, delay};
+    /// # use reactor_rt::prelude::*;
     /// # let ctx: &mut ReactionCtx = panic!();
     /// # let action: &mut LogicalAction<String> = panic!();
     /// ctx.schedule(action, Asap);         // will be executed one microstep from now (+ own delay)
@@ -186,7 +221,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ### Examples
     ///
     /// ```no_run
-    /// # use reactor_rt::{Duration, ReactionCtx, LogicalAction, Offset::*, after, delay};
+    /// # use reactor_rt::prelude::*;
     /// # let ctx: &mut ReactionCtx = panic!();
     /// # let action: &mut LogicalAction<&'static str> = panic!();
     /// // will be executed 2 milliseconds (+ own delay) from now with that value.
@@ -244,7 +279,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ### Example
     ///
     /// ```no_run
-    /// # use reactor_rt::*;
+    /// # use reactor_rt::prelude::*;
     /// fn some_reaction(ctx: &mut ReactionCtx, phys_action: &PhysicalActionRef<u32>) {
     ///     let phys_action = phys_action.clone(); // clone to move it into other thread
     ///     ctx.spawn_physical_thread(move |link| {
@@ -276,70 +311,29 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         })
     }
 
-    /// Request a shutdown which will be acted upon at the
-    /// next microstep. Before then, the current tag is
-    /// processed until completion.
+    /// Request that the application shutdown, possibly with
+    /// a particular offset. Just like for actions, even a zero
+    /// offset will only trigger the special `shutdown` trigger
+    /// at the earliest one microstep after the current tag.
+    ///
+    /// ```
+    /// # use reactor_rt::prelude::*;
+    /// # let ctx: &mut ReactionCtx = panic!();
+    /// # let action: &mut LogicalAction<&'static str> = panic!();
+    /// // trigger shutdown on the next microstep
+    /// ctx.request_stop(Asap);
+    ///
+    /// // trigger shutdown in *at most* 1 msec (in logical time).
+    /// // If in the meantime, another `request_stop` call schedules
+    /// // shutdown for an earlier tag, that one will be honored instead.
+    /// ctx.request_stop(after!(1 msec));
+    /// ```
     #[inline]
     pub fn request_stop(&mut self, offset: Offset) {
         let tag = self.make_successor_tag(offset.to_duration());
 
         let evt = Event::terminate_at(tag);
         self.insides.future_events.push(evt);
-    }
-
-    /// Returns the start time of the execution of this program.
-    ///
-    /// This is a logical instant with microstep zero.
-    #[inline]
-    pub fn get_start_time(&self) -> PhysicalInstant {
-        self.initial_time
-    }
-
-    /// Returns the current physical time.
-    ///
-    /// Repeated invocation of this method may produce different
-    /// values, although [PhysicalInstant] is monotonic. The
-    /// physical time is necessarily greater than the logical time.
-    #[inline]
-    pub fn get_physical_time(&self) -> PhysicalInstant {
-        PhysicalInstant::now()
-    }
-
-    /// Returns the current logical time.
-    ///
-    /// Logical time is frozen during the execution of a reaction.
-    /// Repeated invocation of this method will always produce
-    /// the same value.
-    #[inline]
-    pub fn get_logical_time(&self) -> Instant {
-        self.tag.to_logical_time(self.get_start_time())
-    }
-
-    /// Returns the tag at which the reaction executes.
-    ///
-    /// Repeated invocation of this method will always produce
-    /// the same value.
-    #[inline]
-    pub fn get_tag(&self) -> EventTag {
-        self.tag
-    }
-
-    /// Returns the amount of logical time elapsed since the
-    /// start of the program. This does not take microsteps
-    /// into account.
-    #[inline]
-    pub fn get_elapsed_logical_time(&self) -> Duration {
-        self.get_logical_time() - self.get_start_time()
-    }
-
-    /// Returns the amount of physical time elapsed since the
-    /// start of the program.
-    ///
-    /// Since this uses [Self::get_physical_time], be aware that
-    /// this function's result may change over time.
-    #[inline]
-    pub fn get_elapsed_physical_time(&self) -> Duration {
-        self.get_physical_time() - self.get_start_time()
     }
 
     /// Reschedule a periodic timer if need be.
@@ -367,6 +361,27 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
             self.enqueue_now(Cow::Borrowed(downstream))
         } else {
             self.enqueue_later(downstream, self.make_successor_tag(timer.offset))
+        }
+    }
+
+
+    pub(super) fn new(rx: &'a ReconnectableReceiver<Event<'x>>,
+                      tag: EventTag,
+                      initial_time: PhysicalInstant,
+                      todo: ReactionPlan<'x>,
+                      dataflow: &'x DataflowInfo,
+                      thread_spawner: &'a Scope<'t>) -> Self {
+        Self {
+            insides: RContextForwardableStuff {
+                todo_now: todo,
+                future_events: Default::default(),
+            },
+            cur_layer: Default::default(),
+            tag,
+            rx,
+            initial_time,
+            dataflow,
+            thread_spawner,
         }
     }
 
