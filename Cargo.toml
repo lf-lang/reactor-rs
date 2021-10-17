@@ -16,7 +16,7 @@ petgraph = "0.6"
 array-macro = "2.1"
 atomic_refcell = "0.1"
 crossbeam-utils = "0.8"
-crossbeam-channel = { git = "https://github.com/oowekyala/crossbeam.git", branch = "reconnectable-channel" }
+crossbeam-channel = { git = "https://github.com/oowekyala/crossbeam.git", rev = "9eed66904f969156dedad4eef61ce91d23b9cccb" }
 rayon = { version = "1.5", optional = true }
 regex = { version = "1", optional = true }
 
