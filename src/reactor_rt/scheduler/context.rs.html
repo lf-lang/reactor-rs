@@ -571,6 +571,21 @@
 <span id="571">571</span>
 <span id="572">572</span>
 <span id="573">573</span>
+<span id="574">574</span>
+<span id="575">575</span>
+<span id="576">576</span>
+<span id="577">577</span>
+<span id="578">578</span>
+<span id="579">579</span>
+<span id="580">580</span>
+<span id="581">581</span>
+<span id="582">582</span>
+<span id="583">583</span>
+<span id="584">584</span>
+<span id="585">585</span>
+<span id="586">586</span>
+<span id="587">587</span>
+<span id="588">588</span>
 </pre><pre class="rust">
 <span class="kw">use</span> <span class="ident">std::borrow</span>::{<span class="ident">Borrow</span>, <span class="ident">BorrowMut</span>};
 
@@ -615,24 +630,59 @@
 
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span> <span class="ident">ReactionCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span> <span class="kw">where</span> <span class="lifetime">&#39;x</span>: <span class="lifetime">&#39;t</span> {
-    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">rx</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ReconnectableReceiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,
-                         <span class="ident">tag</span>: <span class="ident">EventTag</span>,
-                         <span class="ident">initial_time</span>: <span class="ident">PhysicalInstant</span>,
-                         <span class="ident">todo</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>,
-                         <span class="ident">dataflow</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x</span> <span class="ident">DataflowInfo</span>,
-                         <span class="ident">thread_spawner</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Scope</span><span class="op">&lt;</span><span class="lifetime">&#39;t</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">insides</span>: <span class="ident">RContextForwardableStuff</span> {
-                <span class="ident">todo_now</span>: <span class="ident">todo</span>,
-                <span class="ident">future_events</span>: <span class="ident">Default::default</span>(),
-            },
-            <span class="ident">cur_layer</span>: <span class="ident">Default::default</span>(),
-            <span class="ident">tag</span>,
-            <span class="ident">rx</span>,
-            <span class="ident">initial_time</span>,
-            <span class="ident">dataflow</span>,
-            <span class="ident">thread_spawner</span>,
-        }
+    <span class="doccomment">/// Returns the start time of the execution of this program.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This is a logical instant with microstep zero.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_start_time</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PhysicalInstant</span> {
+        <span class="self">self</span>.<span class="ident">initial_time</span>
+    }
+
+    <span class="doccomment">/// Returns the current physical time.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Repeated invocation of this method may produce different</span>
+    <span class="doccomment">/// values, although [PhysicalInstant] is monotonic. The</span>
+    <span class="doccomment">/// physical time is necessarily greater than the logical time.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_physical_time</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PhysicalInstant</span> {
+        <span class="ident">PhysicalInstant::now</span>()
+    }
+
+    <span class="doccomment">/// Returns the current logical time.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Logical time is frozen during the execution of a reaction.</span>
+    <span class="doccomment">/// Repeated invocation of this method will always produce</span>
+    <span class="doccomment">/// the same value.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_logical_time</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Instant</span> {
+        <span class="self">self</span>.<span class="ident">tag</span>.<span class="ident">to_logical_time</span>(<span class="self">self</span>.<span class="ident">get_start_time</span>())
+    }
+
+    <span class="doccomment">/// Returns the tag at which the reaction executes.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Repeated invocation of this method will always produce</span>
+    <span class="doccomment">/// the same value.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_tag</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">EventTag</span> {
+        <span class="self">self</span>.<span class="ident">tag</span>
+    }
+
+    <span class="doccomment">/// Returns the amount of logical time elapsed since the</span>
+    <span class="doccomment">/// start of the program. This does not take microsteps</span>
+    <span class="doccomment">/// into account.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_elapsed_logical_time</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Duration</span> {
+        <span class="self">self</span>.<span class="ident">get_logical_time</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">get_start_time</span>()
+    }
+
+    <span class="doccomment">/// Returns the amount of physical time elapsed since the</span>
+    <span class="doccomment">/// start of the program.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Since this uses [Self::get_physical_time], be aware that</span>
+    <span class="doccomment">/// this function&#39;s result may change over time.</span>
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_elapsed_physical_time</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Duration</span> {
+        <span class="self">self</span>.<span class="ident">get_physical_time</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">get_start_time</span>()
     }
 
 
@@ -732,7 +782,7 @@
     <span class="doccomment">/// ### Examples</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// ```no_run</span>
-    <span class="doccomment">/// # use reactor_rt::{Duration, ReactionCtx, LogicalAction, Offset::*, after, delay};</span>
+    <span class="doccomment">/// # use reactor_rt::prelude::*;</span>
     <span class="doccomment">/// # let ctx: &amp;mut ReactionCtx = panic!();</span>
     <span class="doccomment">/// # let action: &amp;mut LogicalAction&lt;String&gt; = panic!();</span>
     <span class="doccomment">/// ctx.schedule(action, Asap);         // will be executed one microstep from now (+ own delay)</span>
@@ -760,7 +810,7 @@
     <span class="doccomment">/// ### Examples</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// ```no_run</span>
-    <span class="doccomment">/// # use reactor_rt::{Duration, ReactionCtx, LogicalAction, Offset::*, after, delay};</span>
+    <span class="doccomment">/// # use reactor_rt::prelude::*;</span>
     <span class="doccomment">/// # let ctx: &amp;mut ReactionCtx = panic!();</span>
     <span class="doccomment">/// # let action: &amp;mut LogicalAction&lt;&amp;&#39;static str&gt; = panic!();</span>
     <span class="doccomment">/// // will be executed 2 milliseconds (+ own delay) from now with that value.</span>
@@ -818,7 +868,7 @@
     <span class="doccomment">/// ### Example</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// ```no_run</span>
-    <span class="doccomment">/// # use reactor_rt::*;</span>
+    <span class="doccomment">/// # use reactor_rt::prelude::*;</span>
     <span class="doccomment">/// fn some_reaction(ctx: &amp;mut ReactionCtx, phys_action: &amp;PhysicalActionRef&lt;u32&gt;) {</span>
     <span class="doccomment">///     let phys_action = phys_action.clone(); // clone to move it into other thread</span>
     <span class="doccomment">///     ctx.spawn_physical_thread(move |link| {</span>
@@ -826,7 +876,7 @@
     <span class="doccomment">///         // This will push an event whose tag is the</span>
     <span class="doccomment">///         // current physical time at the point of this</span>
     <span class="doccomment">///         // statement.</span>
-    <span class="doccomment">///         link.schedule_physical_with_v(&amp;phys_action, Some(123), Offset::Asap).unwrap();</span>
+    <span class="doccomment">///         link.schedule_physical_with_v(&amp;phys_action, Some(123), Asap).unwrap();</span>
     <span class="doccomment">///     });</span>
     <span class="doccomment">/// }</span>
     <span class="doccomment">/// ```</span>
@@ -850,70 +900,29 @@
         })
     }
 
-    <span class="doccomment">/// Request a shutdown which will be acted upon at the</span>
-    <span class="doccomment">/// next microstep. Before then, the current tag is</span>
-    <span class="doccomment">/// processed until completion.</span>
+    <span class="doccomment">/// Request that the application shutdown, possibly with</span>
+    <span class="doccomment">/// a particular offset. Just like for actions, even a zero</span>
+    <span class="doccomment">/// offset will only trigger the special `shutdown` trigger</span>
+    <span class="doccomment">/// at the earliest one microstep after the current tag.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// ```no_run</span>
+    <span class="doccomment">/// # use reactor_rt::prelude::*;</span>
+    <span class="doccomment">/// # let ctx: &amp;mut ReactionCtx = panic!();</span>
+    <span class="doccomment">/// # let action: &amp;mut LogicalAction&lt;&amp;&#39;static str&gt; = panic!();</span>
+    <span class="doccomment">/// // trigger shutdown on the next microstep</span>
+    <span class="doccomment">/// ctx.request_stop(Asap);</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// // trigger shutdown in *at most* 1 msec (in logical time).</span>
+    <span class="doccomment">/// // If in the meantime, another `request_stop` call schedules</span>
+    <span class="doccomment">/// // shutdown for an earlier tag, that one will be honored instead.</span>
+    <span class="doccomment">/// ctx.request_stop(after!(1 msec));</span>
+    <span class="doccomment">/// ```</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">request_stop</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">offset</span>: <span class="ident">Offset</span>) {
         <span class="kw">let</span> <span class="ident">tag</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">make_successor_tag</span>(<span class="ident">offset</span>.<span class="ident">to_duration</span>());
 
         <span class="kw">let</span> <span class="ident">evt</span> <span class="op">=</span> <span class="ident">Event::terminate_at</span>(<span class="ident">tag</span>);
         <span class="self">self</span>.<span class="ident">insides</span>.<span class="ident">future_events</span>.<span class="ident">push</span>(<span class="ident">evt</span>);
-    }
-
-    <span class="doccomment">/// Returns the start time of the execution of this program.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// This is a logical instant with microstep zero.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_start_time</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PhysicalInstant</span> {
-        <span class="self">self</span>.<span class="ident">initial_time</span>
-    }
-
-    <span class="doccomment">/// Returns the current physical time.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Repeated invocation of this method may produce different</span>
-    <span class="doccomment">/// values, although [PhysicalInstant] is monotonic. The</span>
-    <span class="doccomment">/// physical time is necessarily greater than the logical time.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_physical_time</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PhysicalInstant</span> {
-        <span class="ident">PhysicalInstant::now</span>()
-    }
-
-    <span class="doccomment">/// Returns the current logical time.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Logical time is frozen during the execution of a reaction.</span>
-    <span class="doccomment">/// Repeated invocation of this method will always produce</span>
-    <span class="doccomment">/// the same value.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_logical_time</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Instant</span> {
-        <span class="self">self</span>.<span class="ident">tag</span>.<span class="ident">to_logical_time</span>(<span class="self">self</span>.<span class="ident">get_start_time</span>())
-    }
-
-    <span class="doccomment">/// Returns the tag at which the reaction executes.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Repeated invocation of this method will always produce</span>
-    <span class="doccomment">/// the same value.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_tag</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">EventTag</span> {
-        <span class="self">self</span>.<span class="ident">tag</span>
-    }
-
-    <span class="doccomment">/// Returns the amount of logical time elapsed since the</span>
-    <span class="doccomment">/// start of the program. This does not take microsteps</span>
-    <span class="doccomment">/// into account.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_elapsed_logical_time</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Duration</span> {
-        <span class="self">self</span>.<span class="ident">get_logical_time</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">get_start_time</span>()
-    }
-
-    <span class="doccomment">/// Returns the amount of physical time elapsed since the</span>
-    <span class="doccomment">/// start of the program.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Since this uses [Self::get_physical_time], be aware that</span>
-    <span class="doccomment">/// this function&#39;s result may change over time.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_elapsed_physical_time</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Duration</span> {
-        <span class="self">self</span>.<span class="ident">get_physical_time</span>() <span class="op">-</span> <span class="self">self</span>.<span class="ident">get_start_time</span>()
     }
 
     <span class="doccomment">/// Reschedule a periodic timer if need be.</span>
@@ -941,6 +950,27 @@
             <span class="self">self</span>.<span class="ident">enqueue_now</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">downstream</span>))
         } <span class="kw">else</span> {
             <span class="self">self</span>.<span class="ident">enqueue_later</span>(<span class="ident">downstream</span>, <span class="self">self</span>.<span class="ident">make_successor_tag</span>(<span class="ident">timer</span>.<span class="ident">offset</span>))
+        }
+    }
+
+
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">rx</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ReconnectableReceiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+                      <span class="ident">tag</span>: <span class="ident">EventTag</span>,
+                      <span class="ident">initial_time</span>: <span class="ident">PhysicalInstant</span>,
+                      <span class="ident">todo</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>,
+                      <span class="ident">dataflow</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x</span> <span class="ident">DataflowInfo</span>,
+                      <span class="ident">thread_spawner</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Scope</span><span class="op">&lt;</span><span class="lifetime">&#39;t</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="self">Self</span> {
+            <span class="ident">insides</span>: <span class="ident">RContextForwardableStuff</span> {
+                <span class="ident">todo_now</span>: <span class="ident">todo</span>,
+                <span class="ident">future_events</span>: <span class="ident">Default::default</span>(),
+            },
+            <span class="ident">cur_layer</span>: <span class="ident">Default::default</span>(),
+            <span class="ident">tag</span>,
+            <span class="ident">rx</span>,
+            <span class="ident">initial_time</span>,
+            <span class="ident">dataflow</span>,
+            <span class="ident">thread_spawner</span>,
         }
     }
 
