@@ -148,7 +148,6 @@ impl DepGraph {
     pub fn format_dot(&self, id_registry: &IdRegistry) -> impl Display {
         use regex::{Regex, Captures};
         use petgraph::dot::{Config, Dot};
-        use NodeKind::Reaction;
 
         let dot = Dot::with_config(&self.dataflow, &[Config::EdgeNoLabel]);
 

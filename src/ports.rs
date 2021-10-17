@@ -378,7 +378,7 @@ enum BindStatus {
 struct PortCell<T: Sync> {
     /// Cell for the value.
     #[cfg(feature = "no-unsafe")]
-    cell: AtomicRefCell<Option<T>>,
+    value: AtomicRefCell<Option<T>>,
     #[cfg(not(feature = "no-unsafe"))]
     value: UnsafeCell<Option<T>>,
 
