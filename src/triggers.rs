@@ -25,6 +25,7 @@
 
 use std::hash::Hash;
 use std::time::Instant;
+use index_vec::Idx;
 
 use crate::EventTag;
 
@@ -58,7 +59,7 @@ pub trait TriggerLike {
 }
 
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash, Ord, PartialOrd)]
 pub struct TriggerId(usize);
 
 impl TriggerId {
@@ -66,10 +67,6 @@ impl TriggerId {
     pub const SHUTDOWN: TriggerId = TriggerId(1);
 
     pub(crate) const FIRST_REGULAR: TriggerId = TriggerId(2);
-
-    pub fn panicking_sub(&self, other: Self) -> usize {
-        self.0 - other.0
-    }
 
     #[allow(unused)]
     pub(crate) fn new(id: usize) -> Self {
@@ -79,5 +76,15 @@ impl TriggerId {
 
     pub(crate) fn next(&self) -> Option<Self> {
         self.0.checked_add(1).map(TriggerId)
+    }
+}
+
+impl Idx for TriggerId {
+    fn from_usize(idx: usize) -> Self {
+        TriggerId(idx)
+    }
+
+    fn index(self) -> usize {
+        self.0
     }
 }

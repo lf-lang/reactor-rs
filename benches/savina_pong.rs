@@ -107,7 +107,7 @@ mod reactors {
         #![allow(unused)]
 
         use ::reactor_rt::prelude::*;
-
+        use reactor_rt::ReactorId;
 
 
         /// Generated from /home/clem/Documents/LF/reactor-rust/benches/SavinaPong.lf:25
@@ -159,7 +159,9 @@ mod reactors {
 
         impl PongAdapter {
             #[inline]
-            fn user_assemble(__assembler: &mut ::reactor_rt::AssemblyCtx, __params: PongParams) -> Self {
+            fn user_assemble(__assembler: &mut ::reactor_rt::ComponentCreator<Self>,
+                             __id: ReactorId,
+                             __params: PongParams) -> Self {
                 let PongParams {  __phantom, expected, } = __params;
 
                 let __impl = {
@@ -201,7 +203,7 @@ mod reactors {
                 __assembler.fix_cur_id();
 
                 // assemble self
-                let mut __self: Self = Self::user_assemble(__assembler, __params);
+                let mut __self: Self = __assembler.assemble_self(|cc, id| Self::user_assemble(cc, id, __params));
 
                 let [react_0,
                 react_1] = __assembler.new_reactions(2, [None, None]);
