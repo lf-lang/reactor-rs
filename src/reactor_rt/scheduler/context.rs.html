@@ -586,6 +586,16 @@
 <span id="586">586</span>
 <span id="587">587</span>
 <span id="588">588</span>
+<span id="589">589</span>
+<span id="590">590</span>
+<span id="591">591</span>
+<span id="592">592</span>
+<span id="593">593</span>
+<span id="594">594</span>
+<span id="595">595</span>
+<span id="596">596</span>
+<span id="597">597</span>
+<span id="598">598</span>
 </pre><pre class="rust">
 <span class="kw">use</span> <span class="ident">std::borrow</span>::{<span class="ident">Borrow</span>, <span class="ident">BorrowMut</span>};
 
@@ -1102,47 +1112,57 @@
 }
 
 
-<span class="doccomment">/// The offset from the current logical time after which an</span>
-<span class="doccomment">/// action is triggered.</span>
+<span class="doccomment">/// An offset from the current event.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// This is to be used with [ReactionCtx::schedule].</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Hash</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Debug</span>)]</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Hash</span>, <span class="ident">Debug</span>)]</span>
 <span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Offset</span> {
-    <span class="doccomment">/// Will be scheduled at least after the provided duration.</span>
-    <span class="doccomment">/// The other variants are just shorthands for common use-cases.</span>
+    <span class="doccomment">/// Specify that the trigger will fire at least after</span>
+    <span class="doccomment">/// the provided duration.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// If the duration is zero (eg [Asap](Self::Asap)), it does not</span>
+    <span class="doccomment">/// mean that the trigger will fire right away. For actions, the</span>
+    <span class="doccomment">/// action&#39;s inherent minimum delay must be taken into account,</span>
+    <span class="doccomment">/// and even with a zero minimal delay, a delay of one microstep</span>
+    <span class="doccomment">/// is applied.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// You can use the [after!()](crate::after) macro, instead</span>
     <span class="doccomment">/// of using this directly. For instance:</span>
     <span class="doccomment">/// ```</span>
-    <span class="doccomment">/// # use reactor_rt::{Duration, Offset::After, after};</span>
-    <span class="doccomment">/// assert_eq!(After(Duration::from_millis(15)),</span>
-    <span class="doccomment">///            after!(15 ms)) // more concise</span>
+    <span class="doccomment">/// # use reactor_rt::prelude::*;</span>
+    <span class="doccomment">/// assert_eq!(after!(15 ms), After(Duration::from_millis(15)));</span>
     <span class="doccomment">/// ```</span>
     <span class="ident">After</span>(<span class="ident">Duration</span>),
 
-    <span class="doccomment">/// Will be scheduled as soon as possible. This does not</span>
-    <span class="doccomment">/// mean that the action will trigger right away. The</span>
+    <span class="doccomment">/// Specify that the trigger will fire as soon as possible.</span>
+    <span class="doccomment">/// This does not mean that the action will trigger right away. The</span>
     <span class="doccomment">/// action&#39;s inherent minimum delay must be taken into account,</span>
     <span class="doccomment">/// and even with a zero minimal delay, a delay of one microstep</span>
     <span class="doccomment">/// is applied. This is equivalent to</span>
-    <span class="doccomment">/// ```no_compile</span>
-    <span class="doccomment">/// # use reactor_rt::{Duration, Offset::After};</span>
-    <span class="doccomment">/// After(Duration::ZERO)</span>
+    <span class="doccomment">/// ```</span>
+    <span class="doccomment">/// # use reactor_rt::prelude::*;</span>
+    <span class="doccomment">/// assert_eq!(Asap, After(Duration::ZERO));</span>
     <span class="doccomment">/// ```</span>
     <span class="ident">Asap</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Offset</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="ident">ZERO</span>: <span class="ident">Duration</span> <span class="op">=</span> <span class="ident">Duration::from_millis</span>(<span class="number">0</span>);
-
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">to_duration</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Duration</span> {
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">to_duration</span>(<span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Duration</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">Offset::After</span>(<span class="ident">d</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">d</span>.<span class="ident">clone</span>(),
-            <span class="ident">Offset::Asap</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Offset::ZERO</span>,
+            <span class="ident">Offset::After</span>(<span class="ident">d</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">d</span>,
+            <span class="ident">Offset::Asap</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">Duration::ZERO</span>,
         }
     }
 }
+
+<span class="kw">impl</span> <span class="ident">PartialEq</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">Offset</span> {
+    <span class="kw">fn</span> <span class="ident">eq</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">other</span>: <span class="kw-2">&amp;</span><span class="self">Self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">to_duration</span>() <span class="op">=</span><span class="op">=</span> <span class="ident">other</span>.<span class="ident">to_duration</span>()
+    }
+}
+
+<span class="kw">impl</span> <span class="ident">Eq</span> <span class="kw">for</span> <span class="ident">Offset</span> {}
 
 
 <span class="doccomment">/// Cleans up a tag</span>

@@ -339,7 +339,7 @@
 
     <span class="kw">fn</span> <span class="ident">new_impl</span>(<span class="ident">id</span>: <span class="ident">GlobalId</span>, <span class="ident">min_delay</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Duration</span><span class="op">&gt;</span>, <span class="ident">_is_logical</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="ident">Action</span> {
-            <span class="ident">min_delay</span>: <span class="ident">min_delay</span>.<span class="ident">unwrap_or</span>(<span class="ident">Offset::ZERO</span>),
+            <span class="ident">min_delay</span>: <span class="ident">min_delay</span>.<span class="ident">unwrap_or</span>(<span class="ident">Duration::ZERO</span>),
             <span class="comment">// is_logical,</span>
             <span class="ident">id</span>,
             <span class="ident">_logical</span>: <span class="ident">PhantomData</span>,
