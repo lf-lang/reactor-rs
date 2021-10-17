@@ -287,7 +287,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     ///         // This will push an event whose tag is the
     ///         // current physical time at the point of this
     ///         // statement.
-    ///         link.schedule_physical_with_v(&phys_action, Some(123), Offset::Asap).unwrap();
+    ///         link.schedule_physical_with_v(&phys_action, Some(123), Asap).unwrap();
     ///     });
     /// }
     /// ```
@@ -316,7 +316,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// offset will only trigger the special `shutdown` trigger
     /// at the earliest one microstep after the current tag.
     ///
-    /// ```
+    /// ```no_run
     /// # use reactor_rt::prelude::*;
     /// # let ctx: &mut ReactionCtx = panic!();
     /// # let action: &mut LogicalAction<&'static str> = panic!();
