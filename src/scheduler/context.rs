@@ -513,47 +513,57 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
 }
 
 
-/// The offset from the current logical time after which an
-/// action is triggered.
+/// An offset from the current event.
 ///
 /// This is to be used with [ReactionCtx::schedule].
-#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Hash, Debug)]
 pub enum Offset {
-    /// Will be scheduled at least after the provided duration.
-    /// The other variants are just shorthands for common use-cases.
+    /// Specify that the trigger will fire at least after
+    /// the provided duration.
+    ///
+    /// If the duration is zero (eg [Asap](Self::Asap)), it does not
+    /// mean that the trigger will fire right away. For actions, the
+    /// action's inherent minimum delay must be taken into account,
+    /// and even with a zero minimal delay, a delay of one microstep
+    /// is applied.
     ///
     /// You can use the [after!()](crate::after) macro, instead
     /// of using this directly. For instance:
     /// ```
-    /// # use reactor_rt::{Duration, Offset::After, after};
-    /// assert_eq!(After(Duration::from_millis(15)),
-    ///            after!(15 ms)) // more concise
+    /// # use reactor_rt::prelude::*;
+    /// assert_eq!(after!(15 ms), After(Duration::from_millis(15)));
     /// ```
     After(Duration),
 
-    /// Will be scheduled as soon as possible. This does not
-    /// mean that the action will trigger right away. The
+    /// Specify that the trigger will fire as soon as possible.
+    /// This does not mean that the action will trigger right away. The
     /// action's inherent minimum delay must be taken into account,
     /// and even with a zero minimal delay, a delay of one microstep
     /// is applied. This is equivalent to
-    /// ```no_compile
-    /// # use reactor_rt::{Duration, Offset::After};
-    /// After(Duration::ZERO)
+    /// ```
+    /// # use reactor_rt::prelude::*;
+    /// assert_eq!(Asap, After(Duration::ZERO));
     /// ```
     Asap,
 }
 
 impl Offset {
-    pub(crate) const ZERO: Duration = Duration::from_millis(0);
-
     #[inline]
-    pub(in crate) fn to_duration(&self) -> Duration {
+    pub(in crate) fn to_duration(self) -> Duration {
         match self {
-            Offset::After(d) => d.clone(),
-            Offset::Asap => Offset::ZERO,
+            Offset::After(d) => d,
+            Offset::Asap => Duration::ZERO,
         }
     }
 }
+
+impl PartialEq<Self> for Offset {
+    fn eq(&self, other: &Self) -> bool {
+        self.to_duration() == other.to_duration()
+    }
+}
+
+impl Eq for Offset {}
 
 
 /// Cleans up a tag

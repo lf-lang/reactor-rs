@@ -85,7 +85,7 @@ impl<K, T: Sync> Action<K, T> {
 
     fn new_impl(id: GlobalId, min_delay: Option<Duration>, _is_logical: bool) -> Self {
         Action {
-            min_delay: min_delay.unwrap_or(Offset::ZERO),
+            min_delay: min_delay.unwrap_or(Duration::ZERO),
             // is_logical,
             id,
             _logical: PhantomData,
