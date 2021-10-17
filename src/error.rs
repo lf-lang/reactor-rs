@@ -1,12 +1,20 @@
-use std::fmt::{Debug, Display, Formatter};
+
 use AssemblyErrorImpl::*;
 
-use crate::PortId;
+use crate::{DebugInfoRegistry, PortId};
+
+pub type AssemblyResult<T = ()> = Result<T, AssemblyError>;
 
 /// An error occurring during initialization of the reactor program.
 /// Should never occur unless the graph is built by hand, and not
 /// by a Lingua Franca compiler.
 pub struct AssemblyError(pub(crate) AssemblyErrorImpl);
+
+impl AssemblyError {
+    pub(crate) fn lift(self, debug: &DebugInfoRegistry) -> String {
+        self.display(debug)
+    }
+}
 
 pub(crate) enum AssemblyErrorImpl {
     CyclicDependency(PortId, PortId),
@@ -14,18 +22,14 @@ pub(crate) enum AssemblyErrorImpl {
     CannotBind(PortId, PortId),
 }
 
-impl Debug for AssemblyError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+impl AssemblyError {
+    fn display(&self, debug: &DebugInfoRegistry) -> String {
         match self.0 {
-            CyclicDependency(upstream, downstream) => write!(f, "Port {} is already in the downstream of port {}", upstream, downstream),
-            CyclicDependencyGraph => write!(f, "Cyclic dependency graph"),
-            CannotBind(upstream, downstream) => write!(f, "Cannot bind {} to {}, downstream is already bound", upstream, downstream),
+            CyclicDependency(upstream, downstream) => format!("Port {} is already in the downstream of port {}", debug.fmt_component(upstream), debug.fmt_component(downstream)),
+            CyclicDependencyGraph => format!("Cyclic dependency graph"),
+            CannotBind(upstream, downstream) => format!("Cannot bind {} to {}, downstream is already bound", debug.fmt_component(upstream), debug.fmt_component(downstream)),
         }
     }
 }
 
-impl Display for AssemblyError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(self, f)
-    }
-}
+

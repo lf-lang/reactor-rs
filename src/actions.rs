@@ -49,7 +49,7 @@ pub(crate) struct Physical;
 
 pub(crate) struct Action<Kind, T: Sync> {
     pub(crate) min_delay: Duration,
-    id: GlobalId,
+    id: TriggerId,
     // is_logical: bool,
     _logical: PhantomData<Kind>,
 
@@ -83,7 +83,7 @@ impl<K, T: Sync> Action<K, T> {
         self.map.remove(&Reverse(*time)).flatten()
     }
 
-    fn new_impl(id: GlobalId, min_delay: Option<Duration>, _is_logical: bool) -> Self {
+    fn new_impl(id: TriggerId, min_delay: Option<Duration>, _is_logical: bool) -> Self {
         Action {
             min_delay: min_delay.unwrap_or(Duration::ZERO),
             // is_logical,
@@ -132,26 +132,26 @@ impl<T: Sync> ReactionTrigger<T> for LogicalAction<T> {
 
 
 impl<T: Sync> LogicalAction<T> {
-    pub(crate) fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
+    pub(crate) fn new(id: TriggerId, min_delay: Option<Duration>) -> Self {
         Self(Action::new_impl(id, min_delay, true))
     }
 }
 
 impl<T: Sync> PhysicalAction<T> {
-    fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
+    fn new(id: TriggerId, min_delay: Option<Duration>) -> Self {
         Self(Action::new_impl(id, min_delay, false))
     }
 }
 
 impl<T: Sync> TriggerLike for PhysicalAction<T> {
     fn get_id(&self) -> TriggerId {
-        TriggerId::new(self.0.id)
+        self.0.id
     }
 }
 
 impl<T: Sync> TriggerLike for LogicalAction<T> {
     fn get_id(&self) -> TriggerId {
-        TriggerId::new(self.0.id)
+        self.0.id
     }
 }
 
@@ -215,7 +215,7 @@ mod test {
 pub struct PhysicalActionRef<T: Sync>(Arc<AtomicRefCell<PhysicalAction<T>>>);
 
 impl<T: Sync> PhysicalActionRef<T> {
-    pub(crate) fn new(id: GlobalId, min_delay: Option<Duration>) -> Self {
+    pub(crate) fn new(id: TriggerId, min_delay: Option<Duration>) -> Self {
         Self(Arc::new(AtomicRefCell::new(PhysicalAction::new(id, min_delay))))
     }
 

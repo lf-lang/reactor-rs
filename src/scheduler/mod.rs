@@ -24,6 +24,7 @@
 
 
 use std::borrow::Cow;
+use std::fmt::Display;
 use std::time::Instant;
 
 use index_vec::IndexVec;
@@ -51,7 +52,7 @@ pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
 /// Can format stuff for trace messages.
 #[derive(Clone)]
 pub(self) struct DebugInfoProvider<'a> {
-    id_registry: &'a IdRegistry,
+    id_registry: &'a DebugInfoRegistry,
     initial_time: Instant,
 }
 
@@ -66,7 +67,7 @@ impl DebugInfoProvider<'_> {
                 if let Some(reactions) = reactions {
                     for (layer_no, batch) in reactions.batches() {
                         write!(str, "{}: ", layer_no).unwrap();
-                        join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| self.display_reaction(*x)).unwrap();
+                        join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| format!("{}", self.display_reaction(*x))).unwrap();
                     }
                 }
 
@@ -81,7 +82,7 @@ impl DebugInfoProvider<'_> {
     }
 
     #[inline]
-    pub(self) fn display_reaction(&self, global: GlobalReactionId) -> String {
-        self.id_registry.fmt_reaction(global)
+    pub(self) fn display_reaction<'a>(&'a self, id: GlobalReactionId) -> impl Display + 'a {
+        self.id_registry.fmt_reaction(id)
     }
 }

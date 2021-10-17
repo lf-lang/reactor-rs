@@ -23,17 +23,14 @@
  */
 
 
-use core::any::type_name;
-use std::borrow::Cow;
-use std::collections::HashMap;
+
+
 use std::convert::TryFrom;
-use std::fmt::{Debug, Display, Formatter, Result, Write};
+use std::fmt::*;
 use std::hash::{Hash, Hasher};
 use std::ops::Range;
 
-use index_vec::IndexVec;
-
-use crate::ReactorInitializer;
+use crate::TriggerId;
 
 // private implementation types
 type ReactionIdImpl = u16;
@@ -103,45 +100,6 @@ global_id_newtype! {
     /// Global identifier for a reaction.
     GlobalReactionId
 }
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct TriggerId(pub(crate) TriggerIdImpl);
-
-impl TriggerId {
-    pub const STARTUP: TriggerId = TriggerId(TriggerIdImpl::Startup);
-    pub const SHUTDOWN: TriggerId = TriggerId(TriggerIdImpl::Shutdown);
-
-    pub(crate) fn new(id: GlobalId) -> Self {
-        TriggerId(TriggerIdImpl::Component(id))
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub(crate) enum TriggerIdImpl {
-    Startup,
-    Shutdown,
-    Component(GlobalId),
-}
-
-
-impl Hash for TriggerId {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        // this hash function is very hot (because of get_reactions_trigerred_by)
-        // so we give it an implementation that's basically free.
-        let h: u32 = match self.0 {
-            // we don't care about collisions, esp bc they occur once per app
-            TriggerIdImpl::Startup | TriggerIdImpl::Shutdown => u32::MAX,
-            TriggerIdImpl::Component(GlobalId { _raw }) => _raw
-        };
-        state.write_u32(h)
-    }
-}
-//
-// global_id_newtype! {
-//     /// Global identifier for a trigger (port, action, timer)
-//     ComponentId
-// }
-
 
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
@@ -226,95 +184,4 @@ impl Display for GlobalId {
 }
 
 
-pub(in crate) trait GloballyIdentified {
-    fn get_id(&self) -> GlobalId;
-}
-
-pub(crate) type PortId = GlobalId;
-
-#[derive(Clone)]
-pub(in crate) struct ReactorDebugInfo {
-    /// Type name
-    #[allow(unused)]
-    pub type_name: &'static str,
-    /// Simple name of the instantiation (last segment of the path)
-    #[allow(unused)]
-    pub inst_name: &'static str,
-    /// Path to this instantiation (eg "/parent/child")
-    inst_path: String,
-}
-
-impl ReactorDebugInfo {
-    pub(in crate) fn root<R>() -> Self {
-        Self {
-            type_name: type_name::<R>(),
-            inst_name: "/",
-            inst_path: "/".into(),
-        }
-    }
-
-    pub(in crate) fn derive<R: ReactorInitializer>(&self, inst_name: &'static str) -> Self {
-        Self {
-            type_name: type_name::<R::Wrapped>(),
-            inst_name,
-            inst_path: format!("{}{}/", self.inst_path, inst_name),
-        }
-    }
-}
-
-impl Display for ReactorDebugInfo {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self.inst_path)
-    }
-}
-
-
-/// Stores a mapping from global Id to debug label
-#[derive(Default)]
-pub(in crate) struct IdRegistry {
-    debug_ids: HashMap<GlobalId, Cow<'static, str>>,
-    reactor_infos: IndexVec<ReactorId, ReactorDebugInfo>,
-}
-
-impl IdRegistry {
-    pub fn get_debug_label(&self, id: GlobalId) -> Option<&str> {
-        self.debug_ids.get(&id).map(Cow::as_ref)
-    }
-
-    pub fn get_debug_info(&self, id: ReactorId) -> &ReactorDebugInfo {
-        &self.reactor_infos[id]
-    }
-
-    fn fmt_component_path(&self, id: GlobalId) -> String {
-        format!("{}{}", self.get_debug_info(id.container()), id.local())
-    }
-
-    #[cfg(feature = "graph-dump")]
-    pub(crate) fn fmt_component(&self, id: GlobalId) -> String {
-        if let Some(label) = self.get_debug_label(id) {
-            format!("{}{}", self.get_debug_info(id.container()), label)
-        } else {
-            self.fmt_component_path(id)
-        }
-    }
-
-    #[inline]
-    pub fn fmt_reaction(&self, id: GlobalReactionId) -> String {
-        let mut str = self.fmt_component_path(id.0);
-        // reactions may have labels too
-        if let Some(label) = self.get_debug_label(id.0) {
-            write!(str, "@{}", label).unwrap();
-        }
-        str
-    }
-
-    pub(in super) fn record(&mut self, id: GlobalId, name: Cow<'static, str>) {
-        let existing = self.debug_ids.insert(id, name);
-        debug_assert!(existing.is_none())
-    }
-
-    pub(in super) fn record_reactor(&mut self, id: ReactorId, debug: &ReactorDebugInfo) {
-        let ix = self.reactor_infos.push(debug.clone());
-        debug_assert_eq!(ix, id);
-    }
-}
+pub(crate) type PortId = TriggerId;

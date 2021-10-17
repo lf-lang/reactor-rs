@@ -23,9 +23,10 @@
  */
 
 
+use std::hash::Hash;
 use std::time::Instant;
 
-use crate::{EventTag, TriggerId};
+use crate::EventTag;
 
 /// Common trait for actions, ports, and timer objects handed
 /// to reaction functions. This is meant to be used through the
@@ -56,3 +57,27 @@ pub trait TriggerLike {
     fn get_id(&self) -> TriggerId;
 }
 
+
+#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash)]
+pub struct TriggerId(usize);
+
+impl TriggerId {
+    pub const STARTUP: TriggerId = TriggerId(0);
+    pub const SHUTDOWN: TriggerId = TriggerId(1);
+
+    pub(crate) const FIRST_REGULAR: TriggerId = TriggerId(2);
+
+    pub fn panicking_sub(&self, other: Self) -> usize {
+        self.0 - other.0
+    }
+
+    #[allow(unused)]
+    pub(crate) fn new(id: usize) -> Self {
+        assert!(id > 1, "0-1 are reserved for startup & shutdown!");
+        TriggerId(id)
+    }
+
+    pub(crate) fn next(&self) -> Option<Self> {
+        self.0.checked_add(1).map(TriggerId)
+    }
+}

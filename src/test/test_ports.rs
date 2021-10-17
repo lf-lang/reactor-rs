@@ -22,106 +22,144 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use std::borrow::Cow;
 use crate::*;
 
-use super::testutil::*;
-
-static mut DUMMY_ID: GlobalId = GlobalId::first_id();
 
 
-fn new_port() -> Port<i32> {
-    let id = unsafe {
-        let i = DUMMY_ID;
-        DUMMY_ID = DUMMY_ID.next_id();
-        i
-    };
+struct TestFixture {
+    debug: DebugInfoRegistry,
+    cur_id: TriggerId,
+}
 
-    Port::<i32>::new(id, true)
+type TestResult = Result<(), String>;
+
+impl Default for TestFixture {
+    fn default() -> Self {
+        Self {
+            debug: Default::default(),
+            cur_id: TriggerId::FIRST_REGULAR,
+        }
+    }
+}
+
+impl TestFixture {
+    pub fn new_port<T: Sync>(&mut self, name: &'static str) -> Port<T> {
+        let id = self.cur_id;
+        self.cur_id = self.cur_id.next().unwrap();
+        self.debug.record_trigger(id, Cow::Borrowed(name));
+        Port::new(id, true)
+    }
+
+    pub fn bind<T: Sync>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> TestResult {
+        bind_ports(upstream, downstream).map_err(|e| e.lift(&self.debug))
+    }
+
+    pub fn set<T: Sync>(&mut self, port: &mut Port<T>, value: T) -> TestResult {
+        port.set_impl(Some(value));
+        Ok(())
+    }
+
+    pub fn ok(self) -> TestResult {
+        Ok(())
+    }
 }
 
 #[test]
-fn a_port_is_initially_empty() {
-    let port = new_port();
+fn a_port_is_initially_empty() -> TestResult {
+    let mut test = TestFixture::default();
+    let port = test.new_port::<i32>("p");
     assert_eq!(None, port.get()); // default value?
+
+    test.ok()
 }
 
 #[test]
-fn binding_two_ports_should_let_values_be_read() {
-    let mut upstream = new_port();
-    let mut downstream = new_port();
+fn binding_two_ports_should_let_values_be_read() -> TestResult {
+    let mut test = TestFixture::default();
+    let mut upstream = test.new_port("up");
+    let mut downstream = test.new_port("down");
 
     assert_eq!(None, downstream.get());
 
-    bind_ports(&mut upstream, &mut downstream).unwrap();
+    test.bind(&mut upstream, &mut downstream)?;
 
     assert_eq!(None, downstream.get());
 
-    set_port(&mut upstream, 5);
+    test.set(&mut upstream, 5)?;
 
     assert_eq!(Some(5), downstream.get());
+
+    test.ok()
 }
 
 #[test]
-fn a_port_can_be_upstream_of_several_ports() {
-    let mut upstream = new_port();
-    let mut d1 = new_port();
-    let mut d2 = new_port();
+fn a_port_can_be_upstream_of_several_ports() -> TestResult {
+    let mut test = TestFixture::default();
+    let mut upstream = test.new_port("up");
+    let mut d1 = test.new_port("d1");
+    let mut d2 = test.new_port("d2");
 
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
 
-    bind_ports(&mut upstream, &mut d1).unwrap();
-    bind_ports(&mut upstream, &mut d2).unwrap();
+    test.bind(&mut upstream, &mut d1)?;
+    test.bind(&mut upstream, &mut d2)?;
 
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
 
-    set_port(&mut upstream, 5);
+    test.set(&mut upstream, 5)?;
 
     assert_eq!(Some(5), d1.get());
     assert_eq!(Some(5), d2.get());
 
-    set_port(&mut upstream, 6);
+    test.set(&mut upstream, 6)?;
 
     assert_eq!(Some(6), d1.get());
     assert_eq!(Some(6), d2.get());
+
+    test.ok()
 }
 
 #[test]
-fn transitive_binding_should_let_values_flow() {
-    let mut upstream = new_port();
-    let mut d1 = new_port();
-    let mut d2 = new_port();
+fn transitive_binding_should_let_values_flow() -> TestResult {
+    let mut test = TestFixture::default();
+    let mut upstream = test.new_port("up");
+    let mut d1 = test.new_port("d1");
+    let mut d2 = test.new_port("d2");
 
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
 
     // upstream -> d1 -> d2
-    bind_ports(&mut upstream, &mut d1).unwrap();
-    bind_ports(&mut d1, &mut d2).unwrap();
+    test.bind(&mut upstream, &mut d1)?;
+    test.bind(&mut d1, &mut d2)?;
 
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
 
-    set_port(&mut upstream, 5);
+    test.set(&mut upstream, 5)?;
 
     assert_eq!(Some(5), d1.get());
     assert_eq!(Some(5), d2.get());
 
-    set_port(&mut upstream, 6);
+    test.set(&mut upstream, 6)?;
 
     assert_eq!(Some(6), d1.get());
     assert_eq!(Some(6), d2.get());
+    test.ok()
 }
 
 
 #[test]
-fn transitive_binding_in_topo_order_is_ok() {
-    let mut upstream = new_port();
-    let mut d1 = new_port();
-    let mut d2 = new_port();
-    let mut b1 = new_port();
-    let mut b2 = new_port();
+fn transitive_binding_in_topo_order_is_ok() -> TestResult {
+    let mut test = TestFixture::default();
+    let mut upstream = test.new_port("up");
+    let mut d1 = test.new_port("d1");
+    let mut d2 = test.new_port("d2");
+    let mut b1 = test.new_port("b1");
+    let mut b2 = test.new_port("b2");
 
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
@@ -132,56 +170,66 @@ fn transitive_binding_in_topo_order_is_ok() {
     // Note that linking the ports the other way around doesn't
     // work, we need to go in topo order
 
-    bind_ports(&mut upstream, &mut d1).unwrap();
+    test.bind(&mut upstream, &mut d1)?;
 
-    bind_ports(&mut d1, &mut d2).unwrap();
+    test.bind(&mut d1, &mut d2)?;
 
-    bind_ports(&mut d2, &mut b1).unwrap();
-    bind_ports(&mut d2, &mut b2).unwrap();
+    test.bind(&mut d2, &mut b1)?;
+    test.bind(&mut d2, &mut b2)?;
 
 
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
 
-    set_port(&mut upstream, 5);
+    test.set(&mut upstream, 5)?;
 
     assert_eq!(Some(5), d1.get());
     assert_eq!(Some(5), d2.get());
     assert_eq!(Some(5), b1.get());
     assert_eq!(Some(5), b2.get());
 
-    set_port(&mut upstream, 6);
+    test.set(&mut upstream, 6)?;
 
     assert_eq!(Some(6), d1.get());
     assert_eq!(Some(6), d2.get());
     assert_eq!(Some(6), b2.get());
     assert_eq!(Some(6), b1.get());
+
+    test.ok()
 }
 
 #[test]
-fn transitive_binding_in_non_topo_order_is_ok() {
-    let mut a = new_port();
-    let mut b = new_port();
-    let mut c = new_port();
+fn transitive_binding_in_non_topo_order_is_ok() -> TestResult {
+    let mut test = TestFixture::default();
+    let mut a = test.new_port("a");
+    let mut b = test.new_port("b");
+    let mut c = test.new_port("c");
 
-    assert_matches!(bind_ports(&mut b, &mut c), Ok(_));
-    assert_matches!(bind_ports(&mut a, &mut b), Ok(_));
+    test.bind(&mut b, &mut c)?;
+    test.bind(&mut a, &mut b)?;
 
     assert_eq!(None, b.get());
     assert_eq!(None, c.get());
 
-    set_port(&mut a, 1);
+    test.set(&mut a, 1)?;
 
     assert_eq!(Some(1), b.get());
     assert_eq!(Some(1), c.get());
+
+    test.ok()
 }
 
 
 #[test]
-fn repeated_binding_panics() {
-    let mut upstream = new_port();
-    let mut downstream = new_port();
+fn repeated_binding_panics() -> TestResult {
+    let mut test = TestFixture::default();
+    let mut upstream: Port<u32> = test.new_port("up");
+    let mut downstream = test.new_port("down");
 
-    assert_matches!(bind_ports(&mut upstream, &mut downstream), Ok(_));
-    assert_matches!(bind_ports(&mut upstream, &mut downstream), Err(AssemblyError(AssemblyErrorImpl::CannotBind(_, _))));
+    test.bind(&mut upstream, &mut downstream)?;
+
+
+    assert_eq!(test.bind(&mut upstream, &mut downstream), Err("".into()));
+
+    test.ok()
 }

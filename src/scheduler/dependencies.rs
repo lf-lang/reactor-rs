@@ -60,34 +60,26 @@ struct GraphNode {
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
-enum GraphId { Startup, Shutdown, Id(GlobalId) }
+enum GraphId {
+    Trigger(TriggerId),
+    Reaction(GlobalReactionId),
+}
+
+#[cfg(test)]
+impl GraphId {
+    const STARTUP: GraphId = GraphId::Trigger(TriggerId::STARTUP);
+    const SHUTDOWN: GraphId = GraphId::Trigger(TriggerId::SHUTDOWN);
+}
 
 impl From<TriggerId> for GraphId {
     fn from(id: TriggerId) -> Self {
-        match id.0 {
-            TriggerIdImpl::Startup => Self::Startup,
-            TriggerIdImpl::Shutdown => Self::Shutdown,
-            TriggerIdImpl::Component(id) => Self::Id(id),
-        }
-    }
-}
-
-impl From<GraphId> for TriggerId {
-    fn from(id: GraphId) -> Self {
-        match id {
-            GraphId::Startup => TriggerId::STARTUP,
-            GraphId::Shutdown => TriggerId::SHUTDOWN,
-            GraphId::Id(id) => {
-                // we don't assert that it's indeed a trigger and not a reaction...
-                TriggerId(TriggerIdImpl::Component(id))
-            },
-        }
+        GraphId::Trigger(id)
     }
 }
 
 impl From<GlobalReactionId> for GraphId {
     fn from(id: GlobalReactionId) -> Self {
-        Self::Id(id.0)
+        GraphId::Reaction(id)
     }
 }
 
@@ -122,7 +114,7 @@ pub(in super) struct DepGraph {
 
     /// Map of multiport component ID -> multiport ID.
     /// todo data structure is bad.
-    multiport_containment: HashMap<GraphId, GlobalId>,
+    multiport_containment: HashMap<GraphId, TriggerId>,
 }
 
 impl Debug for GraphNode {
@@ -138,14 +130,14 @@ impl DepGraph {
             ix_by_id: Default::default(),
             multiport_containment: Default::default(),
         };
-        ich.record_special(false);
-        ich.record_special(true);
+        ich.record_special(TriggerId::STARTUP);
+        ich.record_special(TriggerId::SHUTDOWN);
         ich
     }
 
     /// Produce a dot representation of the graph.
     #[cfg(feature = "graph-dump")]
-    pub fn format_dot(&self, id_registry: &IdRegistry) -> impl Display {
+    pub fn format_dot(&self, id_registry: &DebugInfoRegistry) -> impl Display {
         use regex::{Regex, Captures};
         use petgraph::dot::{Config, Dot};
 
@@ -160,46 +152,44 @@ impl DepGraph {
             let component_number = LocalReactionId::new_const(captures[3].parse().unwrap());
 
             let comp_id = GlobalId::new(reactor_number, component_number);
-            let nice_str = if kind != "Reaction" {
-                id_registry.fmt_component(comp_id)
+            if kind != "Reaction" {
+                format!("{}({})", kind, id_registry.fmt_component(todo!()))
             } else {
-                id_registry.fmt_reaction(GlobalReactionId(comp_id))
+                format!("{}({})", kind, id_registry.fmt_reaction(todo!()))
             };
-
-            format!("{}({})", kind, nice_str)
         });
 
         replaced.into_owned()
     }
 
-    pub(in super) fn record_port(&mut self, id: GlobalId) {
-        self.record(id, NodeKind::Port);
+    pub(in super) fn record_port(&mut self, id: TriggerId) {
+        self.record(GraphId::Trigger(id), NodeKind::Port);
     }
 
-    pub(in super) fn record_multiport(&mut self, id: GlobalId, len: usize) {
+    pub(in super) fn record_multiport(&mut self, id: TriggerId, len: usize) {
         assert!(len > 0, "empty multiport");
-        self.record(id, NodeKind::Multiport);
-        let mut channel_id = id.next_id();
+        self.record(GraphId::Trigger(id), NodeKind::Multiport);
+        let mut channel_id;
         for _ in 0..len {
-            self.multiport_containment.insert(GraphId::Id(channel_id), id);
-            channel_id = id.next_id();
+            channel_id = id.next().expect("Overflow on next ID");
+            self.multiport_containment.insert(GraphId::Trigger(channel_id), id);
         }
     }
 
-    pub(in super) fn record_laction(&mut self, id: GlobalId) {
-        self.record(id, NodeKind::Action);
+    pub(in super) fn record_laction(&mut self, id: TriggerId) {
+        self.record(GraphId::Trigger(id), NodeKind::Action);
     }
 
-    pub(in super) fn record_paction(&mut self, id: GlobalId) {
-        self.record(id, NodeKind::Action);
+    pub(in super) fn record_paction(&mut self, id: TriggerId) {
+        self.record(GraphId::Trigger(id), NodeKind::Action);
     }
 
-    pub(in super) fn record_timer(&mut self, id: GlobalId) {
-        self.record(id, NodeKind::Timer);
+    pub(in super) fn record_timer(&mut self, id: TriggerId) {
+        self.record(GraphId::Trigger(id), NodeKind::Timer);
     }
 
     pub(in super) fn record_reaction(&mut self, id: GlobalReactionId) {
-        self.record(id.0, NodeKind::Reaction);
+        self.record(GraphId::Reaction(id), NodeKind::Reaction);
     }
 
     pub fn reaction_priority(&mut self, n: GlobalReactionId, m: GlobalReactionId) {
@@ -250,8 +240,7 @@ impl DepGraph {
         self.ix_by_id[&id]
     }
 
-    fn record(&mut self, id: GlobalId, kind: NodeKind) {
-        let id = GraphId::Id(id);
+    fn record(&mut self, id: GraphId, kind: NodeKind) {
         match self.ix_by_id.entry(id) {
             HEntry::Occupied(_) => panic!("Duplicate id {:?}", id),
             HEntry::Vacant(v) => {
@@ -260,8 +249,9 @@ impl DepGraph {
             }
         }
     }
-    fn record_special(&mut self, shutdown: bool) {
-        let id = if shutdown { GraphId::Shutdown } else { GraphId::Startup };
+
+    fn record_special(&mut self, trigger: TriggerId) {
+        let id = GraphId::Trigger(trigger);
         let node = GraphNode { kind: NodeKind::Special, id };
         self.ix_by_id.insert(id, self.dataflow.add_node(node));
     }
@@ -278,8 +268,8 @@ impl DepGraph {
             for ix in todo.drain(..) {
                 let node = self.dataflow.node_weight(ix).unwrap();
 
-                if let GraphId::Id(id) = node.id {
-                    match layer_numbers.entry(GlobalReactionId(id)) {
+                if let GraphId::Reaction(id) = node.id {
+                    match layer_numbers.entry(id) {
                         HEntry::Vacant(v) => {
                             v.insert(cur_layer);
                         }
@@ -365,27 +355,25 @@ impl DataflowInfo {
                                layer_info: &ReactionLayerInfo) -> HashMap<TriggerId, Arc<ExecutableReactions<'static>>> {
         let mut h = HashMap::with_capacity(dataflow.node_count() / 2);
 
-        let triggers: Vec<_> = dataflow.node_indices().filter(|ix| dataflow[*ix].kind != NodeKind::Reaction).collect();
+        for trigger in dataflow.node_indices() {
+            if let GraphId::Trigger(trigger_id) = dataflow[trigger].id {
+                if let Some(_multiport_id) = multiport_containment.get(&dataflow[trigger].id) {
+                    assert_eq!(dataflow[trigger].kind, NodeKind::Port);
+                    todo!("multiports")
+                    // todo this is a multiport channel:
+                    //  1. if someone has declared a dependency on this individual channel, collect dependencies into DEPS
+                    //  2. else add trigger to DELAY goto 4
+                    //  3. merge DEPS into dependencies ALL for the whole multiport
+                    //  4. goto next iteration while some channels of the multiport remain to be processed
+                    //  5. assign all triggers in DELAY the dependencies ALL
+                    //
+                    //  This requires all components of a given multiport to be processed consecutively.
+                }
 
-        for trigger in triggers {
-            if let Some(_multiport_id) = multiport_containment.get(&dataflow[trigger].id) {
-                assert_eq!(dataflow[trigger].kind, NodeKind::Port);
-                todo!("multiports")
-                // todo this is a multiport channel:
-                //  1. if someone has declared a dependency on this individual channel, collect dependencies into DEPS
-                //  2. else add trigger to DELAY goto 4
-                //  3. merge DEPS into dependencies ALL for the whole multiport
-                //  4. goto next iteration while some channels of the multiport remain to be processed
-                //  5. assign all triggers in DELAY the dependencies ALL
-                //
-                //  This requires all components of a given multiport to be processed consecutively.
+                let mut reactions = ExecutableReactions::new();
+                Self::collect_reactions_rec(&dataflow, trigger, layer_info, &mut reactions);
+                h.insert(trigger_id, Arc::new(reactions));
             }
-
-            let mut reactions = ExecutableReactions::new();
-            Self::collect_reactions_rec(&dataflow, trigger, layer_info, &mut reactions);
-            // reactions.trim();
-            let graph_id = dataflow[trigger].id;
-            h.insert(graph_id.into(), Arc::new(reactions));
         }
 
         h
@@ -404,7 +392,7 @@ impl DataflowInfo {
                 }
                 NodeKind::Reaction => {
                     let rid = match node.id {
-                        GraphId::Id(rid) => GlobalReactionId(rid),
+                        GraphId::Reaction(rid) => rid,
                         _ => unreachable!("this is a reaction")
                     };
                     // trigger->reaction
@@ -585,7 +573,7 @@ pub mod test {
         let n1 = GlobalReactionId::new(r1, LocalReactionId::new(0));
         let n2 = GlobalReactionId::new(r1, LocalReactionId::new(1));
 
-        let p0 = GlobalId::new(r1, LocalReactionId::new(3));
+        let p0 = TriggerId::new(12);
         // let p0 = TriggerId::Component(p0);
 
         graph.record_reaction(n1);
@@ -595,14 +583,14 @@ pub mod test {
         // n1 > n2
         graph.reaction_priority(n1, n2);
 
-        graph.reaction_effects(n1, TriggerId::new(p0));
-        graph.triggers_reaction(TriggerId::new(p0), n2);
+        graph.reaction_effects(n1, p0);
+        graph.triggers_reaction(p0, n2);
 
 
         let roots = graph.get_roots();
         // graph.eprintln_dot(&IdRegistry::default());
-        assert_eq!(roots, vec![graph.get_ix(GraphId::Startup),
-                               graph.get_ix(GraphId::Shutdown),
+        assert_eq!(roots, vec![graph.get_ix(GraphId::STARTUP),
+                               graph.get_ix(GraphId::SHUTDOWN),
                                graph.get_ix(n1.into())]);
     }
 }

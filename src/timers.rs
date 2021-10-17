@@ -31,7 +31,7 @@ use super::*;
 /// For periodic timers, a reaction is synthesized which reschedules
 /// the timer.
 pub struct Timer {
-    id: GlobalId,
+    id: TriggerId,
 
     /// Minimal duration after the start of the program after
     /// which the timer starts to trigger.
@@ -45,7 +45,7 @@ pub struct Timer {
 
 
 impl Timer {
-    pub(in crate) fn new(id: GlobalId, offset: Duration, period: Duration) -> Self {
+    pub(in crate) fn new(id: TriggerId, offset: Duration, period: Duration) -> Self {
         Self { offset, period, id }
     }
 
@@ -60,7 +60,7 @@ impl Timer {
 
 impl TriggerLike for Timer {
     fn get_id(&self) -> TriggerId {
-        TriggerId::new(self.id)
+        self.id
     }
 }
 

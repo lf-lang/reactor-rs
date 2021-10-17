@@ -27,7 +27,7 @@
 
 #![allow(unused)]
 
-use crate::{AssemblyCtx, CleanupCtx, LogicalAction, PhysicalAction, PhysicalActionRef, Port, ReactionCtx, ReadablePort, SchedulerOptions, SyncScheduler, WritablePort};
+use crate::{AssemblyCtx, CleanupCtx, LogicalAction, PhysicalAction, PhysicalActionRef, Port, ReactionCtx, ReactorInitializer, ReadablePort, SchedulerOptions, SyncScheduler, WritablePort};
 use crate::Offset::Asap;
 
 fn actions_get(ctx: &mut ReactionCtx, act_mut: &mut LogicalAction<u32>, act: &LogicalAction<u32>) {
@@ -73,11 +73,11 @@ fn physical_spawn_elided(ctx: &mut ReactionCtx, mut action: PhysicalActionRef<u3
 //     let foo: &dyn Sync = &FooReactor { port };
 // }
 
-fn physical_action_ref_is_send(ctx: &mut AssemblyCtx, port: PhysicalActionRef<u32>) {
+fn physical_action_ref_is_send<T: ReactorInitializer>(ctx: &mut AssemblyCtx<T>, port: PhysicalActionRef<u32>) {
     let foo: &dyn Send = &port;
 }
 
-fn action_is_send<K: Sync>(ctx: &mut AssemblyCtx, action: LogicalAction<K>) {
+fn action_is_send<K: Sync, T: ReactorInitializer>(ctx: &mut AssemblyCtx<T>, action: LogicalAction<K>) {
     struct FooReactor<K: Sync> {
         action: LogicalAction<K>,
     }

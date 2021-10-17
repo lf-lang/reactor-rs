@@ -25,6 +25,7 @@
 
 
 use std::borrow::Cow;
+use std::marker::PhantomData;
 
 use crate::*;
 use crate::scheduler::dependencies::DepGraph;
@@ -38,7 +39,9 @@ pub(in super) struct RootAssembler {
     pub(in super) reactors: ReactorVec<'static>,
     /// Dependency graph
     pub(in super) graph: DepGraph,
-    pub(in super) id_registry: IdRegistry,
+    pub(in super) id_registry: DebugInfoRegistry,
+    /// Next trigger ID to assign
+    cur_trigger: TriggerId,
 }
 
 impl Default for RootAssembler {
@@ -48,6 +51,7 @@ impl Default for RootAssembler {
             graph: DepGraph::new(),
             id_registry: Default::default(),
             reactors: Default::default(),
+            cur_trigger: TriggerId::FIRST_REGULAR
         }
     }
 }
@@ -55,20 +59,21 @@ impl Default for RootAssembler {
 
 /// Helper struct to assemble reactors during initialization.
 /// One assembly context is used per reactor, they can't be shared.
-pub struct AssemblyCtx<'x> {
+pub struct AssemblyCtx<'x, S: ReactorInitializer> {
     globals: &'x mut RootAssembler,
     /// Constant id of the reactor currently being built.
     reactor_id: Option<ReactorId>,
     /// Next local ID for components != reactions
     cur_local: LocalReactionId,
+    /// Whether reactions have already been created
     reactions_done: bool,
 
-    // debug info:
-
     debug: ReactorDebugInfo,
+
+    _phantom: PhantomData<&'x mut S>,
 }
 
-impl<'x> AssemblyCtx<'x> {
+impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
     /// The ID of the reactor being built.
     ///
     /// ### Panics
@@ -89,8 +94,26 @@ impl<'x> AssemblyCtx<'x> {
         id
     }
 
+    // todo move new_component methods onto a new type
+    pub fn assemble_self(&mut self, creation_fun: impl FnOnce(&mut Self, ReactorId) -> S) -> S {
+        let id = self.globals.reactor_id;
+        self.reactor_id = Some(id);
+        self.globals.reactor_id += 1;
+        self.globals.id_registry.record_reactor(id, &self.debug);
+
+        let prev_trigger = self.globals.cur_trigger;
+
+        let result = creation_fun(self, id);
+
+        // record the number of components in this reactor
+        let num_components = self.globals.cur_trigger.panicking_sub(prev_trigger);
+        self.globals.id_registry.set_num_components(id, num_components);
+
+        result
+    }
+
     pub fn new_port<T: Sync>(&mut self, lf_name: &'static str, is_input: bool) -> Port<T> {
-         self.new_port_impl(Cow::Borrowed(lf_name), is_input)
+        self.new_port_impl(Cow::Borrowed(lf_name), is_input)
     }
 
     fn new_port_impl<T: Sync>(&mut self, lf_name: Cow<'static, str>, is_input: bool) -> Port<T> {
@@ -156,7 +179,7 @@ impl<'x> AssemblyCtx<'x> {
         let mut prev: Option<GlobalReactionId> = None;
         for (i, r) in result.iter().cloned().enumerate() {
             if let Some(label) = names[i] {
-                self.globals.id_registry.record(r.0, Cow::Borrowed(label))
+                self.globals.id_registry.record_reaction(r, Cow::Borrowed(label))
             }
             self.globals.graph.record_reaction(r);
             if i < num_non_synthetic {
@@ -208,17 +231,17 @@ impl<'x> AssemblyCtx<'x> {
     /// ### Panics
     ///
     /// See [get_id].
-    fn next_comp_id(&mut self, debug_name: Option<Cow<'static, str>>) -> GlobalId {
-        let id = GlobalId::new(self.get_id(), self.cur_local);
+    fn next_comp_id(&mut self, debug_name: Option<Cow<'static, str>>) -> TriggerId {
+        let id = self.globals.cur_trigger;
         if let Some(label) = debug_name {
-            self.globals.id_registry.record(id, label);
+            self.globals.id_registry.record_trigger(id, label);
         }
-        self.cur_local += 1;
+        self.globals.cur_trigger = self.globals.cur_trigger.next().expect("Overflow while allocating ID");
         id
     }
 
     /// Register a child reactor.
-    pub fn register_reactor<S: ReactorInitializer + 'static>(&mut self, child: S) {
+    pub fn register_reactor<Sub: ReactorInitializer + 'static>(&mut self, child: Sub) {
         let vec_id = self.globals.reactors.push(Box::new(child));
         assert_eq!(self.globals.reactors[vec_id].id(), vec_id, "Improper initialization order!");
     }
@@ -226,12 +249,12 @@ impl<'x> AssemblyCtx<'x> {
     /// Assemble a child reactor. The child needs to be registered
     /// using [Self::register_reactor] later.
     #[inline]
-    pub fn assemble_sub<S: ReactorInitializer>(&mut self, inst_name: &'static str, args: S::Params) -> Result<S, AssemblyError> {
-        let mut sub = AssemblyCtx::new::<S>(&mut self.globals, self.debug.derive::<S>(inst_name));
-        S::assemble(args, &mut sub)
+    pub fn assemble_sub<Sub: ReactorInitializer>(&mut self, inst_name: &'static str, args: Sub::Params) -> Result<Sub, AssemblyError> {
+        let mut sub = AssemblyCtx::new(&mut self.globals, self.debug.derive::<Sub>(inst_name));
+        Sub::assemble(args, &mut sub)
     }
 
-    pub(in super) fn new<S: ReactorInitializer>(globals: &'x mut RootAssembler, debug: ReactorDebugInfo) -> Self {
+    pub(super) fn new(globals: &'x mut RootAssembler, debug: ReactorDebugInfo) -> Self {
         Self {
             globals,
             reactor_id: None,
@@ -239,6 +262,7 @@ impl<'x> AssemblyCtx<'x> {
             // this is not zero, so that reaction ids and component ids are disjoint
             cur_local: S::MAX_REACTION_ID,
             debug,
+            _phantom: PhantomData,
         }
     }
 }

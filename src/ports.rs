@@ -26,7 +26,7 @@ use std::borrow::Borrow;
 #[cfg(not(feature = "no-unsafe"))]
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
-use std::fmt::{Debug, Formatter};
+use std::fmt::Debug;
 use std::ops::{DerefMut, Index, IndexMut};
 #[cfg(feature = "no-unsafe")]
 use std::ops::Deref;
@@ -37,7 +37,7 @@ use atomic_refcell::AtomicRefCell;
 
 use AssemblyErrorImpl::CannotBind;
 
-use crate::{AssemblyError, AssemblyErrorImpl, EventTag, GlobalId, PortId, ReactionTrigger, TriggerId, TriggerLike};
+use crate::{AssemblyError, AssemblyErrorImpl, EventTag, PortId, ReactionTrigger, TriggerId, TriggerLike};
 use crate::AssemblyErrorImpl::CyclicDependency;
 
 /// A read-only reference to a port.
@@ -89,19 +89,18 @@ impl<'a, T: Sync> WritablePort<'a, T> {
 /// todo Rename to Multiport (single word)
 pub struct MultiPort<T: Sync> {
     ports: Vec<Port<T>>,
-    id: GlobalId,
+    id: TriggerId,
 }
 
 impl<T: Sync> MultiPort<T> {
-    pub(crate) fn new(ports: Vec<Port<T>>,
-                      id: GlobalId) -> Self {
+    pub(crate) fn new(ports: Vec<Port<T>>, id: TriggerId) -> Self {
         Self { ports, id }
     }
 }
 
 impl<T: Sync> TriggerLike for MultiPort<T> {
     fn get_id(&self) -> TriggerId {
-        TriggerId::new(self.id)
+        self.id
     }
 }
 
@@ -191,7 +190,7 @@ impl<'a, T: Sync> ReadableMultiPort<'a, T> {
 ///
 ///
 pub struct Port<T: Sync> {
-    id: GlobalId,
+    id: TriggerId,
     is_input: bool,
     bind_status: BindStatus,
     #[cfg(feature = "no-unsafe")]
@@ -219,7 +218,7 @@ pub struct Port<T: Sync> {
 
 impl<T: Sync> Port<T> {
     /// Create a new port
-    pub(crate) fn new(id: GlobalId, is_input: bool) -> Self {
+    pub(crate) fn new(id: TriggerId, is_input: bool) -> Self {
         Self {
             id,
             is_input,
@@ -280,7 +279,7 @@ impl<T: Sync> Port<T> {
 
     #[cfg(not(feature = "no-unsafe"))]
     pub(in crate) fn set_impl(&mut self, new_value: Option<T>) {
-        debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port ({})", self.id);
+        debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port");
 
         let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
 
@@ -334,15 +333,9 @@ impl<T: Sync> Port<T> {
 }
 
 
-impl<T: Sync> Debug for Port<T> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.id)
-    }
-}
-
 impl<T: Sync> TriggerLike for Port<T> {
     fn get_id(&self) -> TriggerId {
-        TriggerId::new(self.id)
+        self.id
     }
 }
 

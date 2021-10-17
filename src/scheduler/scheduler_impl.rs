@@ -122,15 +122,18 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     shutdown_time: Option<EventTag>,
     options: SchedulerOptions,
 
-    id_registry: IdRegistry,
+    id_registry: DebugInfoRegistry,
 }
 
 impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
         let mut root_assembler = RootAssembler::default();
-        let mut assembler = AssemblyCtx::new::<R>(&mut root_assembler, ReactorDebugInfo::root::<R::Wrapped>());
+        let mut assembler = AssemblyCtx::new(&mut root_assembler, ReactorDebugInfo::root::<R::Wrapped>());
 
-        let main_reactor = R::assemble(args, &mut assembler).unwrap();
+        let main_reactor = match R::assemble(args, &mut assembler) {
+            Ok(main) => main,
+            Err(e) => std::panic::panic_any(e.lift(&root_assembler.id_registry)),
+        };
         assembler.register_reactor(main_reactor);
 
 
@@ -141,7 +144,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         }
 
         // collect dependency information
-        let dataflow_info = DataflowInfo::new(graph).unwrap();
+        let dataflow_info = DataflowInfo::new(graph).map_err(|e| e.lift(&id_registry)).unwrap();
 
         // Using thread::scope here introduces an unnamed lifetime for
         // the scope, which is captured as 't by the SyncScheduler.
@@ -230,7 +233,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// See [Self::launch_event_loop].
     fn new(
         options: SchedulerOptions,
-        id_registry: IdRegistry,
+        id_registry: DebugInfoRegistry,
         dependency_info: &'x DataflowInfo,
         thread_spawner: &'a Scope<'t>,
         reactors: ReactorVec<'x>,
