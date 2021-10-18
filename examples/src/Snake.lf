@@ -1,15 +1,33 @@
 //! A snake minigame. Does not support windows.
+//!
+//! Highlights of this example:
+//! - external packages are linked in using Cargo (see `cargo-dependencies` target property)
+//! - a support library is linked into the generated crate (see `rust-include` target property)
+//! - physical actions are used to handle keyboard input asynchronously (see `KeyboardEvents.lf`)
+//! - logical actions are used to implement a timed loop with variable period
+//! - the game may be configured with the CLI
+//!
+//! This example was presented at the ESWEEK Tutorial
+//! "Deterministic Reactive Programming for Cyber-Physical
+//! Systems Using Lingua Franca" on October 8th, 2021.
+//!
+//! Author: Clément Fournier
+//!
+//! Note: Git history of this file may be found in
+
 
 target Rust {
     // LF-Rust programs integrate well with Cargo
-    cargo-features: ["cli"],
     cargo-dependencies: {
         termcolor: "1",
         termion: "1", // (this doesn't support windows)
         rand: "0.8",
     },
+    // This will be linked into the root of the crate as a Rust module: `pub mod snakes;`
     rust-include: "snakes.rs",
-    keepalive: true,
+    // This is a conditional compilation flag that enables the CLI.
+    // Without it, command-line arguments are ignored and produce a warning.
+    cargo-features: ["cli"],
 };
 
 // Import a shared reactor
@@ -32,7 +50,7 @@ main reactor Snake(grid_side: usize(32),
 
     // model classes for the game.
     state snake: CircularSnake ({= CircularSnake::new(grid_side) =});
-    state grid: SnakeGrid ({= SnakeGrid::new(grid_side, &snake) =});
+    state grid: SnakeGrid ({= SnakeGrid::new(grid_side, &snake) =}); // note that this one borrows snake temporarily
 
     /// Triggers a screen refresh, not a timer because we can
     /// shrink the period over time to speed up the game.
