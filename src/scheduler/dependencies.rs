@@ -30,6 +30,7 @@ use std::collections::hash_map::Entry as HEntry;
 use std::default::Default;
 use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
+use index_vec::IndexVec;
 
 use petgraph::Direction::{Incoming, Outgoing};
 use petgraph::graph::{DiGraph, NodeIndex};
@@ -327,15 +328,7 @@ pub(in super) struct DataflowInfo {
     /// Maps each trigger to the set of reactions that need
     /// to be scheduled when it is triggered.
 
-    /// TODO using a hashmap is not so cool, when we could
-    ///  just allocate all trigger IDs compactly and use a vecmap.
-    ///  Only reaction ids need to contain a reference to their
-    ///  reactor. This would also lift restrictions on the number
-    ///  of components:
-    ///  currently (2^16 (reactions + components)) per reactor
-    ///  then, (2^16 reactions/reactor) + (range(usize) total components)
-    ///  Debug info needs to be updated though.
-    trigger_to_plan: HashMap<TriggerId, Arc<ExecutableReactions<'static>>>,
+    trigger_to_plan: IndexVec<TriggerId, Arc<ExecutableReactions<'static>>>,
 
 }
 
@@ -352,8 +345,8 @@ impl DataflowInfo {
     }
 
     fn collect_trigger_to_plan(DepGraph { dataflow, multiport_containment, .. }: &mut DepGraph,
-                               layer_info: &ReactionLayerInfo) -> HashMap<TriggerId, Arc<ExecutableReactions<'static>>> {
-        let mut h = HashMap::with_capacity(dataflow.node_count() / 2);
+                               layer_info: &ReactionLayerInfo) -> IndexVec<TriggerId, Arc<ExecutableReactions<'static>>> {
+        let mut result = IndexVec::with_capacity(dataflow.node_count() / 2);
 
         for trigger in dataflow.node_indices() {
             if let GraphId::Trigger(trigger_id) = dataflow[trigger].id {
@@ -372,11 +365,11 @@ impl DataflowInfo {
 
                 let mut reactions = ExecutableReactions::new();
                 Self::collect_reactions_rec(&dataflow, trigger, layer_info, &mut reactions);
-                h.insert(trigger_id, Arc::new(reactions));
+                result.insert(trigger_id, Arc::new(reactions));
             }
         }
 
-        h
+        result
     }
 
     fn collect_reactions_rec(dataflow: &DepGraphImpl,
@@ -417,7 +410,7 @@ impl DataflowInfo {
     ///
     /// If the trigger id is not registered
     pub fn reactions_triggered_by(&self, trigger: &TriggerId) -> &ExecutableReactions<'static> {
-        self.trigger_to_plan.get(trigger).expect("trigger was not registered??")
+        &self.trigger_to_plan[*trigger]
     }
 }
 

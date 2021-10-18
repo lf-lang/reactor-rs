@@ -59,8 +59,23 @@ pub trait TriggerLike {
 }
 
 
+/// The ID of a trigger component.
+///
+///
+///
 #[derive(Debug, Eq, PartialEq, Copy, Clone, Hash, Ord, PartialOrd)]
 pub struct TriggerId(usize);
+
+// Historical note: in the past, TriggerId was a newtype over a GlobalId.
+// The structure of GlobalId was nice, as it allows us to print nice debug
+// info. But it also forces us to use inefficient data structures to get a Map<TriggerId, ...>,
+// because ids were not allocated consecutively. We were previously using
+// hashmaps, now we use IndexVec.
+// Also the structure of GlobalId used to set relatively low
+// ceilings on the number of components and reactions of each
+// reactor. Previously, we could have max 2^16 (reactions+components)
+// per reactor. Now we can have 2^16 reactions per reactor,
+// and range(usize) total components.
 
 impl TriggerId {
     pub const STARTUP: TriggerId = TriggerId(0);
