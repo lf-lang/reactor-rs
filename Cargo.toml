@@ -37,6 +37,6 @@ no-unsafe=[]
 name = "savina_pong"
 harness = false
 
-[profile.release]
+[profile.bench]
 debug = true
 
