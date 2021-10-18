@@ -85,6 +85,7 @@
 <span id="85">85</span>
 <span id="86">86</span>
 <span id="87">87</span>
+<span id="88">88</span>
 </pre><pre class="rust">
 <span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
@@ -112,6 +113,7 @@
 
 
 <span class="kw">use</span> <span class="ident">std::borrow::Cow</span>;
+<span class="kw">use</span> <span class="ident">std::fmt::Display</span>;
 <span class="kw">use</span> <span class="ident">std::time::Instant</span>;
 
 <span class="kw">use</span> <span class="ident">index_vec::IndexVec</span>;
@@ -139,7 +141,7 @@
 <span class="doccomment">/// Can format stuff for trace messages.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">struct</span> <span class="ident">DebugInfoProvider</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-    <span class="ident">id_registry</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">IdRegistry</span>,
+    <span class="ident">id_registry</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">DebugInfoRegistry</span>,
     <span class="ident">initial_time</span>: <span class="ident">Instant</span>,
 }
 
@@ -154,7 +156,7 @@
                 <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">reactions</span>) <span class="op">=</span> <span class="ident">reactions</span> {
                     <span class="kw">for</span> (<span class="ident">layer_no</span>, <span class="ident">batch</span>) <span class="kw">in</span> <span class="ident">reactions</span>.<span class="ident">batches</span>() {
                         <span class="macro">write!</span>(<span class="ident">str</span>, <span class="string">&quot;{}: &quot;</span>, <span class="ident">layer_no</span>).<span class="ident">unwrap</span>();
-                        <span class="macro">join_to!</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">str</span>, <span class="ident">batch</span>.<span class="ident">iter</span>(), <span class="string">&quot;, &quot;</span>, <span class="string">&quot;{&quot;</span>, <span class="string">&quot;}&quot;</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">display_reaction</span>(<span class="kw-2">*</span><span class="ident">x</span>)).<span class="ident">unwrap</span>();
+                        <span class="macro">join_to!</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">str</span>, <span class="ident">batch</span>.<span class="ident">iter</span>(), <span class="string">&quot;, &quot;</span>, <span class="string">&quot;{&quot;</span>, <span class="string">&quot;}&quot;</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="ident">display_reaction</span>(<span class="kw-2">*</span><span class="ident">x</span>))).<span class="ident">unwrap</span>();
                     }
                 }
 
@@ -169,8 +171,8 @@
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">fn</span> <span class="ident">display_reaction</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">global</span>: <span class="ident">GlobalReactionId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
-        <span class="self">self</span>.<span class="ident">id_registry</span>.<span class="ident">fmt_reaction</span>(<span class="ident">global</span>)
+    <span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">fn</span> <span class="ident">display_reaction</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">GlobalReactionId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Display</span> <span class="op">+</span> <span class="lifetime">&#39;a</span> {
+        <span class="self">self</span>.<span class="ident">id_registry</span>.<span class="ident">fmt_reaction</span>(<span class="ident">id</span>)
     }
 }
 </pre></div>

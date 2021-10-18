@@ -483,6 +483,9 @@
 <span id="483">483</span>
 <span id="484">484</span>
 <span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
 </pre><pre class="rust">
 <span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
@@ -510,8 +513,8 @@
 
 <span class="doccomment">//! Home of the scheduler component.</span>
 
-<span class="kw">use</span> <span class="ident">crossbeam_channel</span>::{<span class="ident">ReconnectableReceiver</span>, <span class="ident">RecvTimeoutError</span>};
-<span class="kw">use</span> <span class="ident">crossbeam_utils</span>::{<span class="ident">thread::Scope</span>, <span class="ident">thread::scope</span>};
+<span class="kw">use</span> <span class="ident">crossbeam_channel::reconnectable</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">crossbeam_utils::thread</span>::{<span class="ident">Scope</span>, <span class="ident">scope</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::scheduler::dependencies</span>::{<span class="ident">DataflowInfo</span>, <span class="ident">LayerIx</span>};
@@ -594,7 +597,7 @@
     <span class="doccomment">/// Receiver through which asynchronous events are</span>
     <span class="doccomment">/// communicated to the scheduler. We only block when</span>
     <span class="doccomment">/// no events are ready to be processed.</span>
-    <span class="ident">rx</span>: <span class="ident">ReconnectableReceiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Initial time of the logical system.</span>
     <span class="ident">initial_time</span>: <span class="ident">Instant</span>,
@@ -608,15 +611,18 @@
     <span class="ident">shutdown_time</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">EventTag</span><span class="op">&gt;</span>,
     <span class="ident">options</span>: <span class="ident">SchedulerOptions</span>,
 
-    <span class="ident">id_registry</span>: <span class="ident">IdRegistry</span>,
+    <span class="ident">id_registry</span>: <span class="ident">DebugInfoRegistry</span>,
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span> <span class="ident">SyncScheduler</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span> <span class="kw">where</span> <span class="lifetime">&#39;x</span>: <span class="lifetime">&#39;t</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_main</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">ReactorInitializer</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(<span class="ident">options</span>: <span class="ident">SchedulerOptions</span>, <span class="ident">args</span>: <span class="ident">R::Params</span>) {
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">root_assembler</span> <span class="op">=</span> <span class="ident">RootAssembler::default</span>();
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">assembler</span> <span class="op">=</span> <span class="ident">AssemblyCtx::new</span>::<span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">root_assembler</span>, <span class="ident">ReactorDebugInfo::root</span>::<span class="op">&lt;</span><span class="ident">R::Wrapped</span><span class="op">&gt;</span>());
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">assembler</span> <span class="op">=</span> <span class="ident">AssemblyCtx::new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">root_assembler</span>, <span class="ident">ReactorDebugInfo::root</span>::<span class="op">&lt;</span><span class="ident">R::Wrapped</span><span class="op">&gt;</span>());
 
-        <span class="kw">let</span> <span class="ident">main_reactor</span> <span class="op">=</span> <span class="ident">R::assemble</span>(<span class="ident">args</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">assembler</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">main_reactor</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">R::assemble</span>(<span class="ident">args</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">assembler</span>) {
+            <span class="prelude-val">Ok</span>(<span class="ident">main</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">main</span>,
+            <span class="prelude-val">Err</span>(<span class="ident">e</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">std::panic::panic_any</span>(<span class="ident">e</span>.<span class="ident">lift</span>(<span class="kw-2">&amp;</span><span class="ident">root_assembler</span>.<span class="ident">id_registry</span>)),
+        };
         <span class="ident">assembler</span>.<span class="ident">register_reactor</span>(<span class="ident">main_reactor</span>);
 
 
@@ -627,7 +633,7 @@
         }
 
         <span class="comment">// collect dependency information</span>
-        <span class="kw">let</span> <span class="ident">dataflow_info</span> <span class="op">=</span> <span class="ident">DataflowInfo::new</span>(<span class="ident">graph</span>).<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">dataflow_info</span> <span class="op">=</span> <span class="ident">DataflowInfo::new</span>(<span class="ident">graph</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">lift</span>(<span class="kw-2">&amp;</span><span class="ident">id_registry</span>)).<span class="ident">unwrap</span>();
 
         <span class="comment">// Using thread::scope here introduces an unnamed lifetime for</span>
         <span class="comment">// the scope, which is captured as &#39;t by the SyncScheduler.</span>
@@ -716,13 +722,13 @@
     <span class="doccomment">/// See [Self::launch_event_loop].</span>
     <span class="kw">fn</span> <span class="ident">new</span>(
         <span class="ident">options</span>: <span class="ident">SchedulerOptions</span>,
-        <span class="ident">id_registry</span>: <span class="ident">IdRegistry</span>,
+        <span class="ident">id_registry</span>: <span class="ident">DebugInfoRegistry</span>,
         <span class="ident">dependency_info</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x</span> <span class="ident">DataflowInfo</span>,
         <span class="ident">thread_spawner</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Scope</span><span class="op">&lt;</span><span class="lifetime">&#39;t</span><span class="op">&gt;</span>,
         <span class="ident">reactors</span>: <span class="ident">ReactorVec</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>,
         <span class="ident">initial_time</span>: <span class="ident">Instant</span>,
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">crossbeam_channel::unbounded_reconnectable</span>::<span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+        <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">unbounded</span>::<span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>();
         <span class="self">Self</span> {
             <span class="ident">rx</span>,
 
@@ -834,7 +840,7 @@
     <span class="kw">fn</span> <span class="ident">new_reaction_ctx</span>(<span class="kw-2">&amp;</span><span class="self">self</span>,
                         <span class="ident">tag</span>: <span class="ident">EventTag</span>,
                         <span class="ident">todo</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>,
-                        <span class="ident">rx</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ReconnectableReceiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ReactionCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span> {
+                        <span class="ident">rx</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ReactionCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span> {
         <span class="ident">ReactionCtx::new</span>(
             <span class="ident">rx</span>,
             <span class="ident">tag</span>,

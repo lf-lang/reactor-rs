@@ -242,6 +242,33 @@
 <span id="242">242</span>
 <span id="243">243</span>
 <span id="244">244</span>
+<span id="245">245</span>
+<span id="246">246</span>
+<span id="247">247</span>
+<span id="248">248</span>
+<span id="249">249</span>
+<span id="250">250</span>
+<span id="251">251</span>
+<span id="252">252</span>
+<span id="253">253</span>
+<span id="254">254</span>
+<span id="255">255</span>
+<span id="256">256</span>
+<span id="257">257</span>
+<span id="258">258</span>
+<span id="259">259</span>
+<span id="260">260</span>
+<span id="261">261</span>
+<span id="262">262</span>
+<span id="263">263</span>
+<span id="264">264</span>
+<span id="265">265</span>
+<span id="266">266</span>
+<span id="267">267</span>
+<span id="268">268</span>
+<span id="269">269</span>
+<span id="270">270</span>
+<span id="271">271</span>
 </pre><pre class="rust">
 <span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
@@ -270,6 +297,7 @@
 
 
 <span class="kw">use</span> <span class="ident">std::borrow::Cow</span>;
+<span class="kw">use</span> <span class="ident">std::marker::PhantomData</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::scheduler::dependencies::DepGraph</span>;
@@ -283,7 +311,9 @@
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">super</span>) <span class="ident">reactors</span>: <span class="ident">ReactorVec</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Dependency graph</span>
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">super</span>) <span class="ident">graph</span>: <span class="ident">DepGraph</span>,
-    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">super</span>) <span class="ident">id_registry</span>: <span class="ident">IdRegistry</span>,
+    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">super</span>) <span class="ident">id_registry</span>: <span class="ident">DebugInfoRegistry</span>,
+    <span class="doccomment">/// Next trigger ID to assign</span>
+    <span class="ident">cur_trigger</span>: <span class="ident">TriggerId</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">RootAssembler</span> {
@@ -291,8 +321,9 @@
         <span class="self">Self</span> {
             <span class="ident">reactor_id</span>: <span class="ident">ReactorId::new</span>(<span class="number">0</span>),
             <span class="ident">graph</span>: <span class="ident">DepGraph::new</span>(),
-            <span class="ident">id_registry</span>: <span class="ident">Default::default</span>(),
+            <span class="ident">id_registry</span>: <span class="ident">DebugInfoRegistry::new</span>(),
             <span class="ident">reactors</span>: <span class="ident">Default::default</span>(),
+            <span class="ident">cur_trigger</span>: <span class="ident">TriggerId::FIRST_REGULAR</span>
         }
     }
 }
@@ -300,24 +331,29 @@
 
 <span class="doccomment">/// Helper struct to assemble reactors during initialization.</span>
 <span class="doccomment">/// One assembly context is used per reactor, they can&#39;t be shared.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AssemblyCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> {
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AssemblyCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span>, <span class="ident">S</span>: <span class="ident">ReactorInitializer</span><span class="op">&gt;</span> {
     <span class="ident">globals</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x</span> <span class="kw-2">mut</span> <span class="ident">RootAssembler</span>,
     <span class="doccomment">/// Constant id of the reactor currently being built.</span>
     <span class="ident">reactor_id</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ReactorId</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Next local ID for components != reactions</span>
     <span class="ident">cur_local</span>: <span class="ident">LocalReactionId</span>,
+    <span class="doccomment">/// Whether reactions have already been created</span>
     <span class="ident">reactions_done</span>: <span class="ident">bool</span>,
 
-    <span class="comment">// debug info:</span>
+    <span class="doccomment">/// Contains debug info for this reactor. Empty after</span>
+    <span class="doccomment">/// assemble_self has run, and the info is recorded</span>
+    <span class="doccomment">/// into the debug info registry.</span>
+    <span class="ident">debug</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">ReactorDebugInfo</span><span class="op">&gt;</span>,
 
-    <span class="ident">debug</span>: <span class="ident">ReactorDebugInfo</span>,
+    <span class="ident">_phantom</span>: <span class="ident">PhantomData</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;x</span> <span class="ident">S</span><span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> <span class="ident">AssemblyCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> {
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span>, <span class="ident">S</span>: <span class="ident">ReactorInitializer</span><span class="op">&gt;</span> <span class="ident">AssemblyCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span>, <span class="ident">S</span><span class="op">&gt;</span> {
     <span class="doccomment">/// The ID of the reactor being built.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// ### Panics</span>
     <span class="doccomment">/// If fix_cur_id has not been called.</span>
+    <span class="comment">// todo remove this</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ReactorId</span> {
         <span class="self">self</span>.<span class="ident">reactor_id</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="macro">panic!</span>(<span class="string">&quot;fix_cur_id has not been called&quot;</span>))
     }
@@ -326,64 +362,21 @@
     <span class="doccomment">/// have been built, as they&#39;re pushed into the global reactor</span>
     <span class="doccomment">/// vec before their parent. So the ID of the parent needs to</span>
     <span class="doccomment">/// be fixed only after all descendants have been built.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">fix_cur_id</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ReactorId</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">assemble_self</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">creation_fun</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ComponentCreator</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>, <span class="ident">ReactorId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">S</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">S</span> {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span>;
-        <span class="self">self</span>.<span class="ident">reactor_id</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">id</span>);
         <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">id_registry</span>.<span class="ident">record_reactor</span>(<span class="ident">id</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">debug</span>);
-        <span class="ident">id</span>
+        <span class="self">self</span>.<span class="ident">reactor_id</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">id</span>);
+        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">id_registry</span>.<span class="ident">record_reactor</span>(<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">debug</span>.<span class="ident">take</span>().<span class="ident">expect</span>(<span class="string">&quot;Can only call assemble_self once&quot;</span>));
+
+        <span class="kw">let</span> <span class="ident">first_trigger_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">cur_trigger</span>;
+
+        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">creation_fun</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ComponentCreator</span> { <span class="ident">assembler</span>: <span class="self">self</span> }, <span class="ident">id</span>);
+
+        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">id_registry</span>.<span class="ident">set_id_range</span>(<span class="ident">id</span>, <span class="ident">first_trigger_id</span>..<span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">cur_trigger</span>);
+
+        <span class="ident">result</span>
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_port</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-         <span class="self">self</span>.<span class="ident">new_port_impl</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">lf_name</span>), <span class="ident">is_input</span>)
-    }
-
-    <span class="kw">fn</span> <span class="ident">new_port_impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">lf_name</span>: <span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, <span class="ident">str</span><span class="op">&gt;</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_comp_id</span>(<span class="prelude-val">Some</span>(<span class="ident">lf_name</span>));
-        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">graph</span>.<span class="ident">record_port</span>(<span class="ident">id</span>);
-        <span class="ident">Port::new</span>(<span class="ident">id</span>, <span class="ident">is_input</span>)
-    }
-
-    <span class="comment">// not sure if this will ever serve</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_port_bank_const</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span>, <span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> [<span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>; <span class="ident">N</span>] {
-        <span class="macro">array!</span>[<span class="ident">i</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">new_port_bank_component</span>(<span class="ident">lf_name</span>, <span class="ident">is_input</span>, <span class="ident">i</span>); <span class="ident">N</span>]
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_port_bank</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>, <span class="ident">len</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_comp_id</span>(<span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">lf_name</span>)));
-        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">graph</span>.<span class="ident">record_multiport</span>(<span class="ident">id</span>, <span class="ident">len</span>);
-        <span class="ident">MultiPort::new</span>(
-            (<span class="number">0</span>..<span class="ident">len</span>).<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">new_port_bank_component</span>(<span class="ident">lf_name</span>, <span class="ident">is_input</span>, <span class="ident">i</span>)).<span class="ident">collect</span>(),
-            <span class="ident">id</span>,
-        )
-    }
-
-    <span class="kw">fn</span> <span class="ident">new_port_bank_component</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>, <span class="ident">index</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">label</span> <span class="op">=</span> <span class="ident">Cow::Owned</span>(<span class="macro">format!</span>(<span class="string">&quot;{}[{}]&quot;</span>, <span class="ident">lf_name</span>, <span class="ident">index</span>));
-        <span class="self">self</span>.<span class="ident">new_port_impl</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">label</span>, <span class="ident">is_input</span>)
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_logical_action</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-                                       <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>,
-                                       <span class="ident">min_delay</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Duration</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">LogicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_comp_id</span>(<span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">lf_name</span>)));
-        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">graph</span>.<span class="ident">record_laction</span>(<span class="ident">id</span>);
-        <span class="ident">LogicalAction::new</span>(<span class="ident">id</span>, <span class="ident">min_delay</span>)
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_physical_action</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-                                        <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>,
-                                        <span class="ident">min_delay</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Duration</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PhysicalActionRef</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_comp_id</span>(<span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">lf_name</span>)));
-        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">graph</span>.<span class="ident">record_paction</span>(<span class="ident">id</span>);
-        <span class="ident">PhysicalActionRef::new</span>(<span class="ident">id</span>, <span class="ident">min_delay</span>)
-    }
-
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_timer</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">offset</span>: <span class="ident">Duration</span>, <span class="ident">period</span>: <span class="ident">Duration</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Timer</span> {
-        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_comp_id</span>(<span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">lf_name</span>)));
-        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">graph</span>.<span class="ident">record_timer</span>(<span class="ident">id</span>);
-        <span class="ident">Timer::new</span>(<span class="ident">id</span>, <span class="ident">offset</span>, <span class="ident">period</span>)
-    }
 
     <span class="doccomment">/// Create N reactions. The first `num_non_synthetic` get</span>
     <span class="doccomment">/// priority edges, as they are taken to be those declared</span>
@@ -401,7 +394,7 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">prev</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">GlobalReactionId</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">None</span>;
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">r</span>) <span class="kw">in</span> <span class="ident">result</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">enumerate</span>() {
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">label</span>) <span class="op">=</span> <span class="ident">names</span>[<span class="ident">i</span>] {
-                <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">id_registry</span>.<span class="ident">record</span>(<span class="ident">r</span>.<span class="number">0</span>, <span class="ident">Cow::Borrowed</span>(<span class="ident">label</span>))
+                <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">id_registry</span>.<span class="ident">record_reaction</span>(<span class="ident">r</span>, <span class="ident">Cow::Borrowed</span>(<span class="ident">label</span>))
             }
             <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">graph</span>.<span class="ident">record_reaction</span>(<span class="ident">r</span>);
             <span class="kw">if</span> <span class="ident">i</span> <span class="op">&lt;</span> <span class="ident">num_non_synthetic</span> {
@@ -447,23 +440,9 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// Create and return a new global id for a new component.</span>
-    <span class="doccomment">/// Note: reactions don&#39;t share the same namespace as components.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// ### Panics</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// See [get_id].</span>
-    <span class="kw">fn</span> <span class="ident">next_comp_id</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">debug_name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, <span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">GlobalId</span> {
-        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">GlobalId::new</span>(<span class="self">self</span>.<span class="ident">get_id</span>(), <span class="self">self</span>.<span class="ident">cur_local</span>);
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">label</span>) <span class="op">=</span> <span class="ident">debug_name</span> {
-            <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">id_registry</span>.<span class="ident">record</span>(<span class="ident">id</span>, <span class="ident">label</span>);
-        }
-        <span class="self">self</span>.<span class="ident">cur_local</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
-        <span class="ident">id</span>
-    }
 
     <span class="doccomment">/// Register a child reactor.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">register_reactor</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">ReactorInitializer</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">child</span>: <span class="ident">S</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">register_reactor</span><span class="op">&lt;</span><span class="ident">Sub</span>: <span class="ident">ReactorInitializer</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">child</span>: <span class="ident">Sub</span>) {
         <span class="kw">let</span> <span class="ident">vec_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactors</span>.<span class="ident">push</span>(<span class="ident">Box::new</span>(<span class="ident">child</span>));
         <span class="macro">assert_eq!</span>(<span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactors</span>[<span class="ident">vec_id</span>].<span class="ident">id</span>(), <span class="ident">vec_id</span>, <span class="string">&quot;Improper initialization order!&quot;</span>);
     }
@@ -471,20 +450,95 @@
     <span class="doccomment">/// Assemble a child reactor. The child needs to be registered</span>
     <span class="doccomment">/// using [Self::register_reactor] later.</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">assemble_sub</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">ReactorInitializer</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">inst_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">args</span>: <span class="ident">S::Params</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sub</span> <span class="op">=</span> <span class="ident">AssemblyCtx::new</span>::<span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">globals</span>, <span class="self">self</span>.<span class="ident">debug</span>.<span class="ident">derive</span>::<span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>(<span class="ident">inst_name</span>));
-        <span class="ident">S::assemble</span>(<span class="ident">args</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">sub</span>)
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">assemble_sub</span><span class="op">&lt;</span><span class="ident">Sub</span>: <span class="ident">ReactorInitializer</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">inst_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">args</span>: <span class="ident">Sub::Params</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Sub</span>, <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">my_debug</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">debug</span>.<span class="ident">as_ref</span>().<span class="ident">expect</span>(<span class="string">&quot;should assemble sub-reactors before self&quot;</span>);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">sub</span> <span class="op">=</span> <span class="ident">AssemblyCtx::new</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">globals</span>, <span class="ident">my_debug</span>.<span class="ident">derive</span>::<span class="op">&lt;</span><span class="ident">Sub</span><span class="op">&gt;</span>(<span class="ident">inst_name</span>));
+        <span class="ident">Sub::assemble</span>(<span class="ident">args</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">sub</span>)
     }
 
-    <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">new</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">ReactorInitializer</span><span class="op">&gt;</span>(<span class="ident">globals</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x</span> <span class="kw-2">mut</span> <span class="ident">RootAssembler</span>, <span class="ident">debug</span>: <span class="ident">ReactorDebugInfo</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">globals</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x</span> <span class="kw-2">mut</span> <span class="ident">RootAssembler</span>, <span class="ident">debug</span>: <span class="ident">ReactorDebugInfo</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">globals</span>,
             <span class="ident">reactor_id</span>: <span class="prelude-val">None</span>,
             <span class="ident">reactions_done</span>: <span class="bool-val">false</span>,
             <span class="comment">// this is not zero, so that reaction ids and component ids are disjoint</span>
             <span class="ident">cur_local</span>: <span class="ident">S::MAX_REACTION_ID</span>,
-            <span class="ident">debug</span>,
+            <span class="ident">debug</span>: <span class="prelude-val">Some</span>(<span class="ident">debug</span>),
+            <span class="ident">_phantom</span>: <span class="ident">PhantomData</span>,
         }
+    }
+}
+
+
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ComponentCreator</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="ident">S</span>: <span class="ident">ReactorInitializer</span><span class="op">&gt;</span> {
+    <span class="ident">assembler</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">AssemblyCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span>, <span class="ident">S</span><span class="op">&gt;</span>,
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">S</span>: <span class="ident">ReactorInitializer</span><span class="op">&gt;</span> <span class="ident">ComponentCreator</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, <span class="ident">S</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_port</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">new_port_impl</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">lf_name</span>), <span class="ident">is_input</span>)
+    }
+
+    <span class="kw">fn</span> <span class="ident">new_port_impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">lf_name</span>: <span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, <span class="ident">str</span><span class="op">&gt;</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_comp_id</span>(<span class="prelude-val">Some</span>(<span class="ident">lf_name</span>));
+        <span class="self">self</span>.<span class="ident">assembler</span>.<span class="ident">globals</span>.<span class="ident">graph</span>.<span class="ident">record_port</span>(<span class="ident">id</span>);
+        <span class="ident">Port::new</span>(<span class="ident">id</span>, <span class="ident">is_input</span>)
+    }
+
+    <span class="comment">// not sure if this will ever serve</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_port_bank_const</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span>, <span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>) <span class="op">-</span><span class="op">&gt;</span> [<span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>; <span class="ident">N</span>] {
+        <span class="macro">array!</span>[<span class="ident">i</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">new_port_bank_component</span>(<span class="ident">lf_name</span>, <span class="ident">is_input</span>, <span class="ident">i</span>); <span class="ident">N</span>]
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_port_bank</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>, <span class="ident">len</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PortBank</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_comp_id</span>(<span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">lf_name</span>)));
+        <span class="self">self</span>.<span class="ident">assembler</span>.<span class="ident">globals</span>.<span class="ident">graph</span>.<span class="ident">record_multiport</span>(<span class="ident">id</span>, <span class="ident">len</span>);
+        <span class="ident">PortBank::new</span>(
+            (<span class="number">0</span>..<span class="ident">len</span>).<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">new_port_bank_component</span>(<span class="ident">lf_name</span>, <span class="ident">is_input</span>, <span class="ident">i</span>)).<span class="ident">collect</span>(),
+            <span class="ident">id</span>,
+        )
+    }
+
+    <span class="kw">fn</span> <span class="ident">new_port_bank_component</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">is_input</span>: <span class="ident">bool</span>, <span class="ident">index</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">label</span> <span class="op">=</span> <span class="ident">Cow::Owned</span>(<span class="macro">format!</span>(<span class="string">&quot;{}[{}]&quot;</span>, <span class="ident">lf_name</span>, <span class="ident">index</span>));
+        <span class="self">self</span>.<span class="ident">new_port_impl</span>::<span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="ident">label</span>, <span class="ident">is_input</span>)
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_logical_action</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+                                       <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>,
+                                       <span class="ident">min_delay</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Duration</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">LogicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_comp_id</span>(<span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">lf_name</span>)));
+        <span class="self">self</span>.<span class="ident">assembler</span>.<span class="ident">globals</span>.<span class="ident">graph</span>.<span class="ident">record_laction</span>(<span class="ident">id</span>);
+        <span class="ident">LogicalAction::new</span>(<span class="ident">id</span>, <span class="ident">min_delay</span>)
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_physical_action</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
+                                        <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>,
+                                        <span class="ident">min_delay</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Duration</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">PhysicalActionRef</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_comp_id</span>(<span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">lf_name</span>)));
+        <span class="self">self</span>.<span class="ident">assembler</span>.<span class="ident">globals</span>.<span class="ident">graph</span>.<span class="ident">record_paction</span>(<span class="ident">id</span>);
+        <span class="ident">PhysicalActionRef::new</span>(<span class="ident">id</span>, <span class="ident">min_delay</span>)
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_timer</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">lf_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">offset</span>: <span class="ident">Duration</span>, <span class="ident">period</span>: <span class="ident">Duration</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Timer</span> {
+        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_comp_id</span>(<span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">lf_name</span>)));
+        <span class="self">self</span>.<span class="ident">assembler</span>.<span class="ident">globals</span>.<span class="ident">graph</span>.<span class="ident">record_timer</span>(<span class="ident">id</span>);
+        <span class="ident">Timer::new</span>(<span class="ident">id</span>, <span class="ident">offset</span>, <span class="ident">period</span>)
+    }
+
+    <span class="doccomment">/// Create and return a new global id for a new component.</span>
+    <span class="doccomment">/// Note: reactions don&#39;t share the same namespace as components.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// ### Panics</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// See [get_id].</span>
+    <span class="kw">fn</span> <span class="ident">next_comp_id</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">debug_name</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span>, <span class="ident">str</span><span class="op">&gt;</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">TriggerId</span> {
+        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">assembler</span>.<span class="ident">globals</span>.<span class="ident">cur_trigger</span>;
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">label</span>) <span class="op">=</span> <span class="ident">debug_name</span> {
+            <span class="self">self</span>.<span class="ident">assembler</span>.<span class="ident">globals</span>.<span class="ident">id_registry</span>.<span class="ident">record_trigger</span>(<span class="ident">id</span>, <span class="ident">label</span>);
+        }
+        <span class="self">self</span>.<span class="ident">assembler</span>.<span class="ident">globals</span>.<span class="ident">cur_trigger</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">assembler</span>.<span class="ident">globals</span>.<span class="ident">cur_trigger</span>.<span class="ident">next</span>().<span class="ident">expect</span>(<span class="string">&quot;Overflow while allocating ID&quot;</span>);
+        <span class="ident">id</span>
     }
 }
 </pre></div>

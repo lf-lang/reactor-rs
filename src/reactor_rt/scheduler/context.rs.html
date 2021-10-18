@@ -599,7 +599,7 @@
 </pre><pre class="rust">
 <span class="kw">use</span> <span class="ident">std::borrow</span>::{<span class="ident">Borrow</span>, <span class="ident">BorrowMut</span>};
 
-<span class="kw">use</span> <span class="ident">crossbeam_channel</span>::{<span class="ident">ReconnectableReceiver</span>, <span class="ident">Sender</span>, <span class="ident">SendError</span>};
+<span class="kw">use</span> <span class="ident">crossbeam_channel::reconnectable</span>::{<span class="ident">Receiver</span>, <span class="ident">Sender</span>, <span class="ident">SendError</span>};
 <span class="kw">use</span> <span class="ident">crossbeam_utils::thread</span>::{<span class="ident">Scope</span>, <span class="ident">ScopedJoinHandle</span>};
 <span class="kw">use</span> <span class="ident">smallvec::SmallVec</span>;
 
@@ -628,7 +628,7 @@
     <span class="ident">cur_layer</span>: <span class="ident">LayerIx</span>,
 
     <span class="doccomment">/// Sender to schedule events that should be executed later than this wave.</span>
-    <span class="ident">rx</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ReconnectableReceiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="ident">rx</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
     <span class="doccomment">/// Start time of the program.</span>
     <span class="ident">initial_time</span>: <span class="ident">PhysicalInstant</span>,
@@ -964,7 +964,7 @@
     }
 
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">rx</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">ReconnectableReceiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">rx</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,
                       <span class="ident">tag</span>: <span class="ident">EventTag</span>,
                       <span class="ident">initial_time</span>: <span class="ident">PhysicalInstant</span>,
                       <span class="ident">todo</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>,
@@ -1176,7 +1176,7 @@
 }
 
 <span class="kw">impl</span> <span class="ident">CleanupCtx</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_multiport</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">port</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">MultiPort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_multiport</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">port</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PortBank</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
         <span class="comment">// todo bound ports don&#39;t need to be cleared</span>
         <span class="kw">for</span> <span class="ident">channel</span> <span class="kw">in</span> <span class="ident">port</span> {
             <span class="ident">channel</span>.<span class="ident">clear_value</span>()
