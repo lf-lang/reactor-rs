@@ -577,7 +577,7 @@ pub struct CleanupCtx {
 }
 
 impl CleanupCtx {
-    pub fn cleanup_multiport<T: Sync>(&self, port: &mut MultiPort<T>) {
+    pub fn cleanup_multiport<T: Sync>(&self, port: &mut PortBank<T>) {
         // todo bound ports don't need to be cleared
         for channel in port {
             channel.clear_value()

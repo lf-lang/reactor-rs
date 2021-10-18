@@ -174,7 +174,7 @@ impl DebugInfoRegistry {
     }
 
     pub(in super) fn record_reactor(&mut self, id: ReactorId, debug: ReactorDebugInfo) {
-        let ix = self.reactor_infos.push(debug.clone());
+        let ix = self.reactor_infos.push(debug);
         debug_assert_eq!(ix, id);
     }
 

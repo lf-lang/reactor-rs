@@ -86,25 +86,24 @@ impl<'a, T: Sync> WritablePort<'a, T> {
 }
 
 /// Internal type, not communicated to reactions.
-/// todo Rename to Multiport (single word)
-pub struct MultiPort<T: Sync> {
+pub struct PortBank<T: Sync> {
     ports: Vec<Port<T>>,
     id: TriggerId,
 }
 
-impl<T: Sync> MultiPort<T> {
+impl<T: Sync> PortBank<T> {
     pub(crate) fn new(ports: Vec<Port<T>>, id: TriggerId) -> Self {
         Self { ports, id }
     }
 }
 
-impl<T: Sync> TriggerLike for MultiPort<T> {
+impl<T: Sync> TriggerLike for PortBank<T> {
     fn get_id(&self) -> TriggerId {
         self.id
     }
 }
 
-impl<'a, T: Sync> IntoIterator for &'a mut MultiPort<T> {
+impl<'a, T: Sync> IntoIterator for &'a mut PortBank<T> {
     type Item = &'a mut Port<T>;
     type IntoIter = std::slice::IterMut<'a, Port<T>>;
 
@@ -113,7 +112,7 @@ impl<'a, T: Sync> IntoIterator for &'a mut MultiPort<T> {
     }
 }
 
-impl<T: Sync> Index<usize> for MultiPort<T> {
+impl<T: Sync> Index<usize> for PortBank<T> {
     type Output = Port<T>;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -121,24 +120,24 @@ impl<T: Sync> Index<usize> for MultiPort<T> {
     }
 }
 
-impl<T: Sync> IndexMut<usize> for MultiPort<T> {
+impl<T: Sync> IndexMut<usize> for PortBank<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.ports[index]
     }
 }
 
 
-/// A read-only reference to a multiport.
-pub struct ReadableMultiPort<'a, T: Sync>(&'a MultiPort<T>);
+/// A read-only reference to a port bank.
+pub struct ReadablePortBank<'a, T: Sync>(&'a PortBank<T>);
 
-impl<'a, T: Sync> ReadableMultiPort<'a, T> {
+impl<'a, T: Sync> ReadablePortBank<'a, T> {
     #[inline(always)]
-    pub fn new(port: &'a MultiPort<T>) -> Self {
+    pub fn new(port: &'a PortBank<T>) -> Self {
         Self(port)
     }
 }
 
-impl<'a, T: Sync> Index<usize> for ReadableMultiPort<'a, T> {
+impl<'a, T: Sync> Index<usize> for ReadablePortBank<'a, T> {
     type Output = ReadablePort<'a, T>;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -149,7 +148,7 @@ impl<'a, T: Sync> Index<usize> for ReadableMultiPort<'a, T> {
     }
 }
 
-impl<'a, T: Sync> IntoIterator for ReadableMultiPort<'a, T> {
+impl<'a, T: Sync> IntoIterator for ReadablePortBank<'a, T> {
     type Item = ReadablePort<'a, T>;
     type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> ReadablePort<'a, T>>;
 
@@ -158,7 +157,7 @@ impl<'a, T: Sync> IntoIterator for ReadableMultiPort<'a, T> {
     }
 }
 
-impl<'a, T: Sync> ReadableMultiPort<'a, T> {
+impl<'a, T: Sync> ReadablePortBank<'a, T> {
     pub fn len(&self) -> usize {
         self.0.ports.len()
     }
