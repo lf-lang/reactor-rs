@@ -150,6 +150,10 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         self.effects_instantaneous(reaction, port.get_id())
     }
 
+    pub fn effects_bank<T: Sync>(&mut self, reaction: GlobalReactionId, port: &PortBank<T>) -> Result<(), AssemblyError> {
+        self.effects_instantaneous(reaction, port.get_id())
+    }
+
     // the trigger should be a port or timer
     #[doc(hidden)]
     pub fn effects_instantaneous(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> Result<(), AssemblyError> {
