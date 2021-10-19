@@ -25,8 +25,9 @@
 
 
 
-use std::fmt::*;
+use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::hash::{Hash, Hasher};
+use std::str::FromStr;
 use crate::TriggerId;
 
 // private implementation types
@@ -121,6 +122,21 @@ impl GlobalId {
     }
 }
 
+impl FromStr for GlobalId {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Some((container, local)) = s.split_once('/') {
+            let container = container.parse::<ReactorIdImpl>().map_err(|_| "invalid reactor id")?;
+            let local = local.parse::<ReactionIdImpl>().map_err(|_| "invalid local id")?;
+            Ok(GlobalId::new(ReactorId::from_raw(container),
+                             LocalReactionId::from_raw(local)))
+        } else {
+            Err("Expected format {int}/{int}")
+        }
+    }
+}
+
 // todo commit and remove
 #[cfg(nightly)]
 impl std::iter::Step for GlobalId {
@@ -148,13 +164,13 @@ impl Hash for GlobalId {
 }
 
 impl Debug for GlobalId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         <Self as Display>::fmt(self, f)
     }
 }
 
 impl Display for GlobalId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "{}/{}", self.container(), self.local())
     }
 }

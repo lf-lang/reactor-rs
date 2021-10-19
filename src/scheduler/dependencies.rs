@@ -123,7 +123,12 @@ pub(in super) struct DepGraph {
 
 impl Debug for GraphNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}({:?})", self.kind, self.id)
+        match self {
+            GraphNode { id: GraphId::Reaction(id), .. } => write!(f, "Reaction({:?})", id),
+            GraphNode { id: GraphId::Trigger(TriggerId::STARTUP), .. } => write!(f, "startup"),
+            GraphNode { id: GraphId::Trigger(TriggerId::SHUTDOWN), .. } => write!(f, "shutdown"),
+            GraphNode { id: GraphId::Trigger(id), kind } => write!(f, "{:?}({:?})", kind, id.index()),
+        }
     }
 }
 
@@ -145,24 +150,22 @@ impl DepGraph {
     pub fn format_dot(&self, id_registry: &DebugInfoRegistry) -> impl Display {
         use regex::{Regex, Captures};
         use petgraph::dot::{Config, Dot};
-        todo!("has not yet been updated!!");
 
         let dot = Dot::with_config(&self.dataflow, &[Config::EdgeNoLabel]);
 
-        let re = Regex::new(r"(Reaction|Action|Port|Timer)\(Id\((\d++)/(\d++)\)\)").unwrap();
+        let re = Regex::new(r"(\w+)\(([^)]++)\)").unwrap();
 
         let formatted = format!("{:?}", dot);
         let replaced = re.replace_all(formatted.as_str(), |captures: &Captures| {
             let kind = &captures[1];
-            let reactor_number = ReactorId::new_const(captures[2].parse().unwrap());
-            let component_number = LocalReactionId::new_const(captures[3].parse().unwrap());
-
-            let comp_id = GlobalId::new(reactor_number, component_number);
-            if kind != "Reaction" {
-                format!("{}({})", kind, id_registry.fmt_component(todo!()))
+            let id = &captures[2];
+            if kind == "Reaction" {
+                let global = id.parse::<GlobalId>().unwrap();
+                format!("{}({})", kind, id_registry.fmt_reaction(GlobalReactionId(global)))
             } else {
-                format!("{}({})", kind, id_registry.fmt_reaction(todo!()))
-            };
+                let trigger_id = TriggerId::new(id.parse().unwrap());
+                format!("{}({})", kind, id_registry.fmt_component(trigger_id))
+            }
         });
 
         replaced.into_owned()

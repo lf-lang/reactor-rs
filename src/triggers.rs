@@ -23,6 +23,7 @@
  */
 
 
+use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 use std::ops::Range;
 use std::time::Instant;
@@ -64,7 +65,7 @@ pub trait TriggerLike {
 ///
 ///
 ///
-#[derive(Debug, Eq, PartialEq, Copy, Clone, Hash, Ord, PartialOrd)]
+#[derive(Eq, PartialEq, Copy, Clone, Hash, Ord, PartialOrd)]
 pub struct TriggerId(usize);
 
 // Historical note: in the past, TriggerId was a newtype over a GlobalId.
@@ -114,5 +115,15 @@ impl Idx for TriggerId {
 
     fn index(self) -> usize {
         self.0
+    }
+}
+
+impl Debug for TriggerId {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match *self {
+            TriggerId::STARTUP => write!(f, "startup"),
+            TriggerId::SHUTDOWN => write!(f, "shutdown"),
+            TriggerId(id) => write!(f, "{}", id)
+        }
     }
 }

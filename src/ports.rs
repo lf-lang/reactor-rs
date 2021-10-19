@@ -150,17 +150,6 @@ impl<'a, T: Sync> ReadablePortBank<'a, T> {
     }
 }
 
-impl<'a, T: Sync> Index<usize> for ReadablePortBank<'a, T> {
-    type Output = ReadablePort<'a, T>;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        unsafe {
-            // safety: ReadablePort has a repr(transparent)
-            std::mem::transmute(&self.0.ports[index])
-        }
-    }
-}
-
 impl<'a, T: Sync> IntoIterator for ReadablePortBank<'a, T> {
     type Item = ReadablePort<'a, T>;
     type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> ReadablePort<'a, T>>;
@@ -289,7 +278,7 @@ impl<T: Sync> Port<T> {
     pub(in crate) fn set_impl(&mut self, new_value: Option<T>) {
         use atomic_refcell::AtomicRef;
 
-        debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port ({})", self.id);
+        debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port ({:?})", self.id);
 
         let cell_ref: AtomicRef<Rc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
         let class_cell: &PortCell<T> = Rc::borrow(cell_ref.deref());
