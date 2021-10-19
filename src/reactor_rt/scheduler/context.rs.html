@@ -596,6 +596,10 @@
 <span id="596">596</span>
 <span id="597">597</span>
 <span id="598">598</span>
+<span id="599">599</span>
+<span id="600">600</span>
+<span id="601">601</span>
+<span id="602">602</span>
 </pre><pre class="rust">
 <span class="kw">use</span> <span class="ident">std::borrow</span>::{<span class="ident">Borrow</span>, <span class="ident">BorrowMut</span>};
 
@@ -1077,6 +1081,8 @@
     <span class="doccomment">/// plus an optional additional time delay. These delays are in</span>
     <span class="doccomment">/// logical time.</span>
     <span class="doccomment">///</span>
+    <span class="doccomment">/// Note that this locks the action.</span>
+    <span class="doccomment">///</span>
     <span class="doccomment">/// This may fail if this is called while the scheduler has already</span>
     <span class="doccomment">/// been shutdown. todo prevent this</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">schedule_physical</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="ident">PhysicalActionRef</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">offset</span>: <span class="ident">Offset</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SendError</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
@@ -1086,6 +1092,8 @@
     <span class="doccomment">/// Schedule an action to run after its own implicit time delay</span>
     <span class="doccomment">/// plus an optional additional time delay. These delays are in</span>
     <span class="doccomment">/// logical time.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// Note that this locks the action.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// This may fail if this is called while the scheduler has already</span>
     <span class="doccomment">/// been shutdown. todo prevent this</span>
@@ -1097,7 +1105,7 @@
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">SendError</span><span class="op">&lt;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
         <span class="comment">// physical time must be ahead of logical time so</span>
         <span class="comment">// this event is scheduled for the future</span>
-        <span class="ident">action</span>.<span class="ident">use_mut</span>(<span class="op">|</span><span class="ident">action</span><span class="op">|</span> {
+        <span class="ident">action</span>.<span class="ident">use_mut_p</span>(<span class="ident">value</span>, <span class="op">|</span><span class="ident">action</span>, <span class="ident">value</span><span class="op">|</span> {
             <span class="kw">let</span> <span class="ident">tag</span> <span class="op">=</span> <span class="ident">EventTag::absolute</span>(<span class="self">self</span>.<span class="ident">initial_time</span>, <span class="ident">Instant::now</span>() <span class="op">+</span> <span class="ident">offset</span>.<span class="ident">to_duration</span>());
             <span class="ident">action</span>.<span class="number">0</span>.<span class="ident">schedule_future_value</span>(<span class="ident">tag</span>, <span class="ident">value</span>);
 
@@ -1107,7 +1115,7 @@
                 <span class="macro">warn!</span>(<span class="string">&quot;Event could not be sent! {:?}&quot;</span>, <span class="ident">e</span>);
                 <span class="ident">SendError</span>(<span class="ident">action</span>.<span class="number">0</span>.<span class="ident">forget_value</span>(<span class="kw-2">&amp;</span><span class="ident">tag</span>))
             })
-        })
+        }).<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="ident">value</span><span class="op">|</span> <span class="prelude-val">Err</span>(<span class="ident">SendError</span>(<span class="ident">value</span>)))
     }
 }
 
@@ -1192,7 +1200,7 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cleanup_physical_action</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">action</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PhysicalActionRef</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
-        <span class="ident">action</span>.<span class="ident">use_mut</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="number">0</span>.<span class="ident">forget_value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">tag</span>));
+        <span class="ident">action</span>.<span class="ident">use_mut</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="number">0</span>.<span class="ident">forget_value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">tag</span>)).<span class="ident">ok</span>();
     }
 }
 </pre></div>
