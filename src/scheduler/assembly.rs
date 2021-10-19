@@ -73,7 +73,7 @@ pub struct AssemblyCtx<'x, S: ReactorInitializer> {
     /// into the debug info registry.
     debug: Option<ReactorDebugInfo>,
 
-    _phantom: PhantomData<&'x S>,
+    _phantom: PhantomData<S>,
 }
 
 impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
