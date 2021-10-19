@@ -205,11 +205,12 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 };
                 // at this point we're at the correct time
 
-                if evt.terminate { // means someone called request_stop
-                    shutdown_reactions = evt.reactions;
+                if evt.terminate || self.shutdown_time == Some(evt.tag) {
+                    shutdown_reactions = ExecutableReactions::merge_cows(shutdown_reactions, evt.reactions);
                     self.shutdown_time = Some(evt.tag);
-                    break;
+                    break; // shutdown
                 }
+
                 self.process_tag(evt.tag, evt.reactions);
             } else if let Some(evt) = self.receive_event() {
                 // this may block
@@ -217,12 +218,14 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 continue;
             } else {
                 // all senders have hung up, or timeout
+                info!("Event queue is empty forever, shutting down.");
                 break;
             }
         } // end loop
 
-        info!("Scheduler is shutting down...");
-        self.shutdown(shutdown_reactions);
+        let shutdown_tag = self.shutdown_time.unwrap_or_else(|| EventTag::now(self.initial_time));
+        info!("Scheduler is shutting down, at {}", shutdown_tag);
+        self.shutdown(shutdown_tag, shutdown_reactions);
         info!("Scheduler has been shut down")
 
         // self destructor is called here
@@ -275,9 +278,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         self.process_tag(initial_tag, Some(Cow::Borrowed(startup_reactions)))
     }
 
-    fn shutdown(&mut self, reactions: ReactionPlan<'x>) {
-        let shutdown_tag = self.shutdown_time.unwrap_or_else(|| EventTag::now(self.initial_time));
-
+    fn shutdown(&mut self, shutdown_tag: EventTag, reactions: ReactionPlan<'x>) {
         let default_plan: ReactionPlan<'x> = Some(Cow::Borrowed(self.dataflow.reactions_triggered_by(&TriggerId::SHUTDOWN)));
         let reactions = ExecutableReactions::merge_cows(reactions, default_plan);
 
