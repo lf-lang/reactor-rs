@@ -38,6 +38,7 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 
 use crate::*;
+use crate::scheduler::dependencies::NodeKind::MultiportUpstream;
 use crate::util::vecmap::{Entry as VEntry, VecMap};
 
 use super::ReactionPlan;
@@ -144,6 +145,7 @@ impl DepGraph {
     pub fn format_dot(&self, id_registry: &DebugInfoRegistry) -> impl Display {
         use regex::{Regex, Captures};
         use petgraph::dot::{Config, Dot};
+        todo!("has not yet been updated!!");
 
         let dot = Dot::with_config(&self.dataflow, &[Config::EdgeNoLabel]);
 
@@ -248,9 +250,17 @@ impl DepGraph {
     }
 
     pub fn triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
+        let trigger_ix = self.get_ix(trigger.into());
+        if self.dataflow[trigger_ix].kind == MultiportUpstream {
+            for channel_id in iter_range(self.multiport_ranges.get(&trigger).unwrap()) {
+                self.triggers_reaction(channel_id, reaction);
+            }
+            return;
+        }
+
         // trigger -> reaction
         self.dataflow.add_edge(
-            self.get_ix(trigger.into()),
+            trigger_ix,
             self.get_ix(reaction.into()),
             EdgeWeight::Default,
         );
@@ -382,7 +392,7 @@ impl DataflowInfo {
         Ok(DataflowInfo { trigger_to_plan })
     }
 
-    fn collect_trigger_to_plan(DepGraph { dataflow, multiport_containment, .. }: &mut DepGraph,
+    fn collect_trigger_to_plan(DepGraph { dataflow, .. }: &mut DepGraph,
                                layer_info: &ReactionLayerInfo) -> IndexVec<TriggerId, Arc<ExecutableReactions<'static>>> {
         let mut result = IndexVec::with_capacity(dataflow.node_count() / 2);
 

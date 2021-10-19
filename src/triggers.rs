@@ -24,6 +24,7 @@
 
 
 use std::hash::Hash;
+use std::ops::Range;
 use std::time::Instant;
 use index_vec::Idx;
 
@@ -100,6 +101,10 @@ impl TriggerId {
             Err(())
         }
     }
+}
+
+pub(crate) fn iter_range(range: &Range<TriggerId>) -> impl Iterator<Item=TriggerId> {
+    (range.start.0..range.end.0).into_iter().map(TriggerId)
 }
 
 impl Idx for TriggerId {
