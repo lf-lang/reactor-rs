@@ -52,6 +52,7 @@
 extern crate array_macro;
 #[cfg(test)]
 #[macro_use]
+#[allow(unused)]
 extern crate assert_matches;
 #[macro_use]
 extern crate index_vec;

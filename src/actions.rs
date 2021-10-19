@@ -26,10 +26,8 @@
 use std::cmp::Reverse;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-
-use atomic_refcell::AtomicRefCell;
 
 use crate::*;
 use crate::TriggerLike;
@@ -208,46 +206,55 @@ mod test {
 
 
 /// A reference to a physical action. This thing is cloneable
-/// and can be sent to async threads.
+/// and can be sent to async threads. The contained action
+/// reference is unique and protected by a lock. All operations
+/// on the action are
 ///
 /// See [crate::ReactionCtx::spawn_physical_thread].
 #[derive(Clone)]
-pub struct PhysicalActionRef<T: Sync>(Arc<AtomicRefCell<PhysicalAction<T>>>);
+pub struct PhysicalActionRef<T: Sync>(Arc<Mutex<PhysicalAction<T>>>);
 
 impl<T: Sync> PhysicalActionRef<T> {
     pub(crate) fn new(id: TriggerId, min_delay: Option<Duration>) -> Self {
-        Self(Arc::new(AtomicRefCell::new(PhysicalAction::new(id, min_delay))))
+        Self(Arc::new(Mutex::new(PhysicalAction::new(id, min_delay))))
     }
 
-    pub(crate) fn use_mut<O>(&self, f: impl FnOnce(&mut PhysicalAction<T>) -> O) -> O {
-        let mut refmut = self.0.deref().borrow_mut();
+    pub(crate) fn use_mut<O>(&self, f: impl FnOnce(&mut PhysicalAction<T>) -> O) -> Result<O, ()> {
+        let mut refmut = self.0.deref().lock().map_err(|_| ())?;
 
-        f(refmut.deref_mut())
+        Ok(f(refmut.deref_mut()))
     }
 
-    pub(crate) fn use_value<O>(&self, f: impl FnOnce(&PhysicalAction<T>) -> O) -> O {
-        let r#ref = self.0.deref().borrow();
+    pub(crate) fn use_mut_p<O, P>(&self, p: P, f: impl FnOnce(&mut PhysicalAction<T>, P) -> O) -> Result<O, P> {
+        match self.0.deref().lock() {
+            Ok(mut refmut) => Ok(f(refmut.deref_mut(), p)),
+            Err(_) => Err(p)
+        }
+    }
 
-        f(r#ref.deref())
+    pub(crate) fn use_value<O>(&self, f: impl FnOnce(&PhysicalAction<T>) -> O) -> Result<O, ()> {
+        let r#ref = self.0.deref().lock().map_err(|_| ())?;
+
+        Ok(f(r#ref.deref()))
     }
 }
 
 impl<T: Sync> TriggerLike for PhysicalActionRef<T> {
     fn get_id(&self) -> TriggerId {
-        self.use_value(|a| a.get_id())
+        self.use_value(|a| a.get_id()).unwrap()
     }
 }
 
 impl<T: Sync> ReactionTrigger<T> for PhysicalActionRef<T> {
     fn is_present(&self, now: &EventTag, start: &Instant) -> bool {
-        self.use_value(|a| a.0.is_present(now, start))
+        self.use_value(|a| a.0.is_present(now, start)).unwrap()
     }
 
     fn get_value(&self, now: &EventTag, start: &Instant) -> Option<T> where T: Copy {
-        self.use_value(|a| a.0.get_value(now, start))
+        self.use_value(|a| a.0.get_value(now, start)).unwrap()
     }
 
     fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
-        self.use_value(|a| a.0.use_value_ref(now, start, action))
+        self.use_value(|a| a.0.use_value_ref(now, start, action)).unwrap()
     }
 }

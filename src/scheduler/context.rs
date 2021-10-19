@@ -478,6 +478,8 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     /// plus an optional additional time delay. These delays are in
     /// logical time.
     ///
+    /// Note that this locks the action.
+    ///
     /// This may fail if this is called while the scheduler has already
     /// been shutdown. todo prevent this
     pub fn schedule_physical<T: Sync>(&mut self, action: &PhysicalActionRef<T>, offset: Offset) -> Result<(), SendError<Option<T>>> {
@@ -487,6 +489,8 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     /// Schedule an action to run after its own implicit time delay
     /// plus an optional additional time delay. These delays are in
     /// logical time.
+    ///
+    /// Note that this locks the action.
     ///
     /// This may fail if this is called while the scheduler has already
     /// been shutdown. todo prevent this
@@ -498,7 +502,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     ) -> Result<(), SendError<Option<T>>> {
         // physical time must be ahead of logical time so
         // this event is scheduled for the future
-        action.use_mut(|action| {
+        action.use_mut_p(value, |action, value| {
             let tag = EventTag::absolute(self.initial_time, Instant::now() + offset.to_duration());
             action.0.schedule_future_value(tag, value);
 
@@ -508,7 +512,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
                 warn!("Event could not be sent! {:?}", e);
                 SendError(action.0.forget_value(&tag))
             })
-        })
+        }).unwrap_or_else(|value| Err(SendError(value)))
     }
 }
 
@@ -593,6 +597,6 @@ impl CleanupCtx {
     }
 
     pub fn cleanup_physical_action<T: Sync>(&self, action: &mut PhysicalActionRef<T>) {
-        action.use_mut(|a| a.0.forget_value(&self.tag));
+        action.use_mut(|a| a.0.forget_value(&self.tag)).ok();
     }
 }
