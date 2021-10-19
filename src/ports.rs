@@ -64,24 +64,24 @@ impl<T: Sync> ReactionTrigger<T> for ReadablePort<'_, T> {
 }
 
 /// A write-only reference to a port.
-pub struct WritablePort<'a, T: Sync> {
-    port: &'a mut Port<T>,
-}
+pub struct WritablePort<'a, T: Sync>(&'a mut Port<T>);
 
 impl<'a, T: Sync> WritablePort<'a, T> {
+    #[inline(always)]
+    #[doc(hidden)]
     pub fn new(port: &'a mut Port<T>) -> Self {
-        Self { port }
+        Self(port)
     }
 
     /// Set the value, see [super::ReactionCtx::set]
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
     pub(in crate) fn set_impl(&mut self, v: T) {
-        self.port.set_impl(Some(v))
+        self.0.set_impl(Some(v))
     }
 
     pub(in crate) fn get_id(&self) -> TriggerId {
-        self.port.get_id()
+        self.0.get_id()
     }
 }
 
@@ -132,8 +132,21 @@ pub struct ReadablePortBank<'a, T: Sync>(&'a PortBank<T>);
 
 impl<'a, T: Sync> ReadablePortBank<'a, T> {
     #[inline(always)]
+    #[doc(hidden)]
     pub fn new(port: &'a PortBank<T>) -> Self {
         Self(port)
+    }
+
+    /// Returns the length of the bank
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.0.ports.len()
+    }
+
+    /// Returns the ith component
+    #[inline(always)]
+    pub fn get(&self, i: usize) -> ReadablePort<T> {
+        ReadablePort(&self.0.ports[i])
     }
 }
 
@@ -157,16 +170,35 @@ impl<'a, T: Sync> IntoIterator for ReadablePortBank<'a, T> {
     }
 }
 
-impl<'a, T: Sync> ReadablePortBank<'a, T> {
+pub struct WritablePortBank<'a, T: Sync>(&'a mut PortBank<T>);
+
+impl<'a, T: Sync> WritablePortBank<'a, T> {
+    #[doc(hidden)]
+    #[inline(always)]
+    pub fn new(port: &'a mut PortBank<T>) -> Self {
+        Self(port)
+    }
+
+    /// Returns the length of the bank
+    #[inline(always)]
     pub fn len(&self) -> usize {
         self.0.ports.len()
     }
 
-    pub fn get(&self, index: usize) -> &ReadablePort<'a, T> {
-        unsafe {
-            // safety: ReadablePort has a repr(transparent)
-            std::mem::transmute(&self.0.ports[index])
-        }
+    /// Returns the ith component
+    #[inline(always)]
+    pub fn get(&mut self, i: usize) -> WritablePort<T> {
+        WritablePort(&mut self.0.ports[i])
+    }
+}
+
+
+impl<'a, T: Sync> IntoIterator for WritablePortBank<'a, T> {
+    type Item = WritablePort<'a, T>;
+    type IntoIter = std::iter::Map<std::slice::IterMut<'a, Port<T>>, fn(&'a mut Port<T>) -> WritablePort<'a, T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.ports.iter_mut().map(WritablePort)
     }
 }
 
