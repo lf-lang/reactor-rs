@@ -44,6 +44,18 @@ impl<K, V> VecMap<K, V> where K: Eq + Ord {
         }
     }
 
+    pub fn insert(&mut self, key: K, value: V) -> Option<V> {
+        match self.find_k(&key) {
+            Ok(index) => {
+                Some(std::mem::replace(&mut self.v[index].1, value))
+            },
+            Err(index) => {
+                self.v.insert(index, (key, value));
+                None
+            }
+        }
+    }
+
     pub fn remove(&mut self, key: &K) -> Option<V> {
         match self.find_k(key) {
             Ok(index) => Some(self.v.remove(index).1),

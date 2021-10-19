@@ -25,11 +25,8 @@
 
 
 
-use std::convert::TryFrom;
 use std::fmt::*;
 use std::hash::{Hash, Hasher};
-use std::ops::Range;
-
 use crate::TriggerId;
 
 // private implementation types
@@ -113,27 +110,6 @@ impl GlobalId {
     pub fn new(container: ReactorId, local: LocalReactionId) -> Self {
         let _raw: GlobalIdImpl = (container._raw as GlobalIdImpl) << ReactionIdImpl::BITS | (local._raw as GlobalIdImpl);
         Self { _raw }
-    }
-
-    // fixme replace panic by AssemblyError
-
-    pub(crate) fn next_id(&self) -> GlobalId {
-        assert_ne!(self.local(), 0xffff, "Overflow while allocating next id");
-        Self { _raw: self._raw + 1 }
-    }
-
-    pub(crate) fn id_range(&self, len: usize) -> Range<GlobalId> {
-        match ReactionIdImpl::try_from(self.local().index() + len) {
-            Ok(_) =>
-                Range { start: *self, end: Self { _raw: self._raw + (len as GlobalIdImpl) } }
-            ,
-            Err(..) => panic!("Overflow while creating ID range"),
-        }
-    }
-
-    #[cfg(test)]
-    pub const fn first_id() -> GlobalId {
-        GlobalId { _raw: 0 }
     }
 
     pub(in crate) const fn container(&self) -> ReactorId {

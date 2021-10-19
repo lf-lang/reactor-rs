@@ -90,7 +90,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
     /// have been built, as they're pushed into the global reactor
     /// vec before their parent. So the ID of the parent needs to
     /// be fixed only after all descendants have been built.
-    pub fn assemble_self(&mut self, creation_fun: impl FnOnce(&mut ComponentCreator<S>, ReactorId) -> S) -> S {
+    pub fn assemble_self(&mut self, creation_fun: impl FnOnce(&mut ComponentCreator<S>, ReactorId) -> Result<S, AssemblyError>) -> Result<S, AssemblyError> {
         let id = self.globals.reactor_id;
         self.globals.reactor_id += 1;
         self.reactor_id = Some(id);
@@ -213,23 +213,19 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
         Port::new(id, is_input)
     }
 
-    // not sure if this will ever serve
-    pub fn new_port_bank_const<T: Sync, const N: usize>(&mut self, lf_name: &'static str, is_input: bool) -> [Port<T>; N] {
-        array![i => self.new_port_bank_component(lf_name, is_input, i); N]
+    pub fn new_port_bank<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, len: usize) -> Result<PortBank<T>, AssemblyError> {
+        let bank_id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
+        self.assembler.globals.graph.record_port_bank(bank_id, len)?;
+        Ok(PortBank::new(
+            (0..len).into_iter().map(|i| self.new_port_bank_component(lf_name, is_input, bank_id, i)).collect(),
+            bank_id,
+        ))
     }
 
-    pub fn new_port_bank<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, len: usize) -> PortBank<T> {
-        let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
-        self.assembler.globals.graph.record_multiport(id, len);
-        PortBank::new(
-            (0..len).into_iter().map(|i| self.new_port_bank_component(lf_name, is_input, i)).collect(),
-            id,
-        )
-    }
-
-    fn new_port_bank_component<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, index: usize) -> Port<T> {
-        let label = Cow::Owned(format!("{}[{}]", lf_name, index));
-        self.new_port_impl::<T>(label, is_input)
+    fn new_port_bank_component<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, bank_id: TriggerId, index: usize) -> Port<T> {
+        let channel_id = self.next_comp_id(Some(Cow::Owned(format!("{}[{}]", lf_name, index))));
+        self.assembler.globals.graph.record_port_bank_component(bank_id, channel_id);
+        Port::new(channel_id, is_input)
     }
 
     pub fn new_logical_action<T: Sync>(&mut self,

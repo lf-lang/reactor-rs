@@ -29,9 +29,10 @@ use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry as HEntry;
 use std::default::Default;
 use std::fmt::{Debug, Display, Formatter};
+use std::ops::Range;
 use std::sync::Arc;
-use index_vec::IndexVec;
 
+use index_vec::{Idx, IndexVec};
 use petgraph::Direction::{Incoming, Outgoing};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
@@ -47,7 +48,7 @@ type GraphIx = NodeIndex<u32>;
 enum NodeKind {
     /// startup/shutdown
     Special,
-    Multiport,
+    MultiportUpstream,
     Port,
     Action,
     Timer,
@@ -116,6 +117,7 @@ pub(in super) struct DepGraph {
     /// Map of multiport component ID -> multiport ID.
     /// todo data structure is bad.
     multiport_containment: HashMap<GraphId, TriggerId>,
+    multiport_ranges: VecMap<TriggerId, Range<TriggerId>>,
 }
 
 impl Debug for GraphNode {
@@ -130,6 +132,7 @@ impl DepGraph {
             dataflow: Default::default(),
             ix_by_id: Default::default(),
             multiport_containment: Default::default(),
+            multiport_ranges: Default::default(),
         };
         ich.record_special(TriggerId::STARTUP);
         ich.record_special(TriggerId::SHUTDOWN);
@@ -164,17 +167,51 @@ impl DepGraph {
     }
 
     pub(in super) fn record_port(&mut self, id: TriggerId) {
-        self.record(GraphId::Trigger(id), NodeKind::Port);
+        self.record_port_impl(id);
     }
 
-    pub(in super) fn record_multiport(&mut self, id: TriggerId, len: usize) {
-        assert!(len > 0, "empty multiport");
-        self.record(GraphId::Trigger(id), NodeKind::Multiport);
-        let mut channel_id;
-        for _ in 0..len {
-            channel_id = id.next().expect("Overflow on next ID");
+
+    fn record_port_impl(&mut self, id: TriggerId) -> GraphIx {
+        self.record(GraphId::Trigger(id), NodeKind::Port)
+    }
+
+    /// Port banks have an ID which is a fake node, which effects all individual channels.
+    /// It looks like a kind of tree:
+    /// ```no_compile
+    ///        BANK
+    ///       / | \ \
+    ///    b[0] ...  b[n]
+    /// ```
+    ///
+    /// That way when someone declares a trigger on the bank,
+    /// it's forwarded to individual channels in the graph.
+    ///
+    /// When X declares a trigger/uses on the entire
+    /// bank, an edge is added from every channel to X.
+    ///
+    pub(in super) fn record_port_bank(&mut self, id: TriggerId, len: usize) -> Result<(), AssemblyError> {
+        assert!(len > 0, "empty port bank");
+        self.record(GraphId::Trigger(id), NodeKind::MultiportUpstream);
+
+        for channel_id in id.next_range(len).map_err(|_| AssemblyError(AssemblyErrorImpl::IdOverflow))? {
             self.multiport_containment.insert(GraphId::Trigger(channel_id), id);
+
+            // self.dataflow.add_edge(upstream_ix, channel_ix, EdgeWeight::Default);
         }
+        self.multiport_ranges.insert(id, Range {
+            start: TriggerId::new(id.index() + 1),
+            end: TriggerId::new(id.index() + 1 + len),
+        });
+        Ok(())
+    }
+
+    pub(in super) fn record_port_bank_component(&mut self, bank_id: TriggerId, channel_id: TriggerId) {
+        let channel_ix = self.record_port_impl(channel_id);
+        self.dataflow.add_edge(
+            self.get_ix(bank_id.into()),
+            channel_ix,
+            EdgeWeight::Default,
+        );
     }
 
     pub(in super) fn record_laction(&mut self, id: TriggerId) {
@@ -241,12 +278,13 @@ impl DepGraph {
         self.ix_by_id[&id]
     }
 
-    fn record(&mut self, id: GraphId, kind: NodeKind) {
+    fn record(&mut self, id: GraphId, kind: NodeKind) -> GraphIx {
         match self.ix_by_id.entry(id) {
             HEntry::Occupied(_) => panic!("Duplicate id {:?}", id),
             HEntry::Vacant(v) => {
                 let ix = self.dataflow.add_node(GraphNode { kind, id });
                 v.insert(ix);
+                ix
             }
         }
     }
@@ -350,9 +388,9 @@ impl DataflowInfo {
 
         for trigger in dataflow.node_indices() {
             if let GraphId::Trigger(trigger_id) = dataflow[trigger].id {
-                if let Some(_multiport_id) = multiport_containment.get(&dataflow[trigger].id) {
-                    assert_eq!(dataflow[trigger].kind, NodeKind::Port);
-                    todo!("multiports")
+                // if let Some(_multiport_id) = multiport_containment.get(&dataflow[trigger].id) {
+                //     assert_eq!(dataflow[trigger].kind, NodeKind::Port);
+                //     todo!("multiports")
                     // todo this is a multiport channel:
                     //  1. if someone has declared a dependency on this individual channel, collect dependencies into DEPS
                     //  2. else add trigger to DELAY goto 4
@@ -361,7 +399,7 @@ impl DataflowInfo {
                     //  5. assign all triggers in DELAY the dependencies ALL
                     //
                     //  This requires all components of a given multiport to be processed consecutively.
-                }
+                // }
 
                 let mut reactions = ExecutableReactions::new();
                 Self::collect_reactions_rec(&dataflow, trigger, layer_info, &mut reactions);

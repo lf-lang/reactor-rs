@@ -20,6 +20,7 @@ pub(crate) enum AssemblyErrorImpl {
     CyclicDependency(PortId, PortId),
     CyclicDependencyGraph,
     CannotBind(PortId, PortId),
+    IdOverflow
 }
 
 impl AssemblyError {
@@ -28,6 +29,7 @@ impl AssemblyError {
             CyclicDependency(upstream, downstream) => format!("Port {} is already in the downstream of port {}", debug.fmt_component(upstream), debug.fmt_component(downstream)),
             CyclicDependencyGraph => format!("Cyclic dependency graph"),
             CannotBind(upstream, downstream) => format!("Cannot bind {} to {}, downstream is already bound", debug.fmt_component(upstream), debug.fmt_component(downstream)),
+            IdOverflow => format!("Overflow when allocating component ID"),
         }
     }
 }

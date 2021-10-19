@@ -89,8 +89,16 @@ impl TriggerId {
         TriggerId(id)
     }
 
-    pub(crate) fn next(&self) -> Option<Self> {
-        self.0.checked_add(1).map(TriggerId)
+    pub(crate) fn next(&self) -> Result<Self, ()> {
+        self.0.checked_add(1).map(TriggerId).ok_or(())
+    }
+
+    pub(crate) fn next_range(&self, len: usize) -> Result<impl Iterator<Item=Self>, ()> {
+        if let Some(upper) = self.0.checked_add(1 + len) {
+            Ok(((self.0 + 1)..upper).into_iter().map(TriggerId))
+        } else {
+            Err(())
+        }
     }
 }
 
