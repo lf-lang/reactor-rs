@@ -33,6 +33,8 @@
 <span id="33">33</span>
 <span id="34">34</span>
 <span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
 </pre><pre class="rust">
 
 <span class="kw">use</span> <span class="ident">AssemblyErrorImpl</span>::<span class="kw-2">*</span>;
@@ -56,6 +58,7 @@
     <span class="ident">CyclicDependency</span>(<span class="ident">PortId</span>, <span class="ident">PortId</span>),
     <span class="ident">CyclicDependencyGraph</span>,
     <span class="ident">CannotBind</span>(<span class="ident">PortId</span>, <span class="ident">PortId</span>),
+    <span class="ident">IdOverflow</span>
 }
 
 <span class="kw">impl</span> <span class="ident">AssemblyError</span> {
@@ -64,6 +67,7 @@
             <span class="ident">CyclicDependency</span>(<span class="ident">upstream</span>, <span class="ident">downstream</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format!</span>(<span class="string">&quot;Port {} is already in the downstream of port {}&quot;</span>, <span class="ident">debug</span>.<span class="ident">fmt_component</span>(<span class="ident">upstream</span>), <span class="ident">debug</span>.<span class="ident">fmt_component</span>(<span class="ident">downstream</span>)),
             <span class="ident">CyclicDependencyGraph</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format!</span>(<span class="string">&quot;Cyclic dependency graph&quot;</span>),
             <span class="ident">CannotBind</span>(<span class="ident">upstream</span>, <span class="ident">downstream</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format!</span>(<span class="string">&quot;Cannot bind {} to {}, downstream is already bound&quot;</span>, <span class="ident">debug</span>.<span class="ident">fmt_component</span>(<span class="ident">upstream</span>), <span class="ident">debug</span>.<span class="ident">fmt_component</span>(<span class="ident">downstream</span>)),
+            <span class="ident">IdOverflow</span> <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format!</span>(<span class="string">&quot;Overflow when allocating component ID&quot;</span>),
         }
     }
 }
