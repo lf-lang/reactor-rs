@@ -137,17 +137,7 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
 
 impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
-        let mut root_assembler = RootAssembler::default();
-        let assembler = AssemblyCtx::new(&mut root_assembler, ReactorDebugInfo::root::<R::Wrapped>());
-
-        let main_reactor = match R::assemble(args, assembler) {
-            Ok(main) => main,
-            Err(e) => std::panic::panic_any(e.lift(&root_assembler.id_registry)),
-        };
-        root_assembler.register_reactor(main_reactor);
-
-
-        let RootAssembler { graph, reactors, id_registry, .. } = root_assembler;
+        let (reactors, graph, id_registry, ) = RootAssembler::assemble_tree::<R>(args);
 
         #[cfg(feature = "graph-dump")] {
             eprintln!("{}", graph.format_dot(&id_registry));

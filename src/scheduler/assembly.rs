@@ -29,14 +29,14 @@ use std::marker::PhantomData;
 
 use crate::*;
 use crate::scheduler::dependencies::DepGraph;
-use index_vec::Idx;
+use index_vec::{Idx, IndexVec};
 
-use super::ReactorVec;
+use super::{ReactorBox, ReactorVec};
 
 /// Globals shared by all assemblers.
 pub(super) struct RootAssembler {
     /// All registered reactors
-    pub(super) reactors: ReactorVec<'static>,
+    pub(super) reactors: IndexVec<ReactorId, Option<ReactorBox<'static>>>,
     /// Dependency graph
     pub(super) graph: DepGraph,
     /// Debug infos
@@ -50,9 +50,28 @@ pub(super) struct RootAssembler {
 
 impl RootAssembler {
     /// Register a child reactor.
-    pub fn register_reactor<R: ReactorInitializer + 'static>(&mut self, child: R) {
-        let vec_id = self.reactors.push(Box::new(child));
-        assert_eq!(self.reactors[vec_id].id(), vec_id, "Improper initialization order!");
+    fn register_reactor<R: ReactorInitializer + 'static>(&mut self, child: R) {
+        if child.id().index() > self.reactors.len() {
+            self.reactors.resize_with(child.id().index() + 1, || None)
+        }
+        let prev = self.reactors[child.id()].replace(Box::new(child));
+        // this is impossible because we control how we allocate IDs entirely
+        debug_assert!(prev.is_none(), "Overwrote a reactor during initialization")
+    }
+
+    pub(crate) fn assemble_tree<R: ReactorInitializer + 'static>(main_args: R::Params) -> (ReactorVec<'static>, DepGraph, DebugInfoRegistry) {
+        let mut root = RootAssembler::default();
+        let assembler = AssemblyCtx::new(&mut root, ReactorDebugInfo::root::<R::Wrapped>());
+
+        let main_reactor = match R::assemble(main_args, assembler) {
+            Ok(main) => main,
+            Err(e) => std::panic::panic_any(e.lift(&root.id_registry)),
+        };
+        root.register_reactor(main_reactor);
+
+        let RootAssembler { graph, reactors, id_registry, .. } = root;
+        let reactors = reactors.into_iter().map(|r| r.expect("Uninitialized reactor!")).collect();
+        (reactors, graph, id_registry)
     }
 }
 
