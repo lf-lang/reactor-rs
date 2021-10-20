@@ -30,7 +30,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::*;
-use crate::TriggerLike;
+use crate::assembly::{TriggerId, TriggerLike};
 use crate::vecmap::Entry;
 use crate::vecmap::VecMap;
 

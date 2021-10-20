@@ -38,6 +38,7 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 
 use crate::*;
+use crate::assembly::*;
 use crate::scheduler::dependencies::NodeKind::MultiportUpstream;
 use crate::util::vecmap::{Entry as VEntry, VecMap};
 
@@ -256,7 +257,7 @@ impl DepGraph {
     pub fn triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
         let trigger_ix = self.get_ix(trigger.into());
         if self.dataflow[trigger_ix].kind == MultiportUpstream {
-            for channel_id in iter_range(self.multiport_ranges.get(&trigger).unwrap()) {
+            for channel_id in TriggerId::iter_range(self.multiport_ranges.get(&trigger).unwrap()) {
                 self.triggers_reaction(channel_id, reaction);
             }
             return;

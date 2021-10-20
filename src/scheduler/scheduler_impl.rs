@@ -30,6 +30,7 @@ use crossbeam_channel::reconnectable::*;
 use crossbeam_utils::thread::{Scope, scope};
 
 use crate::*;
+use crate::assembly::{TriggerId, RootAssembler};
 use crate::scheduler::dependencies::{DataflowInfo, LayerIx};
 
 use super::*;

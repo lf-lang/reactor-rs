@@ -33,6 +33,10 @@ use index_vec::{Idx, IndexVec};
 
 use super::{ReactorBox, ReactorVec};
 
+pub use crate::ids::GlobalReactionId;
+pub use crate::triggers::TriggerId;
+pub use crate::triggers::TriggerLike;
+
 /// Globals shared by all assemblers.
 pub(super) struct RootAssembler {
     /// All registered reactors

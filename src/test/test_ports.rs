@@ -24,6 +24,7 @@
 
 use std::borrow::Cow;
 use crate::*;
+use crate::assembly::TriggerId;
 
 
 struct TestAssembler {

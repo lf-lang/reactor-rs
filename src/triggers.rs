@@ -62,9 +62,6 @@ pub trait TriggerLike {
 
 
 /// The ID of a trigger component.
-///
-///
-///
 #[derive(Eq, PartialEq, Copy, Clone, Hash, Ord, PartialOrd)]
 pub struct TriggerId(usize);
 
@@ -104,10 +101,10 @@ impl TriggerId {
             Err(())
         }
     }
-}
 
-pub(crate) fn iter_range(range: &Range<TriggerId>) -> impl Iterator<Item=TriggerId> {
-    (range.start.0..range.end.0).into_iter().map(TriggerId)
+    pub(crate) fn iter_range(range: &Range<TriggerId>) -> impl Iterator<Item=TriggerId> {
+        (range.start.0..range.end.0).into_iter().map(TriggerId)
+    }
 }
 
 impl Idx for TriggerId {

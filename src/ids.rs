@@ -29,7 +29,7 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use index_vec::Idx;
-use crate::TriggerId;
+use crate::assembly::TriggerId;
 
 // private implementation types
 type ReactionIdImpl = u16;

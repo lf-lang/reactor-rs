@@ -24,6 +24,7 @@
 use std::time::Instant;
 
 use super::*;
+use crate::assembly::{TriggerId, TriggerLike};
 
 /// A timer is conceptually a logical action that may re-schedule
 /// itself periodically.
