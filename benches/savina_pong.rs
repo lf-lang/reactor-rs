@@ -193,34 +193,24 @@ mod reactors {
             fn assemble(__params: Self::Params, mut __assembler: ::reactor_rt::AssemblyCtx<Self>) -> ::std::result::Result<Self, ::reactor_rt::AssemblyError> {
                 use ::reactor_rt::TriggerLike;
 
-                // children reactors
-                let (__params, ) = {
-                    let PongParams {  __phantom, expected, } = __params;
-
-                    (PongParams {  __phantom, expected, }, )
-                };
-
-                // assemble self
-                let mut __self: Self = __assembler.assemble_self(|cc, id| Self::user_assemble(cc, id, __params))?;
-
-                __assembler.dependencies(
+                let (_, __self) = __assembler.do_assembly(
+                    |cc, id| Self::user_assemble(cc, id, __params),
                     2,
-                    [None,None],
-                |__graph, [react_0, react_1]| {
+                    [None, None],
+                    |__graph, __self, [react_0, react_1]| {
 
-                    // --- reaction(receive) -> send {= ... =}
-                    __graph.declare_triggers(__self.__receive.get_id(), react_0)?;
-                    __graph.effects_port(react_0, &__self.__send)?;
-                    // --- reaction(shutdown) {= ... =}
-                    __graph.declare_triggers(::reactor_rt::TriggerId::SHUTDOWN, react_1)?;
+                        // --- reaction(receive) -> send {= ... =}
+                        __graph.declare_triggers(__self.__receive.get_id(), react_0)?;
+                        __graph.effects_port(react_0, &__self.__send)?;
+                        // --- reaction(shutdown) {= ... =}
+                        __graph.declare_triggers(::reactor_rt::TriggerId::SHUTDOWN, react_1)?;
 
-                    // Declare connections
+                        // Declare connections
 
-                    // Declare port references
-                    Ok(())
-                })?;
-
-
+                        // Declare port references
+                        Ok(())
+                    },
+                )?;
                 Ok(__self)
             }
         }
@@ -349,19 +339,10 @@ mod reactors {
             fn assemble(__params: Self::Params, mut __assembler: ::reactor_rt::AssemblyCtx<Self>) -> ::std::result::Result<Self, ::reactor_rt::AssemblyError> {
                 use ::reactor_rt::TriggerLike;
 
-                // children reactors
-                let (__params, ) = {
-                    let PingParams {  __phantom, count, } = __params;
-
-                    (PingParams {  __phantom, count, }, )
-                };
-
-                // assemble self
-                let mut __self: Self = __assembler.assemble_self(|cc, id| Self::user_assemble(cc, id, __params))?;
-
-                __assembler.dependencies(
+                let (_, __self) = __assembler.do_assembly(
+                    |cc, id| Self::user_assemble(cc, id, __params),
                     2, [None, None],
-                    |__graph, [react_0, react_1]| {
+                    |__graph, __self, [react_0, react_1]| {
                         // --- reaction(startup, serve) -> send {= ... =}
                         __graph.declare_triggers(__self.__serve.get_id(), react_0)?;
                         __graph.declare_triggers(::reactor_rt::TriggerId::STARTUP, react_0)?;
@@ -484,34 +465,28 @@ mod reactors {
                 use ::reactor_rt::TriggerLike;
 
                 // children reactors
-                let (__params, mut ping, mut pong,) = {
-                    let SavinaPongParams { __phantom, count, } = __params;
-                    // --- ping = new Ping(count=count);
-                    let ping: super::PingAdapter = __assembler.assemble_sub("ping", super::PingParams { __phantom: std::marker::PhantomData, count })?;
-                    // --- pong = new Pong(expected=count);
-                    let pong: super::PongAdapter = __assembler.assemble_sub("pong", super::PongParams { __phantom: std::marker::PhantomData, expected: count })?;
-                    (SavinaPongParams { __phantom, count }, ping, pong, )
-                };
-
-                // assemble self
-                let mut __self: Self = __assembler.assemble_self(|cc, id| Self::user_assemble(cc, id, __params))?;
-
-                __assembler.dependencies(
-                    0,
-                    [],
-                    |__graph, []| {
-                        // Declare connections
-                        // --- ping.send -> pong.receive;
-                        __graph.bind_ports(&mut ping.__send, &mut pong.__receive)?;
-                        // --- pong.send -> ping.receive;
-                        __graph.bind_ports(&mut pong.__send, &mut ping.__receive)?;
-                        // Declare port references
-                        Ok(())
-                    },
-                )?;
-
-                __assembler.register_reactor(ping);
-                __assembler.register_reactor(pong);
+                let SavinaPongParams { __phantom, count, } = __params;
+                let (_, __self) =
+                    __assembler.with_child::<super::PingAdapter, _>("ping", super::PingParams { __phantom: std::marker::PhantomData, count }, |mut __assembler, ping| {
+                    __assembler.with_child::<super::PongAdapter, _>("pong", super::PongParams { __phantom: std::marker::PhantomData, expected: count }, |mut __assembler, pong| {
+                        let __params = SavinaPongParams { __phantom, count };
+                        // assemble self
+                        __assembler.do_assembly(
+                            /*create self:*/ |cc, id| Self::user_assemble(cc, id, __params),
+                            /*num user reactions:*/ 0,
+                            /*reaction debug labels:*/[],
+                            |__graph, __self, []| {
+                                // Declare connections
+                                // --- ping.send -> pong.receive;
+                                __graph.bind_ports(&mut ping.__send, &mut pong.__receive)?;
+                                // --- pong.send -> ping.receive;
+                                __graph.bind_ports(&mut pong.__send, &mut ping.__receive)?;
+                                // Declare port references
+                                Ok(())
+                            },
+                        )
+                    })
+                })?;
 
                 Ok(__self)
             }

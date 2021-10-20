@@ -121,7 +121,7 @@ pub trait ReactorInitializer: ReactorBehavior {
     /// Assemble the user reactor, ie produce components with
     /// uninitialized dependencies & make state variables assume
     /// their default values, or else, a value taken from the params.
-    fn assemble(args: Self::Params, assembler: AssemblyCtx<Self>)
+    fn assemble(args: Self::Params, assembler: assembly::AssemblyCtx<Self>)
                 -> Result<Self, AssemblyError> where Self: Sized;
 
 }

@@ -29,7 +29,6 @@ use std::time::Instant;
 
 use index_vec::IndexVec;
 
-pub use assembly::*;
 pub use context::*;
 pub use events::*;
 pub use scheduler_impl::*;
@@ -42,7 +41,7 @@ mod context;
 mod scheduler_impl;
 mod events;
 mod dependencies;
-mod assembly;
+pub mod assembly;
 
 pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions<'x>>>;
 pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a>;

@@ -22,7 +22,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
+//! Module containing the API to initialize a reactor program.
 
 use std::borrow::Cow;
 use std::marker::PhantomData;
@@ -40,7 +40,7 @@ pub(super) struct RootAssembler {
     /// Dependency graph
     pub(super) graph: DepGraph,
     /// Debug infos
-    pub(super) id_registry: DebugInfoRegistry,
+    pub(super) debug_info: DebugInfoRegistry,
 
     /// Next reactor ID to assign
     reactor_id: ReactorId,
@@ -51,7 +51,7 @@ pub(super) struct RootAssembler {
 impl RootAssembler {
     /// Register a child reactor.
     fn register_reactor<R: ReactorInitializer + 'static>(&mut self, child: R) {
-        if child.id().index() > self.reactors.len() {
+        if child.id().index() >= self.reactors.len() {
             self.reactors.resize_with(child.id().index() + 1, || None)
         }
         let prev = self.reactors[child.id()].replace(Box::new(child));
@@ -65,11 +65,11 @@ impl RootAssembler {
 
         let main_reactor = match R::assemble(main_args, assembler) {
             Ok(main) => main,
-            Err(e) => std::panic::panic_any(e.lift(&root.id_registry)),
+            Err(e) => std::panic::panic_any(e.lift(&root.debug_info)),
         };
         root.register_reactor(main_reactor);
 
-        let RootAssembler { graph, reactors, id_registry, .. } = root;
+        let RootAssembler { graph, reactors, debug_info: id_registry, .. } = root;
         let reactors = reactors.into_iter().map(|r| r.expect("Uninitialized reactor!")).collect();
         (reactors, graph, id_registry)
     }
@@ -80,7 +80,7 @@ impl Default for RootAssembler {
         Self {
             reactor_id: ReactorId::new(0),
             graph: DepGraph::new(),
-            id_registry: DebugInfoRegistry::new(),
+            debug_info: DebugInfoRegistry::new(),
             reactors: Default::default(),
             cur_trigger: TriggerId::FIRST_REGULAR,
         }
@@ -92,12 +92,8 @@ impl Default for RootAssembler {
 /// One assembly context is used per reactor, they can't be shared.
 pub struct AssemblyCtx<'x, S: ReactorInitializer> {
     globals: &'x mut RootAssembler,
-    /// Constant id of the reactor currently being built.
-    reactor_id: Option<ReactorId>,
     /// Next local ID for components != reactions
     cur_local: LocalReactionId,
-    /// Whether reactions have already been created
-    reactions_done: bool,
 
     /// Contains debug info for this reactor. Empty after
     /// assemble_self has run, and the info is recorded
@@ -108,29 +104,43 @@ pub struct AssemblyCtx<'x, S: ReactorInitializer> {
 }
 
 impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
-    /// The ID of the reactor being built.
-    /// Can only be called after [assemble_self]
-    fn get_id(&self) -> ReactorId {
-        self.reactor_id.expect("assemble_self has not been called")
+    fn new(globals: &'x mut RootAssembler, debug: ReactorDebugInfo) -> Self {
+        Self {
+            globals,
+            // this is not zero, so that reaction ids and component ids are disjoint
+            cur_local: S::MAX_REACTION_ID,
+            debug: Some(debug),
+            _phantom: PhantomData,
+        }
     }
 
     /// Note: this needs to be called after all children reactors
     /// have been built, as they're pushed into the global reactor
     /// vec before their parent. So the ID of the parent needs to
     /// be fixed only after all descendants have been built.
-    pub fn assemble_self(&mut self, creation_fun: impl FnOnce(&mut ComponentCreator<S>, ReactorId) -> Result<S, AssemblyError>) -> Result<S, AssemblyError> {
+    pub fn do_assembly<const N: usize>(
+        mut self,
+        create_self: impl FnOnce(&mut ComponentCreator<S>, ReactorId) -> Result<S, AssemblyError>,
+        num_non_synthetic_reactions: usize,
+        reaction_names: [Option<&'static str>; N],
+        declare_dependencies: impl FnOnce(&mut DependencyDeclarator<S>, &mut S, [GlobalReactionId; N]) -> Result<(), AssemblyError>,
+    ) -> Result<(Self, S), AssemblyError> {
         let id = self.globals.reactor_id;
         self.globals.reactor_id = self.globals.reactor_id.plus(1);
-        self.reactor_id = Some(id);
-        self.globals.id_registry.record_reactor(id, self.debug.take().expect("Can only call assemble_self once"));
+        self.globals.debug_info.record_reactor(id, self.debug.take().expect("Can only call assemble_self once"));
 
         let first_trigger_id = self.globals.cur_trigger;
 
-        let result = creation_fun(&mut ComponentCreator { assembler: self }, id);
+        let mut ich = create_self(&mut ComponentCreator { assembler: &mut self }, id)?;
+        // after creation, globals.cur_trigger has been mutated
+        // record proper debug info.
+        self.globals.debug_info.set_id_range(id, first_trigger_id..self.globals.cur_trigger);
 
-        self.globals.id_registry.set_id_range(id, first_trigger_id..self.globals.cur_trigger);
+        // declare dependencies
+        let reactions = self.new_reactions(id, num_non_synthetic_reactions, reaction_names);
+        declare_dependencies(&mut DependencyDeclarator { assembler: &mut self }, &mut ich, reactions)?;
 
-        result
+        Ok((self, ich))
     }
 
 
@@ -140,19 +150,18 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
     /// The rest do not have priority edges, and their
     /// implementation must hence have no observable side-effect.
     fn new_reactions<const N: usize>(&mut self,
+                                     my_id: ReactorId,
                                      num_non_synthetic: usize,
                                      names: [Option<&'static str>; N]) -> [GlobalReactionId; N] {
-        assert!(!self.reactions_done, "May only create reactions once");
-        self.reactions_done = true;
 
         assert!(num_non_synthetic <= N);
 
-        let result = array![i => GlobalReactionId::new(self.get_id(), LocalReactionId::from_usize(i)); N];
+        let result = array![i => GlobalReactionId::new(my_id, LocalReactionId::from_usize(i)); N];
 
         let mut prev: Option<GlobalReactionId> = None;
         for (i, r) in result.iter().cloned().enumerate() {
             if let Some(label) = names[i] {
-                self.globals.id_registry.record_reaction(r, Cow::Borrowed(label))
+                self.globals.debug_info.record_reaction(r, Cow::Borrowed(label))
             }
             self.globals.graph.record_reaction(r);
             if i < num_non_synthetic {
@@ -169,41 +178,33 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         result
     }
 
-    pub fn dependencies<R, const N: usize>(
+    /// Assembles a child reactor and makes it available in
+    /// the scope of a function.
+    #[inline]
+    pub fn with_child<Sub: ReactorInitializer + 'static, F>(
         mut self,
-        num_non_synthetic: usize,
-        reaction_names: [Option<&'static str>; N],
-        f: impl FnOnce(&mut DependencyDeclarator<S>, [GlobalReactionId; N]) -> Result<R, AssemblyError>,
-    ) -> Result<R, AssemblyError> {
-        let reactions = self.new_reactions(num_non_synthetic, reaction_names);
-        f(&mut DependencyDeclarator { assembler: &mut self }, reactions)
-    }
-
-    /// Register a child reactor.
-    pub fn register_reactor<Sub: ReactorInitializer + 'static>(&mut self, child: Sub) {
-        self.globals.register_reactor(child)
+        inst_name: &'static str,
+        args: Sub::Params,
+        action: F,
+    ) -> Result<(Self, S), AssemblyError>
+        where F: FnOnce(Self, &mut Sub) -> Result<(Self, S), AssemblyError> {
+        info!("Assembling {}", inst_name);
+        let mut sub = self.assemble_sub(inst_name, args)?;
+        let (ich, r) = action(self, &mut sub)?;
+        info!("Registering {}", inst_name);
+        ich.globals.register_reactor(sub);
+        Ok((ich, r))
     }
 
     /// Assemble a child reactor. The child needs to be registered
     /// using [Self::register_reactor] later.
     #[inline]
-    pub fn assemble_sub<Sub: ReactorInitializer>(&mut self, inst_name: &'static str, args: Sub::Params) -> Result<Sub, AssemblyError> {
+    fn assemble_sub<Sub: ReactorInitializer>(&mut self, inst_name: &'static str, args: Sub::Params) -> Result<Sub, AssemblyError> {
         let my_debug = self.debug.as_ref().expect("should assemble sub-reactors before self");
         let sub = AssemblyCtx::new(&mut self.globals, my_debug.derive::<Sub>(inst_name));
         Sub::assemble(args, sub)
     }
 
-    pub(super) fn new(globals: &'x mut RootAssembler, debug: ReactorDebugInfo) -> Self {
-        Self {
-            globals,
-            reactor_id: None,
-            reactions_done: false,
-            // this is not zero, so that reaction ids and component ids are disjoint
-            cur_local: S::MAX_REACTION_ID,
-            debug: Some(debug),
-            _phantom: PhantomData,
-        }
-    }
 }
 
 pub struct DependencyDeclarator<'a, 'x, S: ReactorInitializer> {
@@ -307,7 +308,7 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
     fn next_comp_id(&mut self, debug_name: Option<Cow<'static, str>>) -> TriggerId {
         let id = self.assembler.globals.cur_trigger;
         if let Some(label) = debug_name {
-            self.assembler.globals.id_registry.record_trigger(id, label);
+            self.assembler.globals.debug_info.record_trigger(id, label);
         }
         self.assembler.globals.cur_trigger = self.assembler.globals.cur_trigger.next().expect("Overflow while allocating ID");
         id
