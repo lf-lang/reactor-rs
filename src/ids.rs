@@ -52,6 +52,10 @@ impl $id {
     pub(crate) fn plus(&self, u: usize) -> Self {
         Self::from_usize(self.0 as usize + u)
     }
+
+    pub(crate) fn index(self) -> usize {
+        self.0 as usize
+    }
 }
 
 impl Idx for $id {

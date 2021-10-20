@@ -23,9 +23,9 @@ jobs:
     - name: Build
       run: cargo build
     - name: Run tests
-      run: cargo test
+      run: cargo test --all-features
     - name: Run benchmark tests
-      run: cargo test --benches
+      run: cargo test --benches --all-features
     # documentation
     - name: Build documentation
       run: cargo doc --frozen --no-deps
