@@ -30,7 +30,7 @@ extern crate reactor_rt;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
 
-use ::reactor_rt::{ PhysicalInstant, Duration};
+use ::reactor_rt::{ Instant, Duration};
 use ::reactor_rt::Offset::{After, Asap};
 
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main, black_box};

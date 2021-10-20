@@ -34,7 +34,7 @@ pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
     rx: &'a Receiver<Event<'x>>,
 
     /// Start time of the program.
-    initial_time: PhysicalInstant,
+    initial_time: Instant,
 
     // globals, also they might be copied and passed to PhysicalSchedulerLink
     dataflow: &'x DataflowInfo,
@@ -53,18 +53,18 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     ///
     /// This is a logical instant with microstep zero.
     #[inline]
-    pub fn get_start_time(&self) -> PhysicalInstant {
+    pub fn get_start_time(&self) -> Instant {
         self.initial_time
     }
 
     /// Returns the current physical time.
     ///
     /// Repeated invocation of this method may produce different
-    /// values, although [PhysicalInstant] is monotonic. The
+    /// values, although [Instant] is monotonic. The
     /// physical time is necessarily greater than the logical time.
     #[inline]
-    pub fn get_physical_time(&self) -> PhysicalInstant {
-        PhysicalInstant::now()
+    pub fn get_physical_time(&self) -> Instant {
+        Instant::now()
     }
 
     /// Returns the current logical time.
@@ -388,7 +388,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
 
     pub(super) fn new(rx: &'a Receiver<Event<'x>>,
                       tag: EventTag,
-                      initial_time: PhysicalInstant,
+                      initial_time: Instant,
                       todo: ReactionPlan<'x>,
                       dataflow: &'x DataflowInfo,
                       thread_spawner: &'a Scope<'t>,

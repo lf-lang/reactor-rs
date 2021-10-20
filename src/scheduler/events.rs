@@ -100,7 +100,7 @@ impl EventTag {
     #[inline]
     pub(crate) fn now(t0: Instant) -> Self {
         Self {
-            offset_from_t0: PhysicalInstant::now() - t0,
+            offset_from_t0: Instant::now() - t0,
             microstep: MicroStep::ZERO,
         }
     }

@@ -303,7 +303,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     fn receive_event(&mut self) -> Option<Event<'x>> {
         if let Some(shutdown_t) = self.shutdown_time {
             let absolute = shutdown_t.to_logical_time(self.initial_time);
-            if let Some(timeout) = absolute.checked_duration_since(PhysicalInstant::now()) {
+            if let Some(timeout) = absolute.checked_duration_since(Instant::now()) {
                 trace!("Will wait for asynchronous event {} ns", timeout.as_nanos());
                 self.rx.recv_timeout(timeout).ok()
             } else {
@@ -320,7 +320,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Sleep/wait until the given time OR an asynchronous
     /// event is received first.
     fn catch_up_physical_time(&mut self, target: Instant) -> Result<(), Event<'x>> {
-        let now = PhysicalInstant::now();
+        let now = Instant::now();
 
         if now < target {
             let t = target - now;
