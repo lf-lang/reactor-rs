@@ -82,12 +82,9 @@ pub struct AssemblyCtx<'x, S: ReactorInitializer> {
 
 impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
     /// The ID of the reactor being built.
-    ///
-    /// ### Panics
-    /// If fix_cur_id has not been called.
-    // todo remove this
-    pub fn get_id(&self) -> ReactorId {
-        self.reactor_id.unwrap_or_else(|| panic!("fix_cur_id has not been called"))
+    /// Can only be called after [assemble_self]
+    fn get_id(&self) -> ReactorId {
+        self.reactor_id.expect("assemble_self has not been called")
     }
 
     /// Note: this needs to be called after all children reactors
@@ -158,9 +155,12 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         self.effects_instantaneous(reaction, port.get_id())
     }
 
-    // the trigger should be a port or timer
-    #[doc(hidden)]
-    pub fn effects_instantaneous(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> Result<(), AssemblyError> {
+    #[doc(hidden)] // used by synthesized timer reactions
+    pub fn effects_timer(&mut self, reaction: GlobalReactionId, timer: &Timer) -> Result<(), AssemblyError> {
+        self.effects_instantaneous(reaction, timer.get_id())
+    }
+
+    fn effects_instantaneous(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> Result<(), AssemblyError> {
         self.globals.graph.reaction_effects(reaction, trigger);
         Ok(())
     }
