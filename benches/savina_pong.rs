@@ -190,7 +190,7 @@ mod reactors {
             type Params = PongParams;
             const MAX_REACTION_ID: ::reactor_rt::LocalReactionId = ::reactor_rt::LocalReactionId::new(3 - 1);
 
-            fn assemble(__params: Self::Params, __assembler: &mut ::reactor_rt::AssemblyCtx<Self>) -> ::std::result::Result<Self, ::reactor_rt::AssemblyError> {
+            fn assemble(__params: Self::Params, mut __assembler: ::reactor_rt::AssemblyCtx<Self>) -> ::std::result::Result<Self, ::reactor_rt::AssemblyError> {
                 use ::reactor_rt::TriggerLike;
 
                 // children reactors
@@ -203,21 +203,22 @@ mod reactors {
                 // assemble self
                 let mut __self: Self = __assembler.assemble_self(|cc, id| Self::user_assemble(cc, id, __params))?;
 
-                let [react_0,
-                react_1] = __assembler.new_reactions(2, [None, None]);
-
-                {
+                __assembler.dependencies(
+                    2,
+                    [None,None],
+                |__graph, [react_0, react_1]| {
 
                     // --- reaction(receive) -> send {= ... =}
-                    __assembler.declare_triggers(__self.__receive.get_id(), react_0)?;
-                    __assembler.effects_port(react_0, &__self.__send)?;
+                    __graph.declare_triggers(__self.__receive.get_id(), react_0)?;
+                    __graph.effects_port(react_0, &__self.__send)?;
                     // --- reaction(shutdown) {= ... =}
-                    __assembler.declare_triggers(::reactor_rt::TriggerId::SHUTDOWN, react_1)?;
+                    __graph.declare_triggers(::reactor_rt::TriggerId::SHUTDOWN, react_1)?;
 
                     // Declare connections
 
                     // Declare port references
-                }
+                    Ok(())
+                })?;
 
 
                 Ok(__self)
@@ -345,7 +346,7 @@ mod reactors {
             type Params = PingParams;
             const MAX_REACTION_ID: ::reactor_rt::LocalReactionId = ::reactor_rt::LocalReactionId::new(3 - 1);
 
-            fn assemble(__params: Self::Params, __assembler: &mut ::reactor_rt::AssemblyCtx<Self>) -> ::std::result::Result<Self, ::reactor_rt::AssemblyError> {
+            fn assemble(__params: Self::Params, mut __assembler: ::reactor_rt::AssemblyCtx<Self>) -> ::std::result::Result<Self, ::reactor_rt::AssemblyError> {
                 use ::reactor_rt::TriggerLike;
 
                 // children reactors
@@ -358,23 +359,23 @@ mod reactors {
                 // assemble self
                 let mut __self: Self = __assembler.assemble_self(|cc, id| Self::user_assemble(cc, id, __params))?;
 
-                let [react_0,
-                react_1] = __assembler.new_reactions(2, [None, None]);
+                __assembler.dependencies(
+                    2, [None, None],
+                    |__graph, [react_0, react_1]| {
+                        // --- reaction(startup, serve) -> send {= ... =}
+                        __graph.declare_triggers(__self.__serve.get_id(), react_0)?;
+                        __graph.declare_triggers(::reactor_rt::TriggerId::STARTUP, react_0)?;
+                        __graph.effects_port(react_0, &__self.__send)?;
+                        // --- reaction (receive) -> serve {= ... =}
+                        __graph.declare_triggers(__self.__receive.get_id(), react_1)?;
 
-                {
+                        // Declare connections
 
-                    // --- reaction(startup, serve) -> send {= ... =}
-                    __assembler.declare_triggers(__self.__serve.get_id(), react_0)?;
-                    __assembler.declare_triggers(::reactor_rt::TriggerId::STARTUP, react_0)?;
-                    __assembler.effects_port(react_0, &__self.__send)?;
-                    // --- reaction (receive) -> serve {= ... =}
-                    __assembler.declare_triggers(__self.__receive.get_id(), react_1)?;
+                        // Declare port references
 
-                    // Declare connections
-
-                    // Declare port references
-                }
-
+                        Ok(())
+                    }
+                )?;
 
                 Ok(__self)
             }
@@ -479,35 +480,36 @@ mod reactors {
             type Params = SavinaPongParams;
             const MAX_REACTION_ID: ::reactor_rt::LocalReactionId = ::reactor_rt::LocalReactionId::new(1 - 1);
 
-            fn assemble(__params: Self::Params, __assembler: &mut ::reactor_rt::AssemblyCtx<Self>) -> ::std::result::Result<Self, ::reactor_rt::AssemblyError> {
+            fn assemble(__params: Self::Params, mut __assembler: ::reactor_rt::AssemblyCtx<Self>) -> ::std::result::Result<Self, ::reactor_rt::AssemblyError> {
                 use ::reactor_rt::TriggerLike;
 
                 // children reactors
                 let (__params, mut ping, mut pong,) = {
-                    let SavinaPongParams {  __phantom, count, } = __params;
+                    let SavinaPongParams { __phantom, count, } = __params;
                     // --- ping = new Ping(count=count);
-                    let ping: super::PingAdapter = __assembler.assemble_sub("ping", super::PingParams {  __phantom: std::marker::PhantomData, count, })?;
+                    let ping: super::PingAdapter = __assembler.assemble_sub("ping", super::PingParams { __phantom: std::marker::PhantomData, count })?;
                     // --- pong = new Pong(expected=count);
-                    let pong: super::PongAdapter = __assembler.assemble_sub("pong", super::PongParams {  __phantom: std::marker::PhantomData, expected: count, })?;
-                    (SavinaPongParams {  __phantom, count, }, ping, pong,)
+                    let pong: super::PongAdapter = __assembler.assemble_sub("pong", super::PongParams { __phantom: std::marker::PhantomData, expected: count })?;
+                    (SavinaPongParams { __phantom, count }, ping, pong, )
                 };
 
                 // assemble self
                 let mut __self: Self = __assembler.assemble_self(|cc, id| Self::user_assemble(cc, id, __params))?;
 
-                let [] = __assembler.new_reactions(0, []);
+                __assembler.dependencies(
+                    0,
+                    [],
+                    |__graph, []| {
+                        // Declare connections
+                        // --- ping.send -> pong.receive;
+                        __graph.bind_ports(&mut ping.__send, &mut pong.__receive)?;
+                        // --- pong.send -> ping.receive;
+                        __graph.bind_ports(&mut pong.__send, &mut ping.__receive)?;
+                        // Declare port references
+                        Ok(())
+                    },
+                )?;
 
-                {
-
-
-
-                    // Declare connections
-                    // --- ping.send -> pong.receive;
-                    __assembler.bind_ports(&mut ping.__send, &mut pong.__receive)?;
-                    // --- pong.send -> ping.receive;
-                    __assembler.bind_ports(&mut pong.__send, &mut ping.__receive)?;
-                    // Declare port references
-                }
                 __assembler.register_reactor(ping);
                 __assembler.register_reactor(pong);
 

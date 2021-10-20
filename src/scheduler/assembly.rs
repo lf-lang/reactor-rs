@@ -48,6 +48,14 @@ pub(super) struct RootAssembler {
     cur_trigger: TriggerId,
 }
 
+impl RootAssembler {
+    /// Register a child reactor.
+    pub fn register_reactor<R: ReactorInitializer + 'static>(&mut self, child: R) {
+        let vec_id = self.reactors.push(Box::new(child));
+        assert_eq!(self.reactors[vec_id].id(), vec_id, "Improper initialization order!");
+    }
+}
+
 impl Default for RootAssembler {
     fn default() -> Self {
         Self {
@@ -55,7 +63,7 @@ impl Default for RootAssembler {
             graph: DepGraph::new(),
             id_registry: DebugInfoRegistry::new(),
             reactors: Default::default(),
-            cur_trigger: TriggerId::FIRST_REGULAR
+            cur_trigger: TriggerId::FIRST_REGULAR,
         }
     }
 }
@@ -112,11 +120,13 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
     /// in LF by the user.
     /// The rest do not have priority edges, and their
     /// implementation must hence have no observable side-effect.
-    pub fn new_reactions<const N: usize>(&mut self,
-                                         num_non_synthetic: usize,
-                                         names: [Option<&'static str>; N]) -> [GlobalReactionId; N] {
+    fn new_reactions<const N: usize>(&mut self,
+                                     num_non_synthetic: usize,
+                                     names: [Option<&'static str>; N]) -> [GlobalReactionId; N] {
         assert!(!self.reactions_done, "May only create reactions once");
         self.reactions_done = true;
+
+        assert!(num_non_synthetic <= N);
 
         let result = array![i => GlobalReactionId::new(self.get_id(), LocalReactionId::from_usize(i)); N];
 
@@ -140,10 +150,50 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         result
     }
 
-    // register dependencies between components
+    pub fn dependencies<R, const N: usize>(
+        mut self,
+        num_non_synthetic: usize,
+        reaction_names: [Option<&'static str>; N],
+        f: impl FnOnce(&mut DependencyDeclarator<S>, [GlobalReactionId; N]) -> Result<R, AssemblyError>,
+    ) -> Result<R, AssemblyError> {
+        let reactions = self.new_reactions(num_non_synthetic, reaction_names);
+        f(&mut DependencyDeclarator { assembler: &mut self }, reactions)
+    }
 
+    /// Register a child reactor.
+    pub fn register_reactor<Sub: ReactorInitializer + 'static>(&mut self, child: Sub) {
+        self.globals.register_reactor(child)
+    }
+
+    /// Assemble a child reactor. The child needs to be registered
+    /// using [Self::register_reactor] later.
+    #[inline]
+    pub fn assemble_sub<Sub: ReactorInitializer>(&mut self, inst_name: &'static str, args: Sub::Params) -> Result<Sub, AssemblyError> {
+        let my_debug = self.debug.as_ref().expect("should assemble sub-reactors before self");
+        let sub = AssemblyCtx::new(&mut self.globals, my_debug.derive::<Sub>(inst_name));
+        Sub::assemble(args, sub)
+    }
+
+    pub(super) fn new(globals: &'x mut RootAssembler, debug: ReactorDebugInfo) -> Self {
+        Self {
+            globals,
+            reactor_id: None,
+            reactions_done: false,
+            // this is not zero, so that reaction ids and component ids are disjoint
+            cur_local: S::MAX_REACTION_ID,
+            debug: Some(debug),
+            _phantom: PhantomData,
+        }
+    }
+}
+
+pub struct DependencyDeclarator<'a, 'x, S: ReactorInitializer> {
+    assembler: &'a mut AssemblyCtx<'x, S>,
+}
+
+impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
     pub fn declare_triggers(&mut self, trigger: TriggerId, reaction: GlobalReactionId) -> Result<(), AssemblyError> {
-        self.globals.graph.triggers_reaction(trigger, reaction);
+        self.assembler.globals.graph.triggers_reaction(trigger, reaction);
         Ok(())
     }
 
@@ -161,50 +211,21 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
     }
 
     fn effects_instantaneous(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> Result<(), AssemblyError> {
-        self.globals.graph.reaction_effects(reaction, trigger);
+        self.assembler.globals.graph.reaction_effects(reaction, trigger);
         Ok(())
     }
 
     pub fn declare_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> Result<(), AssemblyError> {
-        self.globals.graph.reaction_uses(reaction, trigger);
+        self.assembler.globals.graph.reaction_uses(reaction, trigger);
         Ok(())
     }
 
     pub fn bind_ports<T: Sync>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
         crate::bind_ports(upstream, downstream)?;
-        self.globals.graph.port_bind(upstream, downstream);
+        self.assembler.globals.graph.port_bind(upstream, downstream);
         Ok(())
     }
-
-
-    /// Register a child reactor.
-    pub fn register_reactor<Sub: ReactorInitializer + 'static>(&mut self, child: Sub) {
-        let vec_id = self.globals.reactors.push(Box::new(child));
-        assert_eq!(self.globals.reactors[vec_id].id(), vec_id, "Improper initialization order!");
-    }
-
-    /// Assemble a child reactor. The child needs to be registered
-    /// using [Self::register_reactor] later.
-    #[inline]
-    pub fn assemble_sub<Sub: ReactorInitializer>(&mut self, inst_name: &'static str, args: Sub::Params) -> Result<Sub, AssemblyError> {
-        let my_debug = self.debug.as_ref().expect("should assemble sub-reactors before self");
-        let mut sub = AssemblyCtx::new(&mut self.globals, my_debug.derive::<Sub>(inst_name));
-        Sub::assemble(args, &mut sub)
-    }
-
-    pub(super) fn new(globals: &'x mut RootAssembler, debug: ReactorDebugInfo) -> Self {
-        Self {
-            globals,
-            reactor_id: None,
-            reactions_done: false,
-            // this is not zero, so that reaction ids and component ids are disjoint
-            cur_local: S::MAX_REACTION_ID,
-            debug: Some(debug),
-            _phantom: PhantomData,
-        }
-    }
 }
-
 
 pub struct ComponentCreator<'a, 'x, S: ReactorInitializer> {
     assembler: &'a mut AssemblyCtx<'x, S>,
