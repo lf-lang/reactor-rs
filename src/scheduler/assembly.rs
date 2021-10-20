@@ -29,17 +29,21 @@ use std::marker::PhantomData;
 
 use crate::*;
 use crate::scheduler::dependencies::DepGraph;
+use index_vec::Idx;
 
 use super::ReactorVec;
 
+/// Globals shared by all assemblers.
 pub(in super) struct RootAssembler {
-    /// ID of the next reactor to assign
-    reactor_id: ReactorId,
     /// All registered reactors
     pub(in super) reactors: ReactorVec<'static>,
     /// Dependency graph
     pub(in super) graph: DepGraph,
+    /// Debug infos
     pub(in super) id_registry: DebugInfoRegistry,
+
+    /// Next reactor ID to assign
+    reactor_id: ReactorId,
     /// Next trigger ID to assign
     cur_trigger: TriggerId,
 }
@@ -92,7 +96,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
     /// be fixed only after all descendants have been built.
     pub fn assemble_self(&mut self, creation_fun: impl FnOnce(&mut ComponentCreator<S>, ReactorId) -> Result<S, AssemblyError>) -> Result<S, AssemblyError> {
         let id = self.globals.reactor_id;
-        self.globals.reactor_id += 1;
+        self.globals.reactor_id = self.globals.reactor_id.plus(1);
         self.reactor_id = Some(id);
         self.globals.id_registry.record_reactor(id, self.debug.take().expect("Can only call assemble_self once"));
 
@@ -117,7 +121,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         assert!(!self.reactions_done, "May only create reactions once");
         self.reactions_done = true;
 
-        let result = array![i => GlobalReactionId::new(self.get_id(), LocalReactionId::new(i)); N];
+        let result = array![i => GlobalReactionId::new(self.get_id(), LocalReactionId::from_usize(i)); N];
 
         let mut prev: Option<GlobalReactionId> = None;
         for (i, r) in result.iter().cloned().enumerate() {
@@ -135,7 +139,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
             prev = Some(r);
         }
 
-        self.cur_local += N;
+        self.cur_local = self.cur_local.plus(N);
         result
     }
 

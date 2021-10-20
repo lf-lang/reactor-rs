@@ -95,6 +95,8 @@ impl TriggerId {
         self.0.checked_add(1).map(TriggerId).ok_or(())
     }
 
+    /// Returns an iterator that iterates over the range `(self+1)..(self+1+len)`.
+    /// Returns `Err` on overflow.
     pub(crate) fn next_range(&self, len: usize) -> Result<impl Iterator<Item=Self>, ()> {
         if let Some(upper) = self.0.checked_add(1 + len) {
             Ok(((self.0 + 1)..upper).into_iter().map(TriggerId))
@@ -110,6 +112,8 @@ pub(crate) fn iter_range(range: &Range<TriggerId>) -> impl Iterator<Item=Trigger
 
 impl Idx for TriggerId {
     fn from_usize(idx: usize) -> Self {
+        // note that this is basically an unchecked call to the ctor
+        // when Self::new checks
         TriggerId(idx)
     }
 

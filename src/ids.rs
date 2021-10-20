@@ -28,6 +28,7 @@
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
+use index_vec::Idx;
 use crate::TriggerId;
 
 // private implementation types
@@ -35,37 +36,52 @@ type ReactionIdImpl = u16;
 type ReactorIdImpl = u16;
 pub(in crate) type GlobalIdImpl = u32;
 
-define_index_type! {
-    /// Type of a local reaction ID
-    pub struct LocalReactionId = ReactionIdImpl;
-    DISABLE_MAX_INDEX_CHECK = cfg!(not(debug_assertions));
-    DISPLAY_FORMAT = "{}";
-}
+macro_rules! simple_idx_type {
+    ($(#[$($attrs:tt)*])* $id:ident($impl_t:ty)) => {
 
-impl LocalReactionId {
-    pub const ZERO: LocalReactionId = LocalReactionId::new_const(0);
+$(#[$($attrs)*])*
+#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub struct $id($impl_t);
 
+impl $id {
     // a const fn to be able to use this in const context
-    pub const fn new_const(u: ReactionIdImpl) -> Self {
-        Self { _raw: u }
+    pub const fn new(u: $impl_t) -> Self {
+        Self(u)
+    }
+
+    pub(crate) fn plus(&self, u: usize) -> Self {
+        Self::from_usize(self.0 as usize + u)
     }
 }
 
+impl Idx for $id {
+    fn from_usize(idx: usize) -> Self {
+        debug_assert!(idx <= <$impl_t>::MAX as usize);
+        Self(idx as $impl_t)
+    }
 
-define_index_type! {
+    fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+impl Display for $id {
+    fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
+        write!(f, "{}", self.0)
+    }
+}
+    };
+}
+
+simple_idx_type! {
+    /// ID of a reaction local to its containing reactor.
+    LocalReactionId(ReactionIdImpl)
+}
+
+simple_idx_type! {
     /// The unique identifier of a reactor instance during
     /// execution.
-    pub struct ReactorId = ReactorIdImpl;
-    DISABLE_MAX_INDEX_CHECK = cfg!(not(debug_assertions));
-    DISPLAY_FORMAT = "{}";
-    DEFAULT = Self::new(0);
-}
-
-impl ReactorId {
-    // a const fn to be able to use this in const context
-    pub const fn new_const(u: ReactorIdImpl) -> Self {
-        Self { _raw: u }
-    }
+    ReactorId(ReactorIdImpl)
 }
 
 macro_rules! global_id_newtype {
@@ -109,16 +125,16 @@ pub(crate) struct GlobalId {
 
 impl GlobalId {
     pub fn new(container: ReactorId, local: LocalReactionId) -> Self {
-        let _raw: GlobalIdImpl = (container._raw as GlobalIdImpl) << ReactionIdImpl::BITS | (local._raw as GlobalIdImpl);
+        let _raw: GlobalIdImpl = (container.0 as GlobalIdImpl) << ReactionIdImpl::BITS | (local.0 as GlobalIdImpl);
         Self { _raw }
     }
 
     pub(in crate) const fn container(&self) -> ReactorId {
-        ReactorId::new_const((self._raw >> 16) as u16)
+        ReactorId::new((self._raw >> 16) as u16)
     }
 
     pub(in crate) const fn local(&self) -> LocalReactionId {
-        LocalReactionId::new_const((self._raw & 0xffff) as u16)
+        LocalReactionId::new((self._raw & 0xffff) as u16)
     }
 }
 
@@ -129,8 +145,8 @@ impl FromStr for GlobalId {
         if let Some((container, local)) = s.split_once('/') {
             let container = container.parse::<ReactorIdImpl>().map_err(|_| "invalid reactor id")?;
             let local = local.parse::<ReactionIdImpl>().map_err(|_| "invalid local id")?;
-            Ok(GlobalId::new(ReactorId::from_raw(container),
-                             LocalReactionId::from_raw(local)))
+            Ok(GlobalId::new(ReactorId::new(container),
+                             LocalReactionId::new(local)))
         } else {
             Err("Expected format {int}/{int}")
         }

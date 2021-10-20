@@ -140,7 +140,7 @@ impl DebugInfoRegistry {
                 match self.reactor_bound.binary_search(&id) {
                     // we're the upper bound of some reactor `rid`,
                     // ie, we're the first component of the next reactor.
-                    Ok(rid) => (rid + 1, 0usize),
+                    Ok(rid) => (rid.plus(1), 0usize),
                     // Here, rid is the reactor which contains the trigger.
                     // Eg if you have reactor_bound=[2, 4],
                     // that corresponds to two reactors [2..2, 2..4].
