@@ -49,11 +49,15 @@ impl $id {
         Self(u)
     }
 
+    pub const fn raw(self) -> $impl_t {
+        self.0
+    }
+
     pub(crate) fn plus(&self, u: usize) -> Self {
         Self::from_usize(self.0 as usize + u)
     }
 
-    pub(crate) fn index(self) -> usize {
+    pub(crate) const fn index(self) -> usize {
         self.0 as usize
     }
 }
