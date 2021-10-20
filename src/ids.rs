@@ -157,26 +157,6 @@ impl FromStr for GlobalId {
     }
 }
 
-// todo commit and remove
-#[cfg(nightly)]
-impl std::iter::Step for GlobalId {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
-        (end._raw as usize).checked_sub(start._raw as usize)
-    }
-
-    fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        GlobalIdImpl::try_from(count).ok()
-            .and_then(|c| start._raw.checked_add(c))
-            .map(|_raw| Self { _raw })
-    }
-
-    fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        GlobalIdImpl::try_from(count).ok()
-            .and_then(|c| start._raw.checked_sub(c))
-            .map(|_raw| Self { _raw })
-    }
-}
-
 impl Hash for GlobalId {
     fn hash<H: Hasher>(&self, state: &mut H) {
         state.write_u32(self._raw)
