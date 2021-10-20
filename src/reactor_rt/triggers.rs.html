@@ -127,6 +127,10 @@
 <span id="127">127</span>
 <span id="128">128</span>
 <span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
 </pre><pre class="rust">
 <span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
@@ -225,6 +229,8 @@
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">checked_add</span>(<span class="number">1</span>).<span class="ident">map</span>(<span class="ident">TriggerId</span>).<span class="ident">ok_or</span>(())
     }
 
+    <span class="doccomment">/// Returns an iterator that iterates over the range `(self+1)..(self+1+len)`.</span>
+    <span class="doccomment">/// Returns `Err` on overflow.</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">next_range</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">len</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span><span class="op">=</span><span class="self">Self</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">upper</span>) <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">checked_add</span>(<span class="number">1</span> <span class="op">+</span> <span class="ident">len</span>) {
             <span class="prelude-val">Ok</span>(((<span class="self">self</span>.<span class="number">0</span> <span class="op">+</span> <span class="number">1</span>)..<span class="ident">upper</span>).<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="ident">TriggerId</span>))
@@ -240,6 +246,8 @@
 
 <span class="kw">impl</span> <span class="ident">Idx</span> <span class="kw">for</span> <span class="ident">TriggerId</span> {
     <span class="kw">fn</span> <span class="ident">from_usize</span>(<span class="ident">idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="comment">// note that this is basically an unchecked call to the ctor</span>
+        <span class="comment">// when Self::new checks</span>
         <span class="ident">TriggerId</span>(<span class="ident">idx</span>)
     }
 

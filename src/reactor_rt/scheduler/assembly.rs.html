@@ -269,6 +269,10 @@
 <span id="269">269</span>
 <span id="270">270</span>
 <span id="271">271</span>
+<span id="272">272</span>
+<span id="273">273</span>
+<span id="274">274</span>
+<span id="275">275</span>
 </pre><pre class="rust">
 <span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
@@ -301,17 +305,21 @@
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="kw">crate</span><span class="ident">::scheduler::dependencies::DepGraph</span>;
+<span class="kw">use</span> <span class="ident">index_vec::Idx</span>;
 
 <span class="kw">use</span> <span class="kw">super</span><span class="ident">::ReactorVec</span>;
 
+<span class="doccomment">/// Globals shared by all assemblers.</span>
 <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">super</span>) <span class="kw">struct</span> <span class="ident">RootAssembler</span> {
-    <span class="doccomment">/// ID of the next reactor to assign</span>
-    <span class="ident">reactor_id</span>: <span class="ident">ReactorId</span>,
     <span class="doccomment">/// All registered reactors</span>
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">super</span>) <span class="ident">reactors</span>: <span class="ident">ReactorVec</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span><span class="op">&gt;</span>,
     <span class="doccomment">/// Dependency graph</span>
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">super</span>) <span class="ident">graph</span>: <span class="ident">DepGraph</span>,
+    <span class="doccomment">/// Debug infos</span>
     <span class="kw">pub</span>(<span class="kw">in</span> <span class="kw">super</span>) <span class="ident">id_registry</span>: <span class="ident">DebugInfoRegistry</span>,
+
+    <span class="doccomment">/// Next reactor ID to assign</span>
+    <span class="ident">reactor_id</span>: <span class="ident">ReactorId</span>,
     <span class="doccomment">/// Next trigger ID to assign</span>
     <span class="ident">cur_trigger</span>: <span class="ident">TriggerId</span>,
 }
@@ -364,7 +372,7 @@
     <span class="doccomment">/// be fixed only after all descendants have been built.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">assemble_self</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">creation_fun</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ComponentCreator</span><span class="op">&lt;</span><span class="ident">S</span><span class="op">&gt;</span>, <span class="ident">ReactorId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">AssemblyError</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">S</span>, <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span>;
-        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span> <span class="op">+</span><span class="op">=</span> <span class="number">1</span>;
+        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span>.<span class="ident">plus</span>(<span class="number">1</span>);
         <span class="self">self</span>.<span class="ident">reactor_id</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">id</span>);
         <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">id_registry</span>.<span class="ident">record_reactor</span>(<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">debug</span>.<span class="ident">take</span>().<span class="ident">expect</span>(<span class="string">&quot;Can only call assemble_self once&quot;</span>));
 
@@ -389,7 +397,7 @@
         <span class="macro">assert!</span>(<span class="op">!</span><span class="self">self</span>.<span class="ident">reactions_done</span>, <span class="string">&quot;May only create reactions once&quot;</span>);
         <span class="self">self</span>.<span class="ident">reactions_done</span> <span class="op">=</span> <span class="bool-val">true</span>;
 
-        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="macro">array!</span>[<span class="ident">i</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">GlobalReactionId::new</span>(<span class="self">self</span>.<span class="ident">get_id</span>(), <span class="ident">LocalReactionId::new</span>(<span class="ident">i</span>)); <span class="ident">N</span>];
+        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="macro">array!</span>[<span class="ident">i</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">GlobalReactionId::new</span>(<span class="self">self</span>.<span class="ident">get_id</span>(), <span class="ident">LocalReactionId::from_usize</span>(<span class="ident">i</span>)); <span class="ident">N</span>];
 
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">prev</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">GlobalReactionId</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">None</span>;
         <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">r</span>) <span class="kw">in</span> <span class="ident">result</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>().<span class="ident">enumerate</span>() {
@@ -407,7 +415,7 @@
             <span class="ident">prev</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">r</span>);
         }
 
-        <span class="self">self</span>.<span class="ident">cur_local</span> <span class="op">+</span><span class="op">=</span> <span class="ident">N</span>;
+        <span class="self">self</span>.<span class="ident">cur_local</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">cur_local</span>.<span class="ident">plus</span>(<span class="ident">N</span>);
         <span class="ident">result</span>
     }
 
