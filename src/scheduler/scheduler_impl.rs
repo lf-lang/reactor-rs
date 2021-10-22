@@ -24,6 +24,8 @@
 
 //! Home of the scheduler component.
 
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use crossbeam_channel::reconnectable::*;
 use crossbeam_utils::thread::{Scope, scope};
 
@@ -113,15 +115,23 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// Initial time of the logical system.
     initial_time: Instant,
 
-    /// Scheduled shutdown time. If Some, shutdown must
-    /// be initiated at least at this physical time step.
-    /// todo does that match lf semantics?
-    /// This is set when an event caused by a [ReactionCtx::request_stop]
-    /// is received, and upon initialization if a timeout was
-    /// specified.
+    /// Scheduled shutdown time. If Some, shutdown will be
+    /// initiated at that logical time.
+    ///
+    /// This is set when an event sent by a [ReactionCtx::request_stop]
+    /// is *processed* (so, at its given tag), and upon
+    /// initialization if a timeout was specified.
     shutdown_time: Option<EventTag>,
+
+    /// Whether the app has been terminated. Only used for
+    /// communication with asynchronous threads. Set by the
+    /// scheduler only.
+    was_terminated: Arc<AtomicBool>,
+
+    /// Construction options.
     options: SchedulerOptions,
 
+    /// Debug information.
     id_registry: DebugInfoRegistry,
 }
 
@@ -211,7 +221,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                     break; // shutdown
                 }
 
-                self.process_tag(evt.tag, evt.reactions);
+                self.process_tag(false, evt.tag, evt.reactions);
             } else if let Some(evt) = self.receive_event() {
                 // this may block
                 push_event!(self, evt);
@@ -256,6 +266,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             dataflow: dependency_info,
             id_registry,
             thread_spawner,
+            was_terminated: Default::default()
         }
     }
 
@@ -275,14 +286,17 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         debug_assert!(!self.reactors.is_empty(), "No registered reactors");
 
         let startup_reactions = self.dataflow.reactions_triggered_by(&TriggerId::STARTUP);
-        self.process_tag(initial_tag, Some(Cow::Borrowed(startup_reactions)))
+        self.process_tag(false, initial_tag, Some(Cow::Borrowed(startup_reactions)))
     }
 
     fn shutdown(&mut self, shutdown_tag: EventTag, reactions: ReactionPlan<'x>) {
         let default_plan: ReactionPlan<'x> = Some(Cow::Borrowed(self.dataflow.reactions_triggered_by(&TriggerId::SHUTDOWN)));
         let reactions = ExecutableReactions::merge_cows(reactions, default_plan);
 
-        self.process_tag(shutdown_tag, reactions);
+        self.process_tag(true, shutdown_tag, reactions);
+
+        // notify concurrent threads.
+        self.was_terminated.store(true, Ordering::SeqCst);
     }
 
     /// Returns whether the given event should be ignored and
@@ -352,7 +366,9 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     fn new_reaction_ctx(&self,
                         tag: EventTag,
                         todo: ReactionPlan<'x>,
-                        rx: &'a Receiver<Event<'x>>) -> ReactionCtx<'a, 'x, 't> {
+                        rx: &'a Receiver<Event<'x>>,
+                        was_terminated_atomic: &'a Arc<AtomicBool>,
+                        was_terminated: bool) -> ReactionCtx<'a, 'x, 't> {
         ReactionCtx::new(
             rx,
             tag,
@@ -360,6 +376,8 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             todo,
             self.dataflow,
             self.thread_spawner,
+            was_terminated_atomic,
+            was_terminated,
         )
     }
 
@@ -370,7 +388,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
     /// Actually process a tag. The provided reactions are the
     /// root reactions that startup the "wave".
-    fn process_tag(&mut self, tag: EventTag, mut reactions: ReactionPlan<'x>) {
+    fn process_tag(&mut self, is_shutdown: bool, tag: EventTag, mut reactions: ReactionPlan<'x>) {
         if cfg!(debug_assertions) {
             if let Some(t) = self.latest_processed_tag {
                 debug_assert!(tag > t, "Tag ordering mismatch")
@@ -382,7 +400,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             return;
         }
 
-        let mut ctx = self.new_reaction_ctx(tag, None, &self.rx);
+        let mut ctx = self.new_reaction_ctx(tag, None, &self.rx, &self.was_terminated, is_shutdown);
         let debug = debug_info!(self);
 
         // The maximum layer number we've seen as of now.

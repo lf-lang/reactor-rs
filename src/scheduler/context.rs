@@ -1,4 +1,6 @@
 use std::borrow::{Borrow, BorrowMut};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crossbeam_channel::reconnectable::{Receiver, Sender, SendError};
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
@@ -34,9 +36,13 @@ pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// Start time of the program.
     initial_time: PhysicalInstant,
 
-    // globals
-    thread_spawner: &'a Scope<'t>,
+    // globals, also they might be copied and passed to PhysicalSchedulerLink
     dataflow: &'x DataflowInfo,
+    thread_spawner: &'a Scope<'t>,
+    /// Whether the scheduler has been shut down.
+    /// In ReactionCtx, this will only be true if this is the shutdown tag.
+    was_terminated_atomic: &'a Arc<AtomicBool>,
+    was_terminated: bool,
 }
 
 
@@ -76,6 +82,18 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     #[inline]
     pub fn get_tag(&self) -> EventTag {
         self.tag
+    }
+
+    /// Returns whether this tag is the shutdown tag of the
+    /// application. If so, it's necessarily the very last
+    /// invocation of the current reaction (on a given reactor
+    /// instance).
+    ///
+    /// Repeated invocation of this method will always produce
+    /// the same value.
+    #[inline]
+    pub fn is_shutdown(&self) -> bool {
+        self.was_terminated
     }
 
     /// Returns the amount of logical time elapsed since the
@@ -272,9 +290,8 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     ///
     /// Since the thread is allowed to keep references into the
     /// internals of the scheduler, it is joined when the scheduler
-    /// shuts down.
-    /// todo clarify: will scheduler wait for joining,
-    ///  possibly indefinitely? will thread be terminated?
+    /// shuts down. This means the scheduler will wait for the
+    /// thread to finish its task. For that reason
     ///
     /// ### Example
     ///
@@ -299,6 +316,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         let tx = self.rx.new_sender();
         let dataflow = self.dataflow;
         let initial_time = self.initial_time;
+        let was_terminated = self.was_terminated_atomic.clone();
 
         self.thread_spawner.spawn(move |subscope| {
             let mut link = PhysicalSchedulerLink {
@@ -306,6 +324,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                 dataflow,
                 initial_time,
                 thread_spawner: subscope,
+                was_terminated,
             };
             f(&mut link)
         })
@@ -370,7 +389,9 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
                       initial_time: PhysicalInstant,
                       todo: ReactionPlan<'x>,
                       dataflow: &'x DataflowInfo,
-                      thread_spawner: &'a Scope<'t>) -> Self {
+                      thread_spawner: &'a Scope<'t>,
+                      was_terminated_atomic: &'a Arc<AtomicBool>,
+                      was_terminated: bool) -> Self {
         Self {
             insides: RContextForwardableStuff {
                 todo_now: todo,
@@ -382,6 +403,8 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
             initial_time,
             dataflow,
             thread_spawner,
+            was_terminated_atomic,
+            was_terminated,
         }
     }
 
@@ -403,6 +426,8 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
             initial_time: self.initial_time,
             thread_spawner: self.thread_spawner,
             dataflow: self.dataflow,
+            was_terminated: self.was_terminated,
+            was_terminated_atomic: self.was_terminated_atomic,
         }
     }
 }
@@ -447,21 +472,36 @@ impl RContextForwardableStuff<'_> {
 /// system, from the outside world.
 ///
 /// See [ReactionCtx::spawn_physical_thread].
+///
+/// todo this thing should know when the scheduler has been terminated.
 #[derive(Clone)]
 pub struct PhysicalSchedulerLink<'a, 'x, 't> {
     tx: Sender<Event<'x>>,
     initial_time: Instant,
     dataflow: &'x DataflowInfo,
+    /// Whether the scheduler has been terminated.
+    was_terminated: Arc<AtomicBool>,
     #[allow(unused)] // maybe add a spawn_physical_thread to this type
     thread_spawner: &'a Scope<'t>,
 }
 
 impl PhysicalSchedulerLink<'_, '_, '_> {
+    /// Returns true if the scheduler has been shutdown. When
+    /// that's true, calls to other methods of this type will
+    /// fail with [SendError].
+    pub fn is_shutdown(&self) -> bool {
+        self.was_terminated.load(Ordering::SeqCst)
+    }
+
     /// Request that the application shutdown, possibly with
-    /// a particular offset.
+    /// a particular offset from the current physical time.
     ///
-    /// This may fail if this is called while the scheduler has already
-    /// been shutdown. todo prevent this
+    /// This may fail if this is called while the scheduler
+    /// has already been shutdown. An Ok result is also not
+    /// a guarantee that the event will be processed: the
+    /// scheduler may be in the process of shutting down,
+    /// or its shutdown might be programmed for a logical
+    /// time which precedes the current physical time.
     pub fn request_stop(&mut self, offset: Offset) -> Result<(), SendError<()>> {
         // physical time must be ahead of logical time so
         // this event is scheduled for the future
@@ -480,8 +520,13 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     ///
     /// Note that this locks the action.
     ///
-    /// This may fail if this is called while the scheduler has already
-    /// been shutdown. todo prevent this
+    /// This may fail if this is called while the scheduler
+    /// has already been shutdown. An Ok result is also not
+    /// a guarantee that the event will be processed: the
+    /// scheduler may be in the process of shutting down,
+    /// or its shutdown might be programmed for a logical
+    /// time which precedes the current physical time.
+    ///
     pub fn schedule_physical<T: Sync>(&mut self, action: &PhysicalActionRef<T>, offset: Offset) -> Result<(), SendError<Option<T>>> {
         self.schedule_physical_with_v(action, None, offset)
     }
@@ -492,8 +537,13 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     ///
     /// Note that this locks the action.
     ///
-    /// This may fail if this is called while the scheduler has already
-    /// been shutdown. todo prevent this
+    /// This may fail if this is called while the scheduler
+    /// has already been shutdown. An Ok result is also not
+    /// a guarantee that the event will be processed: the
+    /// scheduler may be in the process of shutting down,
+    /// or its shutdown might be programmed for a logical
+    /// time which precedes the current physical time.
+    ///
     pub fn schedule_physical_with_v<T: Sync>(
         &mut self,
         action: &PhysicalActionRef<T>,
