@@ -34,13 +34,13 @@ use index_vec::Idx;
 use super::ReactorVec;
 
 /// Globals shared by all assemblers.
-pub(in super) struct RootAssembler {
+pub(super) struct RootAssembler {
     /// All registered reactors
-    pub(in super) reactors: ReactorVec<'static>,
+    pub(super) reactors: ReactorVec<'static>,
     /// Dependency graph
-    pub(in super) graph: DepGraph,
+    pub(super) graph: DepGraph,
     /// Debug infos
-    pub(in super) id_registry: DebugInfoRegistry,
+    pub(super) id_registry: DebugInfoRegistry,
 
     /// Next reactor ID to assign
     reactor_id: ReactorId,

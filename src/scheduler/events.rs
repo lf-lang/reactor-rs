@@ -184,7 +184,7 @@ impl<'x> EventQueue<'x> {
     //  sort.
 
     /// Push an event into the heap.
-    pub(in super) fn push(&mut self, evt: Event<'x>) {
+    pub(super) fn push(&mut self, evt: Event<'x>) {
         match self.value_list.binary_search_by_key(&evt.tag, |e| e.tag) {
             Ok(idx) => self.value_list[idx].absorb(evt),
             Err(idx) => self.value_list.insert(idx, evt),

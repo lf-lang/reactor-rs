@@ -45,7 +45,7 @@ pub struct Timer {
 
 
 impl Timer {
-    pub(in crate) fn new(id: TriggerId, offset: Duration, period: Duration) -> Self {
+    pub(crate) fn new(id: TriggerId, offset: Duration, period: Duration) -> Self {
         Self { offset, period, id }
     }
 

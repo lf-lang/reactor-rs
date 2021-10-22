@@ -364,7 +364,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     }
 
     #[inline]
-    pub(in super) fn debug(&self) -> DebugInfoProvider {
+    pub(super) fn debug(&self) -> DebugInfoProvider {
         debug_info!(self)
     }
 

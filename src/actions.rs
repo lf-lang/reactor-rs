@@ -65,7 +65,7 @@ impl<K, T: Sync> Action<K, T> {
     ///
     ///
     #[inline]
-    pub(in crate) fn schedule_future_value(&mut self, time: EventTag, value: Option<T>) {
+    pub(crate) fn schedule_future_value(&mut self, time: EventTag, value: Option<T>) {
         match self.map.entry(Reverse(time)) {
             Entry::Vacant(e) => { e.insert(value) }
             Entry::Occupied(_, v) => {
@@ -77,7 +77,7 @@ impl<K, T: Sync> Action<K, T> {
 
 
     #[inline]
-    pub(in crate) fn forget_value(&mut self, time: &EventTag) -> Option<T> {
+    pub(crate) fn forget_value(&mut self, time: &EventTag) -> Option<T> {
         self.map.remove(&Reverse(*time)).flatten()
     }
 

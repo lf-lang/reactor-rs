@@ -76,11 +76,11 @@ impl<'a, T: Sync> WritablePort<'a, T> {
     /// Set the value, see [super::ReactionCtx::set]
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
-    pub(in crate) fn set_impl(&mut self, v: T) {
+    pub(crate) fn set_impl(&mut self, v: T) {
         self.0.set_impl(Some(v))
     }
 
-    pub(in crate) fn get_id(&self) -> TriggerId {
+    pub(crate) fn get_id(&self) -> TriggerId {
         self.0.get_id()
     }
 }
@@ -255,12 +255,12 @@ impl<T: Sync> Port<T> {
     }
 
     #[inline]
-    pub(in crate) fn get(&self) -> Option<T> where T: Copy {
+    pub(crate) fn get(&self) -> Option<T> where T: Copy {
         self.use_ref(Option::<T>::clone)
     }
 
     #[cfg(feature = "no-unsafe")]
-    pub(in crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
+    pub(crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
         use atomic_refcell::AtomicRef;
         let cell_ref: AtomicRef<Rc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
         let binding: &Rc<PortCell<T>> = cell_ref.deref();
@@ -275,7 +275,7 @@ impl<T: Sync> Port<T> {
     /// avoid having to clone the dependency list just to return it.
     #[inline]
     #[cfg(feature = "no-unsafe")]
-    pub(in crate) fn set_impl(&mut self, new_value: Option<T>) {
+    pub(crate) fn set_impl(&mut self, new_value: Option<T>) {
         use atomic_refcell::AtomicRef;
 
         debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port ({:?})", self.id);
@@ -288,7 +288,7 @@ impl<T: Sync> Port<T> {
 
     #[inline]
     #[cfg(not(feature = "no-unsafe"))]
-    pub(in crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
+    pub(crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
         let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
         let opt: &Option<T> = unsafe {
             let cell = &*binding.get();
@@ -298,7 +298,7 @@ impl<T: Sync> Port<T> {
     }
 
     #[cfg(not(feature = "no-unsafe"))]
-    pub(in crate) fn set_impl(&mut self, new_value: Option<T>) {
+    pub(crate) fn set_impl(&mut self, new_value: Option<T>) {
         debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port");
 
         let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
@@ -312,7 +312,7 @@ impl<T: Sync> Port<T> {
 
     /// Called at the end of a tag.
     #[inline]
-    pub(in crate) fn clear_value(&mut self) {
+    pub(crate) fn clear_value(&mut self) {
         // If this port is bound, then some other port has
         // a reference to the same cell but is not bound.
         if self.bind_status != BindStatus::Bound {
@@ -366,7 +366,7 @@ impl<T: Sync> TriggerLike for Port<T> {
 ///
 /// If the downstream port was already bound to some other port.
 ///
-pub(in crate) fn bind_ports<T: Sync>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), AssemblyError> {
+pub(crate) fn bind_ports<T: Sync>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), AssemblyError> {
     up.forward_to(down)
 }
 

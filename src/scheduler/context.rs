@@ -243,7 +243,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     ///
     /// This is used for actions.
     #[inline]
-    pub(in crate) fn enqueue_later(&mut self, downstream: &'x ExecutableReactions, tag: EventTag) {
+    pub(crate) fn enqueue_later(&mut self, downstream: &'x ExecutableReactions, tag: EventTag) {
         debug_assert!(tag > self.get_tag());
 
         let evt = Event::execute(tag, Cow::Borrowed(downstream));
@@ -251,7 +251,7 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     }
 
     #[inline]
-    pub(in crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions<'x>>) {
+    pub(crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions<'x>>) {
         match &mut self.insides.todo_now {
             Some(ref mut do_next) => do_next.to_mut().absorb_after(downstream.as_ref(), self.cur_layer.next()),
             None => self.insides.todo_now = Some(downstream)
@@ -553,7 +553,7 @@ pub enum Offset {
 
 impl Offset {
     #[inline]
-    pub(in crate) fn to_duration(self) -> Duration {
+    pub(crate) fn to_duration(self) -> Duration {
         match self {
             Offset::After(d) => d,
             Offset::Asap => Duration::ZERO,

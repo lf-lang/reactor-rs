@@ -163,22 +163,22 @@ impl DebugInfoRegistry {
     }
 
 
-    pub(in super) fn record_trigger(&mut self, id: TriggerId, name: Cow<'static, str>) {
+    pub(super) fn record_trigger(&mut self, id: TriggerId, name: Cow<'static, str>) {
         let ix = self.trigger_infos.push(name);
         debug_assert_eq!(ix, id);
     }
 
-    pub(in super) fn record_reaction(&mut self, id: GlobalReactionId, name: Cow<'static, str>) {
+    pub(super) fn record_reaction(&mut self, id: GlobalReactionId, name: Cow<'static, str>) {
         let existing = self.reaction_labels.insert(id, name);
         debug_assert!(existing.is_none())
     }
 
-    pub(in super) fn record_reactor(&mut self, id: ReactorId, debug: ReactorDebugInfo) {
+    pub(super) fn record_reactor(&mut self, id: ReactorId, debug: ReactorDebugInfo) {
         let ix = self.reactor_infos.push(debug);
         debug_assert_eq!(ix, id);
     }
 
-    pub(in super) fn set_id_range(&mut self, id: ReactorId, range: Range<TriggerId>) {
+    pub(super) fn set_id_range(&mut self, id: ReactorId, range: Range<TriggerId>) {
         assert!(range.start <= range.end, "Malformed range {:?}", range);
         assert!(range.start >= TriggerId::FIRST_REGULAR, "Trigger IDs 0-1 are reserved");
 
@@ -206,7 +206,7 @@ impl ReactorDebugInfo {
         Self::root::<()>()
     }
 
-    pub(in crate) fn root<R>() -> Self {
+    pub(crate) fn root<R>() -> Self {
         Self {
             type_name: type_name::<R>(),
             inst_name: "/",
@@ -214,7 +214,7 @@ impl ReactorDebugInfo {
         }
     }
 
-    pub(in crate) fn derive<R: ReactorInitializer>(&self, inst_name: &'static str) -> Self {
+    pub(crate) fn derive<R: ReactorInitializer>(&self, inst_name: &'static str) -> Self {
         Self {
             type_name: type_name::<R::Wrapped>(),
             inst_name,

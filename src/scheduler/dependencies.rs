@@ -96,7 +96,7 @@ type DepGraphImpl = DiGraph<GraphNode, EdgeWeight, GlobalIdImpl>;
 /// Initialization completes when that instance is turned into
 /// a [DataflowInfo], which is the data structure used at runtime.
 ///
-pub(in super) struct DepGraph {
+pub(super) struct DepGraph {
     /// Instantaneous data flow. Must be acyclic. Edges from
     /// reactions to actions are not represented, as they are
     /// not actually a data dependency that could cause a
@@ -118,6 +118,7 @@ pub(in super) struct DepGraph {
     /// Map of multiport component ID -> multiport ID.
     /// todo data structure is bad.
     multiport_containment: HashMap<GraphId, TriggerId>,
+    /// Map of multiport ID -> range of IDs for its channels
     multiport_ranges: VecMap<TriggerId, Range<TriggerId>>,
 }
 
@@ -171,7 +172,7 @@ impl DepGraph {
         replaced.into_owned()
     }
 
-    pub(in super) fn record_port(&mut self, id: TriggerId) {
+    pub(super) fn record_port(&mut self, id: TriggerId) {
         self.record_port_impl(id);
     }
 
@@ -194,7 +195,7 @@ impl DepGraph {
     /// When X declares a trigger/uses on the entire
     /// bank, an edge is added from every channel to X.
     ///
-    pub(in super) fn record_port_bank(&mut self, id: TriggerId, len: usize) -> Result<(), AssemblyError> {
+    pub(super) fn record_port_bank(&mut self, id: TriggerId, len: usize) -> Result<(), AssemblyError> {
         assert!(len > 0, "empty port bank");
         self.record(GraphId::Trigger(id), NodeKind::MultiportUpstream);
 
@@ -210,7 +211,7 @@ impl DepGraph {
         Ok(())
     }
 
-    pub(in super) fn record_port_bank_component(&mut self, bank_id: TriggerId, channel_id: TriggerId) {
+    pub(super) fn record_port_bank_component(&mut self, bank_id: TriggerId, channel_id: TriggerId) {
         let channel_ix = self.record_port_impl(channel_id);
         self.dataflow.add_edge(
             self.get_ix(bank_id.into()),
@@ -219,19 +220,19 @@ impl DepGraph {
         );
     }
 
-    pub(in super) fn record_laction(&mut self, id: TriggerId) {
+    pub(super) fn record_laction(&mut self, id: TriggerId) {
         self.record(GraphId::Trigger(id), NodeKind::Action);
     }
 
-    pub(in super) fn record_paction(&mut self, id: TriggerId) {
+    pub(super) fn record_paction(&mut self, id: TriggerId) {
         self.record(GraphId::Trigger(id), NodeKind::Action);
     }
 
-    pub(in super) fn record_timer(&mut self, id: TriggerId) {
+    pub(super) fn record_timer(&mut self, id: TriggerId) {
         self.record(GraphId::Trigger(id), NodeKind::Timer);
     }
 
-    pub(in super) fn record_reaction(&mut self, id: GlobalReactionId) {
+    pub(super) fn record_reaction(&mut self, id: GlobalReactionId) {
         self.record(GraphId::Reaction(id), NodeKind::Reaction);
     }
 
@@ -360,6 +361,9 @@ enum EdgeWeight {
     Use,
 }
 
+/// Stores the level of each reaction. This is transient info
+/// that is used to build a [DataflowInfo] and discarded.
+///
 struct ReactionLayerInfo {
     /// The level of each reaction.
     layer_numbers: HashMap<GlobalReactionId, LayerIx>,
@@ -375,7 +379,7 @@ impl ReactionLayerInfo {
 
 /// Pre-calculated dependency information,
 /// using the dependency graph
-pub(in super) struct DataflowInfo {
+pub(super) struct DataflowInfo {
     /// Maps each trigger to the set of reactions that need
     /// to be scheduled when it is triggered.
 
@@ -490,7 +494,7 @@ impl Display for LayerIx {
 /// 1. they may be merged together (by a [DataflowInfo]).
 /// 2. merging two plans eliminates duplicates
 #[derive(Clone, Debug, Default)]
-pub(in crate) struct ExecutableReactions<'x> {
+pub(crate) struct ExecutableReactions<'x> {
     /// An ordered list of layers to execute.
     ///
     /// It must by construction be the case that a reaction

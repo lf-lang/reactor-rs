@@ -26,7 +26,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::ops::Add;
 
 /// Private concrete type of a microstep.
-pub(in crate) type MS = u32;
+pub(crate) type MS = u32;
 
 /// Type of the microsteps of an [EventTag](crate::EventTag).
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Copy, Clone, Hash)]

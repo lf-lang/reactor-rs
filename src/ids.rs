@@ -34,7 +34,7 @@ use crate::TriggerId;
 // private implementation types
 type ReactionIdImpl = u16;
 type ReactorIdImpl = u16;
-pub(in crate) type GlobalIdImpl = u32;
+pub(crate) type GlobalIdImpl = u32;
 
 macro_rules! simple_idx_type {
     ($(#[$($attrs:tt)*])* $id:ident($impl_t:ty)) => {
@@ -96,7 +96,7 @@ macro_rules! global_id_newtype {
     {$(#[$m:meta])* $id:ident} => {
         $(#[$m])*
         #[derive(Eq, Ord, PartialOrd, PartialEq, Hash, Copy, Clone)]
-        pub struct $id(pub(in crate) GlobalId);
+        pub struct $id(pub(crate) GlobalId);
 
         impl $id {
             pub fn new(container: $crate::ReactorId, local: $crate::LocalReactionId) -> Self {
@@ -137,11 +137,11 @@ impl GlobalId {
         Self { _raw }
     }
 
-    pub(in crate) const fn container(&self) -> ReactorId {
+    pub(crate) const fn container(&self) -> ReactorId {
         ReactorId::new((self._raw >> 16) as u16)
     }
 
-    pub(in crate) const fn local(&self) -> LocalReactionId {
+    pub(crate) const fn local(&self) -> LocalReactionId {
         LocalReactionId::new((self._raw & 0xffff) as u16)
     }
 }
