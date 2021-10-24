@@ -260,7 +260,7 @@ pub struct DependencyDeclarator<'a, 'x, S: ReactorInitializer> {
 
 impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
     pub fn declare_triggers(&mut self, trigger: TriggerId, reaction: GlobalReactionId) -> AssemblyResult<()> {
-        self.assembler.globals.graph.triggers_reaction(trigger, reaction);
+        self.graph().triggers_reaction(trigger, reaction);
         Ok(())
     }
 
@@ -278,12 +278,12 @@ impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
     }
 
     fn effects_instantaneous(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> AssemblyResult<()> {
-        self.assembler.globals.graph.reaction_effects(reaction, trigger);
+        self.graph().reaction_effects(reaction, trigger);
         Ok(())
     }
 
     pub fn declare_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> AssemblyResult<()> {
-        self.assembler.globals.graph.reaction_uses(reaction, trigger);
+        self.graph().reaction_uses(reaction, trigger);
         Ok(())
     }
 
@@ -291,11 +291,14 @@ impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
     #[inline]
     pub fn bind_ports<T: Sync>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> AssemblyResult<()> {
         crate::bind_ports(upstream, downstream)?;
-        self.assembler.globals.graph.port_bind(upstream, downstream);
+        self.graph().port_bind(upstream, downstream);
         Ok(())
     }
 
-    /// Bind the ports of the upstream to those of the downstream.
+    /// Bind the ports of the upstream to those of the downstream,
+    /// as if zipping both iterators.
+    /// todo this will just throw away bindings if both iterators are not of the same size
+    ///  normally this should be reported by LFC as a warning, maybe we should implement the same thing here
     #[inline]
     pub fn bind_ports_zip<'a, T: Sync + 'a>(
         &mut self,
@@ -316,8 +319,15 @@ impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
     ) -> AssemblyResult<()> {
         todo!("iterated connection")
     }
+
+
+    #[inline]
+    fn graph(&mut self) -> &mut DepGraph {
+        &mut self.assembler.globals.graph
+    }
 }
 
+/// Creates the components of a reactor.
 pub struct ComponentCreator<'a, 'x, S: ReactorInitializer> {
     assembler: &'a mut AssemblyCtx<'x, S>,
 }
@@ -329,13 +339,13 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
 
     fn new_port_impl<T: Sync>(&mut self, lf_name: Cow<'static, str>, is_input: bool) -> Port<T> {
         let id = self.next_comp_id(Some(lf_name));
-        self.assembler.globals.graph.record_port(id);
+        self.graph().record_port(id);
         Port::new(id, is_input)
     }
 
     pub fn new_port_bank<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, len: usize) -> Result<PortBank<T>, AssemblyError> {
         let bank_id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
-        self.assembler.globals.graph.record_port_bank(bank_id, len)?;
+        self.graph().record_port_bank(bank_id, len)?;
         Ok(PortBank::new(
             (0..len).into_iter().map(|i| self.new_port_bank_component(lf_name, is_input, bank_id, i)).collect(),
             bank_id,
@@ -344,7 +354,7 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
 
     fn new_port_bank_component<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, bank_id: TriggerId, index: usize) -> Port<T> {
         let channel_id = self.next_comp_id(Some(Cow::Owned(format!("{}[{}]", lf_name, index))));
-        self.assembler.globals.graph.record_port_bank_component(bank_id, channel_id);
+        self.graph().record_port_bank_component(bank_id, channel_id);
         Port::new(channel_id, is_input)
     }
 
@@ -352,7 +362,7 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
                                        lf_name: &'static str,
                                        min_delay: Option<Duration>) -> LogicalAction<T> {
         let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
-        self.assembler.globals.graph.record_laction(id);
+        self.graph().record_laction(id);
         LogicalAction::new(id, min_delay)
     }
 
@@ -360,13 +370,13 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
                                         lf_name: &'static str,
                                         min_delay: Option<Duration>) -> PhysicalActionRef<T> {
         let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
-        self.assembler.globals.graph.record_paction(id);
+        self.graph().record_paction(id);
         PhysicalActionRef::new(id, min_delay)
     }
 
     pub fn new_timer(&mut self, lf_name: &'static str, offset: Duration, period: Duration) -> Timer {
         let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
-        self.assembler.globals.graph.record_timer(id);
+        self.graph().record_timer(id);
         Timer::new(id, offset, period)
     }
 
@@ -383,5 +393,10 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
         }
         self.assembler.globals.cur_trigger = self.assembler.globals.cur_trigger.next().expect("Overflow while allocating ID");
         id
+    }
+
+    #[inline]
+    fn graph(&mut self) -> &mut DepGraph {
+        &mut self.assembler.globals.graph
     }
 }
