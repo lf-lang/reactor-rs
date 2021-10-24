@@ -312,16 +312,6 @@ impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
     }
 
     #[inline]
-    pub fn bind_ports_iterated<'a, T: Sync + 'a>(
-        &mut self,
-        _upstream: impl Iterator<Item=&'a mut Port<T>>,
-        _downstream: impl Iterator<Item=&'a mut Port<T>>,
-    ) -> AssemblyResult<()> {
-        todo!("iterated connection")
-    }
-
-
-    #[inline]
     fn graph(&mut self) -> &mut DepGraph {
         &mut self.assembler.globals.graph
     }
@@ -399,4 +389,32 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
     fn graph(&mut self) -> &mut DepGraph {
         &mut self.assembler.globals.graph
     }
+}
+
+/// Iterates a bank, produces an `Iterator<Item=&mut Port<_>>`.
+/// Does not explicitly borrow the bank, which is unsafe, but
+/// we trust the code generator to fail if a port is both on
+/// the LHS and RHS of a connection.
+///
+/// This is necessary
+///
+#[macro_export]
+macro_rules! unsafe_iter_bank {
+    // the field is not a multiport
+    ($bank:ident # $field_name:ident) => {{
+             let __ptr = $bank.as_mut_ptr();
+            (0..$bank.len()).into_iter().map(move |i| unsafe { &mut (*__ptr.add(i)).$field_name })
+    }};
+    // the field is a multiport, we select a single index
+    ($bank:ident # $field_name:ident[$idx:expr]) => {{
+             let __ptr = $bank.as_mut_ptr();
+            (0..$bank.len()).into_iter().map(move |i| unsafe { &mut (*__ptr.add(i)).$field_name[$idx] })
+    }};
+    // the field is a multiport, we select all of them
+    ($bank:ident # ($field_name:ident)+) => {{
+            let __ptr = $bank.as_mut_ptr();
+            (0..$bank.len()).into_iter()
+                  .map(move |i| unsafe { &mut (*__ptr.add(i)) })
+                  .flat_map(|a| a.$field_name.iter_mut())
+    }};
 }
