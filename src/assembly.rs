@@ -1,7 +1,37 @@
+//! Module containing the API to initialize a reactor program.
+
+pub use crate::ids::GlobalReactionId;
+pub use crate::triggers::TriggerId;
+pub use crate::triggers::TriggerLike;
+// this is where most of the stuff is implemented
+pub use crate::scheduler::assembly_impl::*;
 
 use AssemblyErrorImpl::*;
 
-use crate::{DebugInfoRegistry, PortId};
+use crate::{DebugInfoRegistry, LocalReactionId, ReactorBehavior};
+pub(crate) type PortId = TriggerId;
+
+/// Wrapper around the user struct for safe dispatch.
+///
+/// Fields are
+/// 1. the user struct,
+/// 2. ctor parameters of the reactor, and
+/// 3. every logical action and port declared by the reactor.
+///
+pub trait ReactorInitializer: ReactorBehavior {
+    /// Type of the user struct
+    type Wrapped;
+    /// Type of the construction parameters
+    type Params;
+    /// Exclusive maximum value of the `local_rid` parameter of [ErasedReactorDispatcher.react_erased].
+    const MAX_REACTION_ID: LocalReactionId;
+
+    /// Assemble the user reactor, ie produce components with
+    /// uninitialized dependencies & make state variables assume
+    /// their default values, or else, a value taken from the params.
+    fn assemble(args: Self::Params, assembler: AssemblyCtx<Self>)
+                -> AssemblyResult<Self> where Self: Sized;
+}
 
 pub type AssemblyResult<T = ()> = Result<T, AssemblyError>;
 

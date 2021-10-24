@@ -37,8 +37,8 @@ use atomic_refcell::AtomicRefCell;
 
 use AssemblyErrorImpl::CannotBind;
 
-use crate::{AssemblyError, AssemblyErrorImpl, EventTag, PortId, ReactionTrigger, assembly::TriggerId, assembly::TriggerLike};
-use crate::AssemblyErrorImpl::CyclicDependency;
+use crate::{EventTag, ReactionTrigger};
+use crate::assembly::{AssemblyError, AssemblyErrorImpl, AssemblyErrorImpl::CyclicDependency, PortId, TriggerId, TriggerLike};
 
 /// A read-only reference to a port.
 #[repr(transparent)]

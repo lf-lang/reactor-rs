@@ -31,7 +31,7 @@ use std::ops::Range;
 
 use index_vec::{Idx, IndexVec};
 
-use crate::{GlobalReactionId, ReactorId, ReactorInitializer, assembly::TriggerId};
+use crate::{GlobalReactionId, ReactorId, assembly::ReactorInitializer, assembly::TriggerId};
 
 
 /// Maps IDs to debug information, stores all the debug info.

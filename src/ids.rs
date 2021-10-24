@@ -180,4 +180,3 @@ impl Display for GlobalId {
 }
 
 
-pub(crate) type PortId = TriggerId;

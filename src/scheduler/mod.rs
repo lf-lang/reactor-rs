@@ -41,7 +41,7 @@ mod context;
 mod scheduler_impl;
 mod events;
 mod dependencies;
-pub mod assembly;
+pub(crate) mod assembly_impl;
 
 pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions<'x>>>;
 pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a>;

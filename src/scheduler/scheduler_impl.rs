@@ -26,14 +26,16 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+
 use crossbeam_channel::reconnectable::*;
 use crossbeam_utils::thread::{Scope, scope};
 
 use crate::*;
-use crate::assembly::{TriggerId, RootAssembler};
+use crate::assembly::*;
 use crate::scheduler::dependencies::{DataflowInfo, LayerIx};
 
 use super::*;
+use super::assembly_impl::RootAssembler;
 
 /// Construction parameters for the scheduler.
 ///

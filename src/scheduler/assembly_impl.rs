@@ -22,20 +22,15 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-//! Module containing the API to initialize a reactor program.
-
 use std::borrow::Cow;
 use std::marker::PhantomData;
 
 use crate::*;
+use crate::assembly::*;
 use crate::scheduler::dependencies::DepGraph;
 use index_vec::{Idx, IndexVec};
 
 use super::{ReactorBox, ReactorVec};
-
-pub use crate::ids::GlobalReactionId;
-pub use crate::triggers::TriggerId;
-pub use crate::triggers::TriggerLike;
 
 /// Globals shared by all assemblers.
 pub(super) struct RootAssembler {
