@@ -40,8 +40,10 @@ pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
     dataflow: &'x DataflowInfo,
     thread_spawner: &'a Scope<'t>,
     /// Whether the scheduler has been shut down.
-    /// In ReactionCtx, this will only be true if this is the shutdown tag.
     was_terminated_atomic: &'a Arc<AtomicBool>,
+    /// In ReactionCtx, this will only be true if this is the shutdown tag.
+    /// It duplicates [Self::was_terminated_atomic], to avoid an atomic
+    /// operation within [Self::is_shutdown].
     was_terminated: bool,
 }
 
