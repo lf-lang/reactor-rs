@@ -48,7 +48,7 @@ pub(super) struct RootAssembler {
 }
 
 impl RootAssembler {
-    /// Register a child reactor.
+    /// Register a reactor into the global data structure that owns them during execution.
     fn register_reactor<R: ReactorInitializer + 'static>(&mut self, child: R) {
         if child.id().index() >= self.reactors.len() {
             self.reactors.resize_with(child.id().index() + 1, || None)
@@ -56,6 +56,13 @@ impl RootAssembler {
         let prev = self.reactors[child.id()].replace(Box::new(child));
         // this is impossible because we control how we allocate IDs entirely
         debug_assert!(prev.is_none(), "Overwrote a reactor during initialization")
+    }
+
+    /// Register reactors into the global data structure that owns them during execution.
+    fn register_bank<R: ReactorInitializer + 'static>(&mut self, bank: Vec<R>) {
+        for child in bank {
+            self.register_reactor(child)
+        }
     }
 
     pub(crate) fn assemble_tree<R: ReactorInitializer + 'static>(main_args: R::Params) -> (ReactorVec<'static>, DepGraph, DebugInfoRegistry) {
@@ -186,21 +193,62 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         args: Sub::Params,
         action: F,
     ) -> Result<(Self, S), AssemblyError>
+        // we can't use impl FnOnce(...) because we want to specify explicit type parameters in the calle
         where F: FnOnce(Self, &mut Sub) -> Result<(Self, S), AssemblyError> {
         info!("Assembling {}", inst_name);
-        let mut sub = self.assemble_sub(inst_name, args)?;
+        let mut sub = self.assemble_sub(inst_name, None, args)?;
         let (ich, r) = action(self, &mut sub)?;
         info!("Registering {}", inst_name);
         ich.globals.register_reactor(sub);
         Ok((ich, r))
     }
 
+    /// Assembles a bank of children reactor and makes it
+    /// available in the scope of a function.
+    #[inline]
+    pub fn with_child_bank<Sub, A, F>(
+        mut self,
+        inst_name: &'static str,
+        bank_width: usize,
+        arg_maker: A,
+        action: F,
+    ) -> Result<(Self, S), AssemblyError>
+        where Sub: ReactorInitializer + 'static,
+              // we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
+              F: FnOnce(Self, &mut Vec<Sub>) -> Result<(Self, S), AssemblyError>,
+              A: Fn(/*bank_index:*/ usize) -> Sub::Params {
+
+        info!("Assembling {}", inst_name);
+
+        let mut sub =
+            (0..bank_width).into_iter()
+                .map(|i| self.assemble_sub(inst_name, Some(i), arg_maker(i)))
+                .collect::<Result<Vec<Sub>, _>>()?;
+
+        let (ich, r) = action(self, &mut sub)?;
+
+        info!("Registering {}", inst_name);
+        ich.globals.register_bank(sub);
+        Ok((ich, r))
+    }
+
     /// Assemble a child reactor. The child needs to be registered
     /// using [Self::register_reactor] later.
-    #[inline]
-    fn assemble_sub<Sub: ReactorInitializer>(&mut self, inst_name: &'static str, args: Sub::Params) -> Result<Sub, AssemblyError> {
+    #[inline(always)]
+    fn assemble_sub<Sub: ReactorInitializer>(
+        &mut self,
+        inst_name: &'static str,
+        bank_idx: Option<usize>,
+        args: Sub::Params,
+    ) -> Result<Sub, AssemblyError> {
         let my_debug = self.debug.as_ref().expect("should assemble sub-reactors before self");
-        let sub = AssemblyCtx::new(&mut self.globals, my_debug.derive::<Sub>(inst_name));
+
+        let debug_info = match bank_idx {
+            None => my_debug.derive::<Sub>(inst_name),
+            Some(i) => my_debug.derive_bank_item::<Sub>(inst_name, i)
+        };
+
+        let sub = AssemblyCtx::new(&mut self.globals, debug_info);
         Sub::assemble(args, sub)
     }
 

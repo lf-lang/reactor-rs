@@ -221,6 +221,14 @@ impl ReactorDebugInfo {
             inst_path: format!("{}{}/", self.inst_path, inst_name),
         }
     }
+
+    pub(crate) fn derive_bank_item<R: ReactorInitializer>(&self, inst_name: &'static str, bank_idx: usize) -> Self {
+        Self {
+            type_name: type_name::<R::Wrapped>(),
+            inst_name,
+            inst_path: format!("{}{}[{}]/", self.inst_path, inst_name, bank_idx),
+        }
+    }
 }
 
 impl Display for ReactorDebugInfo {
