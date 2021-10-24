@@ -129,7 +129,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         create_self: impl FnOnce(&mut ComponentCreator<S>, ReactorId) -> Result<S, AssemblyError>,
         num_non_synthetic_reactions: usize,
         reaction_names: [Option<&'static str>; N],
-        declare_dependencies: impl FnOnce(&mut DependencyDeclarator<S>, &mut S, [GlobalReactionId; N]) -> Result<(), AssemblyError>,
+        declare_dependencies: impl FnOnce(&mut DependencyDeclarator<S>, &mut S, [GlobalReactionId; N]) -> AssemblyResult<()>,
     ) -> Result<(Self, S), AssemblyError> {
         let id = self.globals.reactor_id;
         self.globals.reactor_id = self.globals.reactor_id.plus(1);
@@ -259,38 +259,62 @@ pub struct DependencyDeclarator<'a, 'x, S: ReactorInitializer> {
 }
 
 impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
-    pub fn declare_triggers(&mut self, trigger: TriggerId, reaction: GlobalReactionId) -> Result<(), AssemblyError> {
+    pub fn declare_triggers(&mut self, trigger: TriggerId, reaction: GlobalReactionId) -> AssemblyResult<()> {
         self.assembler.globals.graph.triggers_reaction(trigger, reaction);
         Ok(())
     }
 
-    pub fn effects_port<T: Sync>(&mut self, reaction: GlobalReactionId, port: &Port<T>) -> Result<(), AssemblyError> {
+    pub fn effects_port<T: Sync>(&mut self, reaction: GlobalReactionId, port: &Port<T>) -> AssemblyResult<()> {
         self.effects_instantaneous(reaction, port.get_id())
     }
 
-    pub fn effects_bank<T: Sync>(&mut self, reaction: GlobalReactionId, port: &PortBank<T>) -> Result<(), AssemblyError> {
+    pub fn effects_bank<T: Sync>(&mut self, reaction: GlobalReactionId, port: &PortBank<T>) -> AssemblyResult<()> {
         self.effects_instantaneous(reaction, port.get_id())
     }
 
     #[doc(hidden)] // used by synthesized timer reactions
-    pub fn effects_timer(&mut self, reaction: GlobalReactionId, timer: &Timer) -> Result<(), AssemblyError> {
+    pub fn effects_timer(&mut self, reaction: GlobalReactionId, timer: &Timer) -> AssemblyResult<()> {
         self.effects_instantaneous(reaction, timer.get_id())
     }
 
-    fn effects_instantaneous(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> Result<(), AssemblyError> {
+    fn effects_instantaneous(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> AssemblyResult<()> {
         self.assembler.globals.graph.reaction_effects(reaction, trigger);
         Ok(())
     }
 
-    pub fn declare_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> Result<(), AssemblyError> {
+    pub fn declare_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> AssemblyResult<()> {
         self.assembler.globals.graph.reaction_uses(reaction, trigger);
         Ok(())
     }
 
-    pub fn bind_ports<T: Sync>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
+    /// Bind two ports together.
+    #[inline]
+    pub fn bind_ports<T: Sync>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> AssemblyResult<()> {
         crate::bind_ports(upstream, downstream)?;
         self.assembler.globals.graph.port_bind(upstream, downstream);
         Ok(())
+    }
+
+    /// Bind the ports of the upstream to those of the downstream.
+    #[inline]
+    pub fn bind_ports_zip<'a, T: Sync + 'a>(
+        &mut self,
+        upstream: impl Iterator<Item=&'a mut Port<T>>,
+        downstream: impl Iterator<Item=&'a mut Port<T>>,
+    ) -> AssemblyResult<()> {
+        for (upstream, downstream) in upstream.zip(downstream) {
+            self.bind_ports(upstream, downstream)?;
+        }
+        Ok(())
+    }
+
+    #[inline]
+    pub fn bind_ports_iterated<'a, T: Sync + 'a>(
+        &mut self,
+        _upstream: impl Iterator<Item=&'a mut Port<T>>,
+        _downstream: impl Iterator<Item=&'a mut Port<T>>,
+    ) -> AssemblyResult<()> {
+        todo!("iterated connection")
     }
 }
 

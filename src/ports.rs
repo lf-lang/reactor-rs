@@ -95,6 +95,10 @@ impl<T: Sync> PortBank<T> {
     pub(crate) fn new(ports: Vec<Port<T>>, id: TriggerId) -> Self {
         Self { ports, id }
     }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item=&mut Port<T>> {
+        self.ports.iter_mut()
+    }
 }
 
 impl<T: Sync> TriggerLike for PortBank<T> {
@@ -366,6 +370,7 @@ impl<T: Sync> TriggerLike for Port<T> {
 ///
 /// If the downstream port was already bound to some other port.
 ///
+#[inline]
 pub(crate) fn bind_ports<T: Sync>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), AssemblyError> {
     up.forward_to(down)
 }

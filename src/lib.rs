@@ -80,12 +80,12 @@ pub(crate) use self::debug::*;
 #[cfg(test)]
 pub mod test;
 
+mod util;
 mod scheduler;
 mod ports;
 mod actions;
 mod time;
 mod timers;
-mod util;
 mod debug;
 pub(self) mod ids;
 pub(self) mod triggers;
