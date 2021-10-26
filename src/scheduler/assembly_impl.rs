@@ -49,7 +49,7 @@ pub(super) struct RootAssembler {
 
 impl RootAssembler {
     /// Register a reactor into the global data structure that owns them during execution.
-    fn register_reactor<R: ReactorInitializer + 'static>(&mut self, child: R) {
+    fn register_reactor<R: ReactorInitializer + 'static + Send>(&mut self, child: R) {
         if child.id().index() >= self.reactors.len() {
             self.reactors.resize_with(child.id().index() + 1, || None)
         }
@@ -59,13 +59,13 @@ impl RootAssembler {
     }
 
     /// Register reactors into the global data structure that owns them during execution.
-    fn register_bank<R: ReactorInitializer + 'static>(&mut self, bank: Vec<R>) {
+    fn register_bank<R: ReactorInitializer + 'static + Send>(&mut self, bank: Vec<R>) {
         for child in bank {
             self.register_reactor(child)
         }
     }
 
-    pub(crate) fn assemble_tree<R: ReactorInitializer + 'static>(main_args: R::Params) -> (ReactorVec<'static>, DepGraph, DebugInfoRegistry) {
+    pub(crate) fn assemble_tree<R: ReactorInitializer + 'static + Send>(main_args: R::Params) -> (ReactorVec<'static>, DepGraph, DebugInfoRegistry) {
         let mut root = RootAssembler::default();
         let assembler = AssemblyCtx::new(&mut root, ReactorDebugInfo::root::<R::Wrapped>());
 
@@ -187,7 +187,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
     /// Assembles a child reactor and makes it available in
     /// the scope of a function.
     #[inline]
-    pub fn with_child<Sub: ReactorInitializer + 'static, F>(
+    pub fn with_child<Sub: ReactorInitializer + 'static + Send, F>(
         mut self,
         inst_name: &'static str,
         args: Sub::Params,
@@ -213,7 +213,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         arg_maker: A,
         action: F,
     ) -> Result<(Self, S), AssemblyError>
-        where Sub: ReactorInitializer + 'static,
+        where Sub: ReactorInitializer + 'static + Send,
               // we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
               F: FnOnce(Self, &mut Vec<Sub>) -> Result<(Self, S), AssemblyError>,
               A: Fn(/*bank_index:*/ usize) -> Sub::Params {

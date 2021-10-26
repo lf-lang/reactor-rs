@@ -75,10 +75,7 @@ fn reactor_main(c: &mut Criterion) {
 
 fn launch(numIterations: u32, count: u32, timeout: Option<Duration>)  {
 
-    let options = SchedulerOptions {
-        timeout: None,
-        keep_alive: false
-    };
+    let options = SchedulerOptions::default();
     let main_args = reactors::SavinaPongParams::new(count);
 
     SyncScheduler::run_main::<reactors::SavinaPongAdapter>(options, main_args);

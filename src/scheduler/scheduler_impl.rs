@@ -53,6 +53,11 @@ pub struct SchedulerOptions {
     /// program will be shut down *at the latest* at `T0 + timeout`.
     /// Calls to `request_stop` may make the program terminate earlier.
     pub timeout: Option<Duration>,
+
+    /// Max number of threads to use in the thread pool.
+    /// If zero, uses one thread per core. Ignored unless
+    /// building with feature `parallel-runtime`.
+    pub threads: usize,
 }
 
 impl Default for SchedulerOptions {
@@ -60,6 +65,7 @@ impl Default for SchedulerOptions {
         Self {
             keep_alive: false,
             timeout: None,
+            threads: 0
         }
     }
 }
@@ -131,15 +137,16 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// scheduler only.
     was_terminated: Arc<AtomicBool>,
 
-    /// Construction options.
-    options: SchedulerOptions,
-
     /// Debug information.
     id_registry: DebugInfoRegistry,
+
+    /// The thread pool to use, if we're using a parallel runtime.
+    #[cfg(feature = "parallel-runtime")]
+    rayon_thread_pool: rayon::ThreadPool,
 }
 
 impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
-    pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
+    pub fn run_main<R: ReactorInitializer + 'static + Send>(options: SchedulerOptions, args: R::Params) {
         let (reactors, graph, id_registry, ) = RootAssembler::assemble_tree::<R>(args);
 
         #[cfg(feature = "graph-dump")] {
@@ -254,12 +261,18 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
             initial_time,
             latest_processed_tag: None,
-            shutdown_time: None,
-            options,
+            shutdown_time: options.timeout.map(|timeout| {
+                let shutdown_tag = EventTag::ORIGIN.successor(timeout);
+                trace!("Timeout specified, will shut down at tag {}", shutdown_tag);
+                shutdown_tag
+            }),
             dataflow: dependency_info,
             id_registry,
             thread_spawner,
-            was_terminated: Default::default()
+            was_terminated: Default::default(),
+
+            #[cfg(feature = "parallel-runtime")]
+            rayon_thread_pool: rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap(),
         }
     }
 
@@ -269,17 +282,10 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// of all reactors.
     fn startup(&mut self) {
         info!("Triggering startup...");
-        let initial_tag = EventTag::ORIGIN;
-        if let Some(timeout) = self.options.timeout {
-            let shutdown_tag = initial_tag.successor(timeout);
-            trace!("Timeout specified, will shut down at tag {}", shutdown_tag);
-            self.shutdown_time = Some(shutdown_tag)
-        }
-
         debug_assert!(!self.reactors.is_empty(), "No registered reactors");
 
         let startup_reactions = self.dataflow.reactions_triggered_by(&TriggerId::STARTUP);
-        self.process_tag(false, initial_tag, Some(Cow::Borrowed(startup_reactions)))
+        self.process_tag(false, EventTag::ORIGIN, Some(Cow::Borrowed(startup_reactions)))
     }
 
     fn shutdown(&mut self, shutdown_tag: EventTag, reactions: ReactionPlan<'x>) {
@@ -406,8 +412,13 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             min_layer = layer_no.next(); // the next layer to fetch
 
             if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
-                #[cfg(feature = "parallel-runtime")]
-                    parallel_rt_impl::process_batch(&mut ctx, &debug, &mut self.reactors, batch);
+                #[cfg(feature = "parallel-runtime")] {
+                    // install makes calls to parallel iterators use that thread pool
+                    let reactors = &mut self.reactors;
+                    self.rayon_thread_pool.install(
+                        || parallel_rt_impl::process_batch(&mut ctx, &debug, reactors, batch)
+                    )
+                }
             } else {
                 // the impl for non-parallel runtime
                 for reaction_id in batch {
