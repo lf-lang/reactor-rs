@@ -293,7 +293,7 @@
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">now</span>(<span class="ident">t0</span>: <span class="ident">Instant</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
-            <span class="ident">offset_from_t0</span>: <span class="ident">PhysicalInstant::now</span>() <span class="op">-</span> <span class="ident">t0</span>,
+            <span class="ident">offset_from_t0</span>: <span class="ident">Instant::now</span>() <span class="op">-</span> <span class="ident">t0</span>,
             <span class="ident">microstep</span>: <span class="ident">MicroStep::ZERO</span>,
         }
     }

@@ -229,6 +229,14 @@
 <span id="229">229</span>
 <span id="230">230</span>
 <span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
+<span id="234">234</span>
+<span id="235">235</span>
+<span id="236">236</span>
+<span id="237">237</span>
+<span id="238">238</span>
+<span id="239">239</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -262,7 +270,7 @@
 
 <span class="kw">use</span> <span class="ident">index_vec</span>::{<span class="ident">Idx</span>, <span class="ident">IndexVec</span>};
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">GlobalReactionId</span>, <span class="ident">ReactorId</span>, <span class="ident">ReactorInitializer</span>, <span class="ident">TriggerId</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">GlobalReactionId</span>, <span class="ident">ReactorId</span>, <span class="ident">assembly::ReactorInitializer</span>, <span class="ident">assembly::TriggerId</span>};
 
 
 <span class="doccomment">/// Maps IDs to debug information, stores all the debug info.</span>
@@ -450,6 +458,14 @@
             <span class="ident">type_name</span>: <span class="ident">type_name</span>::<span class="op">&lt;</span><span class="ident">R::Wrapped</span><span class="op">&gt;</span>(),
             <span class="ident">inst_name</span>,
             <span class="ident">inst_path</span>: <span class="macro">format!</span>(<span class="string">&quot;{}{}/&quot;</span>, <span class="self">self</span>.<span class="ident">inst_path</span>, <span class="ident">inst_name</span>),
+        }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">derive_bank_item</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">ReactorInitializer</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">inst_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">bank_idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+        <span class="self">Self</span> {
+            <span class="ident">type_name</span>: <span class="ident">type_name</span>::<span class="op">&lt;</span><span class="ident">R::Wrapped</span><span class="op">&gt;</span>(),
+            <span class="ident">inst_name</span>,
+            <span class="ident">inst_path</span>: <span class="macro">format!</span>(<span class="string">&quot;{}{}[{}]/&quot;</span>, <span class="self">self</span>.<span class="ident">inst_path</span>, <span class="ident">inst_name</span>, <span class="ident">bank_idx</span>),
         }
     }
 }

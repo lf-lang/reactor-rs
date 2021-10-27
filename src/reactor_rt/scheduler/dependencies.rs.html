@@ -642,6 +642,7 @@
 <span id="642">642</span>
 <span id="643">643</span>
 <span id="644">644</span>
+<span id="645">645</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -682,6 +683,7 @@
 <span class="kw">use</span> <span class="ident">petgraph::visit::EdgeRef</span>;
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::assembly</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::dependencies::NodeKind::MultiportUpstream</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::util::vecmap</span>::{<span class="ident">Entry</span> <span class="kw">as</span> <span class="ident">VEntry</span>, <span class="ident">VecMap</span>};
 
@@ -900,7 +902,7 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">triggers_reaction</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">trigger</span>: <span class="ident">TriggerId</span>, <span class="ident">reaction</span>: <span class="ident">GlobalReactionId</span>) {
         <span class="kw">let</span> <span class="ident">trigger_ix</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">trigger</span>.<span class="ident">into</span>());
         <span class="kw">if</span> <span class="self">self</span>.<span class="ident">dataflow</span>[<span class="ident">trigger_ix</span>].<span class="ident">kind</span> <span class="op">=</span><span class="op">=</span> <span class="ident">MultiportUpstream</span> {
-            <span class="kw">for</span> <span class="ident">channel_id</span> <span class="kw">in</span> <span class="ident">iter_range</span>(<span class="self">self</span>.<span class="ident">multiport_ranges</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">trigger</span>).<span class="ident">unwrap</span>()) {
+            <span class="kw">for</span> <span class="ident">channel_id</span> <span class="kw">in</span> <span class="ident">TriggerId::iter_range</span>(<span class="self">self</span>.<span class="ident">multiport_ranges</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">trigger</span>).<span class="ident">unwrap</span>()) {
                 <span class="self">self</span>.<span class="ident">triggers_reaction</span>(<span class="ident">channel_id</span>, <span class="ident">reaction</span>);
             }
             <span class="kw">return</span>;
