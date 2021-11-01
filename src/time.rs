@@ -52,4 +52,3 @@ impl Add<MS> for MicroStep {
         Self(self.0 + rhs)
     }
 }
-

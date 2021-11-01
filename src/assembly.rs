@@ -29,8 +29,9 @@ pub trait ReactorInitializer: ReactorBehavior {
     /// Assemble the user reactor, ie produce components with
     /// uninitialized dependencies & make state variables assume
     /// their default values, or else, a value taken from the params.
-    fn assemble(args: Self::Params, assembler: AssemblyCtx<Self>)
-                -> AssemblyResult<Self> where Self: Sized;
+    fn assemble(args: Self::Params, assembler: AssemblyCtx<Self>) -> AssemblyResult<Self>
+    where
+        Self: Sized;
 }
 
 pub type AssemblyResult<T = ()> = Result<T, AssemblyError>;
@@ -50,18 +51,24 @@ pub(crate) enum AssemblyErrorImpl {
     CyclicDependency(PortId, PortId),
     CyclicDependencyGraph,
     CannotBind(PortId, PortId),
-    IdOverflow
+    IdOverflow,
 }
 
 impl AssemblyError {
     fn display(&self, debug: &DebugInfoRegistry) -> String {
         match self.0 {
-            CyclicDependency(upstream, downstream) => format!("Port {} is already in the downstream of port {}", debug.fmt_component(upstream), debug.fmt_component(downstream)),
+            CyclicDependency(upstream, downstream) => format!(
+                "Port {} is already in the downstream of port {}",
+                debug.fmt_component(upstream),
+                debug.fmt_component(downstream)
+            ),
             CyclicDependencyGraph => format!("Cyclic dependency graph"),
-            CannotBind(upstream, downstream) => format!("Cannot bind {} to {}, downstream is already bound", debug.fmt_component(upstream), debug.fmt_component(downstream)),
+            CannotBind(upstream, downstream) => format!(
+                "Cannot bind {} to {}, downstream is already bound",
+                debug.fmt_component(upstream),
+                debug.fmt_component(downstream)
+            ),
             IdOverflow => format!("Overflow when allocating component ID"),
         }
     }
 }
-
-

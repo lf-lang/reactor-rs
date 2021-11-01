@@ -25,9 +25,9 @@
 use std::borrow::Cow;
 use std::marker::PhantomData;
 
-use crate::*;
 use crate::assembly::*;
 use crate::scheduler::dependencies::DepGraph;
+use crate::*;
 use index_vec::{Idx, IndexVec};
 
 use super::{ReactorBox, ReactorVec};
@@ -65,7 +65,9 @@ impl RootAssembler {
         }
     }
 
-    pub(crate) fn assemble_tree<R: ReactorInitializer + 'static + Send>(main_args: R::Params) -> (ReactorVec<'static>, DepGraph, DebugInfoRegistry) {
+    pub(crate) fn assemble_tree<R: ReactorInitializer + 'static + Send>(
+        main_args: R::Params,
+    ) -> (ReactorVec<'static>, DepGraph, DebugInfoRegistry) {
         let mut root = RootAssembler::default();
         let assembler = AssemblyCtx::new(&mut root, ReactorDebugInfo::root::<R::Wrapped>());
 
@@ -75,8 +77,16 @@ impl RootAssembler {
         };
         root.register_reactor(main_reactor);
 
-        let RootAssembler { graph, reactors, debug_info: id_registry, .. } = root;
-        let reactors = reactors.into_iter().map(|r| r.expect("Uninitialized reactor!")).collect();
+        let RootAssembler {
+            graph,
+            reactors,
+            debug_info: id_registry,
+            ..
+        } = root;
+        let reactors = reactors
+            .into_iter()
+            .map(|r| r.expect("Uninitialized reactor!"))
+            .collect();
         (reactors, graph, id_registry)
     }
 }
@@ -92,7 +102,6 @@ impl Default for RootAssembler {
         }
     }
 }
-
 
 /// Helper struct to assemble reactors during initialization.
 /// One assembly context is used per reactor, they can't be shared.
@@ -129,37 +138,57 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         create_self: impl FnOnce(&mut ComponentCreator<S>, ReactorId) -> Result<S, AssemblyError>,
         num_non_synthetic_reactions: usize,
         reaction_names: [Option<&'static str>; N],
-        declare_dependencies: impl FnOnce(&mut DependencyDeclarator<S>, &mut S, [GlobalReactionId; N]) -> AssemblyResult<()>,
+        declare_dependencies: impl FnOnce(
+            &mut DependencyDeclarator<S>,
+            &mut S,
+            [GlobalReactionId; N],
+        ) -> AssemblyResult<()>,
     ) -> Result<(Self, S), AssemblyError> {
         let id = self.globals.reactor_id;
         self.globals.reactor_id = self.globals.reactor_id.plus(1);
-        self.globals.debug_info.record_reactor(id, self.debug.take().expect("Can only call assemble_self once"));
+        self.globals.debug_info.record_reactor(
+            id,
+            self.debug.take().expect("Can only call assemble_self once"),
+        );
 
         let first_trigger_id = self.globals.cur_trigger;
 
-        let mut ich = create_self(&mut ComponentCreator { assembler: &mut self }, id)?;
+        let mut ich = create_self(
+            &mut ComponentCreator {
+                assembler: &mut self,
+            },
+            id,
+        )?;
         // after creation, globals.cur_trigger has been mutated
         // record proper debug info.
-        self.globals.debug_info.set_id_range(id, first_trigger_id..self.globals.cur_trigger);
+        self.globals
+            .debug_info
+            .set_id_range(id, first_trigger_id..self.globals.cur_trigger);
 
         // declare dependencies
         let reactions = self.new_reactions(id, num_non_synthetic_reactions, reaction_names);
-        declare_dependencies(&mut DependencyDeclarator { assembler: &mut self }, &mut ich, reactions)?;
+        declare_dependencies(
+            &mut DependencyDeclarator {
+                assembler: &mut self,
+            },
+            &mut ich,
+            reactions,
+        )?;
 
         Ok((self, ich))
     }
-
 
     /// Create N reactions. The first `num_non_synthetic` get
     /// priority edges, as they are taken to be those declared
     /// in LF by the user.
     /// The rest do not have priority edges, and their
     /// implementation must hence have no observable side-effect.
-    fn new_reactions<const N: usize>(&mut self,
-                                     my_id: ReactorId,
-                                     num_non_synthetic: usize,
-                                     names: [Option<&'static str>; N]) -> [GlobalReactionId; N] {
-
+    fn new_reactions<const N: usize>(
+        &mut self,
+        my_id: ReactorId,
+        num_non_synthetic: usize,
+        names: [Option<&'static str>; N],
+    ) -> [GlobalReactionId; N] {
         assert!(num_non_synthetic <= N);
 
         let result = array![i => GlobalReactionId::new(my_id, LocalReactionId::from_usize(i)); N];
@@ -167,7 +196,9 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         let mut prev: Option<GlobalReactionId> = None;
         for (i, r) in result.iter().cloned().enumerate() {
             if let Some(label) = names[i] {
-                self.globals.debug_info.record_reaction(r, Cow::Borrowed(label))
+                self.globals
+                    .debug_info
+                    .record_reaction(r, Cow::Borrowed(label))
             }
             self.globals.graph.record_reaction(r);
             if i < num_non_synthetic {
@@ -193,8 +224,10 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         args: Sub::Params,
         action: F,
     ) -> Result<(Self, S), AssemblyError>
-        // we can't use impl FnOnce(...) because we want to specify explicit type parameters in the calle
-        where F: FnOnce(Self, &mut Sub) -> Result<(Self, S), AssemblyError> {
+    // we can't use impl FnOnce(...) because we want to specify explicit type parameters in the calle
+    where
+        F: FnOnce(Self, &mut Sub) -> Result<(Self, S), AssemblyError>,
+    {
         info!("Assembling {}", inst_name);
         let mut sub = self.assemble_sub(inst_name, None, args)?;
         let (ich, r) = action(self, &mut sub)?;
@@ -213,17 +246,18 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         arg_maker: A,
         action: F,
     ) -> Result<(Self, S), AssemblyError>
-        where Sub: ReactorInitializer + 'static + Send,
-              // we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
-              F: FnOnce(Self, &mut Vec<Sub>) -> Result<(Self, S), AssemblyError>,
-              A: Fn(/*bank_index:*/ usize) -> Sub::Params {
-
+    where
+        Sub: ReactorInitializer + 'static + Send,
+        // we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
+        F: FnOnce(Self, &mut Vec<Sub>) -> Result<(Self, S), AssemblyError>,
+        A: Fn(/*bank_index:*/ usize) -> Sub::Params,
+    {
         info!("Assembling {}", inst_name);
 
-        let mut sub =
-            (0..bank_width).into_iter()
-                .map(|i| self.assemble_sub(inst_name, Some(i), arg_maker(i)))
-                .collect::<Result<Vec<Sub>, _>>()?;
+        let mut sub = (0..bank_width)
+            .into_iter()
+            .map(|i| self.assemble_sub(inst_name, Some(i), arg_maker(i)))
+            .collect::<Result<Vec<Sub>, _>>()?;
 
         let (ich, r) = action(self, &mut sub)?;
 
@@ -241,17 +275,19 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         bank_idx: Option<usize>,
         args: Sub::Params,
     ) -> Result<Sub, AssemblyError> {
-        let my_debug = self.debug.as_ref().expect("should assemble sub-reactors before self");
+        let my_debug = self
+            .debug
+            .as_ref()
+            .expect("should assemble sub-reactors before self");
 
         let debug_info = match bank_idx {
             None => my_debug.derive::<Sub>(inst_name),
-            Some(i) => my_debug.derive_bank_item::<Sub>(inst_name, i)
+            Some(i) => my_debug.derive_bank_item::<Sub>(inst_name, i),
         };
 
         let sub = AssemblyCtx::new(&mut self.globals, debug_info);
         Sub::assemble(args, sub)
     }
-
 }
 
 pub struct DependencyDeclarator<'a, 'x, S: ReactorInitializer> {
@@ -259,37 +295,65 @@ pub struct DependencyDeclarator<'a, 'x, S: ReactorInitializer> {
 }
 
 impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
-    pub fn declare_triggers(&mut self, trigger: TriggerId, reaction: GlobalReactionId) -> AssemblyResult<()> {
+    pub fn declare_triggers(
+        &mut self,
+        trigger: TriggerId,
+        reaction: GlobalReactionId,
+    ) -> AssemblyResult<()> {
         self.graph().triggers_reaction(trigger, reaction);
         Ok(())
     }
 
-    pub fn effects_port<T: Sync>(&mut self, reaction: GlobalReactionId, port: &Port<T>) -> AssemblyResult<()> {
+    pub fn effects_port<T: Sync>(
+        &mut self,
+        reaction: GlobalReactionId,
+        port: &Port<T>,
+    ) -> AssemblyResult<()> {
         self.effects_instantaneous(reaction, port.get_id())
     }
 
-    pub fn effects_bank<T: Sync>(&mut self, reaction: GlobalReactionId, port: &PortBank<T>) -> AssemblyResult<()> {
+    pub fn effects_bank<T: Sync>(
+        &mut self,
+        reaction: GlobalReactionId,
+        port: &PortBank<T>,
+    ) -> AssemblyResult<()> {
         self.effects_instantaneous(reaction, port.get_id())
     }
 
     #[doc(hidden)] // used by synthesized timer reactions
-    pub fn effects_timer(&mut self, reaction: GlobalReactionId, timer: &Timer) -> AssemblyResult<()> {
+    pub fn effects_timer(
+        &mut self,
+        reaction: GlobalReactionId,
+        timer: &Timer,
+    ) -> AssemblyResult<()> {
         self.effects_instantaneous(reaction, timer.get_id())
     }
 
-    fn effects_instantaneous(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> AssemblyResult<()> {
+    fn effects_instantaneous(
+        &mut self,
+        reaction: GlobalReactionId,
+        trigger: TriggerId,
+    ) -> AssemblyResult<()> {
         self.graph().reaction_effects(reaction, trigger);
         Ok(())
     }
 
-    pub fn declare_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> AssemblyResult<()> {
+    pub fn declare_uses(
+        &mut self,
+        reaction: GlobalReactionId,
+        trigger: TriggerId,
+    ) -> AssemblyResult<()> {
         self.graph().reaction_uses(reaction, trigger);
         Ok(())
     }
 
     /// Bind two ports together.
     #[inline]
-    pub fn bind_ports<T: Sync>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> AssemblyResult<()> {
+    pub fn bind_ports<T: Sync>(
+        &mut self,
+        upstream: &mut Port<T>,
+        downstream: &mut Port<T>,
+    ) -> AssemblyResult<()> {
         crate::bind_ports(upstream, downstream)?;
         self.graph().port_bind(upstream, downstream);
         Ok(())
@@ -302,8 +366,8 @@ impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
     #[inline]
     pub fn bind_ports_zip<'a, T: Sync + 'a>(
         &mut self,
-        upstream: impl Iterator<Item=&'a mut Port<T>>,
-        downstream: impl Iterator<Item=&'a mut Port<T>>,
+        upstream: impl Iterator<Item = &'a mut Port<T>>,
+        downstream: impl Iterator<Item = &'a mut Port<T>>,
     ) -> AssemblyResult<()> {
         for (upstream, downstream) in upstream.zip(downstream) {
             self.bind_ports(upstream, downstream)?;
@@ -333,38 +397,61 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
         Port::new(id, is_input)
     }
 
-    pub fn new_port_bank<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, len: usize) -> Result<PortBank<T>, AssemblyError> {
+    pub fn new_port_bank<T: Sync>(
+        &mut self,
+        lf_name: &'static str,
+        is_input: bool,
+        len: usize,
+    ) -> Result<PortBank<T>, AssemblyError> {
         let bank_id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
         self.graph().record_port_bank(bank_id, len)?;
         Ok(PortBank::new(
-            (0..len).into_iter().map(|i| self.new_port_bank_component(lf_name, is_input, bank_id, i)).collect(),
+            (0..len)
+                .into_iter()
+                .map(|i| self.new_port_bank_component(lf_name, is_input, bank_id, i))
+                .collect(),
             bank_id,
         ))
     }
 
-    fn new_port_bank_component<T: Sync>(&mut self, lf_name: &'static str, is_input: bool, bank_id: TriggerId, index: usize) -> Port<T> {
+    fn new_port_bank_component<T: Sync>(
+        &mut self,
+        lf_name: &'static str,
+        is_input: bool,
+        bank_id: TriggerId,
+        index: usize,
+    ) -> Port<T> {
         let channel_id = self.next_comp_id(Some(Cow::Owned(format!("{}[{}]", lf_name, index))));
         self.graph().record_port_bank_component(bank_id, channel_id);
         Port::new(channel_id, is_input)
     }
 
-    pub fn new_logical_action<T: Sync>(&mut self,
-                                       lf_name: &'static str,
-                                       min_delay: Option<Duration>) -> LogicalAction<T> {
+    pub fn new_logical_action<T: Sync>(
+        &mut self,
+        lf_name: &'static str,
+        min_delay: Option<Duration>,
+    ) -> LogicalAction<T> {
         let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
         self.graph().record_laction(id);
         LogicalAction::new(id, min_delay)
     }
 
-    pub fn new_physical_action<T: Sync>(&mut self,
-                                        lf_name: &'static str,
-                                        min_delay: Option<Duration>) -> PhysicalActionRef<T> {
+    pub fn new_physical_action<T: Sync>(
+        &mut self,
+        lf_name: &'static str,
+        min_delay: Option<Duration>,
+    ) -> PhysicalActionRef<T> {
         let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
         self.graph().record_paction(id);
         PhysicalActionRef::new(id, min_delay)
     }
 
-    pub fn new_timer(&mut self, lf_name: &'static str, offset: Duration, period: Duration) -> Timer {
+    pub fn new_timer(
+        &mut self,
+        lf_name: &'static str,
+        offset: Duration,
+        period: Duration,
+    ) -> Timer {
         let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
         self.graph().record_timer(id);
         Timer::new(id, offset, period)
@@ -381,7 +468,12 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
         if let Some(label) = debug_name {
             self.assembler.globals.debug_info.record_trigger(id, label);
         }
-        self.assembler.globals.cur_trigger = self.assembler.globals.cur_trigger.next().expect("Overflow while allocating ID");
+        self.assembler.globals.cur_trigger = self
+            .assembler
+            .globals
+            .cur_trigger
+            .next()
+            .expect("Overflow while allocating ID");
         id
     }
 
@@ -402,19 +494,24 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
 macro_rules! unsafe_iter_bank {
     // the field is not a multiport
     ($bank:ident # $field_name:ident) => {{
-             let __ptr = $bank.as_mut_ptr();
-            (0..$bank.len()).into_iter().map(move |i| unsafe { &mut (*__ptr.add(i)).$field_name })
+        let __ptr = $bank.as_mut_ptr();
+        (0..$bank.len())
+            .into_iter()
+            .map(move |i| unsafe { &mut (*__ptr.add(i)).$field_name })
     }};
     // the field is a multiport, we select a single index
     ($bank:ident # $field_name:ident[$idx:expr]) => {{
-             let __ptr = $bank.as_mut_ptr();
-            (0..$bank.len()).into_iter().map(move |i| unsafe { &mut (*__ptr.add(i)).$field_name[$idx] })
+        let __ptr = $bank.as_mut_ptr();
+        (0..$bank.len())
+            .into_iter()
+            .map(move |i| unsafe { &mut (*__ptr.add(i)).$field_name[$idx] })
     }};
     // the field is a multiport, we select all of them
     ($bank:ident # ($field_name:ident)+) => {{
-            let __ptr = $bank.as_mut_ptr();
-            (0..$bank.len()).into_iter()
-                  .map(move |i| unsafe { &mut (*__ptr.add(i)) })
-                  .flat_map(|a| a.$field_name.iter_mut())
+        let __ptr = $bank.as_mut_ptr();
+        (0..$bank.len())
+            .into_iter()
+            .map(move |i| unsafe { &mut (*__ptr.add(i)) })
+            .flat_map(|a| a.$field_name.iter_mut())
     }};
 }

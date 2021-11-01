@@ -22,7 +22,6 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 use std::borrow::Cow;
 use std::fmt::Display;
 use std::time::Instant;
@@ -37,16 +36,15 @@ use crate::*;
 
 use self::dependencies::ExecutableReactions;
 
-mod context;
-mod scheduler_impl;
-mod events;
-mod dependencies;
 pub(crate) mod assembly_impl;
+mod context;
+mod dependencies;
+mod events;
+mod scheduler_impl;
 
 pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions<'x>>>;
 pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a + Send>;
 pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
-
 
 /// Can format stuff for trace messages.
 #[derive(Clone)]
@@ -60,13 +58,21 @@ impl DebugInfoProvider<'_> {
         use std::fmt::*;
 
         match evt {
-            Event { tag, reactions, terminate } => {
+            Event {
+                tag,
+                reactions,
+                terminate,
+            } => {
                 let mut str = format!("at {}: run [", tag);
 
                 if let Some(reactions) = reactions {
                     for (layer_no, batch) in reactions.batches() {
                         write!(str, "{}: ", layer_no).unwrap();
-                        join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| format!("{}", self.display_reaction(*x))).unwrap();
+                        join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| format!(
+                            "{}",
+                            self.display_reaction(*x)
+                        ))
+                        .unwrap();
                     }
                 }
 

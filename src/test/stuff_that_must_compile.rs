@@ -27,9 +27,12 @@
 
 #![allow(unused)]
 
-use crate::{CleanupCtx, LogicalAction, PhysicalAction, PhysicalActionRef, Port, ReactionCtx, ReadablePort, SchedulerOptions, SyncScheduler, WritablePort};
 use crate::assembly::{AssemblyCtx, ReactorInitializer};
 use crate::Offset::Asap;
+use crate::{
+    CleanupCtx, LogicalAction, PhysicalAction, PhysicalActionRef, Port, ReactionCtx, ReadablePort,
+    SchedulerOptions, SyncScheduler, WritablePort,
+};
 
 fn actions_get(ctx: &mut ReactionCtx, act_mut: &mut LogicalAction<u32>, act: &LogicalAction<u32>) {
     assert!(ctx.get(act_mut).is_some());
@@ -46,7 +49,8 @@ fn actions_use_ref_mut(ctx: &mut ReactionCtx, act: &mut LogicalAction<u32>) {
     assert!(ctx.use_ref(act, |v| v.is_some()));
 }
 
-fn actions_use_ref(ctx: &mut ReactionCtx, act: &LogicalAction<u32>) { // act is not &mut
+fn actions_use_ref(ctx: &mut ReactionCtx, act: &LogicalAction<u32>) {
+    // act is not &mut
     assert!(ctx.use_ref(act, |v| v.is_some()));
     assert!(ctx.use_ref(act, |v| v.is_some()));
 }
@@ -62,9 +66,7 @@ fn port_set(ctx: &mut ReactionCtx, mut port: WritablePort<u32>) {
 fn physical_spawn_elided(ctx: &mut ReactionCtx, mut action: PhysicalActionRef<u32>) {
     use std::thread;
 
-    let physical = ctx.spawn_physical_thread(move |link| {
-        link.schedule_physical(&action, Asap)
-    });
+    let physical = ctx.spawn_physical_thread(move |link| link.schedule_physical(&action, Asap));
 }
 
 // fn port_is_send(ctx: &mut AssemblyCtx, port: Port<u32>) {
@@ -74,11 +76,17 @@ fn physical_spawn_elided(ctx: &mut ReactionCtx, mut action: PhysicalActionRef<u3
 //     let foo: &dyn Sync = &FooReactor { port };
 // }
 
-fn physical_action_ref_is_send<T: ReactorInitializer>(ctx: &mut AssemblyCtx<T>, port: PhysicalActionRef<u32>) {
+fn physical_action_ref_is_send<T: ReactorInitializer>(
+    ctx: &mut AssemblyCtx<T>,
+    port: PhysicalActionRef<u32>,
+) {
     let foo: &dyn Send = &port;
 }
 
-fn action_is_send<K: Sync, T: ReactorInitializer>(ctx: &mut AssemblyCtx<T>, action: LogicalAction<K>) {
+fn action_is_send<K: Sync, T: ReactorInitializer>(
+    ctx: &mut AssemblyCtx<T>,
+    action: LogicalAction<K>,
+) {
     struct FooReactor<K: Sync> {
         action: LogicalAction<K>,
     }
@@ -89,7 +97,7 @@ fn cleanup(
     ctx: &mut CleanupCtx,
     action: &mut LogicalAction<u32>,
     phys_action: &mut PhysicalActionRef<u32>,
-    port: &mut Port<u32>
+    port: &mut Port<u32>,
 ) {
     ctx.cleanup_logical_action(action);
     ctx.cleanup_physical_action(phys_action);

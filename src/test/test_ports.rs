@@ -22,10 +22,9 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::borrow::Cow;
-use crate::*;
 use crate::assembly::TriggerId;
-
+use crate::*;
+use std::borrow::Cow;
 
 struct TestAssembler {
     debug: DebugInfoRegistry,
@@ -52,8 +51,10 @@ impl TestAssembler {
     }
 
     fn ready(mut self) -> TestFixture {
-        self.debug.set_id_range(self.reactor_id, TriggerId::FIRST_REGULAR..self.cur_id);
-        self.debug.record_reactor(self.reactor_id, ReactorDebugInfo::test());
+        self.debug
+            .set_id_range(self.reactor_id, TriggerId::FIRST_REGULAR..self.cur_id);
+        self.debug
+            .record_reactor(self.reactor_id, ReactorDebugInfo::test());
         TestFixture { debug: self.debug }
     }
 }
@@ -169,7 +170,6 @@ fn transitive_binding_should_let_values_flow() -> TestResult {
     test.ok()
 }
 
-
 #[test]
 fn transitive_binding_in_topo_order_is_ok() -> TestResult {
     let mut test = TestAssembler::default();
@@ -195,7 +195,6 @@ fn transitive_binding_in_topo_order_is_ok() -> TestResult {
 
     test.bind(&mut d2, &mut b1)?;
     test.bind(&mut d2, &mut b2)?;
-
 
     assert_eq!(None, d1.get());
     assert_eq!(None, d2.get());
@@ -239,7 +238,6 @@ fn transitive_binding_in_non_topo_order_is_ok() -> TestResult {
     test.ok()
 }
 
-
 #[test]
 fn repeated_binding_panics() -> TestResult {
     let mut test = TestAssembler::default();
@@ -249,9 +247,10 @@ fn repeated_binding_panics() -> TestResult {
 
     test.bind(&mut upstream, &mut downstream)?;
 
-
-    assert_eq!(Err("Cannot bind /up to /down, downstream is already bound".into()),
-               test.bind(&mut upstream, &mut downstream));
+    assert_eq!(
+        Err("Cannot bind /up to /down, downstream is already bound".into()),
+        test.bind(&mut upstream, &mut downstream)
+    );
 
     test.ok()
 }

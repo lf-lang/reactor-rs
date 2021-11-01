@@ -44,7 +44,6 @@ pub struct Timer {
     pub period: Duration,
 }
 
-
 impl Timer {
     pub(crate) fn new(id: TriggerId, offset: Duration, period: Duration) -> Self {
         Self { offset, period, id }
@@ -79,11 +78,24 @@ impl ReactionTrigger<()> for Timer {
 
     #[inline]
     fn get_value(&self, now: &EventTag, start: &Instant) -> Option<()> {
-        if self.is_present(now, start) { Some(()) } else { None }
+        if self.is_present(now, start) {
+            Some(())
+        } else {
+            None
+        }
     }
 
     #[inline]
-    fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&()>) -> O) -> O {
-        if self.is_present(now, start) { action(Some(&())) } else { action(None) }
+    fn use_value_ref<O>(
+        &self,
+        now: &EventTag,
+        start: &Instant,
+        action: impl FnOnce(Option<&()>) -> O,
+    ) -> O {
+        if self.is_present(now, start) {
+            action(Some(&()))
+        } else {
+            action(None)
+        }
     }
 }

@@ -24,18 +24,18 @@
 
 //! Home of the scheduler component.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use crossbeam_channel::reconnectable::*;
-use crossbeam_utils::thread::{Scope, scope};
+use crossbeam_utils::thread::{scope, Scope};
 
-use crate::*;
 use crate::assembly::*;
 use crate::scheduler::dependencies::{DataflowInfo, LayerIx};
+use crate::*;
 
-use super::*;
 use super::assembly_impl::RootAssembler;
+use super::*;
 
 /// Construction parameters for the scheduler.
 ///
@@ -65,7 +65,7 @@ impl Default for SchedulerOptions {
         Self {
             keep_alive: false,
             timeout: None,
-            threads: 0
+            threads: 0,
         }
     }
 }
@@ -91,14 +91,16 @@ macro_rules! push_event {
     }};
 }
 
-
 /// The runtime scheduler.
 ///
 /// Lifetime parameters: 'x and 't are carried around everywhere,
 /// 'x allows us to take references into the dataflow graph, and
 /// 't to spawn new scoped threads for physical actions. 'a is more
 /// useless but is needed to compile.
-pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
+pub struct SyncScheduler<'a, 'x, 't>
+where
+    'x: 't,
+{
     /// The latest processed logical time (necessarily behind physical time).
     latest_processed_tag: Option<EventTag>,
 
@@ -145,16 +147,25 @@ pub struct SyncScheduler<'a, 'x, 't> where 'x: 't {
     rayon_thread_pool: rayon::ThreadPool,
 }
 
-impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
-    pub fn run_main<R: ReactorInitializer + 'static + Send>(options: SchedulerOptions, args: R::Params) {
-        let (reactors, graph, id_registry, ) = RootAssembler::assemble_tree::<R>(args);
+impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't>
+where
+    'x: 't,
+{
+    pub fn run_main<R: ReactorInitializer + 'static + Send>(
+        options: SchedulerOptions,
+        args: R::Params,
+    ) {
+        let (reactors, graph, id_registry) = RootAssembler::assemble_tree::<R>(args);
 
-        #[cfg(feature = "graph-dump")] {
+        #[cfg(feature = "graph-dump")]
+        {
             eprintln!("{}", graph.format_dot(&id_registry));
         }
 
         // collect dependency information
-        let dataflow_info = DataflowInfo::new(graph).map_err(|e| e.lift(&id_registry)).unwrap();
+        let dataflow_info = DataflowInfo::new(graph)
+            .map_err(|e| e.lift(&id_registry))
+            .unwrap();
 
         // Using thread::scope here introduces an unnamed lifetime for
         // the scope, which is captured as 't by the SyncScheduler.
@@ -174,7 +185,8 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             );
 
             scheduler.launch_event_loop();
-        }).unwrap();
+        })
+        .unwrap();
     }
 
     /// Launch the event loop in this thread.
@@ -216,7 +228,8 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
                 // at this point we're at the correct time
 
                 if evt.terminate || self.shutdown_time == Some(evt.tag) {
-                    shutdown_reactions = ExecutableReactions::merge_cows(shutdown_reactions, evt.reactions);
+                    shutdown_reactions =
+                        ExecutableReactions::merge_cows(shutdown_reactions, evt.reactions);
                     self.shutdown_time = Some(evt.tag);
                     break; // shutdown
                 }
@@ -233,7 +246,9 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             }
         } // end loop
 
-        let shutdown_tag = self.shutdown_time.unwrap_or_else(|| EventTag::now(self.initial_time));
+        let shutdown_tag = self
+            .shutdown_time
+            .unwrap_or_else(|| EventTag::now(self.initial_time));
         info!("Scheduler is shutting down, at {}", shutdown_tag);
         self.shutdown(shutdown_tag, shutdown_reactions);
         info!("Scheduler has been shut down")
@@ -272,10 +287,12 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             was_terminated: Default::default(),
 
             #[cfg(feature = "parallel-runtime")]
-            rayon_thread_pool: rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap(),
+            rayon_thread_pool: rayon::ThreadPoolBuilder::new()
+                .num_threads(options.threads)
+                .build()
+                .unwrap(),
         }
     }
-
 
     /// Fix the origin of the logical timeline to the current
     /// physical time, and runs the startup reactions
@@ -285,11 +302,17 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         debug_assert!(!self.reactors.is_empty(), "No registered reactors");
 
         let startup_reactions = self.dataflow.reactions_triggered_by(&TriggerId::STARTUP);
-        self.process_tag(false, EventTag::ORIGIN, Some(Cow::Borrowed(startup_reactions)))
+        self.process_tag(
+            false,
+            EventTag::ORIGIN,
+            Some(Cow::Borrowed(startup_reactions)),
+        )
     }
 
     fn shutdown(&mut self, shutdown_tag: EventTag, reactions: ReactionPlan<'x>) {
-        let default_plan: ReactionPlan<'x> = Some(Cow::Borrowed(self.dataflow.reactions_triggered_by(&TriggerId::SHUTDOWN)));
+        let default_plan: ReactionPlan<'x> = Some(Cow::Borrowed(
+            self.dataflow.reactions_triggered_by(&TriggerId::SHUTDOWN),
+        ));
         let reactions = ExecutableReactions::merge_cows(reactions, default_plan);
 
         self.process_tag(true, shutdown_tag, reactions);
@@ -304,7 +327,9 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     /// shutdown time. Such 'late' events may be emitted by
     /// the shutdown wave.
     fn is_after_shutdown(&self, t: EventTag) -> bool {
-        self.shutdown_time.map(|shutdown_t| shutdown_t < t).unwrap_or(false)
+        self.shutdown_time
+            .map(|shutdown_t| shutdown_t < t)
+            .unwrap_or(false)
     }
 
     /// Wait for an asynchronous event for as long as we can
@@ -325,7 +350,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         }
     }
 
-
     /// Sleep/wait until the given time OR an asynchronous
     /// event is received first.
     fn catch_up_physical_time(&mut self, target: Instant) -> Result<(), Event<'x>> {
@@ -339,7 +363,10 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
             // event arrives
             match self.rx.recv_timeout(t) {
                 Ok(async_evt) => {
-                    trace!("  - Sleep interrupted by async event for tag {}, going back to queue", async_evt.tag);
+                    trace!(
+                        "  - Sleep interrupted by async event for tag {}, going back to queue",
+                        async_evt.tag
+                    );
                     return Err(async_evt);
                 }
                 Err(RecvTimeoutError::Timeout) => { /*great*/ }
@@ -355,19 +382,26 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
 
         if now > target {
             let delay = now - target;
-            trace!("  - Running late by {} ns = {} µs = {} ms", delay.as_nanos(), delay.as_micros(), delay.as_millis())
+            trace!(
+                "  - Running late by {} ns = {} µs = {} ms",
+                delay.as_nanos(),
+                delay.as_micros(),
+                delay.as_millis()
+            )
         }
         Ok(())
     }
 
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    fn new_reaction_ctx(&self,
-                        tag: EventTag,
-                        todo: ReactionPlan<'x>,
-                        rx: &'a Receiver<Event<'x>>,
-                        was_terminated_atomic: &'a Arc<AtomicBool>,
-                        was_terminated: bool) -> ReactionCtx<'a, 'x, 't> {
+    fn new_reaction_ctx(
+        &self,
+        tag: EventTag,
+        todo: ReactionPlan<'x>,
+        rx: &'a Receiver<Event<'x>>,
+        was_terminated_atomic: &'a Arc<AtomicBool>,
+        was_terminated: bool,
+    ) -> ReactionCtx<'a, 'x, 't> {
         ReactionCtx::new(
             rx,
             tag,
@@ -406,23 +440,36 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
         // This must be increasing monotonically.
         let mut min_layer: LayerIx = Default::default();
 
-        while let Some((layer_no, batch)) = reactions.as_ref().and_then(|todo| todo.next_batch(min_layer)) {
-            debug_assert!(layer_no >= min_layer, "Reaction dependencies were not respected ({} < {})", layer_no, min_layer);
+        while let Some((layer_no, batch)) = reactions
+            .as_ref()
+            .and_then(|todo| todo.next_batch(min_layer))
+        {
+            debug_assert!(
+                layer_no >= min_layer,
+                "Reaction dependencies were not respected ({} < {})",
+                layer_no,
+                min_layer
+            );
             ctx.set_cur_layer(layer_no);
             min_layer = layer_no.next(); // the next layer to fetch
 
             if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
-                #[cfg(feature = "parallel-runtime")] {
+                #[cfg(feature = "parallel-runtime")]
+                {
                     // install makes calls to parallel iterators use that thread pool
                     let reactors = &mut self.reactors;
-                    self.rayon_thread_pool.install(
-                        || parallel_rt_impl::process_batch(&mut ctx, &debug, reactors, batch)
-                    )
+                    self.rayon_thread_pool.install(|| {
+                        parallel_rt_impl::process_batch(&mut ctx, &debug, reactors, batch)
+                    })
                 }
             } else {
                 // the impl for non-parallel runtime
                 for reaction_id in batch {
-                    trace!("  - Executing {} (layer {})", debug.display_reaction(*reaction_id), layer_no);
+                    trace!(
+                        "  - Executing {} (layer {})",
+                        debug.display_reaction(*reaction_id),
+                        layer_no
+                    );
                     let reactor = &mut self.reactors[reaction_id.0.container()];
 
                     reactor.react_erased(&mut ctx, reaction_id.0.local());
@@ -449,7 +496,6 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't> where 'x: 't {
     }
 }
 
-
 #[cfg(feature = "parallel-runtime")]
 mod parallel_rt_impl {
     use std::collections::HashSet;
@@ -466,38 +512,39 @@ mod parallel_rt_impl {
     ) {
         let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
 
-        ctx.insides =
-            batch.iter()
-                .par_bridge()
-                .fold_with(
-                    CloneableCtx(ctx.fork()),
-                    |CloneableCtx(mut ctx), reaction_id| {
-                        trace!("  - Executing {}", debug.display_reaction(*reaction_id));
-                        let reactor = unsafe {
-                            // safety:
-                            // - no two reactions in the batch refer belong to the same reactor
-                            // - the vec does not change size so there is no reallocation
-                            &mut *reactors_mut.0.add(reaction_id.0.container().index())
-                        };
+        ctx.insides = batch
+            .iter()
+            .par_bridge()
+            .fold_with(
+                CloneableCtx(ctx.fork()),
+                |CloneableCtx(mut ctx), reaction_id| {
+                    trace!("  - Executing {}", debug.display_reaction(*reaction_id));
+                    let reactor = unsafe {
+                        // safety:
+                        // - no two reactions in the batch refer belong to the same reactor
+                        // - the vec does not change size so there is no reallocation
+                        &mut *reactors_mut.0.add(reaction_id.0.container().index())
+                    };
 
-                        // this may append new elements into the queue,
-                        // which is why we can't use an iterator
-                        reactor.react_erased(&mut ctx, reaction_id.0.local());
+                    // this may append new elements into the queue,
+                    // which is why we can't use an iterator
+                    reactor.react_erased(&mut ctx, reaction_id.0.local());
 
-                        CloneableCtx(ctx)
-                    },
-                )
-                .fold(|| RContextForwardableStuff::default(), |cx1, cx2| cx1.merge(cx2.0.insides))
-                .reduce(|| Default::default(), RContextForwardableStuff::merge);
+                    CloneableCtx(ctx)
+                },
+            )
+            .fold(
+                || RContextForwardableStuff::default(),
+                |cx1, cx2| cx1.merge(cx2.0.insides),
+            )
+            .reduce(|| Default::default(), RContextForwardableStuff::merge);
     }
-
 
     struct UnsafeSharedPointer<T>(*mut T);
 
     unsafe impl<T> Send for UnsafeSharedPointer<T> {}
 
     unsafe impl<T> Sync for UnsafeSharedPointer<T> {}
-
 
     /// We need a Clone bound to use fold_with, but this clone
     /// implementation is not general purpose so I hide it.

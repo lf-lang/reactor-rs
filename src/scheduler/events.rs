@@ -3,8 +3,8 @@ use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
-use crate::*;
 use crate::scheduler::dependencies::ExecutableReactions;
+use crate::*;
 
 use super::ReactionPlan;
 
@@ -32,7 +32,7 @@ impl EventTag {
     /// The tag of the startup event.
     pub const ORIGIN: EventTag = EventTag {
         offset_from_t0: Duration::from_millis(0),
-        microstep: MicroStep::ZERO
+        microstep: MicroStep::ZERO,
     };
 
     /// Returns the logical instant for this tag, using the
@@ -66,14 +66,20 @@ impl EventTag {
     /// Create a tag for the zeroth microstep of the given instant.
     #[inline]
     pub(crate) fn absolute(t0: Instant, instant: Instant) -> Self {
-        Self { offset_from_t0: instant - t0, microstep: MicroStep::ZERO }
+        Self {
+            offset_from_t0: instant - t0,
+            microstep: MicroStep::ZERO,
+        }
     }
 
     /// Create a new tag from its offset from t0 and a microstep.
     /// Use the [tag!](crate::tag) macro for more convenient syntax.
     #[inline]
     pub fn offset(offset_from_t0: Duration, microstep: crate::time::MS) -> Self {
-        Self { offset_from_t0, microstep: MicroStep::new(microstep) }
+        Self {
+            offset_from_t0,
+            microstep: MicroStep::new(microstep),
+        }
     }
 
     /// Returns a tag that is strictly greater than this one.
@@ -84,7 +90,7 @@ impl EventTag {
         } else {
             Self {
                 offset_from_t0: self.offset_from_t0 + offset,
-                microstep: MicroStep::ZERO
+                microstep: MicroStep::ZERO,
             }
         }
     }
@@ -109,10 +115,15 @@ impl EventTag {
 impl Display for EventTag {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let elapsed = self.offset_from_t0;
-        write!(f, "(T0 + {} ns = {} ms, {})", elapsed.as_nanos(), elapsed.as_millis(), self.microstep)
+        write!(
+            f,
+            "(T0 + {} ns = {} ms, {})",
+            elapsed.as_nanos(),
+            elapsed.as_millis(),
+            self.microstep
+        )
     }
 }
-
 
 /// A tagged event of the reactor program. Events are tagged
 /// with the logical instant at which they must be processed.
@@ -141,13 +152,20 @@ impl<'x> Event<'x> {
     }
 
     pub fn execute(tag: EventTag, reactions: Cow<'x, ExecutableReactions<'x>>) -> Self {
-        Self { tag, reactions: Some(reactions), terminate: false }
+        Self {
+            tag,
+            reactions: Some(reactions),
+            terminate: false,
+        }
     }
     pub fn terminate_at(tag: EventTag) -> Self {
-        Self { tag, reactions: None, terminate: true }
+        Self {
+            tag,
+            reactions: None,
+            terminate: true,
+        }
     }
 }
-
 
 /// A queue of pending [Event]s. Events are ordered by tag,
 /// so this is not a FIFO queue.
@@ -164,7 +182,6 @@ pub(super) struct EventQueue<'x> {
     ///     ....
     value_list: VecDeque<Event<'x>>,
 }
-
 
 impl<'x> EventQueue<'x> {
     /// Removes and returns the earliest tag

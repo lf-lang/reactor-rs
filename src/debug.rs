@@ -22,7 +22,6 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 use core::any::type_name;
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -31,8 +30,7 @@ use std::ops::Range;
 
 use index_vec::{Idx, IndexVec};
 
-use crate::{GlobalReactionId, ReactorId, assembly::ReactorInitializer, assembly::TriggerId};
-
+use crate::{assembly::ReactorInitializer, assembly::TriggerId, GlobalReactionId, ReactorId};
 
 /// Maps IDs to debug information, stores all the debug info.
 /// This is built during asembly.
@@ -68,8 +66,14 @@ impl DebugInfoRegistry {
             reaction_labels: Default::default(),
         };
 
-        assert_eq!(ich.trigger_infos.push(Cow::Borrowed("startup")), TriggerId::STARTUP);
-        assert_eq!(ich.trigger_infos.push(Cow::Borrowed("shutdown")), TriggerId::SHUTDOWN);
+        assert_eq!(
+            ich.trigger_infos.push(Cow::Borrowed("startup")),
+            TriggerId::STARTUP
+        );
+        assert_eq!(
+            ich.trigger_infos.push(Cow::Borrowed("shutdown")),
+            TriggerId::SHUTDOWN
+        );
 
         ich
     }
@@ -81,10 +85,12 @@ impl DebugInfoRegistry {
     }
 
     /// Format the id of a component.
-    fn fmt_component_path<'a>(&'a self,
-                              id: RawId,
-                              label: Option<&'a Cow<'static, str>>,
-                              always_display_idx: bool) -> impl Display + 'a {
+    fn fmt_component_path<'a>(
+        &'a self,
+        id: RawId,
+        label: Option<&'a Cow<'static, str>>,
+        always_display_idx: bool,
+    ) -> impl Display + 'a {
         struct PathFmt<'a> {
             debug: &'a DebugInfoRegistry,
             id: RawId,
@@ -110,23 +116,27 @@ impl DebugInfoRegistry {
             }
         }
 
-        PathFmt { debug: self, id, label, always_display_idx }
+        PathFmt {
+            debug: self,
+            id,
+            label,
+            always_display_idx,
+        }
     }
-
 
     #[inline]
     pub fn fmt_reaction<'a>(&'a self, id: GlobalReactionId) -> impl Display + 'a {
         let raw = (id.0.container(), id.0.local().index());
-        self.fmt_component_path(raw,
-                                self.reaction_labels.get(&id),
-                                true)
+        self.fmt_component_path(raw, self.reaction_labels.get(&id), true)
     }
 
     #[inline]
     pub(crate) fn fmt_component<'a>(&'a self, id: TriggerId) -> impl Display + 'a {
-        self.fmt_component_path(self.raw_id_of_trigger(id),
-                                Some(&self.trigger_infos[id]),
-                                false)
+        self.fmt_component_path(
+            self.raw_id_of_trigger(id),
+            Some(&self.trigger_infos[id]),
+            false,
+        )
     }
 
     fn raw_id_of_trigger(&self, id: TriggerId) -> RawId {
@@ -148,20 +158,18 @@ impl DebugInfoRegistry {
                     // If you ask for 3, it will fail with Err(0), and reactor_bound[0]==2
                     // is actually the index of the reactor.
                     // todo test this
-                    Err(rid) => {
-                        (rid, id.index() - self.get_reactor_lower_bound(rid).index())
-                    }
+                    Err(rid) => (rid, id.index() - self.get_reactor_lower_bound(rid).index()),
                 }
             }
         }
     }
 
     fn get_reactor_lower_bound(&self, rid: ReactorId) -> TriggerId {
-        rid.index().checked_sub(1)
+        rid.index()
+            .checked_sub(1)
             .map(|ix| self.reactor_bound[ix])
             .unwrap_or(TriggerId::FIRST_REGULAR)
     }
-
 
     pub(super) fn record_trigger(&mut self, id: TriggerId, name: Cow<'static, str>) {
         let ix = self.trigger_infos.push(name);
@@ -180,13 +188,15 @@ impl DebugInfoRegistry {
 
     pub(super) fn set_id_range(&mut self, id: ReactorId, range: Range<TriggerId>) {
         assert!(range.start <= range.end, "Malformed range {:?}", range);
-        assert!(range.start >= TriggerId::FIRST_REGULAR, "Trigger IDs 0-1 are reserved");
+        assert!(
+            range.start >= TriggerId::FIRST_REGULAR,
+            "Trigger IDs 0-1 are reserved"
+        );
 
         let ix = self.reactor_bound.push(range.end);
         assert_eq!(ix, id);
     }
 }
-
 
 /// Debug information for a single reactor.
 pub(crate) struct ReactorDebugInfo {
@@ -202,7 +212,7 @@ pub(crate) struct ReactorDebugInfo {
 
 impl ReactorDebugInfo {
     #[cfg(test)]
-    pub(crate) fn test()-> Self {
+    pub(crate) fn test() -> Self {
         Self::root::<()>()
     }
 
@@ -222,7 +232,11 @@ impl ReactorDebugInfo {
         }
     }
 
-    pub(crate) fn derive_bank_item<R: ReactorInitializer>(&self, inst_name: &'static str, bank_idx: usize) -> Self {
+    pub(crate) fn derive_bank_item<R: ReactorInitializer>(
+        &self,
+        inst_name: &'static str,
+        bank_idx: usize,
+    ) -> Self {
         Self {
             type_name: type_name::<R::Wrapped>(),
             inst_name,
@@ -236,4 +250,3 @@ impl Display for ReactorDebugInfo {
         write!(f, "{}", self.inst_path)
     }
 }
-

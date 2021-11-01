@@ -22,25 +22,23 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
-
 use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
 use std::collections::hash_map::Entry as HEntry;
+use std::collections::{HashMap, HashSet};
 use std::default::Default;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Range;
 use std::sync::Arc;
 
 use index_vec::{Idx, IndexVec};
-use petgraph::Direction::{Incoming, Outgoing};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
+use petgraph::Direction::{Incoming, Outgoing};
 
-use crate::*;
 use crate::assembly::*;
 use crate::scheduler::dependencies::NodeKind::MultiportUpstream;
 use crate::util::vecmap::{Entry as VEntry, VecMap};
+use crate::*;
 
 use super::ReactionPlan;
 
@@ -126,10 +124,22 @@ pub(super) struct DepGraph {
 impl Debug for GraphNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GraphNode { id: GraphId::Reaction(id), .. } => write!(f, "Reaction({:?})", id),
-            GraphNode { id: GraphId::Trigger(TriggerId::STARTUP), .. } => write!(f, "startup"),
-            GraphNode { id: GraphId::Trigger(TriggerId::SHUTDOWN), .. } => write!(f, "shutdown"),
-            GraphNode { id: GraphId::Trigger(id), kind } => write!(f, "{:?}({:?})", kind, id.index()),
+            GraphNode {
+                id: GraphId::Reaction(id),
+                ..
+            } => write!(f, "Reaction({:?})", id),
+            GraphNode {
+                id: GraphId::Trigger(TriggerId::STARTUP),
+                ..
+            } => write!(f, "startup"),
+            GraphNode {
+                id: GraphId::Trigger(TriggerId::SHUTDOWN),
+                ..
+            } => write!(f, "shutdown"),
+            GraphNode {
+                id: GraphId::Trigger(id),
+                kind,
+            } => write!(f, "{:?}({:?})", kind, id.index()),
         }
     }
 }
@@ -150,8 +160,8 @@ impl DepGraph {
     /// Produce a dot representation of the graph.
     #[cfg(feature = "graph-dump")]
     pub fn format_dot(&self, id_registry: &DebugInfoRegistry) -> impl Display {
-        use regex::{Regex, Captures};
         use petgraph::dot::{Config, Dot};
+        use regex::{Captures, Regex};
 
         let dot = Dot::with_config(&self.dataflow, &[Config::EdgeNoLabel]);
 
@@ -163,7 +173,11 @@ impl DepGraph {
             let id = &captures[2];
             if kind == "Reaction" {
                 let global = id.parse::<GlobalId>().unwrap();
-                format!("{}({})", kind, id_registry.fmt_reaction(GlobalReactionId(global)))
+                format!(
+                    "{}({})",
+                    kind,
+                    id_registry.fmt_reaction(GlobalReactionId(global))
+                )
             } else {
                 let trigger_id = TriggerId::new(id.parse().unwrap());
                 format!("{}({})", kind, id_registry.fmt_component(trigger_id))
@@ -176,7 +190,6 @@ impl DepGraph {
     pub(super) fn record_port(&mut self, id: TriggerId) {
         self.record_port_impl(id);
     }
-
 
     fn record_port_impl(&mut self, id: TriggerId) -> GraphIx {
         self.record(GraphId::Trigger(id), NodeKind::Port)
@@ -196,29 +209,37 @@ impl DepGraph {
     /// When X declares a trigger/uses on the entire
     /// bank, an edge is added from every channel to X.
     ///
-    pub(super) fn record_port_bank(&mut self, id: TriggerId, len: usize) -> Result<(), AssemblyError> {
+    pub(super) fn record_port_bank(
+        &mut self,
+        id: TriggerId,
+        len: usize,
+    ) -> Result<(), AssemblyError> {
         assert!(len > 0, "empty port bank");
         self.record(GraphId::Trigger(id), NodeKind::MultiportUpstream);
 
-        for channel_id in id.next_range(len).map_err(|_| AssemblyError(AssemblyErrorImpl::IdOverflow))? {
-            self.multiport_containment.insert(GraphId::Trigger(channel_id), id);
+        for channel_id in id
+            .next_range(len)
+            .map_err(|_| AssemblyError(AssemblyErrorImpl::IdOverflow))?
+        {
+            self.multiport_containment
+                .insert(GraphId::Trigger(channel_id), id);
 
             // self.dataflow.add_edge(upstream_ix, channel_ix, EdgeWeight::Default);
         }
-        self.multiport_ranges.insert(id, Range {
-            start: TriggerId::new(id.index() + 1),
-            end: TriggerId::new(id.index() + 1 + len),
-        });
+        self.multiport_ranges.insert(
+            id,
+            Range {
+                start: TriggerId::new(id.index() + 1),
+                end: TriggerId::new(id.index() + 1 + len),
+            },
+        );
         Ok(())
     }
 
     pub(super) fn record_port_bank_component(&mut self, bank_id: TriggerId, channel_id: TriggerId) {
         let channel_ix = self.record_port_impl(channel_id);
-        self.dataflow.add_edge(
-            self.get_ix(bank_id.into()),
-            channel_ix,
-            EdgeWeight::Default,
-        );
+        self.dataflow
+            .add_edge(self.get_ix(bank_id.into()), channel_ix, EdgeWeight::Default);
     }
 
     pub(super) fn record_laction(&mut self, id: TriggerId) {
@@ -306,13 +327,16 @@ impl DepGraph {
 
     fn record_special(&mut self, trigger: TriggerId) {
         let id = GraphId::Trigger(trigger);
-        let node = GraphNode { kind: NodeKind::Special, id };
+        let node = GraphNode {
+            kind: NodeKind::Special,
+            id,
+        };
         self.ix_by_id.insert(id, self.dataflow.add_node(node));
     }
 }
 
 impl DepGraph {
-    pub(in self) fn number_reactions_by_layer(&self) -> HashMap<GlobalReactionId, LayerIx> {
+    pub(self) fn number_reactions_by_layer(&self) -> HashMap<GlobalReactionId, LayerIx> {
         // note: this will infinitely recurse with a cyclic graph
         let mut layer_numbers = HashMap::<GlobalReactionId, LayerIx>::new();
         let mut todo = self.get_roots();
@@ -343,9 +367,15 @@ impl DepGraph {
     }
 
     /// Returns the roots of the graph
-    pub(in self) fn get_roots(&self) -> Vec<GraphIx> {
-        self.dataflow.node_indices()
-            .filter(|node| self.dataflow.edges_directed(*node, Incoming).next().is_none())
+    pub(self) fn get_roots(&self) -> Vec<GraphIx> {
+        self.dataflow
+            .node_indices()
+            .filter(|node| {
+                self.dataflow
+                    .edges_directed(*node, Incoming)
+                    .next()
+                    .is_none()
+            })
             .collect()
     }
 }
@@ -373,7 +403,11 @@ struct ReactionLayerInfo {
 impl ReactionLayerInfo {
     /// Append a reaction to the given reaction collection
     fn augment(&self, collection: &mut ExecutableReactions, reaction: GlobalReactionId) {
-        let ix = self.layer_numbers.get(&reaction).copied().expect("reaction was not recorded in the graph");
+        let ix = self
+            .layer_numbers
+            .get(&reaction)
+            .copied()
+            .expect("reaction was not recorded in the graph");
         collection.insert(reaction, ix);
     }
 }
@@ -383,9 +417,7 @@ impl ReactionLayerInfo {
 pub(super) struct DataflowInfo {
     /// Maps each trigger to the set of reactions that need
     /// to be scheduled when it is triggered.
-
     trigger_to_plan: IndexVec<TriggerId, Arc<ExecutableReactions<'static>>>,
-
 }
 
 impl DataflowInfo {
@@ -394,14 +426,18 @@ impl DataflowInfo {
             return Err(AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph));
         }
 
-        let layer_info = ReactionLayerInfo { layer_numbers: graph.number_reactions_by_layer() };
+        let layer_info = ReactionLayerInfo {
+            layer_numbers: graph.number_reactions_by_layer(),
+        };
         let trigger_to_plan = Self::collect_trigger_to_plan(&mut graph, &layer_info);
 
         Ok(DataflowInfo { trigger_to_plan })
     }
 
-    fn collect_trigger_to_plan(DepGraph { dataflow, .. }: &mut DepGraph,
-                               layer_info: &ReactionLayerInfo) -> IndexVec<TriggerId, Arc<ExecutableReactions<'static>>> {
+    fn collect_trigger_to_plan(
+        DepGraph { dataflow, .. }: &mut DepGraph,
+        layer_info: &ReactionLayerInfo,
+    ) -> IndexVec<TriggerId, Arc<ExecutableReactions<'static>>> {
         let mut result = IndexVec::with_capacity(dataflow.node_count() / 2);
 
         for trigger in dataflow.node_indices() {
@@ -409,14 +445,14 @@ impl DataflowInfo {
                 // if let Some(_multiport_id) = multiport_containment.get(&dataflow[trigger].id) {
                 //     assert_eq!(dataflow[trigger].kind, NodeKind::Port);
                 //     todo!("multiports")
-                    // todo this is a multiport channel:
-                    //  1. if someone has declared a dependency on this individual channel, collect dependencies into DEPS
-                    //  2. else add trigger to DELAY goto 4
-                    //  3. merge DEPS into dependencies ALL for the whole multiport
-                    //  4. goto next iteration while some channels of the multiport remain to be processed
-                    //  5. assign all triggers in DELAY the dependencies ALL
-                    //
-                    //  This requires all components of a given multiport to be processed consecutively.
+                // todo this is a multiport channel:
+                //  1. if someone has declared a dependency on this individual channel, collect dependencies into DEPS
+                //  2. else add trigger to DELAY goto 4
+                //  3. merge DEPS into dependencies ALL for the whole multiport
+                //  4. goto next iteration while some channels of the multiport remain to be processed
+                //  5. assign all triggers in DELAY the dependencies ALL
+                //
+                //  This requires all components of a given multiport to be processed consecutively.
                 // }
 
                 let mut reactions = ExecutableReactions::new();
@@ -428,21 +464,28 @@ impl DataflowInfo {
         result
     }
 
-    fn collect_reactions_rec(dataflow: &DepGraphImpl,
-                             trigger: GraphIx,
-                             layer_info: &ReactionLayerInfo,
-                             reactions: &mut ExecutableReactions<'static>) {
+    fn collect_reactions_rec(
+        dataflow: &DepGraphImpl,
+        trigger: GraphIx,
+        layer_info: &ReactionLayerInfo,
+        reactions: &mut ExecutableReactions<'static>,
+    ) {
         for downstream in dataflow.edges_directed(trigger, Outgoing) {
             let node = &dataflow[downstream.target()];
             match node.kind {
                 NodeKind::Port => {
                     // this is necessarily a port->port binding
-                    Self::collect_reactions_rec(dataflow, downstream.target(), layer_info, reactions)
+                    Self::collect_reactions_rec(
+                        dataflow,
+                        downstream.target(),
+                        layer_info,
+                        reactions,
+                    )
                 }
                 NodeKind::Reaction => {
                     let rid = match node.id {
                         GraphId::Reaction(rid) => rid,
-                        _ => unreachable!("this is a reaction")
+                        _ => unreachable!("this is a reaction"),
                     };
                     // trigger->reaction
                     if downstream.weight() != &EdgeWeight::Use {
@@ -458,7 +501,6 @@ impl DataflowInfo {
         }
     }
 
-
     /// Returns the set of reactions that needs to be scheduled
     /// when the given trigger is triggered.
     ///
@@ -469,7 +511,6 @@ impl DataflowInfo {
         &self.trigger_to_plan[*trigger]
     }
 }
-
 
 type Layer = HashSet<GlobalReactionId>;
 
@@ -517,20 +558,25 @@ pub(crate) struct ExecutableReactions<'x> {
 
 impl<'x> ExecutableReactions<'x> {
     pub fn new() -> Self {
-        Self { layers: VecMap::new() }
+        Self {
+            layers: VecMap::new(),
+        }
     }
 
     /// Returns an iterator which associates batches of reactions
     /// with their layer. Note that this does not mutate this collection
     /// (eg drain it), because that way we can use borrowed Cows
     /// and avoid more allocation.
-    pub fn batches(&self) -> impl Iterator<Item=&(LayerIx, Cow<'x, Layer>)> +'_{
+    pub fn batches(&self) -> impl Iterator<Item = &(LayerIx, Cow<'x, Layer>)> + '_ {
         self.layers.iter_from(LayerIx(0))
     }
 
     #[inline]
     pub fn next_batch(&self, min_layer: LayerIx) -> Option<(LayerIx, &HashSet<GlobalReactionId>)> {
-        self.layers.iter_from(min_layer).next().map(|(ix, cow)| (*ix, cow.as_ref()))
+        self.layers
+            .iter_from(min_layer)
+            .next()
+            .map(|(ix, cow)| (*ix, cow.as_ref()))
     }
 
     /// The greatest layer with non-empty value.
@@ -548,7 +594,7 @@ impl<'x> ExecutableReactions<'x> {
             match dst.entry(*i) {
                 VEntry::Vacant(e) => {
                     e.insert(src_layer.clone());
-                },
+                }
                 VEntry::Occupied(_, e) => {
                     if e.is_empty() {
                         *e = src_layer.clone();
@@ -571,7 +617,7 @@ impl<'x> ExecutableReactions<'x> {
             }
             VEntry::Occupied(_, e) => {
                 e.to_mut().insert(reaction);
-            },
+            }
         }
     }
 
@@ -580,14 +626,18 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     /// todo would be nice to simplify this, it's hot
-    pub(super) fn merge_cows_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_layer: LayerIx) -> ReactionPlan<'x> {
+    pub(super) fn merge_cows_after(
+        x: ReactionPlan<'x>,
+        y: ReactionPlan<'x>,
+        min_layer: LayerIx,
+    ) -> ReactionPlan<'x> {
         match (x, y) {
             (x, None) | (None, x) => x,
-            (Some(x), y) | (y, Some(x)) if x.max_layer() < min_layer  => y,
+            (Some(x), y) | (y, Some(x)) if x.max_layer() < min_layer => y,
             (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
                 x.absorb_after(&y, min_layer);
                 Some(Cow::Owned(x))
-            },
+            }
             (Some(mut x), Some(mut y)) => {
                 if x.max_layer() > y.max_layer() {
                     std::mem::swap(&mut x, &mut y);
@@ -609,7 +659,6 @@ impl Display for ExecutableReactions<'_> {
         write!(f, "]")
     }
 }
-
 
 #[cfg(test)]
 pub mod test {
@@ -635,11 +684,15 @@ pub mod test {
         graph.reaction_effects(n1, p0);
         graph.triggers_reaction(p0, n2);
 
-
         let roots = graph.get_roots();
         // graph.eprintln_dot(&IdRegistry::default());
-        assert_eq!(roots, vec![graph.get_ix(GraphId::STARTUP),
-                               graph.get_ix(GraphId::SHUTDOWN),
-                               graph.get_ix(n1.into())]);
+        assert_eq!(
+            roots,
+            vec![
+                graph.get_ix(GraphId::STARTUP),
+                graph.get_ix(GraphId::SHUTDOWN),
+                graph.get_ix(n1.into())
+            ]
+        );
     }
 }

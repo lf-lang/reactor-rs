@@ -22,12 +22,11 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
+use index_vec::Idx;
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 use std::ops::Range;
 use std::time::Instant;
-use index_vec::Idx;
 
 use crate::EventTag;
 
@@ -45,12 +44,19 @@ pub trait ReactionTrigger<T> {
     /// Copies the value out, if it is present. Whether a *value*
     /// is present is not in general the same thing as whether *this trigger*
     /// [Self::is_present]. See [crate::ReactionCtx::get].
-    fn get_value(&self, now: &EventTag, start: &Instant) -> Option<T> where T: Copy;
+    fn get_value(&self, now: &EventTag, start: &Instant) -> Option<T>
+    where
+        T: Copy;
 
     /// Execute an action using the current value of this trigger.
     /// The closure is called even if the value is absent (with a [None]
     /// argument).
-    fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O;
+    fn use_value_ref<O>(
+        &self,
+        now: &EventTag,
+        start: &Instant,
+        action: impl FnOnce(Option<&T>) -> O,
+    ) -> O;
 }
 
 /// Something on which we can declare a trigger dependency
@@ -59,7 +65,6 @@ pub trait ReactionTrigger<T> {
 pub trait TriggerLike {
     fn get_id(&self) -> TriggerId;
 }
-
 
 /// The ID of a trigger component.
 #[derive(Eq, PartialEq, Copy, Clone, Hash, Ord, PartialOrd)]
@@ -94,7 +99,7 @@ impl TriggerId {
 
     /// Returns an iterator that iterates over the range `(self+1)..(self+1+len)`.
     /// Returns `Err` on overflow.
-    pub(crate) fn next_range(&self, len: usize) -> Result<impl Iterator<Item=Self>, ()> {
+    pub(crate) fn next_range(&self, len: usize) -> Result<impl Iterator<Item = Self>, ()> {
         if let Some(upper) = self.0.checked_add(1 + len) {
             Ok(((self.0 + 1)..upper).into_iter().map(TriggerId))
         } else {
@@ -102,7 +107,7 @@ impl TriggerId {
         }
     }
 
-    pub(crate) fn iter_range(range: &Range<TriggerId>) -> impl Iterator<Item=TriggerId> {
+    pub(crate) fn iter_range(range: &Range<TriggerId>) -> impl Iterator<Item = TriggerId> {
         (range.start.0..range.end.0).into_iter().map(TriggerId)
     }
 }
@@ -124,7 +129,7 @@ impl Debug for TriggerId {
         match *self {
             TriggerId::STARTUP => write!(f, "startup"),
             TriggerId::SHUTDOWN => write!(f, "shutdown"),
-            TriggerId(id) => write!(f, "{}", id)
+            TriggerId(id) => write!(f, "{}", id),
         }
     }
 }

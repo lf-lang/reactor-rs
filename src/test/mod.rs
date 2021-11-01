@@ -22,6 +22,6 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+pub mod stuff_that_must_compile;
 pub mod test_ports;
 pub mod testutil;
-pub mod stuff_that_must_compile;

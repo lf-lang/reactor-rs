@@ -22,17 +22,16 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 use std::cmp::Reverse;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
-use crate::*;
 use crate::assembly::{TriggerId, TriggerLike};
 use crate::vecmap::Entry;
 use crate::vecmap::VecMap;
+use crate::*;
 
 /// A logical action.
 pub struct LogicalAction<T: Sync>(pub(crate) Action<Logical, T>);
@@ -67,14 +66,13 @@ impl<K, T: Sync> Action<K, T> {
     #[inline]
     pub(crate) fn schedule_future_value(&mut self, time: EventTag, value: Option<T>) {
         match self.map.entry(Reverse(time)) {
-            Entry::Vacant(e) => { e.insert(value) }
+            Entry::Vacant(e) => e.insert(value),
             Entry::Occupied(_, v) => {
                 // todo log when overwriting value
                 *v = value
             }
         }
     }
-
 
     #[inline]
     pub(crate) fn forget_value(&mut self, time: &EventTag) -> Option<T> {
@@ -99,12 +97,20 @@ impl<T: Sync, K> ReactionTrigger<T> for Action<K, T> {
     }
 
     #[inline]
-    fn get_value(&self, now: &EventTag, _start: &Instant) -> Option<T> where T: Copy {
+    fn get_value(&self, now: &EventTag, _start: &Instant) -> Option<T>
+    where
+        T: Copy,
+    {
         self.map.get(&Reverse(*now)).cloned().flatten()
     }
 
     #[inline]
-    fn use_value_ref<O>(&self, now: &EventTag, _start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
+    fn use_value_ref<O>(
+        &self,
+        now: &EventTag,
+        _start: &Instant,
+        action: impl FnOnce(Option<&T>) -> O,
+    ) -> O {
         let inmap: Option<&Option<T>> = self.map.get(&Reverse(*now));
         let v = inmap.map(|i| i.as_ref()).flatten();
         action(v)
@@ -118,16 +124,23 @@ impl<T: Sync> ReactionTrigger<T> for LogicalAction<T> {
     }
 
     #[inline]
-    fn get_value(&self, now: &EventTag, start: &Instant) -> Option<T> where T: Copy {
+    fn get_value(&self, now: &EventTag, start: &Instant) -> Option<T>
+    where
+        T: Copy,
+    {
         self.0.get_value(now, start)
     }
 
     #[inline]
-    fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
+    fn use_value_ref<O>(
+        &self,
+        now: &EventTag,
+        start: &Instant,
+        action: impl FnOnce(Option<&T>) -> O,
+    ) -> O {
         self.0.use_value_ref(now, start, action)
     }
 }
-
 
 impl<T: Sync> LogicalAction<T> {
     pub(crate) fn new(id: TriggerId, min_delay: Option<Duration>) -> Self {
@@ -204,7 +217,6 @@ mod test {
 }
 */
 
-
 /// A reference to a physical action. This thing is cloneable
 /// and can be sent to async threads. The contained action
 /// reference is unique and protected by a lock. All operations
@@ -225,10 +237,14 @@ impl<T: Sync> PhysicalActionRef<T> {
         Ok(f(refmut.deref_mut()))
     }
 
-    pub(crate) fn use_mut_p<O, P>(&self, p: P, f: impl FnOnce(&mut PhysicalAction<T>, P) -> O) -> Result<O, P> {
+    pub(crate) fn use_mut_p<O, P>(
+        &self,
+        p: P,
+        f: impl FnOnce(&mut PhysicalAction<T>, P) -> O,
+    ) -> Result<O, P> {
         match self.0.deref().lock() {
             Ok(mut refmut) => Ok(f(refmut.deref_mut(), p)),
-            Err(_) => Err(p)
+            Err(_) => Err(p),
         }
     }
 
@@ -250,11 +266,20 @@ impl<T: Sync> ReactionTrigger<T> for PhysicalActionRef<T> {
         self.use_value(|a| a.0.is_present(now, start)).unwrap()
     }
 
-    fn get_value(&self, now: &EventTag, start: &Instant) -> Option<T> where T: Copy {
+    fn get_value(&self, now: &EventTag, start: &Instant) -> Option<T>
+    where
+        T: Copy,
+    {
         self.use_value(|a| a.0.get_value(now, start)).unwrap()
     }
 
-    fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
-        self.use_value(|a| a.0.use_value_ref(now, start, action)).unwrap()
+    fn use_value_ref<O>(
+        &self,
+        now: &EventTag,
+        start: &Instant,
+        action: impl FnOnce(Option<&T>) -> O,
+    ) -> O {
+        self.use_value(|a| a.0.use_value_ref(now, start, action))
+            .unwrap()
     }
 }

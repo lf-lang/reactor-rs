@@ -1,14 +1,14 @@
 use std::borrow::{Borrow, BorrowMut};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
-use crossbeam_channel::reconnectable::{Receiver, Sender, SendError};
+use crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
 
-use crate::*;
 use crate::assembly::*;
 use crate::scheduler::dependencies::{DataflowInfo, ExecutableReactions, LayerIx};
+use crate::*;
 
 use super::*;
 
@@ -21,7 +21,10 @@ use super::*;
 // ReactionCtx is an API built around a ReactionWave. A single
 // ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&mut).
-pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
+pub struct ReactionCtx<'a, 'x, 't>
+where
+    'x: 't,
+{
     pub(super) insides: RContextForwardableStuff<'x>,
 
     /// Logical time of the execution of this wave, constant
@@ -48,8 +51,10 @@ pub struct ReactionCtx<'a, 'x, 't> where 'x: 't {
     was_terminated: bool,
 }
 
-
-impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
+impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't>
+where
+    'x: 't,
+{
     /// Returns the start time of the execution of this program.
     ///
     /// This is a logical instant with microstep zero.
@@ -117,7 +122,6 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         self.get_physical_time() - self.get_start_time()
     }
 
-
     /// Returns the current value of a port or action at this
     /// logical time. If the value is absent, [Option::None] is
     /// returned.  This is the case if the action or port is
@@ -139,7 +143,9 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ```
     #[inline]
     pub fn get<T: Copy>(&self, container: &impl ReactionTrigger<T>) -> Option<T> {
-        container.borrow().get_value(&self.get_tag(), &self.get_start_time())
+        container
+            .borrow()
+            .get_value(&self.get_tag(), &self.get_start_time())
     }
 
     /// Executes the provided closure on the value of the port
@@ -168,8 +174,14 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     ///
     /// See also the similar [Self::use_ref_opt].
     #[inline]
-    pub fn use_ref<T, O>(&self, container: &impl ReactionTrigger<T>, action: impl FnOnce(Option<&T>) -> O) -> O {
-        container.borrow().use_value_ref(&self.get_tag(), &self.get_start_time(), action)
+    pub fn use_ref<T, O>(
+        &self,
+        container: &impl ReactionTrigger<T>,
+        action: impl FnOnce(Option<&T>) -> O,
+    ) -> O {
+        container
+            .borrow()
+            .use_value_ref(&self.get_tag(), &self.get_start_time(), action)
     }
 
     /// Executes the provided closure on the value of the port,
@@ -177,7 +189,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// and not copied.
     ///
     /// See also the similar [Self::use_ref].
-    pub fn use_ref_opt<T, O>(&self, container: &impl ReactionTrigger<T>, action: impl FnOnce(&T) -> O) -> Option<O> {
+    pub fn use_ref_opt<T, O>(
+        &self,
+        container: &impl ReactionTrigger<T>,
+        action: impl FnOnce(&T) -> O,
+    ) -> Option<O> {
         self.use_ref(container, |c| c.map(action))
     }
 
@@ -189,8 +205,10 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// same logical time.
     #[inline]
     pub fn set<'b, T, W>(&mut self, mut port: W, value: T)
-        where T: Sync + 'b,
-              W: BorrowMut<WritablePort<'b, T>> {
+    where
+        T: Sync + 'b,
+        W: BorrowMut<WritablePort<'b, T>>,
+    {
         let port = port.borrow_mut();
         port.set_impl(value);
         self.enqueue_now(Cow::Borrowed(self.reactions_triggered_by(port.get_id())))
@@ -253,7 +271,12 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ctx.schedule(action, Asap);
     /// ```
     #[inline]
-    pub fn schedule_with_v<T: Sync>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
+    pub fn schedule_with_v<T: Sync>(
+        &mut self,
+        action: &mut LogicalAction<T>,
+        value: Option<T>,
+        offset: Offset,
+    ) {
         let eta = self.make_successor_tag(action.0.min_delay + offset.to_duration());
         action.0.schedule_future_value(eta, value);
         let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
@@ -274,8 +297,10 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     #[inline]
     pub(crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions<'x>>) {
         match &mut self.insides.todo_now {
-            Some(ref mut do_next) => do_next.to_mut().absorb_after(downstream.as_ref(), self.cur_layer.next()),
-            None => self.insides.todo_now = Some(downstream)
+            Some(ref mut do_next) => do_next
+                .to_mut()
+                .absorb_after(downstream.as_ref(), self.cur_layer.next()),
+            None => self.insides.todo_now = Some(downstream),
         }
     }
 
@@ -313,9 +338,11 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
     /// ```
     ///
     pub fn spawn_physical_thread<F, R>(&mut self, f: F) -> ScopedJoinHandle<R>
-        where F: FnOnce(&mut PhysicalSchedulerLink<'_, 'x, 't>) -> R,
-              F: 'x + Send,
-              R: 'x + Send {
+    where
+        F: FnOnce(&mut PhysicalSchedulerLink<'_, 'x, 't>) -> R,
+        F: 'x + Send,
+        R: 'x + Send,
+    {
         let tx = self.rx.new_sender();
         let dataflow = self.dataflow;
         let initial_time = self.initial_time;
@@ -386,15 +413,16 @@ impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't> where 'x: 't {
         }
     }
 
-
-    pub(super) fn new(rx: &'a Receiver<Event<'x>>,
-                      tag: EventTag,
-                      initial_time: Instant,
-                      todo: ReactionPlan<'x>,
-                      dataflow: &'x DataflowInfo,
-                      thread_spawner: &'a Scope<'t>,
-                      was_terminated_atomic: &'a Arc<AtomicBool>,
-                      was_terminated: bool) -> Self {
+    pub(super) fn new(
+        rx: &'a Receiver<Event<'x>>,
+        tag: EventTag,
+        initial_time: Instant,
+        todo: ReactionPlan<'x>,
+        dataflow: &'x DataflowInfo,
+        thread_spawner: &'a Scope<'t>,
+        was_terminated_atomic: &'a Arc<AtomicBool>,
+        was_terminated: bool,
+    ) -> Self {
         Self {
             insides: RContextForwardableStuff {
                 todo_now: todo,
@@ -530,7 +558,11 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     /// or its shutdown might be programmed for a logical
     /// time which precedes the current physical time.
     ///
-    pub fn schedule_physical<T: Sync>(&mut self, action: &PhysicalActionRef<T>, offset: Offset) -> Result<(), SendError<Option<T>>> {
+    pub fn schedule_physical<T: Sync>(
+        &mut self,
+        action: &PhysicalActionRef<T>,
+        offset: Offset,
+    ) -> Result<(), SendError<Option<T>>> {
         self.schedule_physical_with_v(action, None, offset)
     }
 
@@ -555,20 +587,22 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     ) -> Result<(), SendError<Option<T>>> {
         // physical time must be ahead of logical time so
         // this event is scheduled for the future
-        action.use_mut_p(value, |action, value| {
-            let tag = EventTag::absolute(self.initial_time, Instant::now() + offset.to_duration());
-            action.0.schedule_future_value(tag, value);
+        action
+            .use_mut_p(value, |action, value| {
+                let tag =
+                    EventTag::absolute(self.initial_time, Instant::now() + offset.to_duration());
+                action.0.schedule_future_value(tag, value);
 
-            let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
-            let evt = Event::execute(tag, Cow::Borrowed(downstream));
-            self.tx.send(evt).map_err(|e| {
-                warn!("Event could not be sent! {:?}", e);
-                SendError(action.0.forget_value(&tag))
+                let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
+                let evt = Event::execute(tag, Cow::Borrowed(downstream));
+                self.tx.send(evt).map_err(|e| {
+                    warn!("Event could not be sent! {:?}", e);
+                    SendError(action.0.forget_value(&tag))
+                })
             })
-        }).unwrap_or_else(|value| Err(SendError(value)))
+            .unwrap_or_else(|value| Err(SendError(value)))
     }
 }
-
 
 /// An offset from the current event.
 ///
@@ -621,7 +655,6 @@ impl PartialEq<Self> for Offset {
 }
 
 impl Eq for Offset {}
-
 
 /// Cleans up a tag
 /// TODO get rid of this!

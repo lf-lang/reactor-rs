@@ -28,11 +28,17 @@ use std::fmt::{Debug, Formatter};
 ///
 /// Used in [crate::ExecutableReactions]
 ///
-pub(crate) struct VecMap<K, V> where K: Eq + Ord {
+pub(crate) struct VecMap<K, V>
+where
+    K: Eq + Ord,
+{
     v: Vec<(K, V)>,
 }
 
-impl<K, V> VecMap<K, V> where K: Eq + Ord {
+impl<K, V> VecMap<K, V>
+where
+    K: Eq + Ord,
+{
     pub fn new() -> Self {
         Self { v: Vec::new() }
     }
@@ -40,15 +46,17 @@ impl<K, V> VecMap<K, V> where K: Eq + Ord {
     pub fn entry(&mut self, key: K) -> Entry<K, V> {
         match self.find_k(&key) {
             Ok(index) => Entry::Occupied(key, &mut self.v[index].1),
-            Err(index) => Entry::Vacant(VacantEntry { map: self, index, key })
+            Err(index) => Entry::Vacant(VacantEntry {
+                map: self,
+                index,
+                key,
+            }),
         }
     }
 
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         match self.find_k(&key) {
-            Ok(index) => {
-                Some(std::mem::replace(&mut self.v[index].1, value))
-            },
+            Ok(index) => Some(std::mem::replace(&mut self.v[index].1, value)),
             Err(index) => {
                 self.v.insert(index, (key, value));
                 None
@@ -59,14 +67,14 @@ impl<K, V> VecMap<K, V> where K: Eq + Ord {
     pub fn remove(&mut self, key: &K) -> Option<V> {
         match self.find_k(key) {
             Ok(index) => Some(self.v.remove(index).1),
-            Err(_) => None
+            Err(_) => None,
         }
     }
 
     pub fn get(&self, key: &K) -> Option<&V> {
         match self.find_k(key) {
             Ok(index) => Some(&self.v[index].1),
-            Err(_) => None
+            Err(_) => None,
         }
     }
 
@@ -74,14 +82,13 @@ impl<K, V> VecMap<K, V> where K: Eq + Ord {
         self.find_k(key).is_ok()
     }
 
-    pub fn iter_from(&self, min_key: K) -> impl Iterator<Item=&(K, V)> + '_ {
+    pub fn iter_from(&self, min_key: K) -> impl Iterator<Item = &(K, V)> + '_ {
         self.v.iter().skip_while(move |(k, _)| k < &min_key)
     }
 
     pub fn max_key(&self) -> Option<&K> {
         self.v.last().map(|e| &e.0)
     }
-
 
     fn find_k(&self, key: &K) -> Result<usize, usize> {
         self.v.binary_search_by_key(&key, |(k, _)| k)
@@ -98,7 +105,6 @@ impl<K: Clone + Eq + Ord, V: Clone> Clone for VecMap<K, V> {
     }
 }
 
-
 impl<K: Ord + Eq + Debug, V: Debug> Debug for VecMap<K, V> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.v.iter().collect::<Vec<&(K, V)>>().fmt(f)
@@ -111,9 +117,11 @@ impl<K: Ord + Eq, V> Default for VecMap<K, V> {
     }
 }
 
-
 /// A view into a single entry in a map, which may either be vacant or occupied.
-pub enum Entry<'a, K, V> where K: Ord + Eq {
+pub enum Entry<'a, K, V>
+where
+    K: Ord + Eq,
+{
     /// A vacant Entry
     Vacant(VacantEntry<'a, K, V>),
 
@@ -122,13 +130,19 @@ pub enum Entry<'a, K, V> where K: Ord + Eq {
 }
 
 /// A vacant Entry.
-pub struct VacantEntry<'a, K, V> where K: Ord + Eq {
+pub struct VacantEntry<'a, K, V>
+where
+    K: Ord + Eq,
+{
     map: &'a mut VecMap<K, V>,
     key: K,
     index: usize,
 }
 
-impl< K, V> VacantEntry<'_, K, V> where K: Ord + Eq {
+impl<K, V> VacantEntry<'_, K, V>
+where
+    K: Ord + Eq,
+{
     /// Sets the value of the entry with the VacantEntry's key,
     /// and returns a mutable reference to it.
     pub fn insert(self, value: V) {
@@ -136,4 +150,3 @@ impl< K, V> VacantEntry<'_, K, V> where K: Ord + Eq {
         self.map.insert_internal(index, self.key, value)
     }
 }
-

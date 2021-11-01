@@ -22,7 +22,6 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 use std::convert::TryFrom;
 use std::time::Duration;
 
@@ -31,24 +30,28 @@ pub(crate) mod vecmap;
 #[macro_export]
 #[doc(hidden)]
 macro_rules! join_to {
-    ($f:expr, $iter:expr) => {join_to!($f, $iter, ", ")};
-    ($f:expr, $iter:expr, $sep:literal) => {join_to!($f, $iter, $sep, "", "")};
+    ($f:expr, $iter:expr) => {
+        join_to!($f, $iter, ", ")
+    };
+    ($f:expr, $iter:expr, $sep:literal) => {
+        join_to!($f, $iter, $sep, "", "")
+    };
     ($f:expr, $iter:expr, $sep:literal, $prefix:literal, $suffix:literal) => {
         join_to!($f, $iter, $sep, $prefix, $suffix, |x| format!("{}", x))
     };
-    ($f:expr, $iter:expr, $sep:literal, $prefix:literal, $suffix:literal, $display:expr) => {
-        {
-            crate::util::do_write($f, $iter, $sep, $prefix, $suffix, $display)
-        }
-    };
+    ($f:expr, $iter:expr, $sep:literal, $prefix:literal, $suffix:literal, $display:expr) => {{
+        crate::util::do_write($f, $iter, $sep, $prefix, $suffix, $display)
+    }};
 }
 
-pub(crate) fn do_write<X>(f: &mut impl std::fmt::Write,
-                          iter: impl Iterator<Item=X>,
-                          sep: &'static str,
-                          prefix: &'static str,
-                          suffix: &'static str,
-                          formatter: impl Fn(X) -> String) -> std::fmt::Result {
+pub(crate) fn do_write<X>(
+    f: &mut impl std::fmt::Write,
+    iter: impl Iterator<Item = X>,
+    sep: &'static str,
+    prefix: &'static str,
+    suffix: &'static str,
+    formatter: impl Fn(X) -> String,
+) -> std::fmt::Result {
     let mut iter = iter;
     write!(f, "{}", prefix)?;
     if let Some(first) = iter.next() {
@@ -172,7 +175,6 @@ macro_rules! tag {
     };
 }
 
-
 /// A unit of time, used in LF.
 #[derive(Debug)]
 pub enum TimeUnit {
@@ -198,7 +200,7 @@ impl TryFrom<&str> for TimeUnit {
             "ms" | "msec" | "msecs" => Self::MILLI,
             "us" | "usec" | "usecs" => Self::MICRO,
             "ns" | "nsec" | "nsecs" => Self::NANO,
-            _ => return Err(())
+            _ => return Err(()),
         };
         Ok(u)
     }
@@ -213,7 +215,7 @@ impl TimeUnit {
             TimeUnit::SEC => Duration::from_secs(magnitude),
             TimeUnit::MIN => Duration::from_secs(60 * magnitude),
             TimeUnit::HOUR => Duration::from_secs(60 * 60 * magnitude),
-            TimeUnit::DAY => Duration::from_secs(60 * 60 * 24 * magnitude)
+            TimeUnit::DAY => Duration::from_secs(60 * 60 * 24 * magnitude),
         }
     }
 }
@@ -249,16 +251,19 @@ pub fn try_parse_duration(t: &str) -> Result<Duration, String> {
     let mut chars = t.char_indices().skip_while(|(_, c)| c.is_numeric());
 
     if let Some((num_end, _)) = &chars.next() {
-        let magnitude: u64 = (&t)[0..*num_end].parse::<u64>().map_err(|e| format!("{}", e))?;
+        let magnitude: u64 = (&t)[0..*num_end]
+            .parse::<u64>()
+            .map_err(|e| format!("{}", e))?;
 
         let unit = t[*num_end..].trim();
 
         let duration = match TimeUnit::try_from(unit) {
             Ok(unit) => unit.to_duration(magnitude),
-            Err(_) => return Err(format!("unknown time unit '{}'", unit))
+            Err(_) => return Err(format!("unknown time unit '{}'", unit)),
         };
         Ok(duration)
-    } else if t != "0" { // no unit
+    } else if t != "0" {
+        // no unit
         if t.len() > 0 {
             Err("time unit required".into())
         } else {
