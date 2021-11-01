@@ -32,10 +32,9 @@
 //!
 //! Crate-level features include:
 //! - `parallel-runtime`: use Rayon to execute reactions in parallel
-//! when possible. For some applications, where there is no data parallelism,
-//! this *kills* performance. This is off by default.
-//! - `test-utils`: utilities to write tests of reactor programs,
-//! e.g, to check time invariants from within reactions.
+//! when possible. This is off by default. For some applications,
+//! where there is no data parallelism, this may harm performance
+//! (as well as pull in unneeded dependencies) and should stay off.
 //! - `no-unsafe`: disable optimisations that use unsafe code in this runtime.
 //! Just provided for comparison, should probably be removed (unsafe code is fine).
 //! - `graph-dump` (internal): dumps the dependency graph to stdout
@@ -64,7 +63,6 @@ extern crate rayon;
 extern crate smallvec;
 
 pub use std::time::Duration;
-// reexport those to complement our LogicalInstant
 pub use std::time::Instant;
 
 pub use self::actions::*;
