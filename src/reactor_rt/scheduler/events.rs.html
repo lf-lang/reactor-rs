@@ -191,13 +191,30 @@
 <span id="191">191</span>
 <span id="192">192</span>
 <span id="193">193</span>
+<span id="194">194</span>
+<span id="195">195</span>
+<span id="196">196</span>
+<span id="197">197</span>
+<span id="198">198</span>
+<span id="199">199</span>
+<span id="200">200</span>
+<span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::borrow::Cow</span>;
 <span class="kw">use</span> <span class="ident">std::collections::VecDeque</span>;
 <span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="ident">Display</span>, <span class="ident">Formatter</span>};
 <span class="kw">use</span> <span class="ident">std::time::Instant</span>;
 
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::dependencies::ExecutableReactions</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
 <span class="kw">use</span> <span class="ident"><span class="kw">super</span>::ReactionPlan</span>;
 
@@ -225,7 +242,7 @@
     <span class="doccomment">/// The tag of the startup event.</span>
     <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">ORIGIN</span>: <span class="ident">EventTag</span> <span class="op">=</span> <span class="ident">EventTag</span> {
         <span class="ident">offset_from_t0</span>: <span class="ident">Duration::from_millis</span>(<span class="number">0</span>),
-        <span class="ident">microstep</span>: <span class="ident">MicroStep::ZERO</span>
+        <span class="ident">microstep</span>: <span class="ident">MicroStep::ZERO</span>,
     };
 
     <span class="doccomment">/// Returns the logical instant for this tag, using the</span>
@@ -259,14 +276,20 @@
     <span class="doccomment">/// Create a tag for the zeroth microstep of the given instant.</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">absolute</span>(<span class="ident">t0</span>: <span class="ident">Instant</span>, <span class="ident">instant</span>: <span class="ident">Instant</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span> { <span class="ident">offset_from_t0</span>: <span class="ident">instant</span> <span class="op">-</span> <span class="ident">t0</span>, <span class="ident">microstep</span>: <span class="ident">MicroStep::ZERO</span> }
+        <span class="self">Self</span> {
+            <span class="ident">offset_from_t0</span>: <span class="ident">instant</span> <span class="op">-</span> <span class="ident">t0</span>,
+            <span class="ident">microstep</span>: <span class="ident">MicroStep::ZERO</span>,
+        }
     }
 
     <span class="doccomment">/// Create a new tag from its offset from t0 and a microstep.</span>
     <span class="doccomment">/// Use the [tag!](crate::tag) macro for more convenient syntax.</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">offset</span>(<span class="ident">offset_from_t0</span>: <span class="ident">Duration</span>, <span class="ident">microstep</span>: <span class="ident"><span class="kw">crate</span>::time::MS</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span> { <span class="ident">offset_from_t0</span>, <span class="ident">microstep</span>: <span class="ident">MicroStep::new</span>(<span class="ident">microstep</span>) }
+        <span class="self">Self</span> {
+            <span class="ident">offset_from_t0</span>,
+            <span class="ident">microstep</span>: <span class="ident">MicroStep::new</span>(<span class="ident">microstep</span>),
+        }
     }
 
     <span class="doccomment">/// Returns a tag that is strictly greater than this one.</span>
@@ -277,7 +300,7 @@
         } <span class="kw">else</span> {
             <span class="self">Self</span> {
                 <span class="ident">offset_from_t0</span>: <span class="self">self</span>.<span class="ident">offset_from_t0</span> <span class="op">+</span> <span class="ident">offset</span>,
-                <span class="ident">microstep</span>: <span class="ident">MicroStep::ZERO</span>
+                <span class="ident">microstep</span>: <span class="ident">MicroStep::ZERO</span>,
             }
         }
     }
@@ -302,10 +325,15 @@
 <span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">EventTag</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::fmt::Result</span> {
         <span class="kw">let</span> <span class="ident">elapsed</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">offset_from_t0</span>;
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;(T0 + {} ns = {} ms, {})&quot;</span>, <span class="ident">elapsed</span>.<span class="ident">as_nanos</span>(), <span class="ident">elapsed</span>.<span class="ident">as_millis</span>(), <span class="self">self</span>.<span class="ident">microstep</span>)
+        <span class="macro">write!</span>(
+            <span class="ident">f</span>,
+            <span class="string">&quot;(T0 + {} ns = {} ms, {})&quot;</span>,
+            <span class="ident">elapsed</span>.<span class="ident">as_nanos</span>(),
+            <span class="ident">elapsed</span>.<span class="ident">as_millis</span>(),
+            <span class="self">self</span>.<span class="ident">microstep</span>
+        )
     }
 }
-
 
 <span class="doccomment">/// A tagged event of the reactor program. Events are tagged</span>
 <span class="doccomment">/// with the logical instant at which they must be processed.</span>
@@ -334,13 +362,20 @@
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">execute</span>(<span class="ident">tag</span>: <span class="ident">EventTag</span>, <span class="ident">reactions</span>: <span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span>, <span class="ident">ExecutableReactions</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span> { <span class="ident">tag</span>, <span class="ident">reactions</span>: <span class="prelude-val">Some</span>(<span class="ident">reactions</span>), <span class="ident">terminate</span>: <span class="bool-val">false</span> }
+        <span class="self">Self</span> {
+            <span class="ident">tag</span>,
+            <span class="ident">reactions</span>: <span class="prelude-val">Some</span>(<span class="ident">reactions</span>),
+            <span class="ident">terminate</span>: <span class="bool-val">false</span>,
+        }
     }
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">terminate_at</span>(<span class="ident">tag</span>: <span class="ident">EventTag</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span> { <span class="ident">tag</span>, <span class="ident">reactions</span>: <span class="prelude-val">None</span>, <span class="ident">terminate</span>: <span class="bool-val">true</span> }
+        <span class="self">Self</span> {
+            <span class="ident">tag</span>,
+            <span class="ident">reactions</span>: <span class="prelude-val">None</span>,
+            <span class="ident">terminate</span>: <span class="bool-val">true</span>,
+        }
     }
 }
-
 
 <span class="doccomment">/// A queue of pending [Event]s. Events are ordered by tag,</span>
 <span class="doccomment">/// so this is not a FIFO queue.</span>
@@ -357,7 +392,6 @@
     <span class="doccomment">///     ....</span>
     <span class="ident">value_list</span>: <span class="ident">VecDeque</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 }
-
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> <span class="ident">EventQueue</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> {
     <span class="doccomment">/// Removes and returns the earliest tag</span>
