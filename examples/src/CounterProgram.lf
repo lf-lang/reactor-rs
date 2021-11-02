@@ -3,12 +3,13 @@ target Rust {
 };
 
 reactor Counter(stride: u32(1)) {
+    state stride(stride);
     state count: u32(0);
     timer t(0, 1 sec);
     output out: u32;
     reaction(t) -> out {=
         ctx.set(out, self.count);
-        self.count += params.stride;
+        self.count += self.stride;
     =}
 }
 reactor Printer {
