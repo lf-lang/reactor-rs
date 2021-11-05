@@ -267,6 +267,14 @@ where
         reactors: ReactorVec<'x>,
         initial_time: Instant,
     ) -> Self {
+        if !cfg!(feature = "parallel-runtime") && options.threads != 0 {
+            warn!("'threads' runtime parameter has no effect unless feature 'parallel-runtime' is enabled")
+        }
+
+        if options.keep_alive {
+            warn!("'keepalive' runtime parameter has no effect in the Rust target")
+        }
+
         let (_, rx) = unbounded::<Event<'x>>();
         Self {
             rx,
@@ -278,7 +286,10 @@ where
             latest_processed_tag: None,
             shutdown_time: options.timeout.map(|timeout| {
                 let shutdown_tag = EventTag::ORIGIN.successor(timeout);
-                trace!("Timeout specified, will shut down at tag {}", shutdown_tag);
+                trace!(
+                    "Timeout specified, will shut down at most at tag {}",
+                    shutdown_tag
+                );
                 shutdown_tag
             }),
             dataflow: dependency_info,
