@@ -52,4 +52,4 @@ jobs:
         profile: minimal
         toolchain: stable
     - name: Check format
-      run: cargo fmt --check
+      run: cargo fmt -- --check
