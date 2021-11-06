@@ -478,20 +478,11 @@ where
                 }
             }
 
-            let next_reactions = ctx.insides.todo_now.take();
-            let has_next_reactions = next_reactions.is_some();
-            if has_next_reactions {
-                trace!("  - Next up: {}", debug.display_reactions(&next_reactions));
-            }
             reactions = ExecutableReactions::merge_cows_after(
                 reactions,
-                next_reactions,
+                ctx.insides.todo_now.take(),
                 min_layer,
             );
-
-            if has_next_reactions {
-                trace!("  - Next up(2): {}", debug.display_reactions(&reactions));
-            }
         }
 
         for evt in ctx.insides.future_events.drain(..) {

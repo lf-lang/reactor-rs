@@ -4,7 +4,6 @@ use std::sync::Arc;
 
 use crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
-use log::Level::Trace;
 use smallvec::SmallVec;
 
 use crate::assembly::*;
@@ -213,9 +212,6 @@ where
         let port = port.borrow_mut();
         port.set_impl(value);
         self.enqueue_now(Cow::Borrowed(self.reactions_triggered_by(port.get_id())));
-        if log_enabled!(Trace) {
-            trace!("Enqueuing {:?} ", self.reactions_triggered_by(port.get_id()));
-        }
     }
 
     /// Returns true if the given action was triggered at the

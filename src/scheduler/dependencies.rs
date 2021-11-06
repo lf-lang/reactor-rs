@@ -346,29 +346,31 @@ impl DepGraph {
         //  Real world example: RadixSort has a chain of 60 reactors,
         //  each reactor is connected to the next and its internal dep graph is a diamond.
         //  So you have 0<>1<>2<>...<>60, so there is 2^60 paths in the graph.
-        // There is a less complex destructive algorithm. If we use that
-        // we have to copy the graph. Is this needed?
-        let mut visited = HashMap::<GraphIx, LayerIx>::new();
+        //  This example is fixed for now, as the diamonds are only of depth 1, and we now dedup the todo queue.
+        //  But diamonds of size > 1 will reproduce the problem.
+
+        // There is an easy algorithm that is linear, but destructive.
+        // If we use that we have to copy the graph. Is this needed?
         let mut cur_layer: LayerIx = LayerIx(0);
         while !todo.is_empty() {
             for ix in todo.drain(..) {
-                if visited.insert(ix) {
-                    let node = self.dataflow.node_weight(ix).unwrap();
+                let node = self.dataflow.node_weight(ix).unwrap();
 
-                    if let GraphId::Reaction(id) = node.id {
-                        let current = layer_numbers.entry(id).or_insert(cur_layer);
-                        *current = cur_layer.max(*current);
-                    }
-
-                    let successors = self
-                        .dataflow
-                        .edges_directed(ix, Outgoing)
-                        .map(|e| e.target());
-                    todo_next.extend(successors);
+                if let GraphId::Reaction(id) = node.id {
+                    let current = layer_numbers.entry(id).or_insert(cur_layer);
+                    *current = cur_layer.max(*current);
                 }
+
+                let successors = self
+                    .dataflow
+                    .edges_directed(ix, Outgoing)
+                    .map(|e| e.target());
+                todo_next.extend(successors);
             }
             cur_layer = cur_layer.next();
-            std::mem::swap(&mut todo, &mut todo_next)
+            std::mem::swap(&mut todo, &mut todo_next);
+            todo.sort();
+            todo.dedup();
         }
         layer_numbers
     }
