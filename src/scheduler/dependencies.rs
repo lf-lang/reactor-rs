@@ -341,7 +341,14 @@ impl DepGraph {
         let mut layer_numbers = HashMap::<GlobalReactionId, LayerIx>::new();
         let mut todo = self.get_roots();
         let mut todo_next = Vec::new();
-        let mut visited = HashSet::<GraphIx>::new();
+        // Todo this implementation explores all paths of the graph.
+        //  Even small programs may have prohibitively many paths.
+        //  Real world example: RadixSort has a chain of 60 reactors,
+        //  each reactor is connected to the next and its internal dep graph is a diamond.
+        //  So you have 0<>1<>2<>...<>60, so there is 2^60 paths in the graph.
+        // There is a less complex destructive algorithm. If we use that
+        // we have to copy the graph. Is this needed?
+        let mut visited = HashMap::<GraphIx, LayerIx>::new();
         let mut cur_layer: LayerIx = LayerIx(0);
         while !todo.is_empty() {
             for ix in todo.drain(..) {

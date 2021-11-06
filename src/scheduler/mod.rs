@@ -55,35 +55,34 @@ pub(self) struct DebugInfoProvider<'a> {
 
 impl DebugInfoProvider<'_> {
     pub(self) fn display_event(&self, evt: &Event) -> String {
+
+        let Event { tag, reactions, terminate, } = evt;
+        let mut str = format!("at {}: run {}", tag, self.display_reactions(reactions));
+
+        if *terminate {
+            str += ", then terminate"
+        }
+        str
+    }
+
+    pub(self) fn display_reactions(&self, reactions: &ReactionPlan) -> String {
         use std::fmt::*;
 
-        match evt {
-            Event {
-                tag,
-                reactions,
-                terminate,
-            } => {
-                let mut str = format!("at {}: run [", tag);
+        let mut str = format!("[");
 
-                if let Some(reactions) = reactions {
-                    for (layer_no, batch) in reactions.batches() {
-                        write!(str, "{}: ", layer_no).unwrap();
-                        join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| format!(
+        if let Some(reactions) = reactions {
+            for (layer_no, batch) in reactions.batches() {
+                write!(str, "{}: ", layer_no).unwrap();
+                join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| format!(
                             "{}",
                             self.display_reaction(*x)
                         ))
-                        .unwrap();
-                    }
-                }
-
-                str += "]";
-                if *terminate {
-                    str += ", then terminate"
-                }
-                str += "";
-                str
+                    .unwrap();
             }
         }
+
+        str += "]";
+        str
     }
 
     #[inline]

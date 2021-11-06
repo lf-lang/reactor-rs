@@ -451,16 +451,11 @@ where
         // This must be increasing monotonically.
         let mut min_layer: LayerIx = Default::default();
 
-        while let Some((layer_no, batch)) = reactions
-            .as_ref()
-            .and_then(|todo| todo.next_batch(min_layer))
-        {
-            debug_assert!(
-                layer_no >= min_layer,
-                "Reaction dependencies were not respected ({} < {})",
-                layer_no,
-                min_layer
-            );
+        while let Some((layer_no, batch)) = reactions.as_ref()
+                .and_then(|todo| todo.next_batch(min_layer)) {
+            trace!("  - Level {}", layer_no);
+
+            debug_assert!(layer_no >= min_layer, "Reaction dependency violation");
             ctx.set_cur_layer(layer_no);
             min_layer = layer_no.next(); // the next layer to fetch
 
@@ -468,7 +463,7 @@ where
                 #[cfg(feature = "parallel-runtime")]
                 {
                     // install makes calls to parallel iterators use that thread pool
-                    let reactors = &mut self.reactors;
+                    let reactors = &mut self.reactors; // todo this intermediate var won't be needed anymore in Rust 1.57.0
                     self.rayon_thread_pool.install(|| {
                         parallel_rt_impl::process_batch(&mut ctx, &debug, reactors, batch)
                     })
@@ -476,22 +471,27 @@ where
             } else {
                 // the impl for non-parallel runtime
                 for reaction_id in batch {
-                    trace!(
-                        "  - Executing {} (layer {})",
-                        debug.display_reaction(*reaction_id),
-                        layer_no
-                    );
+                    trace!("  - Executing {} (layer {})", debug.display_reaction(*reaction_id), layer_no);
                     let reactor = &mut self.reactors[reaction_id.0.container()];
 
                     reactor.react_erased(&mut ctx, reaction_id.0.local());
                 }
             }
 
+            let next_reactions = ctx.insides.todo_now.take();
+            let has_next_reactions = next_reactions.is_some();
+            if has_next_reactions {
+                trace!("  - Next up: {}", debug.display_reactions(&next_reactions));
+            }
             reactions = ExecutableReactions::merge_cows_after(
                 reactions,
-                ctx.insides.todo_now.take(),
+                next_reactions,
                 min_layer,
             );
+
+            if has_next_reactions {
+                trace!("  - Next up(2): {}", debug.display_reactions(&reactions));
+            }
         }
 
         for evt in ctx.insides.future_events.drain(..) {
