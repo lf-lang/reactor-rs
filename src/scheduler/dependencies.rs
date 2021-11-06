@@ -349,18 +349,15 @@ impl DepGraph {
                     let node = self.dataflow.node_weight(ix).unwrap();
 
                     if let GraphId::Reaction(id) = node.id {
-                        match layer_numbers.entry(id) {
-                            HEntry::Vacant(v) => {
-                                v.insert(cur_layer);
-                            }
-                            HEntry::Occupied(mut e) => {
-                                e.insert(cur_layer.max(*e.get()));
-                            }
-                        }
+                        let current = layer_numbers.entry(id).or_insert(cur_layer);
+                        *current = cur_layer.max(*current);
                     }
-                    for out_edge in self.dataflow.edges_directed(ix, Outgoing) {
-                        todo_next.push(out_edge.target())
-                    }
+
+                    let successors = self
+                        .dataflow
+                        .edges_directed(ix, Outgoing)
+                        .map(|e| e.target());
+                    todo_next.extend(successors);
                 }
             }
             cur_layer = cur_layer.next();
