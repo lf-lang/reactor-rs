@@ -341,23 +341,26 @@ impl DepGraph {
         let mut layer_numbers = HashMap::<GlobalReactionId, LayerIx>::new();
         let mut todo = self.get_roots();
         let mut todo_next = Vec::new();
+        let mut visited = HashSet::<GraphIx>::new();
         let mut cur_layer: LayerIx = LayerIx(0);
         while !todo.is_empty() {
             for ix in todo.drain(..) {
-                let node = self.dataflow.node_weight(ix).unwrap();
+                if visited.insert(ix) {
+                    let node = self.dataflow.node_weight(ix).unwrap();
 
-                if let GraphId::Reaction(id) = node.id {
-                    match layer_numbers.entry(id) {
-                        HEntry::Vacant(v) => {
-                            v.insert(cur_layer);
-                        }
-                        HEntry::Occupied(mut e) => {
-                            e.insert(cur_layer.max(*e.get()));
+                    if let GraphId::Reaction(id) = node.id {
+                        match layer_numbers.entry(id) {
+                            HEntry::Vacant(v) => {
+                                v.insert(cur_layer);
+                            }
+                            HEntry::Occupied(mut e) => {
+                                e.insert(cur_layer.max(*e.get()));
+                            }
                         }
                     }
-                }
-                for out_edge in self.dataflow.edges_directed(ix, Outgoing) {
-                    todo_next.push(out_edge.target())
+                    for out_edge in self.dataflow.edges_directed(ix, Outgoing) {
+                        todo_next.push(out_edge.target())
+                    }
                 }
             }
             cur_layer = cur_layer.next();
