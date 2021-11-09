@@ -472,8 +472,9 @@ where
                 // the impl for non-parallel runtime
                 for reaction_id in batch {
                     trace!("  - Executing {} (layer {})", debug.display_reaction(*reaction_id), layer_no);
-                    let reactor = &mut self.reactors[reaction_id.0.container()];
-
+                    let container_id = reaction_id.0.container();
+                    let reactor = &mut self.reactors[container_id];
+                    debug_assert_eq!(reactor.id(), container_id, "Wrong reactor");
                     reactor.react_erased(&mut ctx, reaction_id.0.local());
                 }
             }
