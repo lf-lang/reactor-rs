@@ -144,6 +144,10 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
             [GlobalReactionId; N],
         ) -> AssemblyResult<()>,
     ) -> Result<(Self, S), AssemblyError> {
+        // todo when feature(generic_const_exprs) is stabilized,
+        //  replace const parameter N with S::MAX_REACTION_ID.index().
+        debug_assert_eq!(N, S::MAX_REACTION_ID.index(), "Should initialize all reactions");
+
         let id = self.globals.reactor_id;
         self.globals.reactor_id = self.globals.reactor_id.plus(1);
         self.globals.debug_info.record_reactor(

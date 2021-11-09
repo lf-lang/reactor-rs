@@ -78,7 +78,6 @@ impl Default for SchedulerOptions {
 macro_rules! debug_info {
     ($e:expr) => {
         DebugInfoProvider {
-            initial_time: $e.initial_time,
             id_registry: &$e.id_registry,
         }
     };
@@ -124,6 +123,7 @@ where
     rx: Receiver<Event<'x>>,
 
     /// Initial time of the logical system.
+    #[allow(unused)] // might be useful someday
     initial_time: Instant,
 
     /// Scheduled shutdown time. If Some, shutdown will be

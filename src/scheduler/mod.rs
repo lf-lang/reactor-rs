@@ -24,7 +24,6 @@
 
 use std::borrow::Cow;
 use std::fmt::Display;
-use std::time::Instant;
 
 use index_vec::IndexVec;
 
@@ -50,7 +49,6 @@ pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
 #[derive(Clone)]
 pub(self) struct DebugInfoProvider<'a> {
     id_registry: &'a DebugInfoRegistry,
-    initial_time: Instant,
 }
 
 impl DebugInfoProvider<'_> {
