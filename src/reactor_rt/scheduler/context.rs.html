@@ -899,7 +899,7 @@
     {
         <span class="kw">let</span> <span class="ident">port</span> <span class="op">=</span> <span class="ident">port</span>.<span class="ident">borrow_mut</span>();
         <span class="ident">port</span>.<span class="ident">set_impl</span>(<span class="ident">value</span>);
-        <span class="self">self</span>.<span class="ident">enqueue_now</span>(<span class="ident">Cow::Borrowed</span>(<span class="self">self</span>.<span class="ident">reactions_triggered_by</span>(<span class="ident">port</span>.<span class="ident">get_id</span>())))
+        <span class="self">self</span>.<span class="ident">enqueue_now</span>(<span class="ident">Cow::Borrowed</span>(<span class="self">self</span>.<span class="ident">reactions_triggered_by</span>(<span class="ident">port</span>.<span class="ident">get_id</span>())));
     }
 
     <span class="doccomment">/// Returns true if the given action was triggered at the</span>
