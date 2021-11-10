@@ -68,7 +68,8 @@ impl<K, T: Sync> Action<K, T> {
         match self.map.entry(Reverse(time)) {
             Entry::Vacant(e) => e.insert(value),
             Entry::Occupied(_, v) => {
-                // todo log when overwriting value
+                trace!("Value overwritten in an action for tag {}", time);
+                trace!("This means an action was scheduled several times for the same tag.");
                 *v = value
             }
         }
