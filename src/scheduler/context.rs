@@ -504,7 +504,6 @@ impl RContextForwardableStuff<'_> {
 ///
 /// See [ReactionCtx::spawn_physical_thread].
 ///
-/// todo this thing should know when the scheduler has been terminated.
 #[derive(Clone)]
 pub struct PhysicalSchedulerLink<'a, 'x, 't> {
     tx: Sender<Event<'x>>,

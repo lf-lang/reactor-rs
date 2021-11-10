@@ -493,6 +493,7 @@ where
         // cleanup tag-specific resources, eg clear port values
         let ctx = CleanupCtx { tag };
         // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
+        //   see also efforts in the C runtime to  avoid this
         for reactor in &mut self.reactors {
             reactor.cleanup_tag(&ctx)
         }

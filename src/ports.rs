@@ -253,7 +253,7 @@ pub struct Port<T: Sync> {
     //
 }
 
-// todo review that
+// todo document that
 unsafe impl<T: Sync> Send for Port<T> {}
 
 impl<T: Sync> Port<T> {

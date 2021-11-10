@@ -48,8 +48,8 @@ impl EventTag {
     /// ```no_run
     /// # use std::time::Instant;
     /// # use reactor_rt::EventTag;
-    /// # let t0: Instant = todo!();
-    /// # let tag1: EventTag = todo!();
+    /// # let t0: Instant = unimplemented!();
+    /// # let tag1: EventTag = unimplemented!();
     /// assert_eq!(tag1.duration_since_start(), tag1.to_logical_time(t0) - t0)
     /// ```
     #[inline]
@@ -192,7 +192,7 @@ impl<'x> EventQueue<'x> {
     // todo perf: we could make a more optimal function to push a
     //  lot of events at once. Consider the following algorithm:
     //  - start with a sorted `self.value_list` and a (non-sorted) `new_evts: Vec<Event>`
-    //  - sort the new events in place (in a Cow maybe=. They'll
+    //  - sort the new events in place (in a Cow maybe). They'll
     //  probably come in already sorted but we can't assume this.
     //  Use an algorithm that best-cases for sorted data. (eg https://crates.io/crates/dmsort)
     //  - take the earliest new event and binary search to insert it.

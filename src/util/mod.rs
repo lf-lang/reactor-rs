@@ -126,7 +126,7 @@ macro_rules! delay {
 ///
 /// ```no_run
 /// # use reactor_rt::{assert_tag_is, delay, ReactionCtx};
-/// # let ctx : ReactionCtx = todo!();
+/// # let ctx : ReactionCtx = unimplemented!();
 /// # struct Foo { i: u32 }
 /// # let foo = Foo { i: 0 };
 ///
