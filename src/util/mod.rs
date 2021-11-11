@@ -95,6 +95,11 @@ macro_rules! after {
 /// assert_eq!(delay!(x min), delay!(120 s));
 /// assert_eq!(delay!((1+2) min), delay!(180 s));
 ///
+/// // more verbose aliases
+/// assert_eq!(delay!(2 min), delay!(2 minutes));
+/// assert_eq!(delay!(2 h), delay!(2 hours));
+/// assert_eq!(delay!(1 week), delay!(7 days));
+///
 /// ```
 #[macro_export]
 macro_rules! delay {
@@ -117,6 +122,14 @@ macro_rules! delay {
     ($amount:tt mins)     => { delay!($amount min) };
     ($amount:tt minute)   => { delay!($amount min) };
     ($amount:tt minutes)  => { delay!($amount min) };
+    ($amount:tt h)        => { delay!((3600 * $amount) s) };
+    ($amount:tt hour)     => { delay!($amount h) };
+    ($amount:tt hours)    => { delay!($amount h) };
+    ($amount:tt d)        => { delay!((24*$amount) h) };
+    ($amount:tt day)      => { delay!($amount d) };
+    ($amount:tt days)     => { delay!($amount d) };
+    ($amount:tt week)     => { delay!((7*$amount) d) };
+    ($amount:tt weeks)    => { delay!($amount week) };
     ($amount:tt $i:ident) => { compile_error!(concat!("Unknown time unit `", stringify!($i), "`")) };
 }
 
