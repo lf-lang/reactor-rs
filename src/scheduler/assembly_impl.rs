@@ -150,35 +150,18 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
 
         let id = self.globals.reactor_id;
         self.globals.reactor_id = self.globals.reactor_id.plus(1);
-        self.globals.debug_info.record_reactor(
-            id,
-            self.debug.take().expect("Can only call assemble_self once"),
-        );
+        self.globals.debug_info.record_reactor(id, self.debug.take().expect("Can only call assemble_self once"));
 
         let first_trigger_id = self.globals.cur_trigger;
 
-        let mut ich = create_self(
-            &mut ComponentCreator {
-                assembler: &mut self,
-            },
-            id,
-        )?;
+        let mut ich = create_self(&mut ComponentCreator { assembler: &mut self }, id)?;
         // after creation, globals.cur_trigger has been mutated
         // record proper debug info.
-        self.globals
-            .debug_info
-            .set_id_range(id, first_trigger_id..self.globals.cur_trigger);
+        self.globals.debug_info.set_id_range(id, first_trigger_id..self.globals.cur_trigger);
 
         // declare dependencies
         let reactions = self.new_reactions(id, num_non_synthetic_reactions, reaction_names);
-        declare_dependencies(
-            &mut DependencyDeclarator {
-                assembler: &mut self,
-            },
-            &mut ich,
-            reactions,
-        )?;
-
+        declare_dependencies(&mut DependencyDeclarator { assembler: &mut self }, &mut ich, reactions)?;
         Ok((self, ich))
     }
 

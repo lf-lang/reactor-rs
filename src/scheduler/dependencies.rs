@@ -258,6 +258,7 @@ impl DepGraph {
         self.record(GraphId::Reaction(id), NodeKind::Reaction);
     }
 
+    /// Records that n > m, ie it will execute always before m.
     pub fn reaction_priority(&mut self, n: GlobalReactionId, m: GlobalReactionId) {
         self.dataflow.add_edge(
             self.get_ix(n.into()),
@@ -673,34 +674,67 @@ impl Display for ExecutableReactions<'_> {
 pub mod test {
     use super::*;
 
+    struct TestGraphFixture {
+        graph: DepGraph,
+        trigger_id: TriggerId,
+    }
+
+    impl TestGraphFixture {
+        fn new() -> Self {
+            Self { graph: DepGraph::new(), trigger_id: TriggerId::FIRST_REGULAR }
+        }
+    }
+
+    struct TestAssembler<'a> {
+        fixture: &'a mut TestGraphFixture,
+        reactor_id: ReactorId,
+    }
+
+    impl<'a> TestAssembler<'a> {
+        fn new(graph: &'a mut TestGraphFixture, reactor_id: ReactorIdImpl) -> Self {
+            Self { fixture: graph, reactor_id: ReactorId::new(reactor_id) }
+        }
+
+        fn new_reactions<const N: usize>(&mut self) -> [GlobalReactionId; N] {
+            let result = array![i => GlobalReactionId::new(self.reactor_id, LocalReactionId::from_usize(i)); N];
+            let mut last = None;
+            for n in &result {
+                self.fixture.graph.record_reaction(*n);
+                if let Some(last) = last {
+                    self.fixture.graph.reaction_priority(last, *n);
+                }
+                last = Some(*n);
+            }
+            result
+        }
+
+        fn new_ports<const N: usize>(&mut self) -> [TriggerId; N] {
+            let result = array![i => TriggerId::new(self.fixture.trigger_id.index() + i); N];
+            self.fixture.trigger_id = TriggerId::new(self.fixture.trigger_id.index() + N);
+            for p in &result {
+                self.fixture.graph.record_port(*p);
+            }
+            result
+        }
+    }
+
     #[test]
     fn test_roots() {
-        let mut graph = DepGraph::new();
-        let r1 = ReactorId::new(0);
-        let n1 = GlobalReactionId::new(r1, LocalReactionId::new(0));
-        let n2 = GlobalReactionId::new(r1, LocalReactionId::new(1));
+        let mut test = TestGraphFixture::new();
+        let mut builder = TestAssembler::new(&mut test, 0);
+        let [n1, n2] = builder.new_reactions();
+        let [p0] = builder.new_ports();
 
-        let p0 = TriggerId::new(12);
-        // let p0 = TriggerId::Component(p0);
+        test.graph.reaction_effects(n1, p0);
+        test.graph.triggers_reaction(p0, n2);
 
-        graph.record_reaction(n1);
-        graph.record_reaction(n2);
-        graph.record_port(p0);
-
-        // n1 > n2
-        graph.reaction_priority(n1, n2);
-
-        graph.reaction_effects(n1, p0);
-        graph.triggers_reaction(p0, n2);
-
-        let roots = graph.get_roots();
-        // graph.eprintln_dot(&IdRegistry::default());
+        let roots = test.graph.get_roots();
         assert_eq!(
             roots,
             vec![
-                graph.get_ix(GraphId::STARTUP),
-                graph.get_ix(GraphId::SHUTDOWN),
-                graph.get_ix(n1.into())
+                test.graph.get_ix(GraphId::STARTUP),
+                test.graph.get_ix(GraphId::SHUTDOWN),
+                test.graph.get_ix(n1.into()),
             ]
         );
     }

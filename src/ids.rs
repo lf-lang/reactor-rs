@@ -28,8 +28,8 @@ use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
 // private implementation types
-type ReactionIdImpl = u16;
-type ReactorIdImpl = u16;
+pub(crate) type ReactionIdImpl = u16;
+pub(crate) type ReactorIdImpl = u16;
 pub(crate) type GlobalIdImpl = u32;
 
 macro_rules! simple_idx_type {
