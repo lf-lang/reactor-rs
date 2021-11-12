@@ -29,9 +29,10 @@ use std::sync::Arc;
 
 use crossbeam_channel::reconnectable::*;
 use crossbeam_utils::thread::{scope, Scope};
+use tempfile::NamedTempFile;
 
 use crate::assembly::*;
-use crate::scheduler::dependencies::{DataflowInfo, LayerIx};
+use crate::scheduler::dependencies::{DataflowInfo, DepGraph, LayerIx};
 use crate::*;
 
 use super::assembly_impl::RootAssembler;
@@ -159,7 +160,18 @@ where
 
         #[cfg(feature = "graph-dump")]
         {
-            eprintln!("{}", graph.format_dot(&id_registry));
+            use std::io::prelude::*;
+            fn write_graph_to_file(graph: &DepGraph, id_registry: &DebugInfoRegistry) -> std::io::Result<()> {
+                let mut dot_file = NamedTempFile::new()?;
+                writeln!(dot_file, "{}", graph.format_dot(id_registry))?;
+
+                let mut path = std::env::temp_dir();
+                path.push("reactors.dot");
+                dot_file.persist(path.clone())?;
+                eprintln!("Wrote dot file to {}", path.to_string_lossy());
+                Ok(())
+            }
+            write_graph_to_file(&graph, &id_registry).expect("Error while writing DOT file");
         }
 
         // collect dependency information
