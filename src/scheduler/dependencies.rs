@@ -276,6 +276,16 @@ impl DepGraph {
         );
     }
 
+    #[cfg(test)]
+    pub fn port_bind_untyped(&mut self, p1: TriggerId, p2: TriggerId) {
+        // upstream (settable) -> downstream (bound)
+        self.dataflow.add_edge(
+            self.get_ix(p1.into()),
+            self.get_ix(p2.into()),
+            EdgeWeight::Default,
+        );
+    }
+
     pub fn triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
         let trigger_ix = self.get_ix(trigger.into());
         if self.dataflow[trigger_ix].kind == MultiportUpstream {
@@ -676,24 +686,49 @@ pub mod test {
 
     struct TestGraphFixture {
         graph: DepGraph,
-        trigger_id: TriggerId,
+        next_trigger_id: TriggerId,
+        next_reactor_id: ReactorId,
+        debug_info: DebugInfoRegistry,
     }
 
     impl TestGraphFixture {
         fn new() -> Self {
-            Self { graph: DepGraph::new(), trigger_id: TriggerId::FIRST_REGULAR }
+            Self {
+                graph: DepGraph::new(),
+                next_trigger_id: TriggerId::FIRST_REGULAR,
+                debug_info: DebugInfoRegistry::new(),
+                next_reactor_id: ReactorId::new(0),
+            }
+        }
+
+        fn new_reactor(&mut self, name: impl Into<String>) -> TestAssembler {
+            let reactor_id = {
+                let id = self.next_reactor_id;
+                self.next_reactor_id = self.next_reactor_id.plus(1);
+                id
+            };
+            self.debug_info.record_reactor(reactor_id, ReactorDebugInfo::test_named(name.into()));
+            TestAssembler {
+                reactor_id,
+                first_trigger_id: self.next_trigger_id,
+                fixture: self,
+            }
+        }
+
+        #[cfg(feature = "graph-dump")]
+        #[allow(unused)]
+        fn eprintln_graph(&self) {
+            eprintln!("{}", self.graph.format_dot(&self.debug_info));
         }
     }
 
     struct TestAssembler<'a> {
         fixture: &'a mut TestGraphFixture,
         reactor_id: ReactorId,
+        first_trigger_id: TriggerId,
     }
 
-    impl<'a> TestAssembler<'a> {
-        fn new(graph: &'a mut TestGraphFixture, reactor_id: ReactorIdImpl) -> Self {
-            Self { fixture: graph, reactor_id: ReactorId::new(reactor_id) }
-        }
+    impl TestAssembler<'_> {
 
         fn new_reactions<const N: usize>(&mut self) -> [GlobalReactionId; N] {
             let result = array![i => GlobalReactionId::new(self.reactor_id, LocalReactionId::from_usize(i)); N];
@@ -708,22 +743,31 @@ pub mod test {
             result
         }
 
-        fn new_ports<const N: usize>(&mut self) -> [TriggerId; N] {
-            let result = array![i => TriggerId::new(self.fixture.trigger_id.index() + i); N];
-            self.fixture.trigger_id = TriggerId::new(self.fixture.trigger_id.index() + N);
-            for p in &result {
+        fn new_ports<const N: usize>(&mut self, names: [&'static str; N]) -> [TriggerId; N] {
+            let result = array![i => TriggerId::new(self.fixture.next_trigger_id.index() + i); N];
+            self.fixture.next_trigger_id = TriggerId::new(self.fixture.next_trigger_id.index() + N);
+            for (i, p) in (&result).into_iter().enumerate() {
                 self.fixture.graph.record_port(*p);
+                self.fixture.debug_info.record_trigger(*p, Cow::Borrowed(names[i]));
             }
             result
+        }
+    }
+
+    impl Drop for TestAssembler<'_> {
+        fn drop(&mut self) {
+            let range = self.first_trigger_id..self.fixture.next_trigger_id;
+            self.fixture.debug_info.set_id_range(self.reactor_id, range)
         }
     }
 
     #[test]
     fn test_roots() {
         let mut test = TestGraphFixture::new();
-        let mut builder = TestAssembler::new(&mut test, 0);
+        let mut builder = test.new_reactor("main");
         let [n1, n2] = builder.new_reactions();
-        let [p0] = builder.new_ports();
+        let [p0] = builder.new_ports(["p0"]);
+        drop(builder);
 
         test.graph.reaction_effects(n1, p0);
         test.graph.triggers_reaction(p0, n2);
@@ -737,5 +781,116 @@ pub mod test {
                 test.graph.get_ix(n1.into()),
             ]
         );
+    }
+
+    #[test]
+    fn test_level_assignment_simple() {
+        let mut test = TestGraphFixture::new();
+
+        let mut builder = test.new_reactor("main");
+        let [n1, n2] = builder.new_reactions();
+        let [p0] = builder.new_ports(["p0"]);
+        drop(builder);
+
+        test.graph.reaction_effects(n1, p0);
+        test.graph.triggers_reaction(p0, n2);
+
+        let levels = test.graph.number_reactions_by_layer();
+        assert!(levels[&n1] < levels[&n2]);
+    }
+
+    #[test]
+    fn test_level_assignment_diamond_1() {
+        let mut test = TestGraphFixture::new();
+
+        let mut builder = test.new_reactor("main");
+        let [n1, n2] = builder.new_reactions();
+        let [p0, p1] = builder.new_ports(["p0", "p1"]);
+        drop(builder);
+
+        test.graph.reaction_effects(n1, p0);
+        test.graph.reaction_effects(n1, p1);
+        test.graph.triggers_reaction(p0, n2);
+        test.graph.triggers_reaction(p1, n2);
+
+        let levels = test.graph.number_reactions_by_layer();
+        assert!(levels[&n1] < levels[&n2]);
+    }
+
+    // this is a stress test that ensures our level assignment algo is not exponential
+    #[test]
+    fn test_level_assignment_diamond_1_exponential() {
+        let mut test = TestGraphFixture::new();
+
+        let mut builder = test.new_reactor("top");
+        let [mut prev_in] = builder.new_ports(["in"]);
+        drop(builder);
+
+        // the number of paths in the graph is exponential
+        // in this upper bound, here 3^60.
+        for reactor_id in 0..60 {
+            let mut builder = test.new_reactor(format!("r[{}]", reactor_id));
+            let [n1, n2] = builder.new_reactions();
+            let [p0, p1, out] = builder.new_ports(["p0", "p1", "out"]);
+            drop(builder);
+
+            // make a diamond
+            test.graph.reaction_effects(n1, p0);
+            test.graph.reaction_effects(n1, p1);
+            test.graph.triggers_reaction(p0, n2);
+            test.graph.triggers_reaction(p1, n2);
+
+            // connect to prev_in
+            test.graph.triggers_reaction(prev_in, n1);
+            // replace prev_in with out
+            test.graph.reaction_effects(n2, out);
+            prev_in = out;
+        }
+
+        // to debug this lower the graph size
+        // test.eprintln_graph();
+        let levels = test.graph.number_reactions_by_layer();
+
+        assert_eq!(levels.len(), 120);
+    }
+
+    #[test]
+    fn test_level_assignment_diamond_depth2_exponential() {
+        let mut test = TestGraphFixture::new();
+
+        let mut builder = test.new_reactor("top");
+        let [mut prev_in] = builder.new_ports(["in"]);
+        drop(builder);
+
+        // the number of paths in the graph is exponential
+        // in this upper bound, here 3^60.
+        for reactor_id in 0..60 {
+            let mut builder = test.new_reactor(format!("r[{}]", reactor_id));
+            let [n1, n2] = builder.new_reactions();
+            let [p0, p01, p1, p11, out] = builder.new_ports(["p0", "p01", "p1", "p11", "out"]);
+            drop(builder);
+
+            // make a diamond OF DEPTH > 1
+
+            test.graph.port_bind_untyped(p0, p01);
+            test.graph.port_bind_untyped(p1, p11);
+
+            test.graph.reaction_effects(n1, p0);
+            test.graph.reaction_effects(n1, p1);
+            test.graph.triggers_reaction(p01, n2);
+            test.graph.triggers_reaction(p11, n2);
+
+            // connect to prev_in
+            test.graph.triggers_reaction(prev_in, n1);
+            // replace prev_in with out
+            test.graph.reaction_effects(n2, out);
+            prev_in = out;
+        }
+
+        // to debug this lower the graph size
+        // test.eprintln_graph();
+        let levels = test.graph.number_reactions_by_layer();
+
+        assert_eq!(levels.len(), 120);
     }
 }

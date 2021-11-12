@@ -216,6 +216,12 @@ impl ReactorDebugInfo {
         Self::root::<()>()
     }
 
+    #[cfg(test)]
+    pub(crate) fn test_named(mut inst_path: String) -> Self {
+        inst_path.push('/');
+        Self { type_name: "unknown", inst_name: "unknown", inst_path }
+    }
+
     pub(crate) fn root<R>() -> Self {
         Self {
             type_name: type_name::<R>(),
