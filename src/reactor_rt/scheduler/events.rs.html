@@ -258,8 +258,8 @@
     <span class="doccomment">/// ```no_run</span>
     <span class="doccomment">/// # use std::time::Instant;</span>
     <span class="doccomment">/// # use reactor_rt::EventTag;</span>
-    <span class="doccomment">/// # let t0: Instant = todo!();</span>
-    <span class="doccomment">/// # let tag1: EventTag = todo!();</span>
+    <span class="doccomment">/// # let t0: Instant = unimplemented!();</span>
+    <span class="doccomment">/// # let tag1: EventTag = unimplemented!();</span>
     <span class="doccomment">/// assert_eq!(tag1.duration_since_start(), tag1.to_logical_time(t0) - t0)</span>
     <span class="doccomment">/// ```</span>
     <span class="attribute">#[<span class="ident">inline</span>]</span>
@@ -402,7 +402,7 @@
     <span class="comment">// todo perf: we could make a more optimal function to push a</span>
     <span class="comment">//  lot of events at once. Consider the following algorithm:</span>
     <span class="comment">//  - start with a sorted `self.value_list` and a (non-sorted) `new_evts: Vec&lt;Event&gt;`</span>
-    <span class="comment">//  - sort the new events in place (in a Cow maybe=. They&#39;ll</span>
+    <span class="comment">//  - sort the new events in place (in a Cow maybe). They&#39;ll</span>
     <span class="comment">//  probably come in already sorted but we can&#39;t assume this.</span>
     <span class="comment">//  Use an algorithm that best-cases for sorted data. (eg https://crates.io/crates/dmsort)</span>
     <span class="comment">//  - take the earliest new event and binary search to insert it.</span>

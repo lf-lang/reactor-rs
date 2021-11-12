@@ -685,7 +685,6 @@
 <span id="685">685</span>
 <span id="686">686</span>
 <span id="687">687</span>
-<span id="688">688</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::borrow</span>::{<span class="ident">Borrow</span>, <span class="ident">BorrowMut</span>};
 <span class="kw">use</span> <span class="ident">std::sync::atomic</span>::{<span class="ident">AtomicBool</span>, <span class="ident">Ordering</span>};
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
@@ -1192,7 +1191,6 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// See [ReactionCtx::spawn_physical_thread].</span>
 <span class="doccomment">///</span>
-<span class="doccomment">/// todo this thing should know when the scheduler has been terminated.</span>
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">PhysicalSchedulerLink</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span> {
     <span class="ident">tx</span>: <span class="ident">Sender</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,

@@ -210,8 +210,8 @@
 <span class="kw">use</span> <span class="ident">std::str::FromStr</span>;
 
 <span class="comment">// private implementation types</span>
-<span class="kw">type</span> <span class="ident">ReactionIdImpl</span> <span class="op">=</span> <span class="ident">u16</span>;
-<span class="kw">type</span> <span class="ident">ReactorIdImpl</span> <span class="op">=</span> <span class="ident">u16</span>;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type</span> <span class="ident">ReactionIdImpl</span> <span class="op">=</span> <span class="ident">u16</span>;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type</span> <span class="ident">ReactorIdImpl</span> <span class="op">=</span> <span class="ident">u16</span>;
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type</span> <span class="ident">GlobalIdImpl</span> <span class="op">=</span> <span class="ident">u32</span>;
 
 <span class="macro">macro_rules!</span> <span class="ident">simple_idx_type</span> {

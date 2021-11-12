@@ -502,23 +502,6 @@
 <span id="502">502</span>
 <span id="503">503</span>
 <span id="504">504</span>
-<span id="505">505</span>
-<span id="506">506</span>
-<span id="507">507</span>
-<span id="508">508</span>
-<span id="509">509</span>
-<span id="510">510</span>
-<span id="511">511</span>
-<span id="512">512</span>
-<span id="513">513</span>
-<span id="514">514</span>
-<span id="515">515</span>
-<span id="516">516</span>
-<span id="517">517</span>
-<span id="518">518</span>
-<span id="519">519</span>
-<span id="520">520</span>
-<span id="521">521</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -671,35 +654,18 @@
 
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span>;
         <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span>.<span class="ident">plus</span>(<span class="number">1</span>);
-        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">debug_info</span>.<span class="ident">record_reactor</span>(
-            <span class="ident">id</span>,
-            <span class="self">self</span>.<span class="ident">debug</span>.<span class="ident">take</span>().<span class="ident">expect</span>(<span class="string">&quot;Can only call assemble_self once&quot;</span>),
-        );
+        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">debug_info</span>.<span class="ident">record_reactor</span>(<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">debug</span>.<span class="ident">take</span>().<span class="ident">expect</span>(<span class="string">&quot;Can only call assemble_self once&quot;</span>));
 
         <span class="kw">let</span> <span class="ident">first_trigger_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">cur_trigger</span>;
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ich</span> <span class="op">=</span> <span class="ident">create_self</span>(
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ComponentCreator</span> {
-                <span class="ident">assembler</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-            },
-            <span class="ident">id</span>,
-        )<span class="question-mark">?</span>;
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ich</span> <span class="op">=</span> <span class="ident">create_self</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ComponentCreator</span> { <span class="ident">assembler</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span> }, <span class="ident">id</span>)<span class="question-mark">?</span>;
         <span class="comment">// after creation, globals.cur_trigger has been mutated</span>
         <span class="comment">// record proper debug info.</span>
-        <span class="self">self</span>.<span class="ident">globals</span>
-            .<span class="ident">debug_info</span>
-            .<span class="ident">set_id_range</span>(<span class="ident">id</span>, <span class="ident">first_trigger_id</span>..<span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">cur_trigger</span>);
+        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">debug_info</span>.<span class="ident">set_id_range</span>(<span class="ident">id</span>, <span class="ident">first_trigger_id</span>..<span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">cur_trigger</span>);
 
         <span class="comment">// declare dependencies</span>
         <span class="kw">let</span> <span class="ident">reactions</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">new_reactions</span>(<span class="ident">id</span>, <span class="ident">num_non_synthetic_reactions</span>, <span class="ident">reaction_names</span>);
-        <span class="ident">declare_dependencies</span>(
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">DependencyDeclarator</span> {
-                <span class="ident">assembler</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-            },
-            <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ich</span>,
-            <span class="ident">reactions</span>,
-        )<span class="question-mark">?</span>;
-
+        <span class="ident">declare_dependencies</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">DependencyDeclarator</span> { <span class="ident">assembler</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span> }, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ich</span>, <span class="ident">reactions</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>((<span class="self">self</span>, <span class="ident">ich</span>))
     }
 

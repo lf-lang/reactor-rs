@@ -273,6 +273,19 @@
 <span id="273">273</span>
 <span id="274">274</span>
 <span id="275">275</span>
+<span id="276">276</span>
+<span id="277">277</span>
+<span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
+<span id="285">285</span>
+<span id="286">286</span>
+<span id="287">287</span>
+<span id="288">288</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -370,6 +383,11 @@
 <span class="doccomment">/// assert_eq!(delay!(x min), delay!(120 s));</span>
 <span class="doccomment">/// assert_eq!(delay!((1+2) min), delay!(180 s));</span>
 <span class="doccomment">///</span>
+<span class="doccomment">/// // more verbose aliases</span>
+<span class="doccomment">/// assert_eq!(delay!(2 min), delay!(2 minutes));</span>
+<span class="doccomment">/// assert_eq!(delay!(2 h), delay!(2 hours));</span>
+<span class="doccomment">/// assert_eq!(delay!(1 week), delay!(7 days));</span>
+<span class="doccomment">///</span>
 <span class="doccomment">/// ```</span>
 <span class="attribute">#[<span class="ident">macro_export</span>]</span>
 <span class="macro">macro_rules!</span> <span class="ident">delay</span> {
@@ -392,6 +410,14 @@
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="ident">mins</span>)     <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">delay!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span> <span class="ident">min</span>) };
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="ident">minute</span>)   <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">delay!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span> <span class="ident">min</span>) };
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="ident">minutes</span>)  <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">delay!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span> <span class="ident">min</span>) };
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="ident">h</span>)        <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">delay!</span>((<span class="number">3600</span> <span class="op">*</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>) <span class="ident">s</span>) };
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="ident">hour</span>)     <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">delay!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span> <span class="ident">h</span>) };
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="ident">hours</span>)    <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">delay!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span> <span class="ident">h</span>) };
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="ident">d</span>)        <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">delay!</span>((<span class="number">24</span><span class="kw-2">*</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>) <span class="ident">h</span>) };
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="ident">day</span>)      <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">delay!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span> <span class="ident">d</span>) };
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="ident">days</span>)     <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">delay!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span> <span class="ident">d</span>) };
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="ident">week</span>)     <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">delay!</span>((<span class="number">7</span><span class="kw-2">*</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>) <span class="ident">d</span>) };
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="ident">weeks</span>)    <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">delay!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span> <span class="ident">week</span>) };
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">amount</span>:<span class="ident">tt</span> <span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span>:<span class="ident">ident</span>) <span class="op">=</span><span class="op">&gt;</span> { <span class="macro">compile_error!</span>(<span class="macro">concat!</span>(<span class="string">&quot;Unknown time unit `&quot;</span>, <span class="macro">stringify!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">i</span>), <span class="string">&quot;`&quot;</span>)) };
 }
 
@@ -401,7 +427,7 @@
 <span class="doccomment">///</span>
 <span class="doccomment">/// ```no_run</span>
 <span class="doccomment">/// # use reactor_rt::{assert_tag_is, delay, ReactionCtx};</span>
-<span class="doccomment">/// # let ctx : ReactionCtx = todo!();</span>
+<span class="doccomment">/// # let ctx : ReactionCtx = unimplemented!();</span>
 <span class="doccomment">/// # struct Foo { i: u32 }</span>
 <span class="doccomment">/// # let foo = Foo { i: 0 };</span>
 <span class="doccomment">///</span>
