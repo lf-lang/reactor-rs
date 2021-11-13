@@ -827,73 +827,6 @@
 <span id="827">827</span>
 <span id="828">828</span>
 <span id="829">829</span>
-<span id="830">830</span>
-<span id="831">831</span>
-<span id="832">832</span>
-<span id="833">833</span>
-<span id="834">834</span>
-<span id="835">835</span>
-<span id="836">836</span>
-<span id="837">837</span>
-<span id="838">838</span>
-<span id="839">839</span>
-<span id="840">840</span>
-<span id="841">841</span>
-<span id="842">842</span>
-<span id="843">843</span>
-<span id="844">844</span>
-<span id="845">845</span>
-<span id="846">846</span>
-<span id="847">847</span>
-<span id="848">848</span>
-<span id="849">849</span>
-<span id="850">850</span>
-<span id="851">851</span>
-<span id="852">852</span>
-<span id="853">853</span>
-<span id="854">854</span>
-<span id="855">855</span>
-<span id="856">856</span>
-<span id="857">857</span>
-<span id="858">858</span>
-<span id="859">859</span>
-<span id="860">860</span>
-<span id="861">861</span>
-<span id="862">862</span>
-<span id="863">863</span>
-<span id="864">864</span>
-<span id="865">865</span>
-<span id="866">866</span>
-<span id="867">867</span>
-<span id="868">868</span>
-<span id="869">869</span>
-<span id="870">870</span>
-<span id="871">871</span>
-<span id="872">872</span>
-<span id="873">873</span>
-<span id="874">874</span>
-<span id="875">875</span>
-<span id="876">876</span>
-<span id="877">877</span>
-<span id="878">878</span>
-<span id="879">879</span>
-<span id="880">880</span>
-<span id="881">881</span>
-<span id="882">882</span>
-<span id="883">883</span>
-<span id="884">884</span>
-<span id="885">885</span>
-<span id="886">886</span>
-<span id="887">887</span>
-<span id="888">888</span>
-<span id="889">889</span>
-<span id="890">890</span>
-<span id="891">891</span>
-<span id="892">892</span>
-<span id="893">893</span>
-<span id="894">894</span>
-<span id="895">895</span>
-<span id="896">896</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -931,12 +864,11 @@
 <span class="kw">use</span> <span class="ident">petgraph::visit::EdgeRef</span>;
 <span class="kw">use</span> <span class="ident">petgraph::Direction</span>::{<span class="ident">Incoming</span>, <span class="ident">Outgoing</span>};
 
+<span class="kw">use</span> <span class="ident"><span class="kw">super</span>::ReactionPlan</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::assembly</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::dependencies::NodeKind::MultiportUpstream</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::util::vecmap</span>::{<span class="ident">Entry</span> <span class="kw">as</span> <span class="ident">VEntry</span>, <span class="ident">VecMap</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
-
-<span class="kw">use</span> <span class="ident"><span class="kw">super</span>::ReactionPlan</span>;
 
 <span class="kw">type</span> <span class="ident">GraphIx</span> <span class="op">=</span> <span class="ident">NodeIndex</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>;
 
@@ -1020,22 +952,10 @@
 <span class="kw">impl</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">GraphNode</span> {
     <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::fmt::Result</span> {
         <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">GraphNode</span> {
-                <span class="ident">id</span>: <span class="ident">GraphId::Reaction</span>(<span class="ident">id</span>),
-                ..
-            } <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;Reaction({:?})&quot;</span>, <span class="ident">id</span>),
-            <span class="ident">GraphNode</span> {
-                <span class="ident">id</span>: <span class="ident">GraphId::Trigger</span>(<span class="ident">TriggerId::STARTUP</span>),
-                ..
-            } <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;startup&quot;</span>),
-            <span class="ident">GraphNode</span> {
-                <span class="ident">id</span>: <span class="ident">GraphId::Trigger</span>(<span class="ident">TriggerId::SHUTDOWN</span>),
-                ..
-            } <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;shutdown&quot;</span>),
-            <span class="ident">GraphNode</span> {
-                <span class="ident">id</span>: <span class="ident">GraphId::Trigger</span>(<span class="ident">id</span>),
-                <span class="ident">kind</span>,
-            } <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}({:?})&quot;</span>, <span class="ident">kind</span>, <span class="ident">id</span>.<span class="ident">index</span>()),
+            <span class="ident">GraphNode</span> { <span class="ident">id</span>: <span class="ident">GraphId::Reaction</span>(<span class="ident">id</span>), .. } <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;Reaction({:?})&quot;</span>, <span class="ident">id</span>),
+            <span class="ident">GraphNode</span> { <span class="ident">id</span>: <span class="ident">GraphId::Trigger</span>(<span class="ident">TriggerId::STARTUP</span>), .. } <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;startup&quot;</span>),
+            <span class="ident">GraphNode</span> { <span class="ident">id</span>: <span class="ident">GraphId::Trigger</span>(<span class="ident">TriggerId::SHUTDOWN</span>), .. } <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;shutdown&quot;</span>),
+            <span class="ident">GraphNode</span> { <span class="ident">id</span>: <span class="ident">GraphId::Trigger</span>(<span class="ident">id</span>), <span class="ident">kind</span> } <span class="op">=</span><span class="op">&gt;</span> <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}({:?})&quot;</span>, <span class="ident">kind</span>, <span class="ident">id</span>.<span class="ident">index</span>()),
         }
     }
 }
@@ -1069,11 +989,7 @@
             <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">captures</span>[<span class="number">2</span>];
             <span class="kw">if</span> <span class="ident">kind</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;Reaction&quot;</span> {
                 <span class="kw">let</span> <span class="ident">global</span> <span class="op">=</span> <span class="ident">id</span>.<span class="ident">parse</span>::<span class="op">&lt;</span><span class="ident">GlobalId</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>();
-                <span class="macro">format!</span>(
-                    <span class="string">&quot;{}({})&quot;</span>,
-                    <span class="ident">kind</span>,
-                    <span class="ident">id_registry</span>.<span class="ident">fmt_reaction</span>(<span class="ident">GlobalReactionId</span>(<span class="ident">global</span>))
-                )
+                <span class="macro">format!</span>(<span class="string">&quot;{}({})&quot;</span>, <span class="ident">kind</span>, <span class="ident">id_registry</span>.<span class="ident">fmt_reaction</span>(<span class="ident">GlobalReactionId</span>(<span class="ident">global</span>)))
             } <span class="kw">else</span> {
                 <span class="kw">let</span> <span class="ident">trigger_id</span> <span class="op">=</span> <span class="ident">TriggerId::new</span>(<span class="ident">id</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>());
                 <span class="macro">format!</span>(<span class="string">&quot;{}({})&quot;</span>, <span class="ident">kind</span>, <span class="ident">id_registry</span>.<span class="ident">fmt_component</span>(<span class="ident">trigger_id</span>))
@@ -1105,20 +1021,12 @@
     <span class="doccomment">/// When X declares a trigger/uses on the entire</span>
     <span class="doccomment">/// bank, an edge is added from every channel to X.</span>
     <span class="doccomment">///</span>
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">record_port_bank</span>(
-        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>,
-        <span class="ident">id</span>: <span class="ident">TriggerId</span>,
-        <span class="ident">len</span>: <span class="ident">usize</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">record_port_bank</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">TriggerId</span>, <span class="ident">len</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
         <span class="macro">assert!</span>(<span class="ident">len</span> <span class="op">&gt;</span> <span class="number">0</span>, <span class="string">&quot;empty port bank&quot;</span>);
         <span class="self">self</span>.<span class="ident">record</span>(<span class="ident">GraphId::Trigger</span>(<span class="ident">id</span>), <span class="ident">NodeKind::MultiportUpstream</span>);
 
-        <span class="kw">for</span> <span class="ident">channel_id</span> <span class="kw">in</span> <span class="ident">id</span>
-            .<span class="ident">next_range</span>(<span class="ident">len</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">AssemblyError</span>(<span class="ident">AssemblyErrorImpl::IdOverflow</span>))<span class="question-mark">?</span>
-        {
-            <span class="self">self</span>.<span class="ident">multiport_containment</span>
-                .<span class="ident">insert</span>(<span class="ident">GraphId::Trigger</span>(<span class="ident">channel_id</span>), <span class="ident">id</span>);
+        <span class="kw">for</span> <span class="ident">channel_id</span> <span class="kw">in</span> <span class="ident">id</span>.<span class="ident">next_range</span>(<span class="ident">len</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">AssemblyError</span>(<span class="ident">AssemblyErrorImpl::IdOverflow</span>))<span class="question-mark">?</span> {
+            <span class="self">self</span>.<span class="ident">multiport_containment</span>.<span class="ident">insert</span>(<span class="ident">GraphId::Trigger</span>(<span class="ident">channel_id</span>), <span class="ident">id</span>);
 
             <span class="comment">// self.dataflow.add_edge(upstream_ix, channel_ix, EdgeWeight::Default);</span>
         }
@@ -1156,11 +1064,8 @@
 
     <span class="doccomment">/// Records that n &gt; m, ie it will execute always before m.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reaction_priority</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">n</span>: <span class="ident">GlobalReactionId</span>, <span class="ident">m</span>: <span class="ident">GlobalReactionId</span>) {
-        <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">add_edge</span>(
-            <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">n</span>.<span class="ident">into</span>()),
-            <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">m</span>.<span class="ident">into</span>()),
-            <span class="ident">EdgeWeight::Default</span>,
-        );
+        <span class="self">self</span>.<span class="ident">dataflow</span>
+            .<span class="ident">add_edge</span>(<span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">n</span>.<span class="ident">into</span>()), <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">m</span>.<span class="ident">into</span>()), <span class="ident">EdgeWeight::Default</span>);
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">port_bind</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">p1</span>: <span class="kw-2">&amp;</span><span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">p2</span>: <span class="kw-2">&amp;</span><span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
@@ -1175,11 +1080,8 @@
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">port_bind_untyped</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">p1</span>: <span class="ident">TriggerId</span>, <span class="ident">p2</span>: <span class="ident">TriggerId</span>) {
         <span class="comment">// upstream (settable) -&gt; downstream (bound)</span>
-        <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">add_edge</span>(
-            <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">p1</span>.<span class="ident">into</span>()),
-            <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">p2</span>.<span class="ident">into</span>()),
-            <span class="ident">EdgeWeight::Default</span>,
-        );
+        <span class="self">self</span>.<span class="ident">dataflow</span>
+            .<span class="ident">add_edge</span>(<span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">p1</span>.<span class="ident">into</span>()), <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">p2</span>.<span class="ident">into</span>()), <span class="ident">EdgeWeight::Default</span>);
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">triggers_reaction</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">trigger</span>: <span class="ident">TriggerId</span>, <span class="ident">reaction</span>: <span class="ident">GlobalReactionId</span>) {
@@ -1192,29 +1094,20 @@
         }
 
         <span class="comment">// trigger -&gt; reaction</span>
-        <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">add_edge</span>(
-            <span class="ident">trigger_ix</span>,
-            <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">reaction</span>.<span class="ident">into</span>()),
-            <span class="ident">EdgeWeight::Default</span>,
-        );
+        <span class="self">self</span>.<span class="ident">dataflow</span>
+            .<span class="ident">add_edge</span>(<span class="ident">trigger_ix</span>, <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">reaction</span>.<span class="ident">into</span>()), <span class="ident">EdgeWeight::Default</span>);
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reaction_effects</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">reaction</span>: <span class="ident">GlobalReactionId</span>, <span class="ident">trigger</span>: <span class="ident">TriggerId</span>) {
         <span class="comment">// reaction -&gt; trigger</span>
-        <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">add_edge</span>(
-            <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">reaction</span>.<span class="ident">into</span>()),
-            <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">trigger</span>.<span class="ident">into</span>()),
-            <span class="ident">EdgeWeight::Default</span>,
-        );
+        <span class="self">self</span>.<span class="ident">dataflow</span>
+            .<span class="ident">add_edge</span>(<span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">reaction</span>.<span class="ident">into</span>()), <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">trigger</span>.<span class="ident">into</span>()), <span class="ident">EdgeWeight::Default</span>);
     }
 
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reaction_uses</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">reaction</span>: <span class="ident">GlobalReactionId</span>, <span class="ident">trigger</span>: <span class="ident">TriggerId</span>) {
         <span class="comment">// trigger -&gt; reaction</span>
-        <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">add_edge</span>(
-            <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">trigger</span>.<span class="ident">into</span>()),
-            <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">reaction</span>.<span class="ident">into</span>()),
-            <span class="ident">EdgeWeight::Use</span>,
-        );
+        <span class="self">self</span>.<span class="ident">dataflow</span>
+            .<span class="ident">add_edge</span>(<span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">trigger</span>.<span class="ident">into</span>()), <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">reaction</span>.<span class="ident">into</span>()), <span class="ident">EdgeWeight::Use</span>);
     }
 
     <span class="kw">fn</span> <span class="ident">get_ix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">GraphId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">GraphIx</span> {
@@ -1234,10 +1127,7 @@
 
     <span class="kw">fn</span> <span class="ident">record_special</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">trigger</span>: <span class="ident">TriggerId</span>) {
         <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">GraphId::Trigger</span>(<span class="ident">trigger</span>);
-        <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">GraphNode</span> {
-            <span class="ident">kind</span>: <span class="ident">NodeKind::Special</span>,
-            <span class="ident">id</span>,
-        };
+        <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">GraphNode</span> { <span class="ident">kind</span>: <span class="ident">NodeKind::Special</span>, <span class="ident">id</span> };
         <span class="self">self</span>.<span class="ident">ix_by_id</span>.<span class="ident">insert</span>(<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">add_node</span>(<span class="ident">node</span>));
     }
 }
@@ -1268,10 +1158,7 @@
                     <span class="kw-2">*</span><span class="ident">current</span> <span class="op">=</span> <span class="ident">cur_layer</span>.<span class="ident">max</span>(<span class="kw-2">*</span><span class="ident">current</span>);
                 }
 
-                <span class="kw">let</span> <span class="ident">successors</span> <span class="op">=</span> <span class="self">self</span>
-                    .<span class="ident">dataflow</span>
-                    .<span class="ident">edges_directed</span>(<span class="ident">ix</span>, <span class="ident">Outgoing</span>)
-                    .<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">target</span>());
+                <span class="kw">let</span> <span class="ident">successors</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">edges_directed</span>(<span class="ident">ix</span>, <span class="ident">Outgoing</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">target</span>());
                 <span class="ident">todo_next</span>.<span class="ident">extend</span>(<span class="ident">successors</span>);
             }
             <span class="ident">cur_layer</span> <span class="op">=</span> <span class="ident">cur_layer</span>.<span class="ident">next</span>();
@@ -1286,12 +1173,7 @@
     <span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">fn</span> <span class="ident">get_roots</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">GraphIx</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">dataflow</span>
             .<span class="ident">node_indices</span>()
-            .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">node</span><span class="op">|</span> {
-                <span class="self">self</span>.<span class="ident">dataflow</span>
-                    .<span class="ident">edges_directed</span>(<span class="kw-2">*</span><span class="ident">node</span>, <span class="ident">Incoming</span>)
-                    .<span class="ident">next</span>()
-                    .<span class="ident">is_none</span>()
-            })
+            .<span class="ident">filter</span>(<span class="op">|</span><span class="ident">node</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">edges_directed</span>(<span class="kw-2">*</span><span class="ident">node</span>, <span class="ident">Incoming</span>).<span class="ident">next</span>().<span class="ident">is_none</span>())
             .<span class="ident">collect</span>()
     }
 }
@@ -1342,9 +1224,7 @@
             <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">AssemblyError</span>(<span class="ident">AssemblyErrorImpl::CyclicDependencyGraph</span>));
         }
 
-        <span class="kw">let</span> <span class="ident">layer_info</span> <span class="op">=</span> <span class="ident">ReactionLayerInfo</span> {
-            <span class="ident">layer_numbers</span>: <span class="ident">graph</span>.<span class="ident">number_reactions_by_layer</span>(),
-        };
+        <span class="kw">let</span> <span class="ident">layer_info</span> <span class="op">=</span> <span class="ident">ReactionLayerInfo</span> { <span class="ident">layer_numbers</span>: <span class="ident">graph</span>.<span class="ident">number_reactions_by_layer</span>() };
         <span class="kw">let</span> <span class="ident">trigger_to_plan</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::collect_trigger_to_plan</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">graph</span>, <span class="kw-2">&amp;</span><span class="ident">layer_info</span>);
 
         <span class="prelude-val">Ok</span>(<span class="ident">DataflowInfo</span> { <span class="ident">trigger_to_plan</span> })
@@ -1391,12 +1271,7 @@
             <span class="kw">match</span> <span class="ident">node</span>.<span class="ident">kind</span> {
                 <span class="ident">NodeKind::Port</span> <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="comment">// this is necessarily a port-&gt;port binding</span>
-                    <span class="ident"><span class="self">Self</span>::collect_reactions_rec</span>(
-                        <span class="ident">dataflow</span>,
-                        <span class="ident">downstream</span>.<span class="ident">target</span>(),
-                        <span class="ident">layer_info</span>,
-                        <span class="ident">reactions</span>,
-                    )
+                    <span class="ident"><span class="self">Self</span>::collect_reactions_rec</span>(<span class="ident">dataflow</span>, <span class="ident">downstream</span>.<span class="ident">target</span>(), <span class="ident">layer_info</span>, <span class="ident">reactions</span>)
                 }
                 <span class="ident">NodeKind::Reaction</span> <span class="op">=</span><span class="op">&gt;</span> {
                     <span class="kw">let</span> <span class="ident">rid</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">node</span>.<span class="ident">id</span> {
@@ -1474,9 +1349,7 @@
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> <span class="ident">ExecutableReactions</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> {
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">layers</span>: <span class="ident">VecMap::new</span>(),
-        }
+        <span class="self">Self</span> { <span class="ident">layers</span>: <span class="ident">VecMap::new</span>() }
     }
 
     <span class="doccomment">/// Returns an iterator which associates batches of reactions</span>
@@ -1489,10 +1362,7 @@
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next_batch</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">min_layer</span>: <span class="ident">LayerIx</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">LayerIx</span>, <span class="kw-2">&amp;</span><span class="ident">HashSet</span><span class="op">&lt;</span><span class="ident">GlobalReactionId</span><span class="op">&gt;</span>)<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">layers</span>
-            .<span class="ident">iter_from</span>(<span class="ident">min_layer</span>)
-            .<span class="ident">next</span>()
-            .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">ix</span>, <span class="ident">cow</span>)<span class="op">|</span> (<span class="kw-2">*</span><span class="ident">ix</span>, <span class="ident">cow</span>.<span class="ident">as_ref</span>()))
+        <span class="self">self</span>.<span class="ident">layers</span>.<span class="ident">iter_from</span>(<span class="ident">min_layer</span>).<span class="ident">next</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">ix</span>, <span class="ident">cow</span>)<span class="op">|</span> (<span class="kw-2">*</span><span class="ident">ix</span>, <span class="ident">cow</span>.<span class="ident">as_ref</span>()))
     }
 
     <span class="doccomment">/// The greatest layer with non-empty value.</span>
@@ -1542,11 +1412,7 @@
     }
 
     <span class="doccomment">/// todo would be nice to simplify this, it&#39;s hot</span>
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">merge_cows_after</span>(
-        <span class="ident">x</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>,
-        <span class="ident">y</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>,
-        <span class="ident">min_layer</span>: <span class="ident">LayerIx</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">merge_cows_after</span>(<span class="ident">x</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>, <span class="ident">y</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>, <span class="ident">min_layer</span>: <span class="ident">LayerIx</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> {
         <span class="kw">match</span> (<span class="ident">x</span>, <span class="ident">y</span>) {
             (<span class="ident">x</span>, <span class="prelude-val">None</span>) <span class="op">|</span> (<span class="prelude-val">None</span>, <span class="ident">x</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">x</span>,
             (<span class="prelude-val">Some</span>(<span class="ident">x</span>), <span class="ident">y</span>) <span class="op">|</span> (<span class="ident">y</span>, <span class="prelude-val">Some</span>(<span class="ident">x</span>)) <span class="kw">if</span> <span class="ident">x</span>.<span class="ident">max_layer</span>() <span class="op">&lt;</span> <span class="ident">min_layer</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">y</span>,
@@ -1603,7 +1469,8 @@
                 <span class="self">self</span>.<span class="ident">next_reactor_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_reactor_id</span>.<span class="ident">plus</span>(<span class="number">1</span>);
                 <span class="ident">id</span>
             };
-            <span class="self">self</span>.<span class="ident">debug_info</span>.<span class="ident">record_reactor</span>(<span class="ident">reactor_id</span>, <span class="ident">ReactorDebugInfo::test_named</span>(<span class="ident">name</span>.<span class="ident">into</span>()));
+            <span class="self">self</span>.<span class="ident">debug_info</span>
+                .<span class="ident">record_reactor</span>(<span class="ident">reactor_id</span>, <span class="ident">ReactorDebugInfo::test_named</span>(<span class="ident">name</span>.<span class="ident">into</span>()));
             <span class="ident">TestAssembler</span> {
                 <span class="ident">reactor_id</span>,
                 <span class="ident">first_trigger_id</span>: <span class="self">self</span>.<span class="ident">next_trigger_id</span>,
@@ -1625,7 +1492,6 @@
     }
 
     <span class="kw">impl</span> <span class="ident">TestAssembler</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span> {
-
         <span class="kw">fn</span> <span class="ident">new_reactions</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> [<span class="ident">GlobalReactionId</span>; <span class="ident">N</span>] {
             <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="macro">array!</span>[<span class="ident">i</span> <span class="op">=</span><span class="op">&gt;</span> <span class="ident">GlobalReactionId::new</span>(<span class="self">self</span>.<span class="ident">reactor_id</span>, <span class="ident">LocalReactionId::from_usize</span>(<span class="ident">i</span>)); <span class="ident">N</span>];
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last</span> <span class="op">=</span> <span class="prelude-val">None</span>;

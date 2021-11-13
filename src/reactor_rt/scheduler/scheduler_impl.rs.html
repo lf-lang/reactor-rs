@@ -527,52 +527,6 @@
 <span id="527">527</span>
 <span id="528">528</span>
 <span id="529">529</span>
-<span id="530">530</span>
-<span id="531">531</span>
-<span id="532">532</span>
-<span id="533">533</span>
-<span id="534">534</span>
-<span id="535">535</span>
-<span id="536">536</span>
-<span id="537">537</span>
-<span id="538">538</span>
-<span id="539">539</span>
-<span id="540">540</span>
-<span id="541">541</span>
-<span id="542">542</span>
-<span id="543">543</span>
-<span id="544">544</span>
-<span id="545">545</span>
-<span id="546">546</span>
-<span id="547">547</span>
-<span id="548">548</span>
-<span id="549">549</span>
-<span id="550">550</span>
-<span id="551">551</span>
-<span id="552">552</span>
-<span id="553">553</span>
-<span id="554">554</span>
-<span id="555">555</span>
-<span id="556">556</span>
-<span id="557">557</span>
-<span id="558">558</span>
-<span id="559">559</span>
-<span id="560">560</span>
-<span id="561">561</span>
-<span id="562">562</span>
-<span id="563">563</span>
-<span id="564">564</span>
-<span id="565">565</span>
-<span id="566">566</span>
-<span id="567">567</span>
-<span id="568">568</span>
-<span id="569">569</span>
-<span id="570">570</span>
-<span id="571">571</span>
-<span id="572">572</span>
-<span id="573">573</span>
-<span id="574">574</span>
-<span id="575">575</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -605,12 +559,11 @@
 <span class="kw">use</span> <span class="ident">crossbeam_channel::reconnectable</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">crossbeam_utils::thread</span>::{<span class="ident">scope</span>, <span class="ident">Scope</span>};
 
+<span class="kw">use</span> <span class="ident"><span class="kw">super</span>::assembly_impl::RootAssembler</span>;
+<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::assembly</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::dependencies</span>::{<span class="ident">DataflowInfo</span>, <span class="ident">LayerIx</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
-
-<span class="kw">use</span> <span class="ident"><span class="kw">super</span>::assembly_impl::RootAssembler</span>;
-<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// Construction parameters for the scheduler.</span>
 <span class="doccomment">///</span>
@@ -637,11 +590,7 @@
 
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">SchedulerOptions</span> {
     <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">keep_alive</span>: <span class="bool-val">false</span>,
-            <span class="ident">timeout</span>: <span class="prelude-val">None</span>,
-            <span class="ident">threads</span>: <span class="number">0</span>,
-        }
+        <span class="self">Self</span> { <span class="ident">keep_alive</span>: <span class="bool-val">false</span>, <span class="ident">timeout</span>: <span class="prelude-val">None</span>, <span class="ident">threads</span>: <span class="number">0</span> }
     }
 }
 
@@ -652,9 +601,7 @@
 
 <span class="macro">macro_rules!</span> <span class="ident">debug_info</span> {
     (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>) <span class="op">=</span><span class="op">&gt;</span> {
-        <span class="ident">DebugInfoProvider</span> {
-            <span class="ident">id_registry</span>: <span class="kw-2">&amp;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>.<span class="ident">id_registry</span>,
-        }
+        <span class="ident">DebugInfoProvider</span> { <span class="ident">id_registry</span>: <span class="kw-2">&amp;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>.<span class="ident">id_registry</span> }
     };
 }
 
@@ -726,16 +673,15 @@
 <span class="kw">where</span>
     <span class="lifetime">&#39;x</span>: <span class="lifetime">&#39;t</span>,
 {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_main</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">ReactorInitializer</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>(
-        <span class="ident">options</span>: <span class="ident">SchedulerOptions</span>,
-        <span class="ident">args</span>: <span class="ident">R::Params</span>,
-    ) {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_main</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">ReactorInitializer</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>(<span class="ident">options</span>: <span class="ident">SchedulerOptions</span>, <span class="ident">args</span>: <span class="ident">R::Params</span>) {
         <span class="kw">let</span> (<span class="ident">reactors</span>, <span class="ident">graph</span>, <span class="ident">id_registry</span>) <span class="op">=</span> <span class="ident">RootAssembler::assemble_tree</span>::<span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>(<span class="ident">args</span>);
 
         <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;graph-dump&quot;</span>)]</span>
         {
             <span class="kw">use</span> <span class="ident">std::io::prelude</span>::<span class="kw-2">*</span>;
+
             <span class="kw">use</span> <span class="ident">tempfile::NamedTempFile</span>;
+
             <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::dependencies::DepGraph</span>;
             <span class="kw">fn</span> <span class="ident">write_graph_to_file</span>(<span class="ident">graph</span>: <span class="kw-2">&amp;</span><span class="ident">DepGraph</span>, <span class="ident">id_registry</span>: <span class="kw-2">&amp;</span><span class="ident">DebugInfoRegistry</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
                 <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dot_file</span> <span class="op">=</span> <span class="ident">NamedTempFile::new</span>()<span class="question-mark">?</span>;
@@ -751,9 +697,7 @@
         }
 
         <span class="comment">// collect dependency information</span>
-        <span class="kw">let</span> <span class="ident">dataflow_info</span> <span class="op">=</span> <span class="ident">DataflowInfo::new</span>(<span class="ident">graph</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">lift</span>(<span class="kw-2">&amp;</span><span class="ident">id_registry</span>))
-            .<span class="ident">unwrap</span>();
+        <span class="kw">let</span> <span class="ident">dataflow_info</span> <span class="op">=</span> <span class="ident">DataflowInfo::new</span>(<span class="ident">graph</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">lift</span>(<span class="kw-2">&amp;</span><span class="ident">id_registry</span>)).<span class="ident">unwrap</span>();
 
         <span class="comment">// Using thread::scope here introduces an unnamed lifetime for</span>
         <span class="comment">// the scope, which is captured as &#39;t by the SyncScheduler.</span>
@@ -763,14 +707,7 @@
         <span class="comment">// to &#39;x.</span>
         <span class="ident">scope</span>(<span class="op">|</span><span class="ident">scope</span><span class="op">|</span> {
             <span class="kw">let</span> <span class="ident">initial_time</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
-            <span class="kw">let</span> <span class="ident">scheduler</span> <span class="op">=</span> <span class="ident">SyncScheduler::new</span>(
-                <span class="ident">options</span>,
-                <span class="ident">id_registry</span>,
-                <span class="kw-2">&amp;</span><span class="ident">dataflow_info</span>,
-                <span class="ident">scope</span>,
-                <span class="ident">reactors</span>,
-                <span class="ident">initial_time</span>,
-            );
+            <span class="kw">let</span> <span class="ident">scheduler</span> <span class="op">=</span> <span class="ident">SyncScheduler::new</span>(<span class="ident">options</span>, <span class="ident">id_registry</span>, <span class="kw-2">&amp;</span><span class="ident">dataflow_info</span>, <span class="ident">scope</span>, <span class="ident">reactors</span>, <span class="ident">initial_time</span>);
 
             <span class="ident">scheduler</span>.<span class="ident">launch_event_loop</span>();
         })
@@ -816,8 +753,7 @@
                 <span class="comment">// at this point we&#39;re at the correct time</span>
 
                 <span class="kw">if</span> <span class="ident">evt</span>.<span class="ident">terminate</span> <span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">shutdown_time</span> <span class="op">=</span><span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">evt</span>.<span class="ident">tag</span>) {
-                    <span class="ident">shutdown_reactions</span> <span class="op">=</span>
-                        <span class="ident">ExecutableReactions::merge_cows</span>(<span class="ident">shutdown_reactions</span>, <span class="ident">evt</span>.<span class="ident">reactions</span>);
+                    <span class="ident">shutdown_reactions</span> <span class="op">=</span> <span class="ident">ExecutableReactions::merge_cows</span>(<span class="ident">shutdown_reactions</span>, <span class="ident">evt</span>.<span class="ident">reactions</span>);
                     <span class="self">self</span>.<span class="ident">shutdown_time</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">evt</span>.<span class="ident">tag</span>);
                     <span class="kw">break</span>; <span class="comment">// shutdown</span>
                 }
@@ -834,9 +770,7 @@
             }
         } <span class="comment">// end loop</span>
 
-        <span class="kw">let</span> <span class="ident">shutdown_tag</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">shutdown_time</span>
-            .<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">EventTag::now</span>(<span class="self">self</span>.<span class="ident">initial_time</span>));
+        <span class="kw">let</span> <span class="ident">shutdown_tag</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">shutdown_time</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">EventTag::now</span>(<span class="self">self</span>.<span class="ident">initial_time</span>));
         <span class="macro">info!</span>(<span class="string">&quot;Scheduler is shutting down, at {}&quot;</span>, <span class="ident">shutdown_tag</span>);
         <span class="self">self</span>.<span class="ident">shutdown</span>(<span class="ident">shutdown_tag</span>, <span class="ident">shutdown_reactions</span>);
         <span class="macro">info!</span>(<span class="string">&quot;Scheduler has been shut down&quot;</span>)
@@ -874,10 +808,7 @@
             <span class="ident">latest_processed_tag</span>: <span class="prelude-val">None</span>,
             <span class="ident">shutdown_time</span>: <span class="ident">options</span>.<span class="ident">timeout</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">timeout</span><span class="op">|</span> {
                 <span class="kw">let</span> <span class="ident">shutdown_tag</span> <span class="op">=</span> <span class="ident">EventTag::ORIGIN</span>.<span class="ident">successor</span>(<span class="ident">timeout</span>);
-                <span class="macro">trace!</span>(
-                    <span class="string">&quot;Timeout specified, will shut down at most at tag {}&quot;</span>,
-                    <span class="ident">shutdown_tag</span>
-                );
+                <span class="macro">trace!</span>(<span class="string">&quot;Timeout specified, will shut down at most at tag {}&quot;</span>, <span class="ident">shutdown_tag</span>);
                 <span class="ident">shutdown_tag</span>
             }),
             <span class="ident">dataflow</span>: <span class="ident">dependency_info</span>,
@@ -886,10 +817,7 @@
             <span class="ident">was_terminated</span>: <span class="ident">Default::default</span>(),
 
             <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;parallel-runtime&quot;</span>)]</span>
-            <span class="ident">rayon_thread_pool</span>: <span class="ident">rayon::ThreadPoolBuilder::new</span>()
-                .<span class="ident">num_threads</span>(<span class="ident">options</span>.<span class="ident">threads</span>)
-                .<span class="ident">build</span>()
-                .<span class="ident">unwrap</span>(),
+            <span class="ident">rayon_thread_pool</span>: <span class="ident">rayon::ThreadPoolBuilder::new</span>().<span class="ident">num_threads</span>(<span class="ident">options</span>.<span class="ident">threads</span>).<span class="ident">build</span>().<span class="ident">unwrap</span>(),
         }
     }
 
@@ -901,17 +829,11 @@
         <span class="macro">debug_assert!</span>(<span class="op">!</span><span class="self">self</span>.<span class="ident">reactors</span>.<span class="ident">is_empty</span>(), <span class="string">&quot;No registered reactors&quot;</span>);
 
         <span class="kw">let</span> <span class="ident">startup_reactions</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="ident">TriggerId::STARTUP</span>);
-        <span class="self">self</span>.<span class="ident">process_tag</span>(
-            <span class="bool-val">false</span>,
-            <span class="ident">EventTag::ORIGIN</span>,
-            <span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">startup_reactions</span>)),
-        )
+        <span class="self">self</span>.<span class="ident">process_tag</span>(<span class="bool-val">false</span>, <span class="ident">EventTag::ORIGIN</span>, <span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">startup_reactions</span>)))
     }
 
     <span class="kw">fn</span> <span class="ident">shutdown</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">shutdown_tag</span>: <span class="ident">EventTag</span>, <span class="ident">reactions</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>) {
-        <span class="kw">let</span> <span class="ident">default_plan</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(
-            <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="ident">TriggerId::SHUTDOWN</span>),
-        ));
+        <span class="kw">let</span> <span class="ident">default_plan</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="ident">TriggerId::SHUTDOWN</span>)));
         <span class="kw">let</span> <span class="ident">reactions</span> <span class="op">=</span> <span class="ident">ExecutableReactions::merge_cows</span>(<span class="ident">reactions</span>, <span class="ident">default_plan</span>);
 
         <span class="self">self</span>.<span class="ident">process_tag</span>(<span class="bool-val">true</span>, <span class="ident">shutdown_tag</span>, <span class="ident">reactions</span>);
@@ -926,9 +848,7 @@
     <span class="doccomment">/// shutdown time. Such &#39;late&#39; events may be emitted by</span>
     <span class="doccomment">/// the shutdown wave.</span>
     <span class="kw">fn</span> <span class="ident">is_after_shutdown</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">t</span>: <span class="ident">EventTag</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">shutdown_time</span>
-            .<span class="ident">map</span>(<span class="op">|</span><span class="ident">shutdown_t</span><span class="op">|</span> <span class="ident">shutdown_t</span> <span class="op">&lt;</span> <span class="ident">t</span>)
-            .<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>)
+        <span class="self">self</span>.<span class="ident">shutdown_time</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">shutdown_t</span><span class="op">|</span> <span class="ident">shutdown_t</span> <span class="op">&lt;</span> <span class="ident">t</span>).<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>)
     }
 
     <span class="doccomment">/// Wait for an asynchronous event for as long as we can</span>
@@ -1039,8 +959,7 @@
         <span class="comment">// This must be increasing monotonically.</span>
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">min_layer</span>: <span class="ident">LayerIx</span> <span class="op">=</span> <span class="ident">Default::default</span>();
 
-        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">layer_no</span>, <span class="ident">batch</span>)) <span class="op">=</span> <span class="ident">reactions</span>.<span class="ident">as_ref</span>()
-                .<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">todo</span><span class="op">|</span> <span class="ident">todo</span>.<span class="ident">next_batch</span>(<span class="ident">min_layer</span>)) {
+        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">layer_no</span>, <span class="ident">batch</span>)) <span class="op">=</span> <span class="ident">reactions</span>.<span class="ident">as_ref</span>().<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">todo</span><span class="op">|</span> <span class="ident">todo</span>.<span class="ident">next_batch</span>(<span class="ident">min_layer</span>)) {
             <span class="macro">trace!</span>(<span class="string">&quot;  - Level {}&quot;</span>, <span class="ident">layer_no</span>);
 
             <span class="macro">debug_assert!</span>(<span class="ident">layer_no</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">min_layer</span>, <span class="string">&quot;Reaction dependency violation&quot;</span>);
@@ -1052,9 +971,8 @@
                 {
                     <span class="comment">// install makes calls to parallel iterators use that thread pool</span>
                     <span class="kw">let</span> <span class="ident">reactors</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">reactors</span>; <span class="comment">// todo this intermediate var won&#39;t be needed anymore in Rust 1.57.0</span>
-                    <span class="self">self</span>.<span class="ident">rayon_thread_pool</span>.<span class="ident">install</span>(<span class="op">|</span><span class="op">|</span> {
-                        <span class="ident">parallel_rt_impl::process_batch</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>, <span class="kw-2">&amp;</span><span class="ident">debug</span>, <span class="ident">reactors</span>, <span class="ident">batch</span>)
-                    })
+                    <span class="self">self</span>.<span class="ident">rayon_thread_pool</span>
+                        .<span class="ident">install</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">parallel_rt_impl::process_batch</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>, <span class="kw-2">&amp;</span><span class="ident">debug</span>, <span class="ident">reactors</span>, <span class="ident">batch</span>))
                 }
             } <span class="kw">else</span> {
                 <span class="comment">// the impl for non-parallel runtime</span>
@@ -1067,11 +985,7 @@
                 }
             }
 
-            <span class="ident">reactions</span> <span class="op">=</span> <span class="ident">ExecutableReactions::merge_cows_after</span>(
-                <span class="ident">reactions</span>,
-                <span class="ident">ctx</span>.<span class="ident">insides</span>.<span class="ident">todo_now</span>.<span class="ident">take</span>(),
-                <span class="ident">min_layer</span>,
-            );
+            <span class="ident">reactions</span> <span class="op">=</span> <span class="ident">ExecutableReactions::merge_cows_after</span>(<span class="ident">reactions</span>, <span class="ident">ctx</span>.<span class="ident">insides</span>.<span class="ident">todo_now</span>.<span class="ident">take</span>(), <span class="ident">min_layer</span>);
         }
 
         <span class="kw">for</span> <span class="ident">evt</span> <span class="kw">in</span> <span class="ident">ctx</span>.<span class="ident">insides</span>.<span class="ident">future_events</span>.<span class="ident">drain</span>(..) {
@@ -1107,28 +1021,22 @@
         <span class="ident">ctx</span>.<span class="ident">insides</span> <span class="op">=</span> <span class="ident">batch</span>
             .<span class="ident">iter</span>()
             .<span class="ident">par_bridge</span>()
-            .<span class="ident">fold_with</span>(
-                <span class="ident">CloneableCtx</span>(<span class="ident">ctx</span>.<span class="ident">fork</span>()),
-                <span class="op">|</span><span class="ident">CloneableCtx</span>(<span class="kw-2">mut</span> <span class="ident">ctx</span>), <span class="ident">reaction_id</span><span class="op">|</span> {
-                    <span class="macro">trace!</span>(<span class="string">&quot;  - Executing {}&quot;</span>, <span class="ident">debug</span>.<span class="ident">display_reaction</span>(<span class="kw-2">*</span><span class="ident">reaction_id</span>));
-                    <span class="kw">let</span> <span class="ident">reactor</span> <span class="op">=</span> <span class="kw">unsafe</span> {
-                        <span class="comment">// safety:</span>
-                        <span class="comment">// - no two reactions in the batch refer belong to the same reactor</span>
-                        <span class="comment">// - the vec does not change size so there is no reallocation</span>
-                        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="ident">reactors_mut</span>.<span class="number">0</span>.<span class="ident">add</span>(<span class="ident">reaction_id</span>.<span class="number">0</span>.<span class="ident">container</span>().<span class="ident">index</span>())
-                    };
+            .<span class="ident">fold_with</span>(<span class="ident">CloneableCtx</span>(<span class="ident">ctx</span>.<span class="ident">fork</span>()), <span class="op">|</span><span class="ident">CloneableCtx</span>(<span class="kw-2">mut</span> <span class="ident">ctx</span>), <span class="ident">reaction_id</span><span class="op">|</span> {
+                <span class="macro">trace!</span>(<span class="string">&quot;  - Executing {}&quot;</span>, <span class="ident">debug</span>.<span class="ident">display_reaction</span>(<span class="kw-2">*</span><span class="ident">reaction_id</span>));
+                <span class="kw">let</span> <span class="ident">reactor</span> <span class="op">=</span> <span class="kw">unsafe</span> {
+                    <span class="comment">// safety:</span>
+                    <span class="comment">// - no two reactions in the batch refer belong to the same reactor</span>
+                    <span class="comment">// - the vec does not change size so there is no reallocation</span>
+                    <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="kw-2">*</span><span class="ident">reactors_mut</span>.<span class="number">0</span>.<span class="ident">add</span>(<span class="ident">reaction_id</span>.<span class="number">0</span>.<span class="ident">container</span>().<span class="ident">index</span>())
+                };
 
-                    <span class="comment">// this may append new elements into the queue,</span>
-                    <span class="comment">// which is why we can&#39;t use an iterator</span>
-                    <span class="ident">reactor</span>.<span class="ident">react_erased</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>, <span class="ident">reaction_id</span>.<span class="number">0</span>.<span class="ident">local</span>());
+                <span class="comment">// this may append new elements into the queue,</span>
+                <span class="comment">// which is why we can&#39;t use an iterator</span>
+                <span class="ident">reactor</span>.<span class="ident">react_erased</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>, <span class="ident">reaction_id</span>.<span class="number">0</span>.<span class="ident">local</span>());
 
-                    <span class="ident">CloneableCtx</span>(<span class="ident">ctx</span>)
-                },
-            )
-            .<span class="ident">fold</span>(
-                <span class="op">|</span><span class="op">|</span> <span class="ident">RContextForwardableStuff::default</span>(),
-                <span class="op">|</span><span class="ident">cx1</span>, <span class="ident">cx2</span><span class="op">|</span> <span class="ident">cx1</span>.<span class="ident">merge</span>(<span class="ident">cx2</span>.<span class="number">0</span>.<span class="ident">insides</span>),
-            )
+                <span class="ident">CloneableCtx</span>(<span class="ident">ctx</span>)
+            })
+            .<span class="ident">fold</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">RContextForwardableStuff::default</span>(), <span class="op">|</span><span class="ident">cx1</span>, <span class="ident">cx2</span><span class="op">|</span> <span class="ident">cx1</span>.<span class="ident">merge</span>(<span class="ident">cx2</span>.<span class="number">0</span>.<span class="ident">insides</span>))
             .<span class="ident">reduce</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Default::default</span>(), <span class="ident">RContextForwardableStuff::merge</span>);
     }
 

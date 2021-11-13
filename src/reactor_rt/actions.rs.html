@@ -263,27 +263,6 @@
 <span id="263">263</span>
 <span id="264">264</span>
 <span id="265">265</span>
-<span id="266">266</span>
-<span id="267">267</span>
-<span id="268">268</span>
-<span id="269">269</span>
-<span id="270">270</span>
-<span id="271">271</span>
-<span id="272">272</span>
-<span id="273">273</span>
-<span id="274">274</span>
-<span id="275">275</span>
-<span id="276">276</span>
-<span id="277">277</span>
-<span id="278">278</span>
-<span id="279">279</span>
-<span id="280">280</span>
-<span id="281">281</span>
-<span id="282">282</span>
-<span id="283">283</span>
-<span id="284">284</span>
-<span id="285">285</span>
-<span id="286">286</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -315,8 +294,7 @@
 <span class="kw">use</span> <span class="ident">std::time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>};
 
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::assembly</span>::{<span class="ident">TriggerId</span>, <span class="ident">TriggerLike</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::vecmap::Entry</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::vecmap::VecMap</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::vecmap</span>::{<span class="ident">Entry</span>, <span class="ident">VecMap</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// A logical action.</span>
@@ -392,12 +370,7 @@
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">use_value_ref</span><span class="op">&lt;</span><span class="ident">O</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">now</span>: <span class="kw-2">&amp;</span><span class="ident">EventTag</span>,
-        <span class="ident">_start</span>: <span class="kw-2">&amp;</span><span class="ident">Instant</span>,
-        <span class="ident">action</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span> {
+    <span class="kw">fn</span> <span class="ident">use_value_ref</span><span class="op">&lt;</span><span class="ident">O</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">now</span>: <span class="kw-2">&amp;</span><span class="ident">EventTag</span>, <span class="ident">_start</span>: <span class="kw-2">&amp;</span><span class="ident">Instant</span>, <span class="ident">action</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span> {
         <span class="kw">let</span> <span class="ident">inmap</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">Reverse</span>(<span class="kw-2">*</span><span class="ident">now</span>));
         <span class="kw">let</span> <span class="ident">v</span> <span class="op">=</span> <span class="ident">inmap</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">i</span><span class="op">|</span> <span class="ident">i</span>.<span class="ident">as_ref</span>()).<span class="ident">flatten</span>();
         <span class="ident">action</span>(<span class="ident">v</span>)
@@ -419,12 +392,7 @@
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">use_value_ref</span><span class="op">&lt;</span><span class="ident">O</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">now</span>: <span class="kw-2">&amp;</span><span class="ident">EventTag</span>,
-        <span class="ident">start</span>: <span class="kw-2">&amp;</span><span class="ident">Instant</span>,
-        <span class="ident">action</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span> {
+    <span class="kw">fn</span> <span class="ident">use_value_ref</span><span class="op">&lt;</span><span class="ident">O</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">now</span>: <span class="kw-2">&amp;</span><span class="ident">EventTag</span>, <span class="ident">start</span>: <span class="kw-2">&amp;</span><span class="ident">Instant</span>, <span class="ident">action</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">use_value_ref</span>(<span class="ident">now</span>, <span class="ident">start</span>, <span class="ident">action</span>)
     }
 }
@@ -524,11 +492,7 @@ mod test {
         <span class="prelude-val">Ok</span>(<span class="ident">f</span>(<span class="ident">refmut</span>.<span class="ident">deref_mut</span>()))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">use_mut_p</span><span class="op">&lt;</span><span class="ident">O</span>, <span class="ident">P</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">p</span>: <span class="ident">P</span>,
-        <span class="ident">f</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PhysicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">P</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">O</span>, <span class="ident">P</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">use_mut_p</span><span class="op">&lt;</span><span class="ident">O</span>, <span class="ident">P</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">p</span>: <span class="ident">P</span>, <span class="ident">f</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">PhysicalAction</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">P</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">O</span>, <span class="ident">P</span><span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">deref</span>().<span class="ident">lock</span>() {
             <span class="prelude-val">Ok</span>(<span class="kw-2">mut</span> <span class="ident">refmut</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="ident">f</span>(<span class="ident">refmut</span>.<span class="ident">deref_mut</span>(), <span class="ident">p</span>)),
             <span class="prelude-val">Err</span>(<span class="kw">_</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">p</span>),
@@ -560,14 +524,8 @@ mod test {
         <span class="self">self</span>.<span class="ident">use_value</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="number">0</span>.<span class="ident">get_value</span>(<span class="ident">now</span>, <span class="ident">start</span>)).<span class="ident">unwrap</span>()
     }
 
-    <span class="kw">fn</span> <span class="ident">use_value_ref</span><span class="op">&lt;</span><span class="ident">O</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">now</span>: <span class="kw-2">&amp;</span><span class="ident">EventTag</span>,
-        <span class="ident">start</span>: <span class="kw-2">&amp;</span><span class="ident">Instant</span>,
-        <span class="ident">action</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span> {
-        <span class="self">self</span>.<span class="ident">use_value</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="number">0</span>.<span class="ident">use_value_ref</span>(<span class="ident">now</span>, <span class="ident">start</span>, <span class="ident">action</span>))
-            .<span class="ident">unwrap</span>()
+    <span class="kw">fn</span> <span class="ident">use_value_ref</span><span class="op">&lt;</span><span class="ident">O</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">now</span>: <span class="kw-2">&amp;</span><span class="ident">EventTag</span>, <span class="ident">start</span>: <span class="kw-2">&amp;</span><span class="ident">Instant</span>, <span class="ident">action</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">T</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">O</span> {
+        <span class="self">self</span>.<span class="ident">use_value</span>(<span class="op">|</span><span class="ident">a</span><span class="op">|</span> <span class="ident">a</span>.<span class="number">0</span>.<span class="ident">use_value_ref</span>(<span class="ident">now</span>, <span class="ident">start</span>, <span class="ident">action</span>)).<span class="ident">unwrap</span>()
     }
 }
 </code></pre></div>

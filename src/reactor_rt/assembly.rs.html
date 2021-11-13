@@ -70,18 +70,14 @@
 <span id="70">70</span>
 <span id="71">71</span>
 <span id="72">72</span>
-<span id="73">73</span>
-<span id="74">74</span>
 </pre><pre class="rust"><code><span class="doccomment">//! Module containing the API to initialize a reactor program.</span>
-
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::ids::GlobalReactionId</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::triggers::TriggerId</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::triggers::TriggerLike</span>;
-<span class="comment">// this is where most of the stuff is implemented</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::assembly_impl</span>::<span class="kw-2">*</span>;
 
 <span class="kw">use</span> <span class="ident">AssemblyErrorImpl</span>::<span class="kw-2">*</span>;
 
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::ids::GlobalReactionId</span>;
+<span class="comment">// this is where most of the stuff is implemented</span>
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::assembly_impl</span>::<span class="kw-2">*</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::triggers</span>::{<span class="ident">TriggerId</span>, <span class="ident">TriggerLike</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">DebugInfoRegistry</span>, <span class="ident">LocalReactionId</span>, <span class="ident">ReactorBehavior</span>};
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type</span> <span class="ident">PortId</span> <span class="op">=</span> <span class="ident">TriggerId</span>;
 

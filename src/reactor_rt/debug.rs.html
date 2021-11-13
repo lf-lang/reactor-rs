@@ -239,23 +239,6 @@
 <span id="239">239</span>
 <span id="240">240</span>
 <span id="241">241</span>
-<span id="242">242</span>
-<span id="243">243</span>
-<span id="244">244</span>
-<span id="245">245</span>
-<span id="246">246</span>
-<span id="247">247</span>
-<span id="248">248</span>
-<span id="249">249</span>
-<span id="250">250</span>
-<span id="251">251</span>
-<span id="252">252</span>
-<span id="253">253</span>
-<span id="254">254</span>
-<span id="255">255</span>
-<span id="256">256</span>
-<span id="257">257</span>
-<span id="258">258</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -288,7 +271,8 @@
 
 <span class="kw">use</span> <span class="ident">index_vec</span>::{<span class="ident">Idx</span>, <span class="ident">IndexVec</span>};
 
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">assembly::ReactorInitializer</span>, <span class="ident">assembly::TriggerId</span>, <span class="ident">GlobalReactionId</span>, <span class="ident">ReactorId</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::assembly</span>::{<span class="ident">ReactorInitializer</span>, <span class="ident">TriggerId</span>};
+<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">GlobalReactionId</span>, <span class="ident">ReactorId</span>};
 
 <span class="doccomment">/// Maps IDs to debug information, stores all the debug info.</span>
 <span class="doccomment">/// This is built during asembly.</span>
@@ -324,14 +308,8 @@
             <span class="ident">reaction_labels</span>: <span class="ident">Default::default</span>(),
         };
 
-        <span class="macro">assert_eq!</span>(
-            <span class="ident">ich</span>.<span class="ident">trigger_infos</span>.<span class="ident">push</span>(<span class="ident">Cow::Borrowed</span>(<span class="string">&quot;startup&quot;</span>)),
-            <span class="ident">TriggerId::STARTUP</span>
-        );
-        <span class="macro">assert_eq!</span>(
-            <span class="ident">ich</span>.<span class="ident">trigger_infos</span>.<span class="ident">push</span>(<span class="ident">Cow::Borrowed</span>(<span class="string">&quot;shutdown&quot;</span>)),
-            <span class="ident">TriggerId::SHUTDOWN</span>
-        );
+        <span class="macro">assert_eq!</span>(<span class="ident">ich</span>.<span class="ident">trigger_infos</span>.<span class="ident">push</span>(<span class="ident">Cow::Borrowed</span>(<span class="string">&quot;startup&quot;</span>)), <span class="ident">TriggerId::STARTUP</span>);
+        <span class="macro">assert_eq!</span>(<span class="ident">ich</span>.<span class="ident">trigger_infos</span>.<span class="ident">push</span>(<span class="ident">Cow::Borrowed</span>(<span class="string">&quot;shutdown&quot;</span>)), <span class="ident">TriggerId::SHUTDOWN</span>);
 
         <span class="ident">ich</span>
     }
@@ -374,12 +352,7 @@
             }
         }
 
-        <span class="ident">PathFmt</span> {
-            <span class="ident">debug</span>: <span class="self">self</span>,
-            <span class="ident">id</span>,
-            <span class="ident">label</span>,
-            <span class="ident">always_display_idx</span>,
-        }
+        <span class="ident">PathFmt</span> { <span class="ident">debug</span>: <span class="self">self</span>, <span class="ident">id</span>, <span class="ident">label</span>, <span class="ident">always_display_idx</span> }
     }
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
@@ -390,11 +363,7 @@
 
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">fmt_component</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">TriggerId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Display</span> <span class="op">+</span> <span class="lifetime">&#39;a</span> {
-        <span class="self">self</span>.<span class="ident">fmt_component_path</span>(
-            <span class="self">self</span>.<span class="ident">raw_id_of_trigger</span>(<span class="ident">id</span>),
-            <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">trigger_infos</span>[<span class="ident">id</span>]),
-            <span class="bool-val">false</span>,
-        )
+        <span class="self">self</span>.<span class="ident">fmt_component_path</span>(<span class="self">self</span>.<span class="ident">raw_id_of_trigger</span>(<span class="ident">id</span>), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">trigger_infos</span>[<span class="ident">id</span>]), <span class="bool-val">false</span>)
     }
 
     <span class="kw">fn</span> <span class="ident">raw_id_of_trigger</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">TriggerId</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">RawId</span> {
@@ -446,10 +415,7 @@
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">set_id_range</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">ReactorId</span>, <span class="ident">range</span>: <span class="ident">Range</span><span class="op">&lt;</span><span class="ident">TriggerId</span><span class="op">&gt;</span>) {
         <span class="macro">assert!</span>(<span class="ident">range</span>.<span class="ident">start</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">range</span>.<span class="ident">end</span>, <span class="string">&quot;Malformed range {:?}&quot;</span>, <span class="ident">range</span>);
-        <span class="macro">assert!</span>(
-            <span class="ident">range</span>.<span class="ident">start</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">TriggerId::FIRST_REGULAR</span>,
-            <span class="string">&quot;Trigger IDs 0-1 are reserved&quot;</span>
-        );
+        <span class="macro">assert!</span>(<span class="ident">range</span>.<span class="ident">start</span> <span class="op">&gt;</span><span class="op">=</span> <span class="ident">TriggerId::FIRST_REGULAR</span>, <span class="string">&quot;Trigger IDs 0-1 are reserved&quot;</span>);
 
         <span class="kw">let</span> <span class="ident">ix</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">reactor_bound</span>.<span class="ident">push</span>(<span class="ident">range</span>.<span class="ident">end</span>);
         <span class="macro">assert_eq!</span>(<span class="ident">ix</span>, <span class="ident">id</span>);
@@ -477,7 +443,11 @@
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">test_named</span>(<span class="kw-2">mut</span> <span class="ident">inst_path</span>: <span class="ident">String</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="ident">inst_path</span>.<span class="ident">push</span>(<span class="string">&#39;/&#39;</span>);
-        <span class="self">Self</span> { <span class="ident">type_name</span>: <span class="string">&quot;unknown&quot;</span>, <span class="ident">inst_name</span>: <span class="string">&quot;unknown&quot;</span>, <span class="ident">inst_path</span> }
+        <span class="self">Self</span> {
+            <span class="ident">type_name</span>: <span class="string">&quot;unknown&quot;</span>,
+            <span class="ident">inst_name</span>: <span class="string">&quot;unknown&quot;</span>,
+            <span class="ident">inst_path</span>,
+        }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">root</span><span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
@@ -496,11 +466,7 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">derive_bank_item</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">ReactorInitializer</span><span class="op">&gt;</span>(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-        <span class="ident">inst_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>,
-        <span class="ident">bank_idx</span>: <span class="ident">usize</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">derive_bank_item</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">ReactorInitializer</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">inst_name</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>, <span class="ident">bank_idx</span>: <span class="ident">usize</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">type_name</span>: <span class="ident">type_name</span>::<span class="op">&lt;</span><span class="ident">R::Wrapped</span><span class="op">&gt;</span>(),
             <span class="ident">inst_name</span>,
