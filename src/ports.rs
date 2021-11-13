@@ -34,9 +34,8 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use atomic_refcell::AtomicRefCell;
-use AssemblyErrorImpl::CannotBind;
+use AssemblyErrorImpl::{CannotBind, CyclicDependency};
 
-use crate::assembly::AssemblyErrorImpl::CyclicDependency;
 use crate::assembly::{AssemblyError, AssemblyErrorImpl, PortId, TriggerId, TriggerLike};
 use crate::{EventTag, ReactionTrigger};
 

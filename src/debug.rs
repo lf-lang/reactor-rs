@@ -189,7 +189,7 @@ pub(crate) struct ReactorDebugInfo {
     /// Simple name of the instantiation (last segment of the path)
     #[allow(unused)]
     pub inst_name: &'static str,
-    /// Path to this instantiation (eg "/parent/child")
+    /// Path to this instantiation, with trailing slash (eg `"/parent/child/"`)
     inst_path: String,
 }
 
