@@ -8,7 +8,7 @@ use smallvec::SmallVec;
 
 use super::*;
 use crate::assembly::*;
-use crate::scheduler::dependencies::{DataflowInfo, ExecutableReactions, LayerIx};
+use crate::scheduler::dependencies::{DataflowInfo, ExecutableReactions, LevelIx};
 use crate::*;
 
 /// The context in which a reaction executes. Its API
@@ -30,8 +30,8 @@ where
     /// during the existence of the object
     tag: EventTag,
 
-    /// Layer of the reaction being executed.
-    cur_layer: LayerIx,
+    /// Level of the reaction being executed.
+    cur_level: LevelIx,
 
     /// Sender to schedule events that should be executed later than this wave.
     rx: &'a Receiver<Event<'x>>,
@@ -281,7 +281,7 @@ where
     #[inline]
     pub(crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions<'x>>) {
         match &mut self.insides.todo_now {
-            Some(ref mut do_next) => do_next.to_mut().absorb_after(downstream.as_ref(), self.cur_layer.next()),
+            Some(ref mut do_next) => do_next.to_mut().absorb_after(downstream.as_ref(), self.cur_level.next()),
             None => self.insides.todo_now = Some(downstream),
         }
     }
@@ -407,7 +407,7 @@ where
     ) -> Self {
         Self {
             insides: RContextForwardableStuff { todo_now: todo, future_events: Default::default() },
-            cur_layer: Default::default(),
+            cur_level: Default::default(),
             tag,
             rx,
             initial_time,
@@ -418,8 +418,8 @@ where
         }
     }
 
-    pub(super) fn set_cur_layer(&mut self, cur_layer: LayerIx) {
-        self.cur_layer = cur_layer;
+    pub(super) fn set_cur_level(&mut self, cur_level: LevelIx) {
+        self.cur_level = cur_level;
     }
 
     /// Fork a context. Some things are shared, but not the
@@ -432,7 +432,7 @@ where
             // all of that is common to all contexts
             tag: self.tag,
             rx: self.rx,
-            cur_layer: self.cur_layer,
+            cur_level: self.cur_level,
             initial_time: self.initial_time,
             thread_spawner: self.thread_spawner,
             dataflow: self.dataflow,
@@ -633,7 +633,7 @@ impl Eq for Offset {}
 /// Cleans up a tag
 /// TODO get rid of this!
 ///  At least for multiports it's really bad
-///  Maybe we can keep a set of the ports that are present in
+///  Maybe we can keep a set of the ports that are present in ReactionCtx
 #[doc(hidden)]
 pub struct CleanupCtx {
     /// Tag we're cleaning up

@@ -304,9 +304,9 @@ impl DepGraph {
 }
 
 impl DepGraph {
-    pub(self) fn number_reactions_by_layer(&self) -> HashMap<GlobalReactionId, LayerIx> {
+    pub(self) fn number_reactions_by_level(&self) -> HashMap<GlobalReactionId, LevelIx> {
         // note: this will infinitely recurse with a cyclic graph
-        let mut layer_numbers = HashMap::<GlobalReactionId, LayerIx>::new();
+        let mut level_numbers = HashMap::<GlobalReactionId, LevelIx>::new();
         let mut todo = self.get_roots();
         let mut todo_next = Vec::new();
         // Todo this implementation explores all paths of the graph.
@@ -319,25 +319,25 @@ impl DepGraph {
 
         // There is an easy algorithm that is linear, but destructive.
         // If we use that we have to copy the graph. Is this needed?
-        let mut cur_layer: LayerIx = LayerIx(0);
+        let mut cur_level: LevelIx = LevelIx(0);
         while !todo.is_empty() {
             for ix in todo.drain(..) {
                 let node = self.dataflow.node_weight(ix).unwrap();
 
                 if let GraphId::Reaction(id) = node.id {
-                    let current = layer_numbers.entry(id).or_insert(cur_layer);
-                    *current = cur_layer.max(*current);
+                    let current = level_numbers.entry(id).or_insert(cur_level);
+                    *current = cur_level.max(*current);
                 }
 
                 let successors = self.dataflow.edges_directed(ix, Outgoing).map(|e| e.target());
                 todo_next.extend(successors);
             }
-            cur_layer = cur_layer.next();
+            cur_level = cur_level.next();
             std::mem::swap(&mut todo, &mut todo_next);
             todo.sort();
             todo.dedup();
         }
-        layer_numbers
+        level_numbers
     }
 
     /// Returns the roots of the graph
@@ -364,16 +364,16 @@ enum EdgeWeight {
 /// Stores the level of each reaction. This is transient info
 /// that is used to build a [DataflowInfo] and discarded.
 ///
-struct ReactionLayerInfo {
+struct ReactionLevelInfo {
     /// The level of each reaction.
-    layer_numbers: HashMap<GlobalReactionId, LayerIx>,
+    level_numbers: HashMap<GlobalReactionId, LevelIx>,
 }
 
-impl ReactionLayerInfo {
+impl ReactionLevelInfo {
     /// Append a reaction to the given reaction collection
     fn augment(&self, collection: &mut ExecutableReactions, reaction: GlobalReactionId) {
         let ix = self
-            .layer_numbers
+            .level_numbers
             .get(&reaction)
             .copied()
             .expect("reaction was not recorded in the graph");
@@ -395,15 +395,15 @@ impl DataflowInfo {
             return Err(AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph));
         }
 
-        let layer_info = ReactionLayerInfo { layer_numbers: graph.number_reactions_by_layer() };
-        let trigger_to_plan = Self::collect_trigger_to_plan(&mut graph, &layer_info);
+        let level_info = ReactionLevelInfo { level_numbers: graph.number_reactions_by_level() };
+        let trigger_to_plan = Self::collect_trigger_to_plan(&mut graph, &level_info);
 
         Ok(DataflowInfo { trigger_to_plan })
     }
 
     fn collect_trigger_to_plan(
         DepGraph { dataflow, .. }: &mut DepGraph,
-        layer_info: &ReactionLayerInfo,
+        level_info: &ReactionLevelInfo,
     ) -> IndexVec<TriggerId, Arc<ExecutableReactions<'static>>> {
         let mut result = IndexVec::with_capacity(dataflow.node_count() / 2);
 
@@ -423,7 +423,7 @@ impl DataflowInfo {
                 // }
 
                 let mut reactions = ExecutableReactions::new();
-                Self::collect_reactions_rec(&dataflow, trigger, layer_info, &mut reactions);
+                Self::collect_reactions_rec(&dataflow, trigger, level_info, &mut reactions);
                 result.insert(trigger_id, Arc::new(reactions));
             }
         }
@@ -434,7 +434,7 @@ impl DataflowInfo {
     fn collect_reactions_rec(
         dataflow: &DepGraphImpl,
         trigger: GraphIx,
-        layer_info: &ReactionLayerInfo,
+        level_info: &ReactionLevelInfo,
         reactions: &mut ExecutableReactions<'static>,
     ) {
         for downstream in dataflow.edges_directed(trigger, Outgoing) {
@@ -442,7 +442,7 @@ impl DataflowInfo {
             match node.kind {
                 NodeKind::Port => {
                     // this is necessarily a port->port binding
-                    Self::collect_reactions_rec(dataflow, downstream.target(), layer_info, reactions)
+                    Self::collect_reactions_rec(dataflow, downstream.target(), level_info, reactions)
                 }
                 NodeKind::Reaction => {
                     let rid = match node.id {
@@ -452,7 +452,7 @@ impl DataflowInfo {
                     // trigger->reaction
                     if downstream.weight() != &EdgeWeight::Use {
                         // so it's a trigger dependency
-                        layer_info.augment(reactions, rid)
+                        level_info.augment(reactions, rid)
                     }
                 }
                 _ => {
@@ -474,20 +474,20 @@ impl DataflowInfo {
     }
 }
 
-type Layer = HashSet<GlobalReactionId>;
+type Level = HashSet<GlobalReactionId>;
 
-/// Type of the label of a layer. The max value is the maximum
+/// Type of the label of a level. The max value is the maximum
 /// depth of the dependency graph.
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default)]
-pub(crate) struct LayerIx(u32);
+pub(crate) struct LevelIx(u32);
 
-impl LayerIx {
+impl LevelIx {
     pub fn next(self) -> Self {
-        LayerIx(self.0 + 1)
+        LevelIx(self.0 + 1)
     }
 }
 
-impl Display for LayerIx {
+impl Display for LevelIx {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
@@ -499,65 +499,65 @@ impl Display for LayerIx {
 /// 2. merging two plans eliminates duplicates
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ExecutableReactions<'x> {
-    /// An ordered list of layers to execute.
+    /// An ordered list of levels to execute.
     ///
     /// It must by construction be the case that a reaction
-    /// in layer `i` has no dependency(1) on reactions in layers `j >= i`.
-    /// This way, the execution of reactions in the same layer
+    /// in level `i` has no dependency(1) on reactions in levels `j >= i`.
+    /// This way, the execution of reactions in the same level
     /// may be parallelized.
     ///
     /// (1) a reaction n has a dependency on another m if m
     /// is in the predecessors of n in the dependency graph
     ///
     /// Note that by construction, no two reactions in the same
-    /// layer may belong to the same reactor, as all of them
+    /// level may belong to the same reactor, as all of them
     /// are ordered by priority edges.
     ///
-    /// Note also that the last layer in the list must be
+    /// Note also that the last level in the list must be
     /// non-empty by construction.
-    layers: VecMap<LayerIx, Cow<'x, Layer>>,
+    levels: VecMap<LevelIx, Cow<'x, Level>>,
 }
 
 impl<'x> ExecutableReactions<'x> {
     pub fn new() -> Self {
-        Self { layers: VecMap::new() }
+        Self { levels: VecMap::new() }
     }
 
     /// Returns an iterator which associates batches of reactions
-    /// with their layer. Note that this does not mutate this collection
+    /// with their level. Note that this does not mutate this collection
     /// (eg drain it), because that way we can use borrowed Cows
     /// and avoid more allocation.
-    pub fn batches(&self) -> impl Iterator<Item = &(LayerIx, Cow<'x, Layer>)> + '_ {
-        self.layers.iter_from(LayerIx(0))
+    pub fn batches(&self) -> impl Iterator<Item = &(LevelIx, Cow<'x, Level>)> + '_ {
+        self.levels.iter_from(LevelIx(0))
     }
 
     #[inline]
-    pub fn next_batch(&self, min_layer: LayerIx) -> Option<(LayerIx, &HashSet<GlobalReactionId>)> {
-        self.layers.iter_from(min_layer).next().map(|(ix, cow)| (*ix, cow.as_ref()))
+    pub fn next_batch(&self, min_level: LevelIx) -> Option<(LevelIx, &HashSet<GlobalReactionId>)> {
+        self.levels.iter_from(min_level).next().map(|(ix, cow)| (*ix, cow.as_ref()))
     }
 
-    /// The greatest layer with non-empty value.
-    pub fn max_layer(&self) -> LayerIx {
-        self.layers.max_key().cloned().unwrap_or_default()
+    /// The greatest level with non-empty value.
+    pub fn max_level(&self) -> LevelIx {
+        self.levels.max_key().cloned().unwrap_or_default()
     }
 
     /// Merge the given set of reactions into this one.
-    /// Ignore layers that come strictly before first_layer, may clear them if need be.
-    pub fn absorb_after(&mut self, src: &ExecutableReactions<'x>, min_layer_inclusive: LayerIx) {
-        let src = &src.layers;
-        let dst = &mut self.layers;
+    /// Ignore levels that come strictly before `min_level_inclusive`, may even clear them.
+    pub fn absorb_after(&mut self, src: &ExecutableReactions<'x>, min_level_inclusive: LevelIx) {
+        let src = &src.levels;
+        let dst = &mut self.levels;
 
-        for (i, src_layer) in src.iter_from(min_layer_inclusive) {
+        for (i, src_level) in src.iter_from(min_level_inclusive) {
             match dst.entry(*i) {
                 VEntry::Vacant(e) => {
-                    e.insert(src_layer.clone());
+                    e.insert(src_level.clone());
                 }
                 VEntry::Occupied(_, e) => {
                     if e.is_empty() {
-                        *e = src_layer.clone();
+                        *e = src_level.clone();
                     } else {
                         // todo maybe set is not modified
-                        e.to_mut().extend(src_layer.iter());
+                        e.to_mut().extend(src_level.iter());
                     }
                 }
             }
@@ -565,12 +565,12 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     /// Insert doesn't mutate the offset.
-    fn insert(&mut self, reaction: GlobalReactionId, layer_ix: LayerIx) {
-        match self.layers.entry(layer_ix) {
+    fn insert(&mut self, reaction: GlobalReactionId, level_ix: LevelIx) {
+        match self.levels.entry(level_ix) {
             VEntry::Vacant(e) => {
-                let mut new_layer: Layer = HashSet::with_capacity(1);
-                new_layer.insert(reaction);
-                e.insert(Cow::Owned(new_layer));
+                let mut new_level = Level::with_capacity(1);
+                new_level.insert(reaction);
+                e.insert(Cow::Owned(new_level));
             }
             VEntry::Occupied(_, e) => {
                 e.to_mut().insert(reaction);
@@ -579,24 +579,29 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     pub(super) fn merge_cows(x: ReactionPlan<'x>, y: ReactionPlan<'x>) -> ReactionPlan<'x> {
-        Self::merge_cows_after(x, y, LayerIx(0))
+        Self::merge_plans_after(x, y, LevelIx(0))
     }
 
-    /// todo would be nice to simplify this, it's hot
-    pub(super) fn merge_cows_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_layer: LayerIx) -> ReactionPlan<'x> {
+    // todo would be nice to simplify this, it's hot
+    /// Produce the set union of two reaction plans.
+    /// Levels below the `min_level` are not merged, and the caller
+    /// shouldn't query them. For all levels >= `min_level`,
+    /// the produced reaction plan has all the reactions of
+    /// `x` and `y` for that level.
+    pub(super) fn merge_plans_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_level: LevelIx) -> ReactionPlan<'x> {
         match (x, y) {
             (x, None) | (None, x) => x,
-            (Some(x), y) | (y, Some(x)) if x.max_layer() < min_layer => y,
+            (Some(x), y) | (y, Some(x)) if x.max_level() < min_level => y,
             (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
-                x.absorb_after(&y, min_layer);
+                x.absorb_after(&y, min_level);
                 Some(Cow::Owned(x))
             }
             (Some(mut x), Some(mut y)) => {
-                if x.max_layer() > y.max_layer() {
+                if x.max_level() > y.max_level() {
                     std::mem::swap(&mut x, &mut y);
                 }
                 // x is the largest one here
-                x.to_mut().absorb_after(&y, min_layer);
+                x.to_mut().absorb_after(&y, min_level);
                 Some(x)
             }
         }
@@ -606,8 +611,8 @@ impl<'x> ExecutableReactions<'x> {
 impl Display for ExecutableReactions<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[")?;
-        for (_, layer) in self.layers.iter_from(LayerIx(0)) {
-            join_to!(f, layer.iter(), ", ", "{", "} ; ")?;
+        for (_, level) in self.levels.iter_from(LevelIx(0)) {
+            join_to!(f, level.iter(), ", ", "{", "} ; ")?;
         }
         write!(f, "]")
     }
@@ -728,7 +733,7 @@ pub mod test {
         test.graph.reaction_effects(n1, p0);
         test.graph.triggers_reaction(p0, n2);
 
-        let levels = test.graph.number_reactions_by_layer();
+        let levels = test.graph.number_reactions_by_level();
         assert!(levels[&n1] < levels[&n2]);
     }
 
@@ -746,7 +751,7 @@ pub mod test {
         test.graph.triggers_reaction(p0, n2);
         test.graph.triggers_reaction(p1, n2);
 
-        let levels = test.graph.number_reactions_by_layer();
+        let levels = test.graph.number_reactions_by_level();
         assert!(levels[&n1] < levels[&n2]);
     }
 
@@ -782,7 +787,7 @@ pub mod test {
 
         // to debug this lower the graph size
         // test.eprintln_graph();
-        let levels = test.graph.number_reactions_by_layer();
+        let levels = test.graph.number_reactions_by_level();
 
         assert_eq!(levels.len(), 120);
     }
@@ -822,7 +827,7 @@ pub mod test {
 
         // to debug this lower the graph size
         // test.eprintln_graph();
-        let levels = test.graph.number_reactions_by_layer();
+        let levels = test.graph.number_reactions_by_level();
 
         assert_eq!(levels.len(), 120);
     }

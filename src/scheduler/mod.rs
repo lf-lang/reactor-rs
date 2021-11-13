@@ -66,8 +66,8 @@ impl DebugInfoProvider<'_> {
         let mut str = format!("[");
 
         if let Some(reactions) = reactions {
-            for (layer_no, batch) in reactions.batches() {
-                write!(str, "{}: ", layer_no).unwrap();
+            for (level_no, batch) in reactions.batches() {
+                write!(str, "{}: ", level_no).unwrap();
                 join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| format!(
                     "{}",
                     self.display_reaction(*x)

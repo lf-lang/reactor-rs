@@ -33,7 +33,7 @@ use crossbeam_utils::thread::{scope, Scope};
 use super::assembly_impl::RootAssembler;
 use super::*;
 use crate::assembly::*;
-use crate::scheduler::dependencies::{DataflowInfo, LayerIx};
+use crate::scheduler::dependencies::{DataflowInfo, LevelIx};
 use crate::*;
 
 /// Construction parameters for the scheduler.
@@ -426,16 +426,16 @@ where
         let mut ctx = self.new_reaction_ctx(tag, None, &self.rx, &self.was_terminated, is_shutdown);
         let debug = debug_info!(self);
 
-        // The maximum layer number we've seen as of now.
+        // The maximum level number we've seen as of now.
         // This must be increasing monotonically.
-        let mut min_layer: LayerIx = Default::default();
+        let mut min_level: LevelIx = Default::default();
 
-        while let Some((layer_no, batch)) = reactions.as_ref().and_then(|todo| todo.next_batch(min_layer)) {
-            trace!("  - Level {}", layer_no);
+        while let Some((level_no, batch)) = reactions.as_ref().and_then(|todo| todo.next_batch(min_level)) {
+            trace!("  - Level {}", level_no);
 
-            debug_assert!(layer_no >= min_layer, "Reaction dependency violation");
-            ctx.set_cur_layer(layer_no);
-            min_layer = layer_no.next(); // the next layer to fetch
+            debug_assert!(level_no >= min_level, "Reaction dependency violation");
+            ctx.set_cur_level(level_no);
+            min_level = level_no.next(); // the next level to fetch
 
             if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
                 #[cfg(feature = "parallel-runtime")]
@@ -448,7 +448,7 @@ where
             } else {
                 // the impl for non-parallel runtime
                 for reaction_id in batch {
-                    trace!("  - Executing {} (layer {})", debug.display_reaction(*reaction_id), layer_no);
+                    trace!("  - Executing {} (level {})", debug.display_reaction(*reaction_id), level_no);
                     let container_id = reaction_id.0.container();
                     let reactor = &mut self.reactors[container_id];
                     debug_assert_eq!(reactor.id(), container_id, "Wrong reactor");
@@ -456,7 +456,7 @@ where
                 }
             }
 
-            reactions = ExecutableReactions::merge_cows_after(reactions, ctx.insides.todo_now.take(), min_layer);
+            reactions = ExecutableReactions::merge_plans_after(reactions, ctx.insides.todo_now.take(), min_level);
         }
 
         for evt in ctx.insides.future_events.drain(..) {
