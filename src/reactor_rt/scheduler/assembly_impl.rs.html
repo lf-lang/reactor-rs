@@ -447,7 +447,6 @@
 <span id="447">447</span>
 <span id="448">448</span>
 <span id="449">449</span>
-<span id="450">450</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -586,8 +585,7 @@
         <span class="comment">//  replace const parameter N with S::MAX_REACTION_ID.index().</span>
         <span class="macro">debug_assert_eq!</span>(<span class="ident">N</span>, <span class="ident">S::MAX_REACTION_ID</span>.<span class="ident">index</span>(), <span class="string">&quot;Should initialize all reactions&quot;</span>);
 
-        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span>;
-        <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span>.<span class="ident">plus</span>(<span class="number">1</span>);
+        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">globals</span>.<span class="ident">reactor_id</span>.<span class="ident">get_and_incr</span>();
         <span class="self">self</span>.<span class="ident">globals</span>
             .<span class="ident">debug_info</span>
             .<span class="ident">record_reactor</span>(<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">debug</span>.<span class="ident">take</span>().<span class="ident">expect</span>(<span class="string">&quot;Can only call assemble_self once&quot;</span>));

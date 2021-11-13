@@ -660,6 +660,9 @@
 <span id="660">660</span>
 <span id="661">661</span>
 <span id="662">662</span>
+<span id="663">663</span>
+<span id="664">664</span>
+<span id="665">665</span>
 </pre><pre class="rust"><code><span class="kw">use</span> <span class="ident">std::borrow</span>::{<span class="ident">Borrow</span>, <span class="ident">BorrowMut</span>};
 <span class="kw">use</span> <span class="ident">std::sync::atomic</span>::{<span class="ident">AtomicBool</span>, <span class="ident">Ordering</span>};
 <span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
@@ -963,7 +966,10 @@
     <span class="doccomment">/// Since the thread is allowed to keep references into the</span>
     <span class="doccomment">/// internals of the scheduler, it is joined when the scheduler</span>
     <span class="doccomment">/// shuts down. This means the scheduler will wait for the</span>
-    <span class="doccomment">/// thread to finish its task. For that reason</span>
+    <span class="doccomment">/// thread to finish its task. For that reason, the thread&#39;s</span>
+    <span class="doccomment">/// closure should not execute an infinite loop, it should at</span>
+    <span class="doccomment">/// least check that the scheduler has not been terminated by</span>
+    <span class="doccomment">/// polling [PhysicalSchedulerLink::was_terminated].</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// ### Example</span>
     <span class="doccomment">///</span>
@@ -1157,7 +1163,7 @@
     <span class="doccomment">/// Returns true if the scheduler has been shutdown. When</span>
     <span class="doccomment">/// that&#39;s true, calls to other methods of this type will</span>
     <span class="doccomment">/// fail with [SendError].</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_shutdown</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">was_terminated</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">bool</span> {
         <span class="self">self</span>.<span class="ident">was_terminated</span>.<span class="ident">load</span>(<span class="ident">Ordering::SeqCst</span>)
     }
 
