@@ -51,5 +51,6 @@ jobs:
       with:
         profile: minimal
         toolchain: nightly
+        components: rustfmt
     - name: Check format
       run: cargo +nightly fmt -- --check
