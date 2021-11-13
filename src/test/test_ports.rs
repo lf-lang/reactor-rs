@@ -45,8 +45,7 @@ impl Default for TestAssembler {
 
 impl TestAssembler {
     pub fn new_port<T: Sync>(&mut self, name: &'static str) -> Port<T> {
-        let id = self.cur_id;
-        self.cur_id = self.cur_id.next().unwrap();
+        let id = self.cur_id.get_and_incr().unwrap();
         self.debug.record_trigger(id, Cow::Borrowed(name));
         Port::new(id, true)
     }

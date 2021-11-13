@@ -136,8 +136,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         //  replace const parameter N with S::MAX_REACTION_ID.index().
         debug_assert_eq!(N, S::MAX_REACTION_ID.index(), "Should initialize all reactions");
 
-        let id = self.globals.reactor_id;
-        self.globals.reactor_id = self.globals.reactor_id.plus(1);
+        let id = self.globals.reactor_id.get_and_incr();
         self.globals
             .debug_info
             .record_reactor(id, self.debug.take().expect("Can only call assemble_self once"));
@@ -147,9 +146,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         let mut ich = create_self(&mut ComponentCreator { assembler: &mut self }, id)?;
         // after creation, globals.cur_trigger has been mutated
         // record proper debug info.
-        self.globals
-            .debug_info
-            .set_id_range(id, first_trigger_id..self.globals.cur_trigger);
+        self.globals.debug_info.set_id_range(id, first_trigger_id..self.globals.cur_trigger);
 
         // declare dependencies
         let reactions = self.new_reactions(id, num_non_synthetic_reactions, reaction_names);

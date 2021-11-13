@@ -640,13 +640,8 @@ pub mod test {
         }
 
         fn new_reactor(&mut self, name: impl Into<String>) -> TestAssembler {
-            let reactor_id = {
-                let id = self.next_reactor_id;
-                self.next_reactor_id = self.next_reactor_id.plus(1);
-                id
-            };
-            self.debug_info
-                .record_reactor(reactor_id, ReactorDebugInfo::test_named(name.into()));
+            let reactor_id = self.next_reactor_id.get_and_incr();
+            self.debug_info.record_reactor(reactor_id, ReactorDebugInfo::test_named(name));
             TestAssembler {
                 reactor_id,
                 first_trigger_id: self.next_trigger_id,
@@ -682,8 +677,7 @@ pub mod test {
         }
 
         fn new_ports<const N: usize>(&mut self, names: [&'static str; N]) -> [TriggerId; N] {
-            let result = array![i => TriggerId::new(self.fixture.next_trigger_id.index() + i); N];
-            self.fixture.next_trigger_id = TriggerId::new(self.fixture.next_trigger_id.index() + N);
+            let result = array![_ => self.fixture.next_trigger_id.get_and_incr().unwrap(); N];
             for (i, p) in (&result).into_iter().enumerate() {
                 self.fixture.graph.record_port(*p);
                 self.fixture.debug_info.record_trigger(*p, Cow::Borrowed(names[i]));

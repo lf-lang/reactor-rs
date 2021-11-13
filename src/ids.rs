@@ -57,6 +57,13 @@ impl $id {
     pub(crate) const fn index(self) -> usize {
         self.0 as usize
     }
+
+    #[allow(unused)]
+    pub(crate) fn get_and_incr(&mut self) -> Self {
+        let id = *self;
+        *self = Self(self.0 + 1);
+        id
+    }
 }
 
 impl Idx for $id {

@@ -200,7 +200,8 @@ impl ReactorDebugInfo {
     }
 
     #[cfg(test)]
-    pub(crate) fn test_named(mut inst_path: String) -> Self {
+    pub(crate) fn test_named(inst_path: impl Into<String>) -> Self {
+        let mut inst_path = inst_path.into();
         inst_path.push('/');
         Self {
             type_name: "unknown",
@@ -237,5 +238,39 @@ impl ReactorDebugInfo {
 impl Display for ReactorDebugInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         write!(f, "{}", self.inst_path)
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use crate::{DebugInfoRegistry, ReactorDebugInfo, ReactorId};
+    use crate::assembly::TriggerId;
+
+    #[test]
+    fn test_raw_id_from_trigger() -> Result<(), ()> {
+        let mut debug = DebugInfoRegistry::new();
+        let mut trigger_id = TriggerId::FIRST_REGULAR;
+        let reactor_0 = ReactorId::new(0);
+        let first_trigger = trigger_id;
+        debug.record_reactor(reactor_0, ReactorDebugInfo::test_named("foo"));
+        debug.record_trigger(trigger_id.get_and_incr()?, "t0".into());
+        debug.record_trigger(trigger_id.get_and_incr()?, "t1".into());
+        debug.set_id_range(reactor_0, first_trigger..trigger_id);
+
+
+        let reactor_1 = ReactorId::new(1);
+        let first_trigger = trigger_id;
+        debug.record_reactor(reactor_1, ReactorDebugInfo::test_named("foo1"));
+        debug.record_trigger(trigger_id.get_and_incr()?, "t0".into());
+        debug.record_trigger(trigger_id.get_and_incr()?, "t1".into());
+        debug.set_id_range(reactor_1, first_trigger..trigger_id);
+
+        let mut trigger_id = TriggerId::FIRST_REGULAR;
+        assert_eq!((reactor_0, 0), debug.raw_id_of_trigger(trigger_id.get_and_incr()?));
+        assert_eq!((reactor_0, 1), debug.raw_id_of_trigger(trigger_id.get_and_incr()?));
+        assert_eq!((reactor_1, 0), debug.raw_id_of_trigger(trigger_id.get_and_incr()?));
+        assert_eq!((reactor_1, 1), debug.raw_id_of_trigger(trigger_id.get_and_incr()?));
+
+        Ok(())
     }
 }
