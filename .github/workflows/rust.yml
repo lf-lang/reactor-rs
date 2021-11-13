@@ -50,6 +50,6 @@ jobs:
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
-        toolchain: stable
+        toolchain: nightly
     - name: Check format
-      run: cargo fmt -- --check
+      run: cargo +nightly fmt -- --check
