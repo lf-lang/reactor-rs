@@ -22,9 +22,10 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use std::borrow::Cow;
+
 use crate::assembly::TriggerId;
 use crate::*;
-use std::borrow::Cow;
 
 struct TestAssembler {
     debug: DebugInfoRegistry,
@@ -53,8 +54,7 @@ impl TestAssembler {
     fn ready(mut self) -> TestFixture {
         self.debug
             .set_id_range(self.reactor_id, TriggerId::FIRST_REGULAR..self.cur_id);
-        self.debug
-            .record_reactor(self.reactor_id, ReactorDebugInfo::test());
+        self.debug.record_reactor(self.reactor_id, ReactorDebugInfo::test());
         TestFixture { debug: self.debug }
     }
 }

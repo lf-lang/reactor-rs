@@ -22,11 +22,12 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use index_vec::Idx;
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 use std::ops::Range;
 use std::time::Instant;
+
+use index_vec::Idx;
 
 use crate::EventTag;
 
@@ -51,12 +52,7 @@ pub trait ReactionTrigger<T> {
     /// Execute an action using the current value of this trigger.
     /// The closure is called even if the value is absent (with a [None]
     /// argument).
-    fn use_value_ref<O>(
-        &self,
-        now: &EventTag,
-        start: &Instant,
-        action: impl FnOnce(Option<&T>) -> O,
-    ) -> O;
+    fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O;
 }
 
 /// Something on which we can declare a trigger dependency

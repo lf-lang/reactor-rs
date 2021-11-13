@@ -31,9 +31,7 @@ use std::sync::{Arc, Mutex};
 
 use ::reactor_rt::Offset::{After, Asap};
 use ::reactor_rt::{Duration, Instant};
-
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-
 use reactor_rt::*;
 
 /*
@@ -58,16 +56,12 @@ fn reactor_main(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("savina_pong");
     for num_pongs in [1000, 10_000, 100_000].iter() {
-        group.bench_with_input(
-            BenchmarkId::from_parameter(num_pongs),
-            num_pongs,
-            |b, &size| {
-                b.iter(|| {
-                    let timeout = Some(Duration::from_secs(5));
-                    launch(1, size, timeout);
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(num_pongs), num_pongs, |b, &size| {
+            b.iter(|| {
+                let timeout = Some(Duration::from_secs(5));
+                launch(1, size, timeout);
+            });
+        });
     }
     group.finish();
 }
@@ -83,12 +77,9 @@ fn launch(numIterations: u32, count: u32, timeout: Option<Duration>) {
 //---- REACTORS -----//
 //-------------------//
 mod reactors {
-    pub use self::ping::PingAdapter;
-    pub use self::ping::PingParams;
-    pub use self::pong::PongAdapter;
-    pub use self::pong::PongParams;
-    pub use self::savina_pong::SavinaPongAdapter;
-    pub use self::savina_pong::SavinaPongParams;
+    pub use self::ping::{PingAdapter, PingParams};
+    pub use self::pong::{PongAdapter, PongParams};
+    pub use self::savina_pong::{SavinaPongAdapter, SavinaPongParams};
     //--------------------------------------------//
     //------------ Pong -------//
     //-------------------//
@@ -134,10 +125,7 @@ mod reactors {
 
         impl PongParams {
             pub fn new(expected: u32) -> Self {
-                Self {
-                    __phantom: std::marker::PhantomData,
-                    expected,
-                }
+                Self { __phantom: std::marker::PhantomData, expected }
             }
         }
 
@@ -157,10 +145,7 @@ mod reactors {
                 __id: ::reactor_rt::ReactorId,
                 __params: PongParams,
             ) -> ::reactor_rt::assembly::AssemblyResult<Self> {
-                let PongParams {
-                    __phantom,
-                    expected,
-                } = __params;
+                let PongParams { __phantom, expected } = __params;
 
                 let __impl = {
                     // declare them all here so that they are visible to the initializers of state vars declared later
@@ -186,8 +171,7 @@ mod reactors {
         impl ::reactor_rt::assembly::ReactorInitializer for PongAdapter {
             type Wrapped = Pong;
             type Params = PongParams;
-            const MAX_REACTION_ID: ::reactor_rt::LocalReactionId =
-                ::reactor_rt::LocalReactionId::new(3 - 1);
+            const MAX_REACTION_ID: ::reactor_rt::LocalReactionId = ::reactor_rt::LocalReactionId::new(3 - 1);
 
             fn assemble(
                 __params: Self::Params,
@@ -195,21 +179,9 @@ mod reactors {
             ) -> ::reactor_rt::assembly::AssemblyResult<Self> {
                 use ::reactor_rt::assembly::TriggerLike;
 
-                let PongParams {
-                    __phantom,
-                    expected,
-                } = __params;
+                let PongParams { __phantom, expected } = __params;
                 let (_, __self) = __ctx.do_assembly(
-                    |cc, id| {
-                        Self::user_assemble(
-                            cc,
-                            id,
-                            PongParams {
-                                __phantom,
-                                expected,
-                            },
-                        )
-                    },
+                    |cc, id| Self::user_assemble(cc, id, PongParams { __phantom, expected }),
                     // number of non-synthetic reactions
                     2,
                     // reaction debug labels
@@ -222,10 +194,7 @@ mod reactors {
                         __assembler.declare_triggers(__self.__receive.get_id(), react_0)?;
                         __assembler.effects_port(react_0, &__self.__send)?;
                         // --- reaction(shutdown) {= ... =}
-                        __assembler.declare_triggers(
-                            ::reactor_rt::assembly::TriggerId::SHUTDOWN,
-                            react_1,
-                        )?;
+                        __assembler.declare_triggers(::reactor_rt::assembly::TriggerId::SHUTDOWN, react_1)?;
                         // Declare connections
 
                         // Declare port references
@@ -244,11 +213,7 @@ mod reactors {
                 self.__id
             }
 
-            fn react_erased(
-                &mut self,
-                ctx: &mut ::reactor_rt::ReactionCtx,
-                rid: ::reactor_rt::LocalReactionId,
-            ) {
+            fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
                 match rid.raw() {
                     0 => self.__impl.react_0(
                         ctx,
@@ -325,10 +290,7 @@ mod reactors {
 
         impl PingParams {
             pub fn new(count: u32) -> Self {
-                Self {
-                    __phantom: std::marker::PhantomData,
-                    count,
-                }
+                Self { __phantom: std::marker::PhantomData, count }
             }
         }
 
@@ -355,10 +317,7 @@ mod reactors {
                     // declare them all here so that they are visible to the initializers of state vars declared later
                     let pingsLeft = count;
 
-                    Ping {
-                        __phantom: std::marker::PhantomData,
-                        pingsLeft,
-                    }
+                    Ping { __phantom: std::marker::PhantomData, pingsLeft }
                 };
 
                 Ok(Self {
@@ -374,8 +333,7 @@ mod reactors {
         impl ::reactor_rt::assembly::ReactorInitializer for PingAdapter {
             type Wrapped = Ping;
             type Params = PingParams;
-            const MAX_REACTION_ID: ::reactor_rt::LocalReactionId =
-                ::reactor_rt::LocalReactionId::new(3 - 1);
+            const MAX_REACTION_ID: ::reactor_rt::LocalReactionId = ::reactor_rt::LocalReactionId::new(3 - 1);
 
             fn assemble(
                 __params: Self::Params,
@@ -396,10 +354,7 @@ mod reactors {
                         use reactor_rt::unsafe_iter_bank;
                         // --- reaction(startup, serve) -> send {= ... =}
                         __assembler.declare_triggers(__self.__serve.get_id(), react_0)?;
-                        __assembler.declare_triggers(
-                            ::reactor_rt::assembly::TriggerId::STARTUP,
-                            react_0,
-                        )?;
+                        __assembler.declare_triggers(::reactor_rt::assembly::TriggerId::STARTUP, react_0)?;
                         __assembler.effects_port(react_0, &__self.__send)?;
                         // --- reaction (receive) -> serve {= ... =}
                         __assembler.declare_triggers(__self.__receive.get_id(), react_1)?;
@@ -421,22 +376,14 @@ mod reactors {
                 self.__id
             }
 
-            fn react_erased(
-                &mut self,
-                ctx: &mut ::reactor_rt::ReactionCtx,
-                rid: ::reactor_rt::LocalReactionId,
-            ) {
+            fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
                 match rid.raw() {
-                    0 => self.__impl.react_0(
-                        ctx,
-                        &self.__serve,
-                        ::reactor_rt::WritablePort::new(&mut self.__send),
-                    ),
-                    1 => self.__impl.react_1(
-                        ctx,
-                        &::reactor_rt::ReadablePort::new(&self.__receive),
-                        &mut self.__serve,
-                    ),
+                    0 => self
+                        .__impl
+                        .react_0(ctx, &self.__serve, ::reactor_rt::WritablePort::new(&mut self.__send)),
+                    1 => self
+                        .__impl
+                        .react_1(ctx, &::reactor_rt::ReadablePort::new(&self.__receive), &mut self.__serve),
 
                     _ => panic!(
                         "Invalid reaction ID: {} should be < {}",
@@ -481,10 +428,7 @@ mod reactors {
 
         impl SavinaPongParams {
             pub fn new(count: u32) -> Self {
-                Self {
-                    __phantom: std::marker::PhantomData,
-                    count,
-                }
+                Self { __phantom: std::marker::PhantomData, count }
             }
         }
 
@@ -507,9 +451,7 @@ mod reactors {
                 let __impl = {
                     // declare them all here so that they are visible to the initializers of state vars declared later
 
-                    SavinaPong {
-                        __phantom: std::marker::PhantomData,
-                    }
+                    SavinaPong { __phantom: std::marker::PhantomData }
                 };
 
                 Ok(Self { __id, __impl })
@@ -519,8 +461,7 @@ mod reactors {
         impl ::reactor_rt::assembly::ReactorInitializer for SavinaPongAdapter {
             type Wrapped = SavinaPong;
             type Params = SavinaPongParams;
-            const MAX_REACTION_ID: ::reactor_rt::LocalReactionId =
-                ::reactor_rt::LocalReactionId::new(1 - 1);
+            const MAX_REACTION_ID: ::reactor_rt::LocalReactionId = ::reactor_rt::LocalReactionId::new(1 - 1);
 
             fn assemble(
                 __params: Self::Params,
@@ -529,53 +470,40 @@ mod reactors {
                 use ::reactor_rt::assembly::TriggerLike;
 
                 let SavinaPongParams { __phantom, count } = __params;
-                let (_, __self) = __ctx.with_child::<super::PingAdapter, _>(
-                    "ping",
-                    super::PingParams::new(count),
-                    |mut __ctx, ping| {
-                        __ctx.with_child::<super::PongAdapter, _>(
-                            "pong",
-                            super::PongParams::new(count),
-                            |mut __ctx, pong| {
-                                __ctx.do_assembly(
-                                    |cc, id| {
-                                        Self::user_assemble(
-                                            cc,
-                                            id,
-                                            SavinaPongParams { __phantom, count },
-                                        )
-                                    },
-                                    // number of non-synthetic reactions
-                                    0,
-                                    // reaction debug labels
-                                    [],
-                                    // dependency declarations
-                                    |__assembler, __self, []| {
-                                        #[allow(unused)]
-                                        use reactor_rt::unsafe_iter_bank;
+                let (_, __self) =
+                    __ctx.with_child::<super::PingAdapter, _>("ping", super::PingParams::new(count), |mut __ctx, ping| {
+                        __ctx.with_child::<super::PongAdapter, _>("pong", super::PongParams::new(count), |mut __ctx, pong| {
+                            __ctx.do_assembly(
+                                |cc, id| Self::user_assemble(cc, id, SavinaPongParams { __phantom, count }),
+                                // number of non-synthetic reactions
+                                0,
+                                // reaction debug labels
+                                [],
+                                // dependency declarations
+                                |__assembler, __self, []| {
+                                    #[allow(unused)]
+                                    use reactor_rt::unsafe_iter_bank;
 
-                                        // Declare connections
-                                        {
-                                            // --- ping.send -> pong.receive;
-                                            let up = std::iter::once(&mut ping.__send);
-                                            let down = std::iter::once(&mut pong.__receive);
-                                            __assembler.bind_ports_zip(up, down)?;
-                                        }
-                                        {
-                                            // --- pong.send -> ping.receive;
-                                            let up = std::iter::once(&mut pong.__send);
-                                            let down = std::iter::once(&mut ping.__receive);
-                                            __assembler.bind_ports_zip(up, down)?;
-                                        }
-                                        // Declare port references
+                                    // Declare connections
+                                    {
+                                        // --- ping.send -> pong.receive;
+                                        let up = std::iter::once(&mut ping.__send);
+                                        let down = std::iter::once(&mut pong.__receive);
+                                        __assembler.bind_ports_zip(up, down)?;
+                                    }
+                                    {
+                                        // --- pong.send -> ping.receive;
+                                        let up = std::iter::once(&mut pong.__send);
+                                        let down = std::iter::once(&mut ping.__receive);
+                                        __assembler.bind_ports_zip(up, down)?;
+                                    }
+                                    // Declare port references
 
-                                        Ok(())
-                                    },
-                                )
-                            },
-                        )
-                    },
-                )?;
+                                    Ok(())
+                                },
+                            )
+                        })
+                    })?;
 
                 Ok(__self)
             }
@@ -587,11 +515,7 @@ mod reactors {
                 self.__id
             }
 
-            fn react_erased(
-                &mut self,
-                ctx: &mut ::reactor_rt::ReactionCtx,
-                rid: ::reactor_rt::LocalReactionId,
-            ) {
+            fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
                 match rid.raw() {
                     _ => panic!(
                         "Invalid reaction ID: {} should be < {}",

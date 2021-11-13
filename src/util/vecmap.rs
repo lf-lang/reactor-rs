@@ -46,11 +46,7 @@ where
     pub fn entry(&mut self, key: K) -> Entry<K, V> {
         match self.find_k(&key) {
             Ok(index) => Entry::Occupied(key, &mut self.v[index].1),
-            Err(index) => Entry::Vacant(VacantEntry {
-                map: self,
-                index,
-                key,
-            }),
+            Err(index) => Entry::Vacant(VacantEntry { map: self, index, key }),
         }
     }
 

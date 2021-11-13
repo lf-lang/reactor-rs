@@ -264,9 +264,7 @@ pub fn try_parse_duration(t: &str) -> Result<Duration, String> {
     let mut chars = t.char_indices().skip_while(|(_, c)| c.is_numeric());
 
     if let Some((num_end, _)) = &chars.next() {
-        let magnitude: u64 = (&t)[0..*num_end]
-            .parse::<u64>()
-            .map_err(|e| format!("{}", e))?;
+        let magnitude: u64 = (&t)[0..*num_end].parse::<u64>().map_err(|e| format!("{}", e))?;
 
         let unit = t[*num_end..].trim();
 

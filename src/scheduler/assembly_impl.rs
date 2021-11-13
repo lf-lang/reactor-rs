@@ -25,12 +25,12 @@
 use std::borrow::Cow;
 use std::marker::PhantomData;
 
-use crate::assembly::*;
-use crate::scheduler::dependencies::DepGraph;
-use crate::*;
 use index_vec::{Idx, IndexVec};
 
 use super::{ReactorBox, ReactorVec};
+use crate::assembly::*;
+use crate::scheduler::dependencies::DepGraph;
+use crate::*;
 
 /// Globals shared by all assemblers.
 pub(super) struct RootAssembler {
@@ -77,16 +77,8 @@ impl RootAssembler {
         };
         root.register_reactor(main_reactor);
 
-        let RootAssembler {
-            graph,
-            reactors,
-            debug_info: id_registry,
-            ..
-        } = root;
-        let reactors = reactors
-            .into_iter()
-            .map(|r| r.expect("Uninitialized reactor!"))
-            .collect();
+        let RootAssembler { graph, reactors, debug_info: id_registry, .. } = root;
+        let reactors = reactors.into_iter().map(|r| r.expect("Uninitialized reactor!")).collect();
         (reactors, graph, id_registry)
     }
 }
@@ -138,11 +130,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         create_self: impl FnOnce(&mut ComponentCreator<S>, ReactorId) -> Result<S, AssemblyError>,
         num_non_synthetic_reactions: usize,
         reaction_names: [Option<&'static str>; N],
-        declare_dependencies: impl FnOnce(
-            &mut DependencyDeclarator<S>,
-            &mut S,
-            [GlobalReactionId; N],
-        ) -> AssemblyResult<()>,
+        declare_dependencies: impl FnOnce(&mut DependencyDeclarator<S>, &mut S, [GlobalReactionId; N]) -> AssemblyResult<()>,
     ) -> Result<(Self, S), AssemblyError> {
         // todo when feature(generic_const_exprs) is stabilized,
         //  replace const parameter N with S::MAX_REACTION_ID.index().
@@ -150,14 +138,18 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
 
         let id = self.globals.reactor_id;
         self.globals.reactor_id = self.globals.reactor_id.plus(1);
-        self.globals.debug_info.record_reactor(id, self.debug.take().expect("Can only call assemble_self once"));
+        self.globals
+            .debug_info
+            .record_reactor(id, self.debug.take().expect("Can only call assemble_self once"));
 
         let first_trigger_id = self.globals.cur_trigger;
 
         let mut ich = create_self(&mut ComponentCreator { assembler: &mut self }, id)?;
         // after creation, globals.cur_trigger has been mutated
         // record proper debug info.
-        self.globals.debug_info.set_id_range(id, first_trigger_id..self.globals.cur_trigger);
+        self.globals
+            .debug_info
+            .set_id_range(id, first_trigger_id..self.globals.cur_trigger);
 
         // declare dependencies
         let reactions = self.new_reactions(id, num_non_synthetic_reactions, reaction_names);
@@ -183,9 +175,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         let mut prev: Option<GlobalReactionId> = None;
         for (i, r) in result.iter().cloned().enumerate() {
             if let Some(label) = names[i] {
-                self.globals
-                    .debug_info
-                    .record_reaction(r, Cow::Borrowed(label))
+                self.globals.debug_info.record_reaction(r, Cow::Borrowed(label))
             }
             self.globals.graph.record_reaction(r);
             if i < num_non_synthetic {
@@ -262,10 +252,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         bank_idx: Option<usize>,
         args: Sub::Params,
     ) -> Result<Sub, AssemblyError> {
-        let my_debug = self
-            .debug
-            .as_ref()
-            .expect("should assemble sub-reactors before self");
+        let my_debug = self.debug.as_ref().expect("should assemble sub-reactors before self");
 
         let debug_info = match bank_idx {
             None => my_debug.derive::<Sub>(inst_name),
@@ -282,65 +269,37 @@ pub struct DependencyDeclarator<'a, 'x, S: ReactorInitializer> {
 }
 
 impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
-    pub fn declare_triggers(
-        &mut self,
-        trigger: TriggerId,
-        reaction: GlobalReactionId,
-    ) -> AssemblyResult<()> {
+    pub fn declare_triggers(&mut self, trigger: TriggerId, reaction: GlobalReactionId) -> AssemblyResult<()> {
         self.graph().triggers_reaction(trigger, reaction);
         Ok(())
     }
 
-    pub fn effects_port<T: Sync>(
-        &mut self,
-        reaction: GlobalReactionId,
-        port: &Port<T>,
-    ) -> AssemblyResult<()> {
+    pub fn effects_port<T: Sync>(&mut self, reaction: GlobalReactionId, port: &Port<T>) -> AssemblyResult<()> {
         self.effects_instantaneous(reaction, port.get_id())
     }
 
-    pub fn effects_bank<T: Sync>(
-        &mut self,
-        reaction: GlobalReactionId,
-        port: &PortBank<T>,
-    ) -> AssemblyResult<()> {
+    pub fn effects_bank<T: Sync>(&mut self, reaction: GlobalReactionId, port: &PortBank<T>) -> AssemblyResult<()> {
         self.effects_instantaneous(reaction, port.get_id())
     }
 
     #[doc(hidden)] // used by synthesized timer reactions
-    pub fn effects_timer(
-        &mut self,
-        reaction: GlobalReactionId,
-        timer: &Timer,
-    ) -> AssemblyResult<()> {
+    pub fn effects_timer(&mut self, reaction: GlobalReactionId, timer: &Timer) -> AssemblyResult<()> {
         self.effects_instantaneous(reaction, timer.get_id())
     }
 
-    fn effects_instantaneous(
-        &mut self,
-        reaction: GlobalReactionId,
-        trigger: TriggerId,
-    ) -> AssemblyResult<()> {
+    fn effects_instantaneous(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> AssemblyResult<()> {
         self.graph().reaction_effects(reaction, trigger);
         Ok(())
     }
 
-    pub fn declare_uses(
-        &mut self,
-        reaction: GlobalReactionId,
-        trigger: TriggerId,
-    ) -> AssemblyResult<()> {
+    pub fn declare_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> AssemblyResult<()> {
         self.graph().reaction_uses(reaction, trigger);
         Ok(())
     }
 
     /// Bind two ports together.
     #[inline]
-    pub fn bind_ports<T: Sync>(
-        &mut self,
-        upstream: &mut Port<T>,
-        downstream: &mut Port<T>,
-    ) -> AssemblyResult<()> {
+    pub fn bind_ports<T: Sync>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> AssemblyResult<()> {
         crate::bind_ports(upstream, downstream)?;
         self.graph().port_bind(upstream, downstream);
         Ok(())
@@ -413,32 +372,19 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
         Port::new(channel_id, is_input)
     }
 
-    pub fn new_logical_action<T: Sync>(
-        &mut self,
-        lf_name: &'static str,
-        min_delay: Option<Duration>,
-    ) -> LogicalAction<T> {
+    pub fn new_logical_action<T: Sync>(&mut self, lf_name: &'static str, min_delay: Option<Duration>) -> LogicalAction<T> {
         let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
         self.graph().record_laction(id);
         LogicalAction::new(id, min_delay)
     }
 
-    pub fn new_physical_action<T: Sync>(
-        &mut self,
-        lf_name: &'static str,
-        min_delay: Option<Duration>,
-    ) -> PhysicalActionRef<T> {
+    pub fn new_physical_action<T: Sync>(&mut self, lf_name: &'static str, min_delay: Option<Duration>) -> PhysicalActionRef<T> {
         let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
         self.graph().record_paction(id);
         PhysicalActionRef::new(id, min_delay)
     }
 
-    pub fn new_timer(
-        &mut self,
-        lf_name: &'static str,
-        offset: Duration,
-        period: Duration,
-    ) -> Timer {
+    pub fn new_timer(&mut self, lf_name: &'static str, offset: Duration, period: Duration) -> Timer {
         let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
         self.graph().record_timer(id);
         Timer::new(id, offset, period)

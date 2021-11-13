@@ -34,13 +34,10 @@ use std::rc::Rc;
 use std::time::Instant;
 
 use atomic_refcell::AtomicRefCell;
-
 use AssemblyErrorImpl::CannotBind;
 
-use crate::assembly::{
-    AssemblyError, AssemblyErrorImpl, AssemblyErrorImpl::CyclicDependency, PortId, TriggerId,
-    TriggerLike,
-};
+use crate::assembly::AssemblyErrorImpl::CyclicDependency;
+use crate::assembly::{AssemblyError, AssemblyErrorImpl, PortId, TriggerId, TriggerLike};
 use crate::{EventTag, ReactionTrigger};
 
 /// A read-only reference to a port.
@@ -64,12 +61,7 @@ impl<T: Sync> ReactionTrigger<T> for ReadablePort<'_, T> {
     }
 
     #[inline]
-    fn use_value_ref<O>(
-        &self,
-        _now: &EventTag,
-        _start: &Instant,
-        action: impl FnOnce(Option<&T>) -> O,
-    ) -> O {
+    fn use_value_ref<O>(&self, _now: &EventTag, _start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
         self.0.use_ref(|opt| action(opt.as_ref()))
     }
 }
@@ -166,8 +158,7 @@ impl<'a, T: Sync> ReadablePortBank<'a, T> {
 
 impl<'a, T: Sync> IntoIterator for ReadablePortBank<'a, T> {
     type Item = ReadablePort<'a, T>;
-    type IntoIter =
-        std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> ReadablePort<'a, T>>;
+    type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> ReadablePort<'a, T>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.ports.iter().map(ReadablePort)
@@ -198,10 +189,7 @@ impl<'a, T: Sync> WritablePortBank<'a, T> {
 
 impl<'a, T: Sync> IntoIterator for WritablePortBank<'a, T> {
     type Item = WritablePort<'a, T>;
-    type IntoIter = std::iter::Map<
-        std::slice::IterMut<'a, Port<T>>,
-        fn(&'a mut Port<T>) -> WritablePort<'a, T>,
-    >;
+    type IntoIter = std::iter::Map<std::slice::IterMut<'a, Port<T>>, fn(&'a mut Port<T>) -> WritablePort<'a, T>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.ports.iter_mut().map(WritablePort)
@@ -301,12 +289,7 @@ impl<T: Sync> Port<T> {
     pub(crate) fn set_impl(&mut self, new_value: Option<T>) {
         use atomic_refcell::AtomicRef;
 
-        debug_assert_ne!(
-            self.bind_status,
-            BindStatus::Bound,
-            "Cannot set a bound port ({:?})",
-            self.id
-        );
+        debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port ({:?})", self.id);
 
         let cell_ref: AtomicRef<Rc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
         let class_cell: &PortCell<T> = Rc::borrow(cell_ref.deref());
@@ -327,11 +310,7 @@ impl<T: Sync> Port<T> {
 
     #[cfg(not(feature = "no-unsafe"))]
     pub(crate) fn set_impl(&mut self, new_value: Option<T>) {
-        debug_assert_ne!(
-            self.bind_status,
-            BindStatus::Bound,
-            "Cannot set a bound port"
-        );
+        debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port");
 
         let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
 
@@ -356,8 +335,7 @@ impl<T: Sync> Port<T> {
         #[cfg(feature = "no-unsafe")]
         let mut mut_downstream_cell = (&downstream.upstream_binding).borrow_mut();
         #[cfg(not(feature = "no-unsafe"))]
-        let mut mut_downstream_cell =
-            unsafe { (&downstream.upstream_binding).get().as_mut().unwrap() };
+        let mut mut_downstream_cell = unsafe { (&downstream.upstream_binding).get().as_mut().unwrap() };
 
         if downstream.bind_status == BindStatus::Bound {
             return Err(AssemblyError(CannotBind(self.id, downstream.id)));
@@ -370,10 +348,10 @@ impl<T: Sync> Port<T> {
         #[cfg(not(feature = "no-unsafe"))]
         let my_class = unsafe { self.upstream_binding.get().as_mut().unwrap() };
 
-        my_class.downstreams.borrow_mut().insert(
-            downstream.id.clone(),
-            Rc::clone(&downstream.upstream_binding),
-        );
+        my_class
+            .downstreams
+            .borrow_mut()
+            .insert(downstream.id.clone(), Rc::clone(&downstream.upstream_binding));
 
         let new_binding = Rc::clone(&my_class);
 
@@ -398,10 +376,7 @@ impl<T: Sync> TriggerLike for Port<T> {
 /// If the downstream port was already bound to some other port.
 ///
 #[inline]
-pub(crate) fn bind_ports<T: Sync>(
-    up: &mut Port<T>,
-    down: &mut Port<T>,
-) -> Result<(), AssemblyError> {
+pub(crate) fn bind_ports<T: Sync>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), AssemblyError> {
     up.forward_to(down)
 }
 
@@ -450,16 +425,9 @@ struct PortCell<T: Sync> {
 }
 
 impl<T: Sync> PortCell<T> {
-    fn check_cycle(
-        &self,
-        upstream_id: &PortId,
-        downstream_id: &PortId,
-    ) -> Result<(), AssemblyError> {
+    fn check_cycle(&self, upstream_id: &PortId, downstream_id: &PortId) -> Result<(), AssemblyError> {
         if (&*self.downstreams.borrow()).contains_key(upstream_id) {
-            Err(AssemblyError(CyclicDependency(
-                *upstream_id,
-                *downstream_id,
-            )))
+            Err(AssemblyError(CyclicDependency(*upstream_id, *downstream_id)))
         } else {
             Ok(())
         }

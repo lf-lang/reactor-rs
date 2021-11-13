@@ -86,12 +86,7 @@ impl ReactionTrigger<()> for Timer {
     }
 
     #[inline]
-    fn use_value_ref<O>(
-        &self,
-        now: &EventTag,
-        start: &Instant,
-        action: impl FnOnce(Option<&()>) -> O,
-    ) -> O {
+    fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&()>) -> O) -> O {
         if self.is_present(now, start) {
             action(Some(&()))
         } else {

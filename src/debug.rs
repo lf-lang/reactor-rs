@@ -30,7 +30,8 @@ use std::ops::Range;
 
 use index_vec::{Idx, IndexVec};
 
-use crate::{assembly::ReactorInitializer, assembly::TriggerId, GlobalReactionId, ReactorId};
+use crate::assembly::{ReactorInitializer, TriggerId};
+use crate::{GlobalReactionId, ReactorId};
 
 /// Maps IDs to debug information, stores all the debug info.
 /// This is built during asembly.
@@ -66,14 +67,8 @@ impl DebugInfoRegistry {
             reaction_labels: Default::default(),
         };
 
-        assert_eq!(
-            ich.trigger_infos.push(Cow::Borrowed("startup")),
-            TriggerId::STARTUP
-        );
-        assert_eq!(
-            ich.trigger_infos.push(Cow::Borrowed("shutdown")),
-            TriggerId::SHUTDOWN
-        );
+        assert_eq!(ich.trigger_infos.push(Cow::Borrowed("startup")), TriggerId::STARTUP);
+        assert_eq!(ich.trigger_infos.push(Cow::Borrowed("shutdown")), TriggerId::SHUTDOWN);
 
         ich
     }
@@ -116,12 +111,7 @@ impl DebugInfoRegistry {
             }
         }
 
-        PathFmt {
-            debug: self,
-            id,
-            label,
-            always_display_idx,
-        }
+        PathFmt { debug: self, id, label, always_display_idx }
     }
 
     #[inline]
@@ -132,11 +122,7 @@ impl DebugInfoRegistry {
 
     #[inline]
     pub(crate) fn fmt_component<'a>(&'a self, id: TriggerId) -> impl Display + 'a {
-        self.fmt_component_path(
-            self.raw_id_of_trigger(id),
-            Some(&self.trigger_infos[id]),
-            false,
-        )
+        self.fmt_component_path(self.raw_id_of_trigger(id), Some(&self.trigger_infos[id]), false)
     }
 
     fn raw_id_of_trigger(&self, id: TriggerId) -> RawId {
@@ -188,10 +174,7 @@ impl DebugInfoRegistry {
 
     pub(super) fn set_id_range(&mut self, id: ReactorId, range: Range<TriggerId>) {
         assert!(range.start <= range.end, "Malformed range {:?}", range);
-        assert!(
-            range.start >= TriggerId::FIRST_REGULAR,
-            "Trigger IDs 0-1 are reserved"
-        );
+        assert!(range.start >= TriggerId::FIRST_REGULAR, "Trigger IDs 0-1 are reserved");
 
         let ix = self.reactor_bound.push(range.end);
         assert_eq!(ix, id);
@@ -219,7 +202,11 @@ impl ReactorDebugInfo {
     #[cfg(test)]
     pub(crate) fn test_named(mut inst_path: String) -> Self {
         inst_path.push('/');
-        Self { type_name: "unknown", inst_name: "unknown", inst_path }
+        Self {
+            type_name: "unknown",
+            inst_name: "unknown",
+            inst_path,
+        }
     }
 
     pub(crate) fn root<R>() -> Self {
@@ -238,11 +225,7 @@ impl ReactorDebugInfo {
         }
     }
 
-    pub(crate) fn derive_bank_item<R: ReactorInitializer>(
-        &self,
-        inst_name: &'static str,
-        bank_idx: usize,
-    ) -> Self {
+    pub(crate) fn derive_bank_item<R: ReactorInitializer>(&self, inst_name: &'static str, bank_idx: usize) -> Self {
         Self {
             type_name: type_name::<R::Wrapped>(),
             inst_name,

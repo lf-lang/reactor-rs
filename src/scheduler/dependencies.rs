@@ -35,12 +35,11 @@ use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::Direction::{Incoming, Outgoing};
 
+use super::ReactionPlan;
 use crate::assembly::*;
 use crate::scheduler::dependencies::NodeKind::MultiportUpstream;
 use crate::util::vecmap::{Entry as VEntry, VecMap};
 use crate::*;
-
-use super::ReactionPlan;
 
 type GraphIx = NodeIndex<u32>;
 
@@ -124,22 +123,10 @@ pub(super) struct DepGraph {
 impl Debug for GraphNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            GraphNode {
-                id: GraphId::Reaction(id),
-                ..
-            } => write!(f, "Reaction({:?})", id),
-            GraphNode {
-                id: GraphId::Trigger(TriggerId::STARTUP),
-                ..
-            } => write!(f, "startup"),
-            GraphNode {
-                id: GraphId::Trigger(TriggerId::SHUTDOWN),
-                ..
-            } => write!(f, "shutdown"),
-            GraphNode {
-                id: GraphId::Trigger(id),
-                kind,
-            } => write!(f, "{:?}({:?})", kind, id.index()),
+            GraphNode { id: GraphId::Reaction(id), .. } => write!(f, "Reaction({:?})", id),
+            GraphNode { id: GraphId::Trigger(TriggerId::STARTUP), .. } => write!(f, "startup"),
+            GraphNode { id: GraphId::Trigger(TriggerId::SHUTDOWN), .. } => write!(f, "shutdown"),
+            GraphNode { id: GraphId::Trigger(id), kind } => write!(f, "{:?}({:?})", kind, id.index()),
         }
     }
 }
@@ -173,11 +160,7 @@ impl DepGraph {
             let id = &captures[2];
             if kind == "Reaction" {
                 let global = id.parse::<GlobalId>().unwrap();
-                format!(
-                    "{}({})",
-                    kind,
-                    id_registry.fmt_reaction(GlobalReactionId(global))
-                )
+                format!("{}({})", kind, id_registry.fmt_reaction(GlobalReactionId(global)))
             } else {
                 let trigger_id = TriggerId::new(id.parse().unwrap());
                 format!("{}({})", kind, id_registry.fmt_component(trigger_id))
@@ -209,20 +192,12 @@ impl DepGraph {
     /// When X declares a trigger/uses on the entire
     /// bank, an edge is added from every channel to X.
     ///
-    pub(super) fn record_port_bank(
-        &mut self,
-        id: TriggerId,
-        len: usize,
-    ) -> Result<(), AssemblyError> {
+    pub(super) fn record_port_bank(&mut self, id: TriggerId, len: usize) -> Result<(), AssemblyError> {
         assert!(len > 0, "empty port bank");
         self.record(GraphId::Trigger(id), NodeKind::MultiportUpstream);
 
-        for channel_id in id
-            .next_range(len)
-            .map_err(|_| AssemblyError(AssemblyErrorImpl::IdOverflow))?
-        {
-            self.multiport_containment
-                .insert(GraphId::Trigger(channel_id), id);
+        for channel_id in id.next_range(len).map_err(|_| AssemblyError(AssemblyErrorImpl::IdOverflow))? {
+            self.multiport_containment.insert(GraphId::Trigger(channel_id), id);
 
             // self.dataflow.add_edge(upstream_ix, channel_ix, EdgeWeight::Default);
         }
@@ -260,11 +235,8 @@ impl DepGraph {
 
     /// Records that n > m, ie it will execute always before m.
     pub fn reaction_priority(&mut self, n: GlobalReactionId, m: GlobalReactionId) {
-        self.dataflow.add_edge(
-            self.get_ix(n.into()),
-            self.get_ix(m.into()),
-            EdgeWeight::Default,
-        );
+        self.dataflow
+            .add_edge(self.get_ix(n.into()), self.get_ix(m.into()), EdgeWeight::Default);
     }
 
     pub fn port_bind<T: Sync>(&mut self, p1: &Port<T>, p2: &Port<T>) {
@@ -279,11 +251,8 @@ impl DepGraph {
     #[cfg(test)]
     pub fn port_bind_untyped(&mut self, p1: TriggerId, p2: TriggerId) {
         // upstream (settable) -> downstream (bound)
-        self.dataflow.add_edge(
-            self.get_ix(p1.into()),
-            self.get_ix(p2.into()),
-            EdgeWeight::Default,
-        );
+        self.dataflow
+            .add_edge(self.get_ix(p1.into()), self.get_ix(p2.into()), EdgeWeight::Default);
     }
 
     pub fn triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
@@ -296,29 +265,20 @@ impl DepGraph {
         }
 
         // trigger -> reaction
-        self.dataflow.add_edge(
-            trigger_ix,
-            self.get_ix(reaction.into()),
-            EdgeWeight::Default,
-        );
+        self.dataflow
+            .add_edge(trigger_ix, self.get_ix(reaction.into()), EdgeWeight::Default);
     }
 
     pub fn reaction_effects(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
         // reaction -> trigger
-        self.dataflow.add_edge(
-            self.get_ix(reaction.into()),
-            self.get_ix(trigger.into()),
-            EdgeWeight::Default,
-        );
+        self.dataflow
+            .add_edge(self.get_ix(reaction.into()), self.get_ix(trigger.into()), EdgeWeight::Default);
     }
 
     pub fn reaction_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
         // trigger -> reaction
-        self.dataflow.add_edge(
-            self.get_ix(trigger.into()),
-            self.get_ix(reaction.into()),
-            EdgeWeight::Use,
-        );
+        self.dataflow
+            .add_edge(self.get_ix(trigger.into()), self.get_ix(reaction.into()), EdgeWeight::Use);
     }
 
     fn get_ix(&self, id: GraphId) -> GraphIx {
@@ -338,10 +298,7 @@ impl DepGraph {
 
     fn record_special(&mut self, trigger: TriggerId) {
         let id = GraphId::Trigger(trigger);
-        let node = GraphNode {
-            kind: NodeKind::Special,
-            id,
-        };
+        let node = GraphNode { kind: NodeKind::Special, id };
         self.ix_by_id.insert(id, self.dataflow.add_node(node));
     }
 }
@@ -372,10 +329,7 @@ impl DepGraph {
                     *current = cur_layer.max(*current);
                 }
 
-                let successors = self
-                    .dataflow
-                    .edges_directed(ix, Outgoing)
-                    .map(|e| e.target());
+                let successors = self.dataflow.edges_directed(ix, Outgoing).map(|e| e.target());
                 todo_next.extend(successors);
             }
             cur_layer = cur_layer.next();
@@ -390,12 +344,7 @@ impl DepGraph {
     pub(self) fn get_roots(&self) -> Vec<GraphIx> {
         self.dataflow
             .node_indices()
-            .filter(|node| {
-                self.dataflow
-                    .edges_directed(*node, Incoming)
-                    .next()
-                    .is_none()
-            })
+            .filter(|node| self.dataflow.edges_directed(*node, Incoming).next().is_none())
             .collect()
     }
 }
@@ -446,9 +395,7 @@ impl DataflowInfo {
             return Err(AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph));
         }
 
-        let layer_info = ReactionLayerInfo {
-            layer_numbers: graph.number_reactions_by_layer(),
-        };
+        let layer_info = ReactionLayerInfo { layer_numbers: graph.number_reactions_by_layer() };
         let trigger_to_plan = Self::collect_trigger_to_plan(&mut graph, &layer_info);
 
         Ok(DataflowInfo { trigger_to_plan })
@@ -495,12 +442,7 @@ impl DataflowInfo {
             match node.kind {
                 NodeKind::Port => {
                     // this is necessarily a port->port binding
-                    Self::collect_reactions_rec(
-                        dataflow,
-                        downstream.target(),
-                        layer_info,
-                        reactions,
-                    )
+                    Self::collect_reactions_rec(dataflow, downstream.target(), layer_info, reactions)
                 }
                 NodeKind::Reaction => {
                     let rid = match node.id {
@@ -578,9 +520,7 @@ pub(crate) struct ExecutableReactions<'x> {
 
 impl<'x> ExecutableReactions<'x> {
     pub fn new() -> Self {
-        Self {
-            layers: VecMap::new(),
-        }
+        Self { layers: VecMap::new() }
     }
 
     /// Returns an iterator which associates batches of reactions
@@ -593,10 +533,7 @@ impl<'x> ExecutableReactions<'x> {
 
     #[inline]
     pub fn next_batch(&self, min_layer: LayerIx) -> Option<(LayerIx, &HashSet<GlobalReactionId>)> {
-        self.layers
-            .iter_from(min_layer)
-            .next()
-            .map(|(ix, cow)| (*ix, cow.as_ref()))
+        self.layers.iter_from(min_layer).next().map(|(ix, cow)| (*ix, cow.as_ref()))
     }
 
     /// The greatest layer with non-empty value.
@@ -646,11 +583,7 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     /// todo would be nice to simplify this, it's hot
-    pub(super) fn merge_cows_after(
-        x: ReactionPlan<'x>,
-        y: ReactionPlan<'x>,
-        min_layer: LayerIx,
-    ) -> ReactionPlan<'x> {
+    pub(super) fn merge_cows_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_layer: LayerIx) -> ReactionPlan<'x> {
         match (x, y) {
             (x, None) | (None, x) => x,
             (Some(x), y) | (y, Some(x)) if x.max_layer() < min_layer => y,
@@ -707,7 +640,8 @@ pub mod test {
                 self.next_reactor_id = self.next_reactor_id.plus(1);
                 id
             };
-            self.debug_info.record_reactor(reactor_id, ReactorDebugInfo::test_named(name.into()));
+            self.debug_info
+                .record_reactor(reactor_id, ReactorDebugInfo::test_named(name.into()));
             TestAssembler {
                 reactor_id,
                 first_trigger_id: self.next_trigger_id,
@@ -729,7 +663,6 @@ pub mod test {
     }
 
     impl TestAssembler<'_> {
-
         fn new_reactions<const N: usize>(&mut self) -> [GlobalReactionId; N] {
             let result = array![i => GlobalReactionId::new(self.reactor_id, LocalReactionId::from_usize(i)); N];
             let mut last = None;

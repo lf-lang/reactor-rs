@@ -3,10 +3,9 @@ use std::collections::VecDeque;
 use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
+use super::ReactionPlan;
 use crate::scheduler::dependencies::ExecutableReactions;
 use crate::*;
-
-use super::ReactionPlan;
 
 /// The tag of an event.
 ///
@@ -152,18 +151,10 @@ impl<'x> Event<'x> {
     }
 
     pub fn execute(tag: EventTag, reactions: Cow<'x, ExecutableReactions<'x>>) -> Self {
-        Self {
-            tag,
-            reactions: Some(reactions),
-            terminate: false,
-        }
+        Self { tag, reactions: Some(reactions), terminate: false }
     }
     pub fn terminate_at(tag: EventTag) -> Self {
-        Self {
-            tag,
-            reactions: None,
-            terminate: true,
-        }
+        Self { tag, reactions: None, terminate: true }
     }
 }
 

@@ -25,15 +25,13 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
-use index_vec::IndexVec;
-
 pub use context::*;
 pub use events::*;
+use index_vec::IndexVec;
 pub use scheduler_impl::*;
 
-use crate::*;
-
 use self::dependencies::ExecutableReactions;
+use crate::*;
 
 pub(crate) mod assembly_impl;
 mod context;
@@ -53,8 +51,7 @@ pub(self) struct DebugInfoProvider<'a> {
 
 impl DebugInfoProvider<'_> {
     pub(self) fn display_event(&self, evt: &Event) -> String {
-
-        let Event { tag, reactions, terminate, } = evt;
+        let Event { tag, reactions, terminate } = evt;
         let mut str = format!("at {}: run {}", tag, self.display_reactions(reactions));
 
         if *terminate {
@@ -72,10 +69,10 @@ impl DebugInfoProvider<'_> {
             for (layer_no, batch) in reactions.batches() {
                 write!(str, "{}: ", layer_no).unwrap();
                 join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| format!(
-                            "{}",
-                            self.display_reaction(*x)
-                        ))
-                    .unwrap();
+                    "{}",
+                    self.display_reaction(*x)
+                ))
+                .unwrap();
             }
         }
 

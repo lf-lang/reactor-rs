@@ -6,11 +6,10 @@ use crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
 
+use super::*;
 use crate::assembly::*;
 use crate::scheduler::dependencies::{DataflowInfo, ExecutableReactions, LayerIx};
 use crate::*;
-
-use super::*;
 
 /// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
@@ -143,9 +142,7 @@ where
     /// ```
     #[inline]
     pub fn get<T: Copy>(&self, container: &impl ReactionTrigger<T>) -> Option<T> {
-        container
-            .borrow()
-            .get_value(&self.get_tag(), &self.get_start_time())
+        container.borrow().get_value(&self.get_tag(), &self.get_start_time())
     }
 
     /// Executes the provided closure on the value of the port
@@ -174,11 +171,7 @@ where
     ///
     /// See also the similar [Self::use_ref_opt].
     #[inline]
-    pub fn use_ref<T, O>(
-        &self,
-        container: &impl ReactionTrigger<T>,
-        action: impl FnOnce(Option<&T>) -> O,
-    ) -> O {
+    pub fn use_ref<T, O>(&self, container: &impl ReactionTrigger<T>, action: impl FnOnce(Option<&T>) -> O) -> O {
         container
             .borrow()
             .use_value_ref(&self.get_tag(), &self.get_start_time(), action)
@@ -189,11 +182,7 @@ where
     /// and not copied.
     ///
     /// See also the similar [Self::use_ref].
-    pub fn use_ref_opt<T, O>(
-        &self,
-        container: &impl ReactionTrigger<T>,
-        action: impl FnOnce(&T) -> O,
-    ) -> Option<O> {
+    pub fn use_ref_opt<T, O>(&self, container: &impl ReactionTrigger<T>, action: impl FnOnce(&T) -> O) -> Option<O> {
         self.use_ref(container, |c| c.map(action))
     }
 
@@ -271,12 +260,7 @@ where
     /// ctx.schedule(action, Asap);
     /// ```
     #[inline]
-    pub fn schedule_with_v<T: Sync>(
-        &mut self,
-        action: &mut LogicalAction<T>,
-        value: Option<T>,
-        offset: Offset,
-    ) {
+    pub fn schedule_with_v<T: Sync>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
         let eta = self.make_successor_tag(action.0.min_delay + offset.to_duration());
         action.0.schedule_future_value(eta, value);
         let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
@@ -297,9 +281,7 @@ where
     #[inline]
     pub(crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions<'x>>) {
         match &mut self.insides.todo_now {
-            Some(ref mut do_next) => do_next
-                .to_mut()
-                .absorb_after(downstream.as_ref(), self.cur_layer.next()),
+            Some(ref mut do_next) => do_next.to_mut().absorb_after(downstream.as_ref(), self.cur_layer.next()),
             None => self.insides.todo_now = Some(downstream),
         }
     }
@@ -424,10 +406,7 @@ where
         was_terminated: bool,
     ) -> Self {
         Self {
-            insides: RContextForwardableStuff {
-                todo_now: todo,
-                future_events: Default::default(),
-            },
+            insides: RContextForwardableStuff { todo_now: todo, future_events: Default::default() },
             cur_layer: Default::default(),
             tag,
             rx,
@@ -482,10 +461,7 @@ pub(super) struct RContextForwardableStuff<'x> {
 
 impl Default for RContextForwardableStuff<'_> {
     fn default() -> Self {
-        Self {
-            todo_now: None,
-            future_events: Default::default(),
-        }
+        Self { todo_now: None, future_events: Default::default() }
     }
 }
 
@@ -588,8 +564,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
         // this event is scheduled for the future
         action
             .use_mut_p(value, |action, value| {
-                let tag =
-                    EventTag::absolute(self.initial_time, Instant::now() + offset.to_duration());
+                let tag = EventTag::absolute(self.initial_time, Instant::now() + offset.to_duration());
                 action.0.schedule_future_value(tag, value);
 
                 let downstream = self.dataflow.reactions_triggered_by(&action.get_id());

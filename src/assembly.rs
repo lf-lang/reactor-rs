@@ -1,13 +1,11 @@
 //! Module containing the API to initialize a reactor program.
 
-pub use crate::ids::GlobalReactionId;
-pub use crate::triggers::TriggerId;
-pub use crate::triggers::TriggerLike;
-// this is where most of the stuff is implemented
-pub use crate::scheduler::assembly_impl::*;
-
 use AssemblyErrorImpl::*;
 
+pub use crate::ids::GlobalReactionId;
+// this is where most of the stuff is implemented
+pub use crate::scheduler::assembly_impl::*;
+pub use crate::triggers::{TriggerId, TriggerLike};
 use crate::{DebugInfoRegistry, LocalReactionId, ReactorBehavior};
 pub(crate) type PortId = TriggerId;
 

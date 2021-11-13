@@ -22,10 +22,11 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use index_vec::Idx;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
+
+use index_vec::Idx;
 
 // private implementation types
 pub(crate) type ReactionIdImpl = u16;
@@ -128,8 +129,7 @@ pub(crate) struct GlobalId {
 
 impl GlobalId {
     pub fn new(container: ReactorId, local: LocalReactionId) -> Self {
-        let _raw: GlobalIdImpl =
-            (container.0 as GlobalIdImpl) << ReactionIdImpl::BITS | (local.0 as GlobalIdImpl);
+        let _raw: GlobalIdImpl = (container.0 as GlobalIdImpl) << ReactionIdImpl::BITS | (local.0 as GlobalIdImpl);
         Self { _raw }
     }
 
@@ -147,16 +147,9 @@ impl FromStr for GlobalId {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if let Some((container, local)) = s.split_once('/') {
-            let container = container
-                .parse::<ReactorIdImpl>()
-                .map_err(|_| "invalid reactor id")?;
-            let local = local
-                .parse::<ReactionIdImpl>()
-                .map_err(|_| "invalid local id")?;
-            Ok(GlobalId::new(
-                ReactorId::new(container),
-                LocalReactionId::new(local),
-            ))
+            let container = container.parse::<ReactorIdImpl>().map_err(|_| "invalid reactor id")?;
+            let local = local.parse::<ReactionIdImpl>().map_err(|_| "invalid local id")?;
+            Ok(GlobalId::new(ReactorId::new(container), LocalReactionId::new(local)))
         } else {
             Err("Expected format {int}/{int}")
         }
