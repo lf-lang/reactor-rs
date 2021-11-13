@@ -129,8 +129,12 @@ impl DebugInfoRegistry {
         match id {
             // Pretend startup and shutdown are in the last reactor.
             // For programs built with LFC, it's the main reactor.
-            TriggerId::STARTUP => (self.reactor_infos.last_idx(), 0usize),
-            TriggerId::SHUTDOWN => (self.reactor_infos.last_idx(), 0usize),
+            TriggerId::STARTUP | TriggerId::SHUTDOWN => {
+                let last_reactor = self.reactor_infos.last_idx();
+                let max_idx = *self.reactor_bound.last().unwrap();
+                let max_local_idx = max_idx.index() - self.get_reactor_lower_bound(last_reactor).index();
+                (last_reactor, max_local_idx + id.index())
+            }
 
             id => {
                 match self.reactor_bound.binary_search(&id) {
@@ -143,7 +147,6 @@ impl DebugInfoRegistry {
                     // If you ask for 2, it will take the branch Ok above.
                     // If you ask for 3, it will fail with Err(0), and reactor_bound[0]==2
                     // is actually the index of the reactor.
-                    // todo test this
                     Err(rid) => (rid, id.index() - self.get_reactor_lower_bound(rid).index()),
                 }
             }
@@ -243,8 +246,8 @@ impl Display for ReactorDebugInfo {
 
 #[cfg(test)]
 pub mod test {
-    use crate::{DebugInfoRegistry, ReactorDebugInfo, ReactorId};
     use crate::assembly::TriggerId;
+    use crate::{DebugInfoRegistry, ReactorDebugInfo, ReactorId};
 
     #[test]
     fn test_raw_id_from_trigger() -> Result<(), ()> {
@@ -256,7 +259,6 @@ pub mod test {
         debug.record_trigger(trigger_id.get_and_incr()?, "t0".into());
         debug.record_trigger(trigger_id.get_and_incr()?, "t1".into());
         debug.set_id_range(reactor_0, first_trigger..trigger_id);
-
 
         let reactor_1 = ReactorId::new(1);
         let first_trigger = trigger_id;
@@ -270,6 +272,9 @@ pub mod test {
         assert_eq!((reactor_0, 1), debug.raw_id_of_trigger(trigger_id.get_and_incr()?));
         assert_eq!((reactor_1, 0), debug.raw_id_of_trigger(trigger_id.get_and_incr()?));
         assert_eq!((reactor_1, 1), debug.raw_id_of_trigger(trigger_id.get_and_incr()?));
+
+        assert_eq!((reactor_1, 2), debug.raw_id_of_trigger(TriggerId::STARTUP));
+        assert_eq!((reactor_1, 3), debug.raw_id_of_trigger(TriggerId::SHUTDOWN));
 
         Ok(())
     }

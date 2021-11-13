@@ -89,6 +89,7 @@ impl TriggerId {
         TriggerId(id)
     }
 
+    #[allow(unused)]
     pub(crate) fn get_and_incr(&mut self) -> Result<Self, ()> {
         let id = *self;
         *self = id.next()?;
@@ -101,7 +102,7 @@ impl TriggerId {
 
     /// Returns an iterator that iterates over the range `(self+1)..(self+1+len)`.
     /// Returns `Err` on overflow.
-    pub(crate) fn next_range(&self, len: usize) -> Result<impl Iterator<Item=Self>, ()> {
+    pub(crate) fn next_range(&self, len: usize) -> Result<impl Iterator<Item = Self>, ()> {
         if let Some(upper) = self.0.checked_add(1 + len) {
             Ok(((self.0 + 1)..upper).into_iter().map(TriggerId))
         } else {
