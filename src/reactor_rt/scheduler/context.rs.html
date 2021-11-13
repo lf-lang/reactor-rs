@@ -670,7 +670,7 @@
 
 <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::assembly</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::dependencies</span>::{<span class="ident">DataflowInfo</span>, <span class="ident">ExecutableReactions</span>, <span class="ident">LayerIx</span>};
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::dependencies</span>::{<span class="ident">DataflowInfo</span>, <span class="ident">ExecutableReactions</span>, <span class="ident">LevelIx</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// The context in which a reaction executes. Its API</span>
@@ -692,8 +692,8 @@
     <span class="doccomment">/// during the existence of the object</span>
     <span class="ident">tag</span>: <span class="ident">EventTag</span>,
 
-    <span class="doccomment">/// Layer of the reaction being executed.</span>
-    <span class="ident">cur_layer</span>: <span class="ident">LayerIx</span>,
+    <span class="doccomment">/// Level of the reaction being executed.</span>
+    <span class="ident">cur_level</span>: <span class="ident">LevelIx</span>,
 
     <span class="doccomment">/// Sender to schedule events that should be executed later than this wave.</span>
     <span class="ident">rx</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,
@@ -943,7 +943,7 @@
     <span class="attribute">#[<span class="ident">inline</span>]</span>
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">enqueue_now</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">downstream</span>: <span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span>, <span class="ident">ExecutableReactions</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
         <span class="kw">match</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">insides</span>.<span class="ident">todo_now</span> {
-            <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">do_next</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">do_next</span>.<span class="ident">to_mut</span>().<span class="ident">absorb_after</span>(<span class="ident">downstream</span>.<span class="ident">as_ref</span>(), <span class="self">self</span>.<span class="ident">cur_layer</span>.<span class="ident">next</span>()),
+            <span class="prelude-val">Some</span>(<span class="kw-2">ref</span> <span class="kw-2">mut</span> <span class="ident">do_next</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="ident">do_next</span>.<span class="ident">to_mut</span>().<span class="ident">absorb_after</span>(<span class="ident">downstream</span>.<span class="ident">as_ref</span>(), <span class="self">self</span>.<span class="ident">cur_level</span>.<span class="ident">next</span>()),
             <span class="prelude-val">None</span> <span class="op">=</span><span class="op">&gt;</span> <span class="self">self</span>.<span class="ident">insides</span>.<span class="ident">todo_now</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">downstream</span>),
         }
     }
@@ -1069,7 +1069,7 @@
     ) <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
         <span class="self">Self</span> {
             <span class="ident">insides</span>: <span class="ident">RContextForwardableStuff</span> { <span class="ident">todo_now</span>: <span class="ident">todo</span>, <span class="ident">future_events</span>: <span class="ident">Default::default</span>() },
-            <span class="ident">cur_layer</span>: <span class="ident">Default::default</span>(),
+            <span class="ident">cur_level</span>: <span class="ident">Default::default</span>(),
             <span class="ident">tag</span>,
             <span class="ident">rx</span>,
             <span class="ident">initial_time</span>,
@@ -1080,8 +1080,8 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">set_cur_layer</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cur_layer</span>: <span class="ident">LayerIx</span>) {
-        <span class="self">self</span>.<span class="ident">cur_layer</span> <span class="op">=</span> <span class="ident">cur_layer</span>;
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">set_cur_level</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">cur_level</span>: <span class="ident">LevelIx</span>) {
+        <span class="self">self</span>.<span class="ident">cur_level</span> <span class="op">=</span> <span class="ident">cur_level</span>;
     }
 
     <span class="doccomment">/// Fork a context. Some things are shared, but not the</span>
@@ -1094,7 +1094,7 @@
             <span class="comment">// all of that is common to all contexts</span>
             <span class="ident">tag</span>: <span class="self">self</span>.<span class="ident">tag</span>,
             <span class="ident">rx</span>: <span class="self">self</span>.<span class="ident">rx</span>,
-            <span class="ident">cur_layer</span>: <span class="self">self</span>.<span class="ident">cur_layer</span>,
+            <span class="ident">cur_level</span>: <span class="self">self</span>.<span class="ident">cur_level</span>,
             <span class="ident">initial_time</span>: <span class="self">self</span>.<span class="ident">initial_time</span>,
             <span class="ident">thread_spawner</span>: <span class="self">self</span>.<span class="ident">thread_spawner</span>,
             <span class="ident">dataflow</span>: <span class="self">self</span>.<span class="ident">dataflow</span>,
@@ -1295,7 +1295,7 @@
 <span class="doccomment">/// Cleans up a tag</span>
 <span class="doccomment">/// TODO get rid of this!</span>
 <span class="doccomment">///  At least for multiports it&#39;s really bad</span>
-<span class="doccomment">///  Maybe we can keep a set of the ports that are present in</span>
+<span class="doccomment">///  Maybe we can keep a set of the ports that are present in ReactionCtx</span>
 <span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">CleanupCtx</span> {
     <span class="doccomment">/// Tag we&#39;re cleaning up</span>

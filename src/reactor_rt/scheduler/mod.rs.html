@@ -153,8 +153,8 @@
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">str</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;[&quot;</span>);
 
         <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">reactions</span>) <span class="op">=</span> <span class="ident">reactions</span> {
-            <span class="kw">for</span> (<span class="ident">layer_no</span>, <span class="ident">batch</span>) <span class="kw">in</span> <span class="ident">reactions</span>.<span class="ident">batches</span>() {
-                <span class="macro">write!</span>(<span class="ident">str</span>, <span class="string">&quot;{}: &quot;</span>, <span class="ident">layer_no</span>).<span class="ident">unwrap</span>();
+            <span class="kw">for</span> (<span class="ident">level_no</span>, <span class="ident">batch</span>) <span class="kw">in</span> <span class="ident">reactions</span>.<span class="ident">batches</span>() {
+                <span class="macro">write!</span>(<span class="ident">str</span>, <span class="string">&quot;{}: &quot;</span>, <span class="ident">level_no</span>).<span class="ident">unwrap</span>();
                 <span class="macro">join_to!</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">str</span>, <span class="ident">batch</span>.<span class="ident">iter</span>(), <span class="string">&quot;, &quot;</span>, <span class="string">&quot;{&quot;</span>, <span class="string">&quot;}&quot;</span>, <span class="op">|</span><span class="ident">x</span><span class="op">|</span> <span class="macro">format!</span>(
                     <span class="string">&quot;{}&quot;</span>,
                     <span class="self">self</span>.<span class="ident">display_reaction</span>(<span class="kw-2">*</span><span class="ident">x</span>)
