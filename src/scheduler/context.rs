@@ -301,7 +301,10 @@ where
     /// Since the thread is allowed to keep references into the
     /// internals of the scheduler, it is joined when the scheduler
     /// shuts down. This means the scheduler will wait for the
-    /// thread to finish its task. For that reason
+    /// thread to finish its task. For that reason, the thread's
+    /// closure should not execute an infinite loop, it should at
+    /// least check that the scheduler has not been terminated by
+    /// polling [PhysicalSchedulerLink::was_terminated].
     ///
     /// ### Example
     ///
@@ -495,7 +498,7 @@ impl PhysicalSchedulerLink<'_, '_, '_> {
     /// Returns true if the scheduler has been shutdown. When
     /// that's true, calls to other methods of this type will
     /// fail with [SendError].
-    pub fn is_shutdown(&self) -> bool {
+    pub fn was_terminated(&self) -> bool {
         self.was_terminated.load(Ordering::SeqCst)
     }
 
