@@ -38,6 +38,11 @@ no-unsafe=[]
 name = "savina_pong"
 harness = false
 
+[[bench]]
+name = "global_id"
+path = "benches/micro/global_id.rs"
+harness = false
+
 [profile.bench]
 debug = true
 
