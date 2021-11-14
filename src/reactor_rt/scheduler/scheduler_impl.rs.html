@@ -981,7 +981,7 @@
                     <span class="kw">let</span> <span class="ident">container_id</span> <span class="op">=</span> <span class="ident">reaction_id</span>.<span class="number">0</span>.<span class="ident">container</span>();
                     <span class="kw">let</span> <span class="ident">reactor</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>.<span class="ident">reactors</span>[<span class="ident">container_id</span>];
                     <span class="macro">debug_assert_eq!</span>(<span class="ident">reactor</span>.<span class="ident">id</span>(), <span class="ident">container_id</span>, <span class="string">&quot;Wrong reactor&quot;</span>);
-                    <span class="ident">reactor</span>.<span class="ident">react_erased</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>, <span class="ident">reaction_id</span>.<span class="number">0</span>.<span class="ident">local</span>());
+                    <span class="ident">reactor</span>.<span class="ident">react</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>, <span class="ident">reaction_id</span>.<span class="number">0</span>.<span class="ident">local</span>());
                 }
             }
 
@@ -1032,7 +1032,7 @@
 
                 <span class="comment">// this may append new elements into the queue,</span>
                 <span class="comment">// which is why we can&#39;t use an iterator</span>
-                <span class="ident">reactor</span>.<span class="ident">react_erased</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>, <span class="ident">reaction_id</span>.<span class="number">0</span>.<span class="ident">local</span>());
+                <span class="ident">reactor</span>.<span class="ident">react</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ctx</span>, <span class="ident">reaction_id</span>.<span class="number">0</span>.<span class="ident">local</span>());
 
                 <span class="ident">CloneableCtx</span>(<span class="ident">ctx</span>)
             })

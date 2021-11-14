@@ -242,9 +242,9 @@
     <span class="doccomment">/// this struct.</span>
     <span class="doccomment">///</span>
     <span class="doccomment">/// It must always be the case that `local_rid &lt; Self::MAX_REACTION_ID`,</span>
-    <span class="doccomment">/// where `Self::MAX_REACTION_ID` is defined by the other trait,</span>
+    <span class="doccomment">/// where `Self::MAX_REACTION_ID` is defined by the [assembly::ReactorInitializer],</span>
     <span class="doccomment">/// because of object safety.</span>
-    <span class="kw">fn</span> <span class="ident">react_erased</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">ctx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ReactionCtx</span>, <span class="ident">local_rid</span>: <span class="ident">LocalReactionId</span>);
+    <span class="kw">fn</span> <span class="ident">react</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">ctx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">ReactionCtx</span>, <span class="ident">local_rid</span>: <span class="ident">LocalReactionId</span>);
 
     <span class="doccomment">/// Acknowledge that the given tag is done executing and</span>
     <span class="doccomment">/// free resources if need be.</span>
