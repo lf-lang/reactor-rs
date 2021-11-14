@@ -61,6 +61,8 @@ extern crate log;
 extern crate rayon;
 #[macro_use]
 extern crate smallvec;
+#[macro_use]
+extern crate static_assertions;
 
 pub use std::time::{Duration, Instant};
 

@@ -31,13 +31,19 @@ use index_vec::Idx;
 // private implementation types
 pub(crate) type ReactionIdImpl = u16;
 pub(crate) type ReactorIdImpl = u16;
+/// note: this must always be wide enough to concatenate a
+/// [ReactorIdImpl] and a [ReactionIdImpl].
+/// If size changes, you need to update the [Hash] implementation
+/// for [GlobalId].
 pub(crate) type GlobalIdImpl = u32;
+assert_eq_size!(GlobalIdImpl, (ReactorIdImpl, ReactionIdImpl));
 
 macro_rules! simple_idx_type {
     ($(#[$($attrs:tt)*])* $id:ident($impl_t:ty)) => {
 
 $(#[$($attrs)*])*
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
+#[repr(transparent)]
 pub struct $id($impl_t);
 
 impl $id {
@@ -131,21 +137,21 @@ global_id_newtype! {
 /// and a local component ID.
 #[derive(Eq, Ord, PartialOrd, PartialEq, Copy, Clone)]
 pub(crate) struct GlobalId {
-    _raw: GlobalIdImpl,
+    container: ReactorId,
+    local: LocalReactionId,
 }
 
 impl GlobalId {
     pub fn new(container: ReactorId, local: LocalReactionId) -> Self {
-        let _raw: GlobalIdImpl = (container.0 as GlobalIdImpl) << ReactionIdImpl::BITS | (local.0 as GlobalIdImpl);
-        Self { _raw }
+        Self { container, local }
     }
 
     pub(crate) const fn container(&self) -> ReactorId {
-        ReactorId::new((self._raw >> 16) as u16)
+        self.container
     }
 
     pub(crate) const fn local(&self) -> LocalReactionId {
-        LocalReactionId::new((self._raw & 0xffff) as u16)
+        self.local
     }
 }
 
@@ -163,9 +169,13 @@ impl FromStr for GlobalId {
     }
 }
 
+// hashing global ids is a very hot operation in the framework,
+// therefore we give it an optimal implementation
 impl Hash for GlobalId {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        state.write_u32(self._raw)
+        // safety: this has the same size and the same layout basically,
+        // since both ReactorId and LocalReactionId are declared #[repr(transparent)]
+        state.write_u32(unsafe { std::mem::transmute(*self) })
     }
 }
 
