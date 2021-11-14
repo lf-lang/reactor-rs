@@ -452,7 +452,7 @@ where
                     let container_id = reaction_id.0.container();
                     let reactor = &mut self.reactors[container_id];
                     debug_assert_eq!(reactor.id(), container_id, "Wrong reactor");
-                    reactor.react_erased(&mut ctx, reaction_id.0.local());
+                    reactor.react(&mut ctx, reaction_id.0.local());
                 }
             }
 
@@ -503,7 +503,7 @@ mod parallel_rt_impl {
 
                 // this may append new elements into the queue,
                 // which is why we can't use an iterator
-                reactor.react_erased(&mut ctx, reaction_id.0.local());
+                reactor.react(&mut ctx, reaction_id.0.local());
 
                 CloneableCtx(ctx)
             })

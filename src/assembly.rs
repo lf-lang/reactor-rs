@@ -21,7 +21,7 @@ pub trait ReactorInitializer: ReactorBehavior {
     type Wrapped;
     /// Type of the construction parameters
     type Params;
-    /// Exclusive maximum value of the `local_rid` parameter of [ErasedReactorDispatcher.react_erased].
+    /// Exclusive maximum value of the `local_rid` parameter of [ReactorBehavior.react].
     const MAX_REACTION_ID: LocalReactionId;
 
     /// Assemble the user reactor, ie produce components with

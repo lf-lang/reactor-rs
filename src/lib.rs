@@ -116,9 +116,9 @@ pub trait ReactorBehavior {
     /// this struct.
     ///
     /// It must always be the case that `local_rid < Self::MAX_REACTION_ID`,
-    /// where `Self::MAX_REACTION_ID` is defined by the other trait,
+    /// where `Self::MAX_REACTION_ID` is defined by the [assembly::ReactorInitializer],
     /// because of object safety.
-    fn react_erased(&mut self, ctx: &mut ReactionCtx, local_rid: LocalReactionId);
+    fn react(&mut self, ctx: &mut ReactionCtx, local_rid: LocalReactionId);
 
     /// Acknowledge that the given tag is done executing and
     /// free resources if need be.

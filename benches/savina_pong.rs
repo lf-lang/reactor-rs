@@ -213,7 +213,7 @@ mod reactors {
                 self.__id
             }
 
-            fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
+            fn react(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
                 match rid.raw() {
                     0 => self.__impl.react_0(
                         ctx,
@@ -376,7 +376,7 @@ mod reactors {
                 self.__id
             }
 
-            fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
+            fn react(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
                 match rid.raw() {
                     0 => self
                         .__impl
@@ -515,7 +515,7 @@ mod reactors {
                 self.__id
             }
 
-            fn react_erased(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
+            fn react(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
                 match rid.raw() {
                     _ => panic!(
                         "Invalid reaction ID: {} should be < {}",
