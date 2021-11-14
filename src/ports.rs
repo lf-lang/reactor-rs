@@ -269,54 +269,55 @@ impl<T: Sync> Port<T> {
         self.use_ref(Option::<T>::clone)
     }
 
-    #[cfg(feature = "no-unsafe")]
-    pub(crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
-        use atomic_refcell::AtomicRef;
-        let cell_ref: AtomicRef<Rc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
-        let binding: &Rc<PortCell<T>> = cell_ref.deref();
-        let class_cell: &PortCell<T> = Rc::borrow(binding);
-        let cell_borrow: &AtomicRef<Option<T>> = &class_cell.value.borrow();
+    cfg_if! {
+        if #[cfg(feature = "no-unsafe")] {
+            pub(crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
+                use atomic_refcell::AtomicRef;
+                let cell_ref: AtomicRef<Rc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
+                let binding: &Rc<PortCell<T>> = cell_ref.deref();
+                let class_cell: &PortCell<T> = Rc::borrow(binding);
+                let cell_borrow: &AtomicRef<Option<T>> = &class_cell.value.borrow();
 
-        f(cell_borrow.deref())
-    }
+                f(cell_borrow.deref())
+            }
 
-    /// Set the value, see [super::ReactionCtx::set]
-    /// Note: we use a closure to process the dependencies to
-    /// avoid having to clone the dependency list just to return it.
-    #[inline]
-    #[cfg(feature = "no-unsafe")]
-    pub(crate) fn set_impl(&mut self, new_value: Option<T>) {
-        use atomic_refcell::AtomicRef;
+            /// Set the value, see [super::ReactionCtx::set]
+            /// Note: we use a closure to process the dependencies to
+            /// avoid having to clone the dependency list just to return it.
+            pub(crate) fn set_impl(&mut self, new_value: Option<T>) {
+                use atomic_refcell::AtomicRef;
 
-        debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port ({:?})", self.id);
+                debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port ({:?})", self.id);
 
-        let cell_ref: AtomicRef<Rc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
-        let class_cell: &PortCell<T> = Rc::borrow(cell_ref.deref());
+                let cell_ref: AtomicRef<Rc<PortCell<T>>> = AtomicRefCell::borrow(&self.upstream_binding);
+                let class_cell: &PortCell<T> = Rc::borrow(cell_ref.deref());
 
-        *class_cell.value.borrow_mut() = new_value;
-    }
+                *class_cell.value.borrow_mut() = new_value;
+            }
 
-    #[inline]
-    #[cfg(not(feature = "no-unsafe"))]
-    pub(crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
-        let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
-        let opt: &Option<T> = unsafe {
-            let cell = &*binding.get();
-            &*cell.value.get()
-        };
-        f(opt)
-    }
+        } else {
+             #[inline]
+             pub(crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
+                let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
+                let opt: &Option<T> = unsafe {
+                    let cell = &*binding.get();
+                    &*cell.value.get()
+                };
+                f(opt)
+            }
 
-    #[cfg(not(feature = "no-unsafe"))]
-    pub(crate) fn set_impl(&mut self, new_value: Option<T>) {
-        debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port");
+             #[inline]
+             pub(crate) fn set_impl(&mut self, new_value: Option<T>) {
+                debug_assert_ne!(self.bind_status, BindStatus::Bound, "Cannot set a bound port");
 
-        let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
+                let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
 
-        unsafe {
-            let cell: &Rc<PortCell<T>> = &*binding.get();
-            // note: using write instead of replace would not drop the old value
-            cell.value.get().replace(new_value);
+                unsafe {
+                    let cell: &Rc<PortCell<T>> = &*binding.get();
+                    // note: using write instead of replace would not drop the old value
+                    cell.value.get().replace(new_value);
+                }
+            }
         }
     }
 
@@ -331,10 +332,13 @@ impl<T: Sync> Port<T> {
     }
 
     fn forward_to(&mut self, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
-        #[cfg(feature = "no-unsafe")]
-        let mut mut_downstream_cell = (&downstream.upstream_binding).borrow_mut();
-        #[cfg(not(feature = "no-unsafe"))]
-        let mut mut_downstream_cell = unsafe { (&downstream.upstream_binding).get().as_mut().unwrap() };
+        let mut mut_downstream_cell = {cfg_if! {
+            if #[cfg(feature = "no-unsafe")] {
+                (&downstream.upstream_binding).borrow_mut()
+            } else {
+                unsafe { (&downstream.upstream_binding).get().as_mut().unwrap() }
+            }
+        }};
 
         if downstream.bind_status == BindStatus::Bound {
             return Err(AssemblyError(CannotBind(self.id, downstream.id)));
@@ -342,10 +346,13 @@ impl<T: Sync> Port<T> {
 
         downstream.bind_status = BindStatus::Bound;
 
-        #[cfg(feature = "no-unsafe")]
-        let my_class = self.upstream_binding.borrow_mut();
-        #[cfg(not(feature = "no-unsafe"))]
-        let my_class = unsafe { self.upstream_binding.get().as_mut().unwrap() };
+        let my_class =  {cfg_if! {
+            if #[cfg(feature = "no-unsafe")] {
+                self.upstream_binding.borrow_mut()
+            } else {
+                unsafe { self.upstream_binding.get().as_mut().unwrap() }
+            }
+        }};
 
         my_class
             .downstreams
@@ -435,14 +442,15 @@ impl<T: Sync> PortCell<T> {
     /// This updates all downstreams to point to the given equiv class instead of `self`
     fn set_upstream(&self, new_binding: &Rc<PortCell<T>>) {
         for (_, cell_rc) in &*self.downstreams.borrow() {
-            #[cfg(feature = "no-unsafe")]
-            {
-                let mut ref_mut = cell_rc.borrow_mut();
-                *ref_mut.deref_mut() = Rc::clone(new_binding);
-            }
-            #[cfg(not(feature = "no-unsafe"))]
-            unsafe {
-                *cell_rc.get() = Rc::clone(new_binding);
+            cfg_if! {
+                if #[cfg(feature = "no-unsafe")] {
+                    let mut ref_mut = cell_rc.borrow_mut();
+                    *ref_mut.deref_mut() = Rc::clone(new_binding);
+                } else {
+                    unsafe {
+                        *cell_rc.get() = Rc::clone(new_binding);
+                    }
+                }
             }
         }
     }
