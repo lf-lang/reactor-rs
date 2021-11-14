@@ -24,9 +24,9 @@ pub trait ReactorInitializer: ReactorBehavior {
     /// Exclusive maximum value of the `local_rid` parameter of [ReactorBehavior.react].
     const MAX_REACTION_ID: LocalReactionId;
 
-    /// Assemble the user reactor, ie produce components with
-    /// uninitialized dependencies & make state variables assume
-    /// their default values, or else, a value taken from the params.
+    /// Assemble this reactor. This initializes state variables,
+    /// produces internal components, assembles children reactor
+    /// instances, and declares dependencies between them.
     fn assemble(args: Self::Params, assembler: AssemblyCtx<Self>) -> AssemblyResult<Self>
     where
         Self: Sized;
