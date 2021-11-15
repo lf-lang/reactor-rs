@@ -26,17 +26,8 @@ use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
+use impl_types::{GlobalIdImpl, ReactionIdImpl, ReactorIdImpl};
 use index_vec::Idx;
-
-// private implementation types
-pub(crate) type ReactionIdImpl = u16;
-pub(crate) type ReactorIdImpl = u16;
-/// note: this must always be wide enough to concatenate a
-/// [ReactorIdImpl] and a [ReactionIdImpl].
-/// If size changes, you need to update the [Hash] implementation
-/// for [GlobalId].
-pub(crate) type GlobalIdImpl = u32;
-assert_eq_size!(GlobalIdImpl, (ReactorIdImpl, ReactionIdImpl));
 
 macro_rules! simple_idx_type {
     ($(#[$($attrs:tt)*])* $id:ident($impl_t:ty)) => {
@@ -172,21 +163,66 @@ impl FromStr for GlobalId {
 // hashing global ids is a very hot operation in the framework,
 // therefore we give it an optimal implementation
 impl Hash for GlobalId {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        // safety: this has the same size and the same layout basically,
-        // since both ReactorId and LocalReactionId are declared #[repr(transparent)]
-        state.write_u32(unsafe { std::mem::transmute(*self) })
+        let as_impl: &GlobalIdImpl = unsafe { std::mem::transmute(self) };
+        Hash::hash(as_impl, state);
     }
 }
 
 impl Debug for GlobalId {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         <Self as Display>::fmt(self, f)
     }
 }
 
 impl Display for GlobalId {
+    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> FmtResult {
         write!(f, "{}/{}", self.container(), self.local())
+    }
+}
+
+/// private implementation types
+pub(crate) mod impl_types {
+    use petgraph::graph::IndexType;
+    cfg_if! {
+        if #[cfg(target_pointer_width = "64")] {
+            type MyUsize = IndexTypeU64;
+            type HalfUsize = u32;
+        } else {
+            type MyUsize = u32;
+            type HalfUsize = u16;
+        }
+    }
+
+    pub type ReactionIdImpl = HalfUsize;
+    pub type ReactorIdImpl = HalfUsize;
+    pub type GlobalIdImpl = MyUsize;
+    assert_eq_size!(GlobalIdImpl, (ReactorIdImpl, ReactionIdImpl));
+
+    #[cfg(target_pointer_width = "64")]
+    #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default, Hash)]
+    #[repr(transparent)]
+    pub struct IndexTypeU64(u64);
+
+    #[cfg(target_pointer_width = "64")]
+    unsafe impl IndexType for IndexTypeU64 {
+        #[inline(always)]
+        fn new(x: usize) -> Self {
+            assert_eq_size!(usize, u64);
+            IndexTypeU64(x as u64)
+        }
+
+        #[inline(always)]
+        fn index(&self) -> usize {
+            self.0 as usize
+        }
+
+        #[inline(always)]
+        fn max() -> Self {
+            IndexTypeU64(u64::MAX)
+        }
     }
 }

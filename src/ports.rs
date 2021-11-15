@@ -332,13 +332,15 @@ impl<T: Sync> Port<T> {
     }
 
     fn forward_to(&mut self, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
-        let mut mut_downstream_cell = {cfg_if! {
-            if #[cfg(feature = "no-unsafe")] {
-                (&downstream.upstream_binding).borrow_mut()
-            } else {
-                unsafe { (&downstream.upstream_binding).get().as_mut().unwrap() }
+        let mut mut_downstream_cell = {
+            cfg_if! {
+                if #[cfg(feature = "no-unsafe")] {
+                    (&downstream.upstream_binding).borrow_mut()
+                } else {
+                    unsafe { (&downstream.upstream_binding).get().as_mut().unwrap() }
+                }
             }
-        }};
+        };
 
         if downstream.bind_status == BindStatus::Bound {
             return Err(AssemblyError(CannotBind(self.id, downstream.id)));
@@ -346,13 +348,15 @@ impl<T: Sync> Port<T> {
 
         downstream.bind_status = BindStatus::Bound;
 
-        let my_class =  {cfg_if! {
-            if #[cfg(feature = "no-unsafe")] {
-                self.upstream_binding.borrow_mut()
-            } else {
-                unsafe { self.upstream_binding.get().as_mut().unwrap() }
+        let my_class = {
+            cfg_if! {
+                if #[cfg(feature = "no-unsafe")] {
+                    self.upstream_binding.borrow_mut()
+                } else {
+                    unsafe { self.upstream_binding.get().as_mut().unwrap() }
+                }
             }
-        }};
+        };
 
         my_class
             .downstreams

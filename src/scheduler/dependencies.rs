@@ -37,11 +37,12 @@ use petgraph::Direction::{Incoming, Outgoing};
 
 use super::ReactionPlan;
 use crate::assembly::*;
+use crate::impl_types::GlobalIdImpl;
 use crate::scheduler::dependencies::NodeKind::MultiportUpstream;
 use crate::util::vecmap::{Entry as VEntry, VecMap};
 use crate::*;
 
-type GraphIx = NodeIndex<u32>;
+type GraphIx = NodeIndex<GlobalIdImpl>;
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 enum NodeKind {
