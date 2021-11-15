@@ -826,6 +826,7 @@
 <span id="826">826</span>
 <span id="827">827</span>
 <span id="828">828</span>
+<span id="829">829</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -865,11 +866,12 @@
 
 <span class="kw">use</span> <span class="ident"><span class="kw">super</span>::ReactionPlan</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::assembly</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::impl_types::GlobalIdImpl</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::dependencies::NodeKind::MultiportUpstream</span>;
 <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::util::vecmap</span>::{<span class="ident">Entry</span> <span class="kw">as</span> <span class="ident">VEntry</span>, <span class="ident">VecMap</span>};
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
-<span class="kw">type</span> <span class="ident">GraphIx</span> <span class="op">=</span> <span class="ident">NodeIndex</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span>;
+<span class="kw">type</span> <span class="ident">GraphIx</span> <span class="op">=</span> <span class="ident">NodeIndex</span><span class="op">&lt;</span><span class="ident">GlobalIdImpl</span><span class="op">&gt;</span>;
 
 <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Hash</span>)]</span>
 <span class="kw">enum</span> <span class="ident">NodeKind</span> {

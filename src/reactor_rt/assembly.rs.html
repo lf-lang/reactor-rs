@@ -96,9 +96,9 @@
     <span class="doccomment">/// Exclusive maximum value of the `local_rid` parameter of [ReactorBehavior.react].</span>
     <span class="kw">const</span> <span class="ident">MAX_REACTION_ID</span>: <span class="ident">LocalReactionId</span>;
 
-    <span class="doccomment">/// Assemble the user reactor, ie produce components with</span>
-    <span class="doccomment">/// uninitialized dependencies &amp; make state variables assume</span>
-    <span class="doccomment">/// their default values, or else, a value taken from the params.</span>
+    <span class="doccomment">/// Assemble this reactor. This initializes state variables,</span>
+    <span class="doccomment">/// produces internal components, assembles children reactor</span>
+    <span class="doccomment">/// instances, and declares dependencies between them.</span>
     <span class="kw">fn</span> <span class="ident">assemble</span>(<span class="ident">args</span>: <span class="ident"><span class="self">Self</span>::Params</span>, <span class="ident">assembler</span>: <span class="ident">AssemblyCtx</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">AssemblyResult</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>
     <span class="kw">where</span>
         <span class="self">Self</span>: <span class="ident">Sized</span>;
