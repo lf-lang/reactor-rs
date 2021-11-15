@@ -26,13 +26,11 @@
 //! vs a struct with two u16.
 
 #![allow(unused, non_snake_case, non_camel_case_types)]
-#![feature(bench_black_box)]
 #[macro_use]
 extern crate reactor_rt;
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
-use std::hint::black_box;
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
@@ -61,28 +59,28 @@ impl Hash for GID_split_custom_h {
 }
 
 fn gid_clone(up: GID_impl) -> HashMap<GID_raw, GID_raw> {
-    let mut x = black_box(HashMap::<GID_raw, GID_raw>::new());
+    let mut x = HashMap::<GID_raw, GID_raw>::new();
     for i in 0..up {
         x.entry(GID_raw { i }).or_insert(GID_raw { i });
     }
-    black_box(x)
+    x
 }
 
 fn gid_clone_split(up: GID_impl) -> HashMap<GID_split, GID_split> {
-    let mut x = black_box(HashMap::<GID_split, GID_split>::new());
+    let mut x = HashMap::<GID_split, GID_split>::new();
     for i in 0..up {
         x.entry(split_u32(i)).or_insert(split_u32(i + 1));
     }
-    black_box(x)
+    x
 }
 
 fn gid_clone_split_custom_h(up: GID_impl) -> HashMap<GID_split_custom_h, GID_split_custom_h> {
-    let mut x = black_box(HashMap::<GID_split_custom_h, GID_split_custom_h>::new());
+    let mut x = HashMap::<GID_split_custom_h, GID_split_custom_h>::new();
     for i in 0..up {
         x.entry(GID_split_custom_h(split_u32(i)))
             .or_insert(GID_split_custom_h(split_u32(i + 1)));
     }
-    black_box(x)
+    x
 }
 
 fn bench_gid(c: &mut Criterion) {
