@@ -57,11 +57,20 @@ pub struct SchedulerOptions {
     /// If zero, uses one thread per core. Ignored unless
     /// building with feature `parallel-runtime`.
     pub threads: usize,
+
+    /// If true, dump the dependency graph to a file before
+    /// starting execution.
+    pub dump_graph: bool,
 }
 
 impl Default for SchedulerOptions {
     fn default() -> Self {
-        Self { keep_alive: false, timeout: None, threads: 0 }
+        Self {
+            keep_alive: false,
+            timeout: None,
+            threads: 0,
+            dump_graph: false,
+        }
     }
 }
 
@@ -147,24 +156,16 @@ where
     pub fn run_main<R: ReactorInitializer + 'static + Send>(options: SchedulerOptions, args: R::Params) {
         let (reactors, graph, id_registry) = RootAssembler::assemble_tree::<R>(args);
 
-        #[cfg(feature = "graph-dump")]
-        {
-            use std::io::prelude::*;
+        if options.dump_graph {
+            use std::fs::File;
+            use std::io::Write;
 
-            use tempfile::NamedTempFile;
+            let path = std::env::temp_dir().join("reactors.dot");
 
-            use crate::scheduler::dependencies::DepGraph;
-            fn write_graph_to_file(graph: &DepGraph, id_registry: &DebugInfoRegistry) -> std::io::Result<()> {
-                let mut dot_file = NamedTempFile::new()?;
-                writeln!(dot_file, "{}", graph.format_dot(id_registry))?;
-
-                let mut path = std::env::temp_dir();
-                path.push("reactors.dot");
-                dot_file.persist(path.clone())?;
-                eprintln!("Wrote dot file to {}", path.to_string_lossy());
-                Ok(())
-            }
-            write_graph_to_file(&graph, &id_registry).expect("Error while writing DOT file");
+            File::create(path.clone())
+                .and_then(|mut dot_file| writeln!(dot_file, "{}", graph.format_dot(&id_registry)))
+                .expect("Error while writing DOT file");
+            eprintln!("Wrote dot file to {}", path.to_string_lossy());
         }
 
         // collect dependency information
@@ -189,6 +190,7 @@ where
     fn launch_event_loop(mut self) {
         self.startup();
 
+        // the set of reactions that are to be executed on shutdown
         let mut shutdown_reactions: ReactionPlan<'x> = None;
 
         /************************************************
@@ -413,8 +415,8 @@ where
     /// root reactions that startup the "wave".
     fn process_tag(&mut self, is_shutdown: bool, tag: EventTag, mut reactions: ReactionPlan<'x>) {
         if cfg!(debug_assertions) {
-            if let Some(t) = self.latest_processed_tag {
-                debug_assert!(tag > t, "Tag ordering mismatch")
+            if let Some(latest) = self.latest_processed_tag {
+                debug_assert!(tag > latest, "Tag ordering mismatch")
             }
         }
         self.latest_processed_tag = Some(tag);

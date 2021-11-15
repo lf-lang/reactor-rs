@@ -146,29 +146,25 @@ impl DepGraph {
     }
 
     /// Produce a dot representation of the graph.
-    #[cfg(feature = "graph-dump")]
-    pub fn format_dot(&self, id_registry: &DebugInfoRegistry) -> impl Display {
+    #[cold]
+    #[inline(never)]
+    pub fn format_dot(&self, id_registry: &DebugInfoRegistry) -> String {
         use petgraph::dot::{Config, Dot};
-        use regex::{Captures, Regex};
 
-        let dot = Dot::with_config(&self.dataflow, &[Config::EdgeNoLabel]);
+        // Map the node weights to nice strings.
+        // petgraph doesn't support custom node formatters
+        // https://github.com/petgraph/petgraph/issues/194
+        let labeled = self.dataflow.map(
+            |_, n| match n.id {
+                GraphId::Reaction(id) => format!("Reaction({})", id_registry.fmt_reaction(id)),
+                GraphId::Trigger(TriggerId::STARTUP) => "startup".to_string(),
+                GraphId::Trigger(TriggerId::SHUTDOWN) => "shutdown".to_string(),
+                GraphId::Trigger(id) => format!("{:?}({})", n.kind, id_registry.fmt_component(id)),
+            },
+            |_, _| "",
+        );
 
-        let re = Regex::new(r"(\w+)\(([^)]++)\)").unwrap();
-
-        let formatted = format!("{:?}", dot);
-        let replaced = re.replace_all(formatted.as_str(), |captures: &Captures| {
-            let kind = &captures[1];
-            let id = &captures[2];
-            if kind == "Reaction" {
-                let global = id.parse::<GlobalId>().unwrap();
-                format!("{}({})", kind, id_registry.fmt_reaction(GlobalReactionId(global)))
-            } else {
-                let trigger_id = TriggerId::new(id.parse().unwrap());
-                format!("{}({})", kind, id_registry.fmt_component(trigger_id))
-            }
-        });
-
-        replaced.into_owned()
+        format!("{}", Dot::with_config(&labeled, &[Config::EdgeNoLabel]))
     }
 
     pub(super) fn record_port(&mut self, id: TriggerId) {
@@ -825,5 +821,38 @@ pub mod test {
         let levels = test.graph.number_reactions_by_level();
 
         assert_eq!(levels.len(), 120);
+    }
+
+    #[test]
+    fn test_graph_dump() {
+        let mut test = TestGraphFixture::new();
+
+        let mut builder = test.new_reactor("main");
+        let [n1, n2] = builder.new_reactions();
+        let [p0, p1] = builder.new_ports(["p0", "p1"]);
+        drop(builder);
+
+        test.graph.reaction_effects(n1, p0);
+        test.graph.reaction_effects(n1, p1);
+        test.graph.triggers_reaction(p0, n2);
+        test.graph.triggers_reaction(p1, n2);
+
+        assert_eq!(
+            test.graph.format_dot(&test.debug_info),
+            r#"digraph {
+    0 [ label = "startup" ]
+    1 [ label = "shutdown" ]
+    2 [ label = "Reaction(main/0)" ]
+    3 [ label = "Reaction(main/1)" ]
+    4 [ label = "Port(main/p0)" ]
+    5 [ label = "Port(main/p1)" ]
+    2 -> 3 [ ]
+    2 -> 4 [ ]
+    2 -> 5 [ ]
+    4 -> 3 [ ]
+    5 -> 3 [ ]
+}
+"#
+        );
     }
 }
