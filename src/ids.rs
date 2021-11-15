@@ -202,6 +202,7 @@ pub(crate) mod impl_types {
     pub type GlobalIdImpl = MyUsize;
     assert_eq_size!(GlobalIdImpl, (ReactorIdImpl, ReactionIdImpl));
 
+    // petgraph doesn't implement IndexType for u64, so we need our own wrapper
     #[cfg(target_pointer_width = "64")]
     #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default, Hash)]
     #[repr(transparent)]
