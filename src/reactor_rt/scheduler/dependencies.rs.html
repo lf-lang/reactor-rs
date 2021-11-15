@@ -827,6 +827,35 @@
 <span id="827">827</span>
 <span id="828">828</span>
 <span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
+<span id="832">832</span>
+<span id="833">833</span>
+<span id="834">834</span>
+<span id="835">835</span>
+<span id="836">836</span>
+<span id="837">837</span>
+<span id="838">838</span>
+<span id="839">839</span>
+<span id="840">840</span>
+<span id="841">841</span>
+<span id="842">842</span>
+<span id="843">843</span>
+<span id="844">844</span>
+<span id="845">845</span>
+<span id="846">846</span>
+<span id="847">847</span>
+<span id="848">848</span>
+<span id="849">849</span>
+<span id="850">850</span>
+<span id="851">851</span>
+<span id="852">852</span>
+<span id="853">853</span>
+<span id="854">854</span>
+<span id="855">855</span>
+<span id="856">856</span>
+<span id="857">857</span>
+<span id="858">858</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -975,29 +1004,25 @@
     }
 
     <span class="doccomment">/// Produce a dot representation of the graph.</span>
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;graph-dump&quot;</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">format_dot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id_registry</span>: <span class="kw-2">&amp;</span><span class="ident">DebugInfoRegistry</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="kw">impl</span> <span class="ident">Display</span> {
+    <span class="attribute">#[<span class="ident">cold</span>]</span>
+    <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">never</span>)]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">format_dot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id_registry</span>: <span class="kw-2">&amp;</span><span class="ident">DebugInfoRegistry</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">String</span> {
         <span class="kw">use</span> <span class="ident">petgraph::dot</span>::{<span class="ident">Config</span>, <span class="ident">Dot</span>};
-        <span class="kw">use</span> <span class="ident">regex</span>::{<span class="ident">Captures</span>, <span class="ident">Regex</span>};
 
-        <span class="kw">let</span> <span class="ident">dot</span> <span class="op">=</span> <span class="ident">Dot::with_config</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dataflow</span>, <span class="kw-2">&amp;</span>[<span class="ident">Config::EdgeNoLabel</span>]);
+        <span class="comment">// Map the node weights to nice strings.</span>
+        <span class="comment">// petgraph doesn&#39;t support custom node formatters</span>
+        <span class="comment">// https://github.com/petgraph/petgraph/issues/194</span>
+        <span class="kw">let</span> <span class="ident">labeled</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">map</span>(
+            <span class="op">|</span><span class="kw">_</span>, <span class="ident">n</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">n</span>.<span class="ident">id</span> {
+                <span class="ident">GraphId::Reaction</span>(<span class="ident">id</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format!</span>(<span class="string">&quot;Reaction({})&quot;</span>, <span class="ident">id_registry</span>.<span class="ident">fmt_reaction</span>(<span class="ident">id</span>)),
+                <span class="ident">GraphId::Trigger</span>(<span class="ident">TriggerId::STARTUP</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="string">&quot;startup&quot;</span>.<span class="ident">to_string</span>(),
+                <span class="ident">GraphId::Trigger</span>(<span class="ident">TriggerId::SHUTDOWN</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="string">&quot;shutdown&quot;</span>.<span class="ident">to_string</span>(),
+                <span class="ident">GraphId::Trigger</span>(<span class="ident">id</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="macro">format!</span>(<span class="string">&quot;{:?}({})&quot;</span>, <span class="ident">n</span>.<span class="ident">kind</span>, <span class="ident">id_registry</span>.<span class="ident">fmt_component</span>(<span class="ident">id</span>)),
+            },
+            <span class="op">|</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">|</span> <span class="string">&quot;&quot;</span>,
+        );
 
-        <span class="kw">let</span> <span class="ident">re</span> <span class="op">=</span> <span class="ident">Regex::new</span>(<span class="string">r&quot;(\w+)\(([^)]++)\)&quot;</span>).<span class="ident">unwrap</span>();
-
-        <span class="kw">let</span> <span class="ident">formatted</span> <span class="op">=</span> <span class="macro">format!</span>(<span class="string">&quot;{:?}&quot;</span>, <span class="ident">dot</span>);
-        <span class="kw">let</span> <span class="ident">replaced</span> <span class="op">=</span> <span class="ident">re</span>.<span class="ident">replace_all</span>(<span class="ident">formatted</span>.<span class="ident">as_str</span>(), <span class="op">|</span><span class="ident">captures</span>: <span class="kw-2">&amp;</span><span class="ident">Captures</span><span class="op">|</span> {
-            <span class="kw">let</span> <span class="ident">kind</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">captures</span>[<span class="number">1</span>];
-            <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">captures</span>[<span class="number">2</span>];
-            <span class="kw">if</span> <span class="ident">kind</span> <span class="op">=</span><span class="op">=</span> <span class="string">&quot;Reaction&quot;</span> {
-                <span class="kw">let</span> <span class="ident">global</span> <span class="op">=</span> <span class="ident">id</span>.<span class="ident">parse</span>::<span class="op">&lt;</span><span class="ident">GlobalId</span><span class="op">&gt;</span>().<span class="ident">unwrap</span>();
-                <span class="macro">format!</span>(<span class="string">&quot;{}({})&quot;</span>, <span class="ident">kind</span>, <span class="ident">id_registry</span>.<span class="ident">fmt_reaction</span>(<span class="ident">GlobalReactionId</span>(<span class="ident">global</span>)))
-            } <span class="kw">else</span> {
-                <span class="kw">let</span> <span class="ident">trigger_id</span> <span class="op">=</span> <span class="ident">TriggerId::new</span>(<span class="ident">id</span>.<span class="ident">parse</span>().<span class="ident">unwrap</span>());
-                <span class="macro">format!</span>(<span class="string">&quot;{}({})&quot;</span>, <span class="ident">kind</span>, <span class="ident">id_registry</span>.<span class="ident">fmt_component</span>(<span class="ident">trigger_id</span>))
-            }
-        });
-
-        <span class="ident">replaced</span>.<span class="ident">into_owned</span>()
+        <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">Dot::with_config</span>(<span class="kw-2">&amp;</span><span class="ident">labeled</span>, <span class="kw-2">&amp;</span>[<span class="ident">Config::EdgeNoLabel</span>]))
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">record_port</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">TriggerId</span>) {
@@ -1654,6 +1679,39 @@
         <span class="kw">let</span> <span class="ident">levels</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">number_reactions_by_level</span>();
 
         <span class="macro">assert_eq!</span>(<span class="ident">levels</span>.<span class="ident">len</span>(), <span class="number">120</span>);
+    }
+
+    <span class="attribute">#[<span class="ident">test</span>]</span>
+    <span class="kw">fn</span> <span class="ident">test_graph_dump</span>() {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">test</span> <span class="op">=</span> <span class="ident">TestGraphFixture::new</span>();
+
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">new_reactor</span>(<span class="string">&quot;main&quot;</span>);
+        <span class="kw">let</span> [<span class="ident">n1</span>, <span class="ident">n2</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_reactions</span>();
+        <span class="kw">let</span> [<span class="ident">p0</span>, <span class="ident">p1</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_ports</span>([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p1&quot;</span>]);
+        <span class="ident">drop</span>(<span class="ident">builder</span>);
+
+        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">p0</span>);
+        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">p1</span>);
+        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">p0</span>, <span class="ident">n2</span>);
+        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">p1</span>, <span class="ident">n2</span>);
+
+        <span class="macro">assert_eq!</span>(
+            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">format_dot</span>(<span class="kw-2">&amp;</span><span class="ident">test</span>.<span class="ident">debug_info</span>),
+            <span class="string">r#&quot;digraph {
+    0 [ label = &quot;startup&quot; ]
+    1 [ label = &quot;shutdown&quot; ]
+    2 [ label = &quot;Reaction(main/0)&quot; ]
+    3 [ label = &quot;Reaction(main/1)&quot; ]
+    4 [ label = &quot;Port(main/p0)&quot; ]
+    5 [ label = &quot;Port(main/p1)&quot; ]
+    2 -&gt; 3 [ ]
+    2 -&gt; 4 [ ]
+    2 -&gt; 5 [ ]
+    4 -&gt; 3 [ ]
+    5 -&gt; 3 [ ]
+}
+&quot;#</span>
+        );
     }
 }
 </code></pre></div>

@@ -127,7 +127,6 @@
 <span id="127">127</span>
 <span id="128">128</span>
 <span id="129">129</span>
-<span id="130">130</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -167,8 +166,6 @@
 <span class="doccomment">//! (as well as pull in unneeded dependencies) and should stay off.</span>
 <span class="doccomment">//! - `no-unsafe`: disable optimisations that use unsafe code in this runtime.</span>
 <span class="doccomment">//! Just provided for comparison, should probably be removed (unsafe code is fine).</span>
-<span class="doccomment">//! - `graph-dump` (internal): dumps the dependency graph to stdout</span>
-<span class="doccomment">//! before starting execution.</span>
 
 <span class="comment">// #![deny(unused_crate_dependencies)]</span>
 <span class="attribute">#![<span class="ident">deny</span>(<span class="ident">unused_extern_crates</span>)]</span>
@@ -258,6 +255,7 @@
     <span class="doccomment">/// free resources if need be.</span>
     <span class="kw">fn</span> <span class="ident">cleanup_tag</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">ctx</span>: <span class="kw-2">&amp;</span><span class="ident">CleanupCtx</span>);
 }
+<span class="macro">assert_obj_safe!</span>(<span class="ident">ReactorBehavior</span>);
 </code></pre></div>
 </section><section id="search" class="content hidden"></section><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-search-index-js="../../search-index.js" data-search-js="../../search.js"></div>
     <script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script>

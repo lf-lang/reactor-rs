@@ -527,6 +527,8 @@
 <span id="527">527</span>
 <span id="528">528</span>
 <span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -586,11 +588,20 @@
     <span class="doccomment">/// If zero, uses one thread per core. Ignored unless</span>
     <span class="doccomment">/// building with feature `parallel-runtime`.</span>
     <span class="kw">pub</span> <span class="ident">threads</span>: <span class="ident">usize</span>,
+
+    <span class="doccomment">/// If true, dump the dependency graph to a file before</span>
+    <span class="doccomment">/// starting execution.</span>
+    <span class="kw">pub</span> <span class="ident">dump_graph</span>: <span class="ident">bool</span>,
 }
 
 <span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">SchedulerOptions</span> {
     <span class="kw">fn</span> <span class="ident">default</span>() <span class="op">-</span><span class="op">&gt;</span> <span class="self">Self</span> {
-        <span class="self">Self</span> { <span class="ident">keep_alive</span>: <span class="bool-val">false</span>, <span class="ident">timeout</span>: <span class="prelude-val">None</span>, <span class="ident">threads</span>: <span class="number">0</span> }
+        <span class="self">Self</span> {
+            <span class="ident">keep_alive</span>: <span class="bool-val">false</span>,
+            <span class="ident">timeout</span>: <span class="prelude-val">None</span>,
+            <span class="ident">threads</span>: <span class="number">0</span>,
+            <span class="ident">dump_graph</span>: <span class="bool-val">false</span>,
+        }
     }
 }
 
@@ -676,24 +687,16 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_main</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">ReactorInitializer</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span>(<span class="ident">options</span>: <span class="ident">SchedulerOptions</span>, <span class="ident">args</span>: <span class="ident">R::Params</span>) {
         <span class="kw">let</span> (<span class="ident">reactors</span>, <span class="ident">graph</span>, <span class="ident">id_registry</span>) <span class="op">=</span> <span class="ident">RootAssembler::assemble_tree</span>::<span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>(<span class="ident">args</span>);
 
-        <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;graph-dump&quot;</span>)]</span>
-        {
-            <span class="kw">use</span> <span class="ident">std::io::prelude</span>::<span class="kw-2">*</span>;
+        <span class="kw">if</span> <span class="ident">options</span>.<span class="ident">dump_graph</span> {
+            <span class="kw">use</span> <span class="ident">std::fs::File</span>;
+            <span class="kw">use</span> <span class="ident">std::io::Write</span>;
 
-            <span class="kw">use</span> <span class="ident">tempfile::NamedTempFile</span>;
+            <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">std::env::temp_dir</span>().<span class="ident">join</span>(<span class="string">&quot;reactors.dot&quot;</span>);
 
-            <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::dependencies::DepGraph</span>;
-            <span class="kw">fn</span> <span class="ident">write_graph_to_file</span>(<span class="ident">graph</span>: <span class="kw-2">&amp;</span><span class="ident">DepGraph</span>, <span class="ident">id_registry</span>: <span class="kw-2">&amp;</span><span class="ident">DebugInfoRegistry</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">std::io::Result</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dot_file</span> <span class="op">=</span> <span class="ident">NamedTempFile::new</span>()<span class="question-mark">?</span>;
-                <span class="macro">writeln!</span>(<span class="ident">dot_file</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">graph</span>.<span class="ident">format_dot</span>(<span class="ident">id_registry</span>))<span class="question-mark">?</span>;
-
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">std::env::temp_dir</span>();
-                <span class="ident">path</span>.<span class="ident">push</span>(<span class="string">&quot;reactors.dot&quot;</span>);
-                <span class="ident">dot_file</span>.<span class="ident">persist</span>(<span class="ident">path</span>.<span class="ident">clone</span>())<span class="question-mark">?</span>;
-                <span class="macro">eprintln!</span>(<span class="string">&quot;Wrote dot file to {}&quot;</span>, <span class="ident">path</span>.<span class="ident">to_string_lossy</span>());
-                <span class="prelude-val">Ok</span>(())
-            }
-            <span class="ident">write_graph_to_file</span>(<span class="kw-2">&amp;</span><span class="ident">graph</span>, <span class="kw-2">&amp;</span><span class="ident">id_registry</span>).<span class="ident">expect</span>(<span class="string">&quot;Error while writing DOT file&quot;</span>);
+            <span class="ident">File::create</span>(<span class="ident">path</span>.<span class="ident">clone</span>())
+                .<span class="ident">and_then</span>(<span class="op">|</span><span class="kw-2">mut</span> <span class="ident">dot_file</span><span class="op">|</span> <span class="macro">writeln!</span>(<span class="ident">dot_file</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">graph</span>.<span class="ident">format_dot</span>(<span class="kw-2">&amp;</span><span class="ident">id_registry</span>)))
+                .<span class="ident">expect</span>(<span class="string">&quot;Error while writing DOT file&quot;</span>);
+            <span class="macro">eprintln!</span>(<span class="string">&quot;Wrote dot file to {}&quot;</span>, <span class="ident">path</span>.<span class="ident">to_string_lossy</span>());
         }
 
         <span class="comment">// collect dependency information</span>
@@ -718,6 +721,7 @@
     <span class="kw">fn</span> <span class="ident">launch_event_loop</span>(<span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="self">self</span>.<span class="ident">startup</span>();
 
+        <span class="comment">// the set of reactions that are to be executed on shutdown</span>
         <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">shutdown_reactions</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">None</span>;
 
         <span class="comment">/************************************************
@@ -942,8 +946,8 @@
     <span class="doccomment">/// root reactions that startup the &quot;wave&quot;.</span>
     <span class="kw">fn</span> <span class="ident">process_tag</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">is_shutdown</span>: <span class="ident">bool</span>, <span class="ident">tag</span>: <span class="ident">EventTag</span>, <span class="kw-2">mut</span> <span class="ident">reactions</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>) {
         <span class="kw">if</span> <span class="macro">cfg!</span>(<span class="ident">debug_assertions</span>) {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">t</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">latest_processed_tag</span> {
-                <span class="macro">debug_assert!</span>(<span class="ident">tag</span> <span class="op">&gt;</span> <span class="ident">t</span>, <span class="string">&quot;Tag ordering mismatch&quot;</span>)
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">latest</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">latest_processed_tag</span> {
+                <span class="macro">debug_assert!</span>(<span class="ident">tag</span> <span class="op">&gt;</span> <span class="ident">latest</span>, <span class="string">&quot;Tag ordering mismatch&quot;</span>)
             }
         }
         <span class="self">self</span>.<span class="ident">latest_processed_tag</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">tag</span>);

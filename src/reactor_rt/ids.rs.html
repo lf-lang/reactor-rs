@@ -226,6 +226,7 @@
 <span id="226">226</span>
 <span id="227">227</span>
 <span id="228">228</span>
+<span id="229">229</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -430,6 +431,7 @@ $(<span class="attribute">#[$(<span class="macro-nonterminal">$</span><span clas
     <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">GlobalIdImpl</span> <span class="op">=</span> <span class="ident">MyUsize</span>;
     <span class="macro">assert_eq_size!</span>(<span class="ident">GlobalIdImpl</span>, (<span class="ident">ReactorIdImpl</span>, <span class="ident">ReactionIdImpl</span>));
 
+    <span class="comment">// petgraph doesn&#39;t implement IndexType for u64, so we need our own wrapper</span>
     <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">target_pointer_width</span> <span class="op">=</span> <span class="string">&quot;64&quot;</span>)]</span>
     <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Ord</span>, <span class="ident">PartialOrd</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Debug</span>, <span class="ident">Default</span>, <span class="ident">Hash</span>)]</span>
     <span class="attribute">#[<span class="ident">repr</span>(<span class="ident">transparent</span>)]</span>
