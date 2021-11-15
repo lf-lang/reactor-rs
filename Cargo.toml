@@ -28,8 +28,6 @@ assert_matches = "1.5"
 
 [features]
 # dump the graph to a DOT representation
-graph-dump=[]
-test-utils=[]
 parallel-runtime=["rayon"]
 no-unsafe=[]
 

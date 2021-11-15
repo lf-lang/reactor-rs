@@ -646,7 +646,6 @@ pub mod test {
             }
         }
 
-        #[cfg(feature = "graph-dump")]
         #[allow(unused)]
         fn eprintln_graph(&self) {
             eprintln!("{}", self.graph.format_dot(&self.debug_info));
