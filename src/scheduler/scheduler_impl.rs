@@ -194,14 +194,12 @@ where
 
     /// Launch the event loop in this thread.
     fn launch_event_loop(mut self) {
-        self.startup();
-
-        // the set of reactions that are to be executed on shutdown
-        let mut shutdown_reactions: ReactionPlan<'x> = None;
-
         /************************************************
          * This is the main event loop of the scheduler *
          ************************************************/
+
+        self.startup();
+
         loop {
             // flush pending events, this doesn't block
             for evt in self.rx.try_iter() {
@@ -232,9 +230,7 @@ where
                 // at this point we're at the correct time
 
                 if evt.terminate || self.shutdown_time == Some(evt.tag) {
-                    shutdown_reactions = ExecutableReactions::merge_cows(shutdown_reactions, evt.reactions);
-                    self.shutdown_time = Some(evt.tag);
-                    break; // shutdown
+                    return self.shutdown(evt.tag, evt.reactions);
                 }
 
                 self.process_tag(false, evt.tag, evt.reactions);
@@ -250,9 +246,7 @@ where
         } // end loop
 
         let shutdown_tag = self.shutdown_time.unwrap_or_else(|| EventTag::now(self.initial_time));
-        info!("Scheduler is shutting down, at {}", shutdown_tag);
-        self.shutdown(shutdown_tag, shutdown_reactions);
-        info!("Scheduler has been shut down")
+        self.shutdown(shutdown_tag, None);
 
         // self destructor is called here
     }
@@ -309,6 +303,8 @@ where
     }
 
     fn shutdown(&mut self, shutdown_tag: EventTag, reactions: ReactionPlan<'x>) {
+        info!("Scheduler is shutting down, at {}", shutdown_tag);
+        self.shutdown_time = Some(shutdown_tag);
         let default_plan: ReactionPlan<'x> = Some(Cow::Borrowed(self.dataflow.reactions_triggered_by(&TriggerId::SHUTDOWN)));
         let reactions = ExecutableReactions::merge_cows(reactions, default_plan);
 
@@ -316,6 +312,7 @@ where
 
         // notify concurrent threads.
         self.was_terminated.store(true, Ordering::SeqCst);
+        info!("Scheduler has been shut down")
     }
 
     /// Returns whether the given event should be ignored and
