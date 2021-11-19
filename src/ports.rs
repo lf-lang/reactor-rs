@@ -331,7 +331,7 @@ impl<T: Sync> Port<T> {
         }
     }
 
-    fn forward_to(&mut self, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
+    pub(crate) fn forward_to(&mut self, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
         let mut mut_downstream_cell = {
             cfg_if! {
                 if #[cfg(feature = "no-unsafe")] {
@@ -377,17 +377,6 @@ impl<T: Sync> TriggerLike for Port<T> {
     fn get_id(&self) -> TriggerId {
         self.id
     }
-}
-
-/// Make the downstream port accept values from the upstream port.
-///
-/// ### Panics
-///
-/// If the downstream port was already bound to some other port.
-///
-#[inline]
-pub(crate) fn bind_ports<T: Sync>(up: &mut Port<T>, down: &mut Port<T>) -> Result<(), AssemblyError> {
-    up.forward_to(down)
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]

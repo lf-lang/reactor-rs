@@ -66,7 +66,7 @@ type TestResult = Result<(), String>;
 
 impl TestFixture {
     pub fn bind<T: Sync>(&self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> TestResult {
-        bind_ports(upstream, downstream).map_err(|e| e.lift(&self.debug))
+        upstream.forward_to(downstream).map_err(|e| e.lift(&self.debug))
     }
 
     pub fn set<T: Sync>(&self, port: &mut Port<T>, value: T) -> TestResult {

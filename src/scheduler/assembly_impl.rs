@@ -299,7 +299,7 @@ impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
     /// Bind two ports together.
     #[inline]
     pub fn bind_ports<T: Sync>(&mut self, upstream: &mut Port<T>, downstream: &mut Port<T>) -> AssemblyResult<()> {
-        crate::bind_ports(upstream, downstream)?;
+        upstream.forward_to(downstream)?;
         self.graph().port_bind(upstream, downstream);
         Ok(())
     }
