@@ -471,6 +471,7 @@ impl DataflowInfo {
     }
 }
 
+// todo try replacing that with a Vec that sorts + dedups members
 type Level = HashSet<GlobalReactionId>;
 
 /// Type of the label of a level. The max value is the maximum

@@ -161,8 +161,8 @@ where
     /// ```
     /// ```no_run
     /// # use reactor_rt::{ReactionCtx, ReadablePort};
-    /// # let ctx: &mut ReactionCtx = panic!();
-    /// # let port: &ReadablePort<String> = panic!();
+    /// # let ctx: &mut ReactionCtx = unimplemented!();
+    /// # let port: &ReadablePort<String> = unimplemented!();
     ///
     /// if let Some(str) = ctx.use_ref_opt(port, Clone::clone) {
     ///     // only entered if the port value is present, so no need to check is_present
@@ -201,6 +201,36 @@ where
         let port = port.borrow_mut();
         port.set_impl(value);
         self.enqueue_now(Cow::Borrowed(self.reactions_triggered_by(port.get_id())));
+    }
+
+    /// Sets the value of the given port, if the given value is `Some`.
+    /// Otherwise the port is not set and no reactions are triggered.
+    ///
+    /// The change is visible at the same logical time, i.e.
+    /// the value propagates immediately. This may hence
+    /// schedule more reactions that should execute at the
+    /// same logical time.
+    ///
+    /// ```no_run
+    /// # use reactor_rt::{ReactionCtx, ReadablePort, WritablePort};
+    /// # let ctx: &mut ReactionCtx = unimplemented!();
+    /// # let source: &ReadablePort<String> = unimplemented!();
+    /// # let sink: &mut WritablePort<String> = unimplemented!();
+    ///
+    /// ctx.set_opt(sink, ctx.get(source));
+    /// // equivalent to
+    /// if let Some(value) = ctx.get(source) {
+    ///     ctx.set(sink, value);
+    /// }
+    /// ```
+    ///
+    #[inline]
+    pub fn set_opt<'b, T, W>(&mut self, mut port: W, value: Option<T>)
+    where
+        T: Sync + 'b,
+        W: BorrowMut<WritablePort<'b, T>>,
+    {
+        value.map(|v| self.set(port, v));
     }
 
     /// Returns true if the given action was triggered at the

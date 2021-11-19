@@ -174,8 +174,8 @@ where
         // Using thread::scope here introduces an unnamed lifetime for
         // the scope, which is captured as 't by the SyncScheduler.
         // This is useful because it captures the constraint that the
-        // time_cell and dataflow_info outlive 't, so that physical
-        // contexts can be spawned in a thread that captures references
+        // dataflow_info outlives 't, so that physical contexts
+        // can be spawned in threads that capture references
         // to 'x.
         scope(|scope| {
             let initial_time = Instant::now();
