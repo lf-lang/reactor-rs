@@ -225,7 +225,7 @@ where
     /// ```
     ///
     #[inline]
-    pub fn set_opt<'b, T, W>(&mut self, mut port: W, value: Option<T>)
+    pub fn set_opt<'b, T, W>(&mut self, port: W, value: Option<T>)
     where
         T: Sync + 'b,
         W: BorrowMut<WritablePort<'b, T>>,
