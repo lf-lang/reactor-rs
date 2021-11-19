@@ -311,11 +311,33 @@ impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
     #[inline]
     pub fn bind_ports_zip<'a, T: Sync + 'a>(
         &mut self,
-        upstream: impl Iterator<Item = &'a mut Port<T>>,
-        downstream: impl Iterator<Item = &'a mut Port<T>>,
+        upstream: impl Iterator<Item=&'a mut Port<T>>,
+        downstream: impl Iterator<Item=&'a mut Port<T>>,
     ) -> AssemblyResult<()> {
         for (upstream, downstream) in upstream.zip(downstream) {
             self.bind_ports(upstream, downstream)?;
+        }
+        Ok(())
+    }
+
+    #[inline]
+    pub fn bind_ports_iterated<'a, T: Sync + 'a>(
+        &mut self,
+        upstream: impl Iterator<Item=&'a mut Port<T>>,
+        mut downstream: impl Iterator<Item=&'a mut Port<T>>,
+    ) -> AssemblyResult<()> {
+        let mut upstream = upstream.collect::<Vec<_>>();
+        assert!(!upstream.is_empty(), "Empty upstream!");
+        let up_len = upstream.len();
+        // we have to implement this loop manually instead of with an iterator
+        // because we can't clone mutable references in the upstream iterator
+        for i in 0.. {
+            let up = &mut upstream[i % up_len];
+            if let Some(down) = downstream.next() {
+                self.bind_ports(up, down)?;
+            } else {
+                break;
+            }
         }
         Ok(())
     }
@@ -420,9 +442,10 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
 /// we trust the code generator to fail if a port is both on
 /// the LHS and RHS of a connection.
 ///
-/// This is necessary
-///
+/// This is necessary to be iterate the same bank over distinct
+/// ports or multiports to bind them together.
 #[macro_export]
+#[doc(hidden)]
 macro_rules! unsafe_iter_bank {
     // the field is not a multiport
     ($bank:ident # $field_name:ident) => {{

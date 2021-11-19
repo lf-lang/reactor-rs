@@ -31,7 +31,7 @@ where
     tag: EventTag,
 
     /// Level of the reaction being executed.
-    cur_level: LevelIx,
+    pub(super) cur_level: LevelIx,
 
     /// Sender to schedule events that should be executed later than this wave.
     rx: &'a Receiver<Event<'x>>,
@@ -449,10 +449,6 @@ where
             was_terminated_atomic,
             was_terminated,
         }
-    }
-
-    pub(super) fn set_cur_level(&mut self, cur_level: LevelIx) {
-        self.cur_level = cur_level;
     }
 
     /// Fork a context. Some things are shared, but not the

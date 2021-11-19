@@ -436,7 +436,7 @@ where
             trace!("  - Level {}", level_no);
 
             debug_assert!(level_no >= min_level, "Reaction dependency violation");
-            ctx.set_cur_level(level_no);
+            ctx.cur_level = level_no;
             min_level = level_no.next(); // the next level to fetch
 
             if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
