@@ -22,22 +22,22 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter, write};
 
 /// A sparse map representation over a totally ordered key type.
 ///
 /// Used in [crate::ExecutableReactions]
 ///
 pub struct VecMap<K, V>
-where
-    K: Eq + Ord,
+    where
+        K: Eq + Ord,
 {
     v: Vec<(K, V)>,
 }
 
 impl<K, V> VecMap<K, V>
-where
-    K: Eq + Ord,
+    where
+        K: Eq + Ord,
 {
     pub fn new() -> Self {
         Self { v: Vec::new() }
@@ -78,8 +78,32 @@ where
         self.find_k(key).is_ok()
     }
 
-    pub fn iter_from(&self, min_key: K) -> impl Iterator<Item = &(K, V)> + '_ {
-        self.v.iter().skip_while(move |(k, _)| k < &min_key)
+    // todo maybe just a "next" function would be nice, we could get rid of that skip_while
+    // indeed, we could make an unsafe next function that assumes min_idx is exact and just computes self.v.get(min_idx + 1)
+    //  the outer loop might be less elegant though I'm afraid
+    pub fn iter_from(&self, min_key: KeyRef<K>) -> impl Iterator<Item=(KeyRef<&K>, &V)> + '_ {
+        let from = min_key.min_idx;
+        if cfg!(debug_assertions) {
+            assert!(from == 0 || from < self.v.len());
+            if let Some((k, _)) = self.v.get(from) {
+                assert!(k <= &min_key.key);
+            }
+        }
+
+        self.v[from..]
+            .iter()
+            .enumerate()
+            .skip_while(move |(_, (k, _))| k < &min_key.key)
+            .map(move |(idx, (k, v))| (KeyRef { min_idx: from + idx, key: k }, v))
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item=&(K, V)> + '_ {
+        self.v.iter()
+    }
+
+
+    pub fn min_key(&self) -> Option<KeyRef<&K>> {
+        self.v.first().map(|e| KeyRef { key: &e.0, min_idx: 0 })
     }
 
     pub fn max_key(&self) -> Option<&K> {
@@ -136,13 +160,55 @@ where
 }
 
 impl<K, V> VacantEntry<'_, K, V>
-where
-    K: Ord + Eq,
+    where
+        K: Ord + Eq,
 {
     /// Sets the value of the entry with the VacantEntry's key,
     /// and returns a mutable reference to it.
     pub fn insert(self, value: V) {
         let index = self.index;
         self.map.insert_internal(index, self.key, value)
+    }
+}
+
+/// Note: keyrefs are actually vaguely unsafe as they're only
+/// valid while the vector is unmodified, and for a particular vecmap.
+/// If we could enforce this with references it would be nice
+#[derive(Copy, Clone)]
+pub struct KeyRef<K> {
+    pub key: K,
+    /// this is a lower bound on the actual index
+    min_idx: usize,
+}
+
+impl<K: Clone> KeyRef<&K> {
+    pub fn cloned(self) -> KeyRef<K> {
+        KeyRef {
+            min_idx: self.min_idx,
+            key: self.key.clone(),
+        }
+    }
+}
+
+impl<K: Ord> KeyRef<K> {
+    pub fn next(self, key: K) -> KeyRef<K> {
+        debug_assert!(key > self.key);
+        KeyRef {
+            min_idx: self.min_idx,
+            key,
+        }
+    }
+}
+
+
+impl<K: Display> Display for KeyRef<K> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.key)
+    }
+}
+
+impl<K> From<K> for KeyRef<K> {
+    fn from(key: K) -> Self {
+        Self { key, min_idx: 0 }
     }
 }

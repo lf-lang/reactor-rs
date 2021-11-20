@@ -41,6 +41,7 @@ use crate::impl_types::GlobalIdImpl;
 use crate::scheduler::dependencies::NodeKind::MultiportUpstream;
 use crate::util::vecmap::{Entry as VEntry, VecMap};
 use crate::*;
+use crate::vecmap::KeyRef;
 
 type GraphIx = NodeIndex<GlobalIdImpl>;
 
@@ -534,13 +535,17 @@ impl<'x> ExecutableReactions<'x> {
     /// (eg drain it), because that way we can use borrowed Cows
     /// and avoid more allocation.
     pub fn batches(&self) -> impl Iterator<Item = &(LevelIx, Cow<'x, Level>)> + '_ {
-        self.levels.iter_from(LevelIx(0))
+        self.levels.iter()
+    }
+
+    pub fn first_key(&self) -> Option<KeyRef<LevelIx>> {
+        self.levels.min_key().map(|k| k.cloned())
     }
 
     // todo this can be made more efficient if we also return the index in the map using a private type
     #[inline]
-    pub fn next_batch(&self, min_level: LevelIx) -> Option<(LevelIx, &HashSet<GlobalReactionId>)> {
-        self.levels.iter_from(min_level).next().map(|(ix, cow)| (*ix, cow.as_ref()))
+    pub fn next_batch(&self, min_level: KeyRef<LevelIx>) -> Option<(KeyRef<LevelIx>, &HashSet<GlobalReactionId>)> {
+        self.levels.iter_from(min_level).next().map(|(ix, cow)| (ix.cloned(), cow.as_ref()))
     }
 
     /// The greatest level with non-empty value.
@@ -550,12 +555,12 @@ impl<'x> ExecutableReactions<'x> {
 
     /// Merge the given set of reactions into this one.
     /// Ignore levels that come strictly before `min_level_inclusive`, may even clear them.
-    pub fn absorb_after(&mut self, src: &ExecutableReactions<'x>, min_level_inclusive: LevelIx) {
+    pub fn absorb_after(&mut self, src: &ExecutableReactions<'x>, min_level_inclusive: KeyRef<LevelIx>) {
         let src = &src.levels;
         let dst = &mut self.levels;
 
         for (i, src_level) in src.iter_from(min_level_inclusive) {
-            match dst.entry(*i) {
+            match dst.entry(*i.key) {
                 VEntry::Vacant(e) => {
                     e.insert(src_level.clone());
                 }
@@ -585,7 +590,7 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     pub(super) fn merge_cows(x: ReactionPlan<'x>, y: ReactionPlan<'x>) -> ReactionPlan<'x> {
-        Self::merge_plans_after(x, y, LevelIx(0))
+        Self::merge_plans_after(x, y, LevelIx::ZERO.into())
     }
 
     // todo would be nice to simplify this, it's hot
@@ -594,10 +599,10 @@ impl<'x> ExecutableReactions<'x> {
     /// shouldn't query them. For all levels >= `min_level`,
     /// the produced reaction plan has all the reactions of
     /// `x` and `y` for that level.
-    pub(super) fn merge_plans_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_level: LevelIx) -> ReactionPlan<'x> {
+    pub(super) fn merge_plans_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_level: KeyRef<LevelIx>) -> ReactionPlan<'x> {
         match (x, y) {
             (x, None) | (None, x) => x,
-            (Some(x), y) | (y, Some(x)) if x.max_level() < min_level => y,
+            (Some(x), y) | (y, Some(x)) if x.max_level() < min_level.key => y,
             (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
                 x.absorb_after(&y, min_level);
                 Some(Cow::Owned(x))
@@ -617,7 +622,7 @@ impl<'x> ExecutableReactions<'x> {
 impl Display for ExecutableReactions<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "[")?;
-        for (_, level) in self.levels.iter_from(LevelIx(0)) {
+        for (_, level) in self.levels.iter() {
             join_to!(f, level.iter(), ", ", "{", "} ; ")?;
         }
         write!(f, "]")

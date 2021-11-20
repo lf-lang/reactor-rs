@@ -35,6 +35,7 @@ use super::*;
 use crate::assembly::*;
 use crate::scheduler::dependencies::{DataflowInfo, LevelIx};
 use crate::*;
+use crate::vecmap::KeyRef;
 
 /// Construction parameters for the scheduler.
 ///
@@ -421,23 +422,20 @@ where
         }
         self.latest_processed_tag = Some(tag);
 
-        if reactions.is_none() {
-            return;
-        }
+        // The maximum level number we've seen as of now.
+        // This must be increasing monotonically.
+        let mut min_level: KeyRef<LevelIx> =
+            if let Some(l) = reactions.as_ref().and_then(|todo| todo.first_key()) { l } else { return; };
 
         let mut ctx = self.new_reaction_ctx(tag, None, &self.rx, &self.was_terminated, is_shutdown);
         let debug = debug_info!(self);
 
-        // The maximum level number we've seen as of now.
-        // This must be increasing monotonically.
-        let mut min_level: LevelIx = Default::default();
-
         while let Some((level_no, batch)) = reactions.as_ref().and_then(|todo| todo.next_batch(min_level)) {
-            trace!("  - Level {}", level_no);
+            println!("  - Level {}", level_no);
 
-            debug_assert!(level_no >= min_level, "Reaction dependency violation");
-            ctx.cur_level = level_no;
-            min_level = level_no.next(); // the next level to fetch
+            debug_assert!(level_no.key >= min_level.key, "Reaction dependency violation");
+            ctx.cur_level = level_no.key;
+            min_level = level_no.next(level_no.key.next()); // the next level to fetch
 
             if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
                 #[cfg(feature = "parallel-runtime")]
