@@ -92,7 +92,14 @@ fn test_cases() -> Vec<TestCase> {
                 (LevelIx::from(0), (0..10).into_iter().map(r).collect()),
                 (LevelIx::from(10), (0..10).into_iter().map(r).collect()),
             ]),
-        )
+        ), TestCase(
+            "wide-compact",
+            // This is compact so the hashmap fun doesn't suffer from sparsity.
+            // ExecutableReaction iteration should be 75 * sparse
+            (0..150).into_iter().map(|i|
+                (LevelIx::from(i), (0..10).into_iter().map(r).collect())
+            ).collect(),
+        ),
     ]
 }
 
