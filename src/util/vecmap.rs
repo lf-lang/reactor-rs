@@ -28,7 +28,7 @@ use std::fmt::{Debug, Formatter};
 ///
 /// Used in [crate::ExecutableReactions]
 ///
-pub(crate) struct VecMap<K, V>
+pub struct VecMap<K, V>
 where
     K: Eq + Ord,
 {

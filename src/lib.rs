@@ -127,3 +127,20 @@ pub trait ReactorBehavior {
     fn cleanup_tag(&mut self, ctx: &CleanupCtx);
 }
 assert_obj_safe!(ReactorBehavior);
+
+
+#[cfg(feature = "public-internals")]
+#[doc(hidden)]
+pub mod internals {
+    pub mod vecmap {
+        pub use crate::util::vecmap::*;
+    }
+
+    use crate::{GlobalId, GlobalReactionId};
+    pub use crate::ids::impl_types::*;
+    pub use crate::scheduler::internals::*;
+
+    pub fn new_global_rid(u: GlobalIdImpl) -> GlobalReactionId {
+        GlobalReactionId(GlobalId::from_raw(u))
+    }
+}

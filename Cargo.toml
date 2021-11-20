@@ -30,6 +30,8 @@ assert_matches = "1.5"
 # dump the graph to a DOT representation
 parallel-runtime=["rayon"]
 no-unsafe=[]
+# used only for benchmarking
+public-internals=[]
 
 [[bench]]
 name = "savina_pong"
@@ -38,6 +40,11 @@ harness = false
 [[bench]]
 name = "global_id"
 path = "benches/micro/global_id.rs"
+harness = false
+
+[[bench]]
+name = "exec_reactions"
+path = "benches/micro/exec_reactions.rs"
 harness = false
 
 [profile.bench]

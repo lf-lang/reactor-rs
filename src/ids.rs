@@ -137,6 +137,11 @@ impl GlobalId {
         Self { container, local }
     }
 
+    #[allow(unused)]
+    pub(crate) fn from_raw(u: GlobalIdImpl) -> Self {
+        unsafe { std::mem::transmute(u) }
+    }
+
     pub(crate) const fn container(&self) -> ReactorId {
         self.container
     }
@@ -186,6 +191,7 @@ impl Display for GlobalId {
 
 /// private implementation types
 pub(crate) mod impl_types {
+    use std::fmt::{Display, Formatter};
     use petgraph::graph::IndexType;
     cfg_if! {
         if #[cfg(target_pointer_width = "64")] {
@@ -206,6 +212,7 @@ pub(crate) mod impl_types {
     #[cfg(target_pointer_width = "64")]
     #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default, Hash)]
     #[repr(transparent)]
+    #[doc(hidden)]
     pub struct IndexTypeU64(u64);
 
     #[cfg(target_pointer_width = "64")]
@@ -224,6 +231,18 @@ pub(crate) mod impl_types {
         #[inline(always)]
         fn max() -> Self {
             IndexTypeU64(u64::MAX)
+        }
+    }
+
+    impl From<u32> for IndexTypeU64 {
+        fn from(i: u32) -> Self {
+            Self(i as u64)
+        }
+    }
+
+    impl Display for IndexTypeU64 {
+        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0)
         }
     }
 }

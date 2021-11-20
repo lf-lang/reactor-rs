@@ -39,6 +39,14 @@ mod dependencies;
 mod events;
 mod scheduler_impl;
 
+#[cfg(feature = "public-internals")]
+pub mod internals {
+    pub use super::dependencies::ExecutableReactions;
+    pub use super::dependencies::LevelIx;
+    pub use super::dependencies::ReactionLevelInfo;
+}
+
+
 pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions<'x>>>;
 pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a + Send>;
 pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;

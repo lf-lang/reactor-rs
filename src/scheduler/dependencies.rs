@@ -316,7 +316,7 @@ impl DepGraph {
 
         // There is an easy algorithm that is linear, but destructive.
         // If we use that we have to copy the graph. Is this needed?
-        let mut cur_level: LevelIx = LevelIx(0);
+        let mut cur_level: LevelIx = LevelIx::ZERO;
         while !todo.is_empty() {
             for ix in todo.drain(..) {
                 let node = self.dataflow.node_weight(ix).unwrap();
@@ -361,14 +361,18 @@ enum EdgeWeight {
 /// Stores the level of each reaction. This is transient info
 /// that is used to build a [DataflowInfo] and discarded.
 ///
-struct ReactionLevelInfo {
+pub struct ReactionLevelInfo {
     /// The level of each reaction.
     level_numbers: HashMap<GlobalReactionId, LevelIx>,
 }
 
 impl ReactionLevelInfo {
+    pub fn new(level_numbers: HashMap<GlobalReactionId, LevelIx>) -> Self {
+        Self { level_numbers }
+    }
+
     /// Append a reaction to the given reaction collection
-    fn augment(&self, collection: &mut ExecutableReactions, reaction: GlobalReactionId) {
+    pub fn augment(&self, collection: &mut ExecutableReactions, reaction: GlobalReactionId) {
         let ix = self
             .level_numbers
             .get(&reaction)
@@ -392,7 +396,7 @@ impl DataflowInfo {
             return Err(AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph));
         }
 
-        let level_info = ReactionLevelInfo { level_numbers: graph.number_reactions_by_level() };
+        let level_info = ReactionLevelInfo::new(graph.number_reactions_by_level());
         let trigger_to_plan = Self::collect_trigger_to_plan(&mut graph, &level_info);
 
         Ok(DataflowInfo { trigger_to_plan })
@@ -476,10 +480,14 @@ type Level = HashSet<GlobalReactionId>;
 
 /// Type of the label of a level. The max value is the maximum
 /// depth of the dependency graph.
-#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default)]
-pub(crate) struct LevelIx(u32);
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default, Hash)]
+pub struct LevelIx(u32);
 
 impl LevelIx {
+    pub const ZERO: LevelIx = LevelIx(0);
+    pub const fn from(i: u32) -> Self {
+        Self(i)
+    }
     pub fn next(self) -> Self {
         LevelIx(self.0 + 1)
     }
@@ -496,7 +504,7 @@ impl Display for LevelIx {
 /// 1. they may be merged together (by a [DataflowInfo]).
 /// 2. merging two plans eliminates duplicates
 #[derive(Clone, Debug, Default)]
-pub(crate) struct ExecutableReactions<'x> {
+pub struct ExecutableReactions<'x> {
     /// An ordered list of levels to execute.
     ///
     /// It must by construction be the case that a reaction
@@ -529,6 +537,7 @@ impl<'x> ExecutableReactions<'x> {
         self.levels.iter_from(LevelIx(0))
     }
 
+    // todo this can be made more efficient if we also return the index in the map using a private type
     #[inline]
     pub fn next_batch(&self, min_level: LevelIx) -> Option<(LevelIx, &HashSet<GlobalReactionId>)> {
         self.levels.iter_from(min_level).next().map(|(ix, cow)| (*ix, cow.as_ref()))
@@ -562,8 +571,7 @@ impl<'x> ExecutableReactions<'x> {
         }
     }
 
-    /// Insert doesn't mutate the offset.
-    fn insert(&mut self, reaction: GlobalReactionId, level_ix: LevelIx) {
+    pub fn insert(&mut self, reaction: GlobalReactionId, level_ix: LevelIx) {
         match self.levels.entry(level_ix) {
             VEntry::Vacant(e) => {
                 let mut new_level = Level::with_capacity(1);

@@ -34,17 +34,27 @@ use std::hash::{Hash, Hasher};
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
-type GID_impl = u64;
-type HalfGID = u32;
+cfg_if::cfg_if! {
+    if #[cfg(target_pointer_width = "64")] {
+        type GlobalIdImpl = u64;
+        type ReactorIdImpl = u32;
+        type ReactionIdImpl = u32;
+    } else {
+        type GlobalIdImpl = u32;
+        type ReactorIdImpl = u16;
+        type ReactionIdImpl = u16;
+    }
+}
+
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 struct GID_raw {
-    i: GID_impl,
+    i: GlobalIdImpl,
 }
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 struct GID_split {
-    a: HalfGID,
-    b: HalfGID,
+    a: ReactorIdImpl,
+    b: ReactionIdImpl,
 }
 
 #[derive(Eq, PartialEq, Copy, Clone)]
@@ -53,30 +63,33 @@ struct GID_split_custom_h(GID_split);
 impl Hash for GID_split_custom_h {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let as_impl: &GID_impl = unsafe { std::mem::transmute(self) };
+        let as_impl: &GlobalIdImpl = unsafe { std::mem::transmute(self) };
         Hash::hash(as_impl, state);
     }
 }
 
-fn gid_clone(up: GID_impl) -> HashMap<GID_raw, GID_raw> {
+fn gid_clone(up: GlobalIdImpl) -> HashMap<GID_raw, GID_raw> {
     let mut x = HashMap::<GID_raw, GID_raw>::new();
     for i in 0..up {
+        let i = i as GlobalIdImpl;
         x.entry(GID_raw { i }).or_insert(GID_raw { i });
     }
     x
 }
 
-fn gid_clone_split(up: GID_impl) -> HashMap<GID_split, GID_split> {
+fn gid_clone_split(up: GlobalIdImpl) -> HashMap<GID_split, GID_split> {
     let mut x = HashMap::<GID_split, GID_split>::new();
     for i in 0..up {
+        let i = i as GlobalIdImpl;
         x.entry(split_u32(i)).or_insert(split_u32(i + 1));
     }
     x
 }
 
-fn gid_clone_split_custom_h(up: GID_impl) -> HashMap<GID_split_custom_h, GID_split_custom_h> {
+fn gid_clone_split_custom_h(up: GlobalIdImpl) -> HashMap<GID_split_custom_h, GID_split_custom_h> {
     let mut x = HashMap::<GID_split_custom_h, GID_split_custom_h>::new();
     for i in 0..up {
+        let i = i as GlobalIdImpl;
         x.entry(GID_split_custom_h(split_u32(i)))
             .or_insert(GID_split_custom_h(split_u32(i + 1)));
     }
@@ -86,6 +99,7 @@ fn gid_clone_split_custom_h(up: GID_impl) -> HashMap<GID_split_custom_h, GID_spl
 fn bench_gid(c: &mut Criterion) {
     let mut group = c.benchmark_group("Global ID implementation");
     for i in [1000, 10000].iter() {
+        let i = &(*i as GlobalIdImpl);
         group.bench_with_input(BenchmarkId::new("Raw u32", i), i, |b, i| b.iter(|| gid_clone(*i)));
         group.bench_with_input(BenchmarkId::new("Struct ", i), i, |b, i| b.iter(|| gid_clone_split(*i)));
         group.bench_with_input(BenchmarkId::new("Struct custom h", i), i, |b, i| {
@@ -95,8 +109,11 @@ fn bench_gid(c: &mut Criterion) {
     group.finish();
 }
 
-fn split_u32(i: GID_impl) -> GID_split {
-    GID_split { a: (i >> 16) as HalfGID, b: i as HalfGID }
+fn split_u32(i: GlobalIdImpl) -> GID_split {
+    GID_split {
+        a: (i >> ReactionIdImpl::BITS) as ReactorIdImpl,
+        b: i as ReactionIdImpl,
+    }
 }
 
 criterion_group!(benches, bench_gid);
