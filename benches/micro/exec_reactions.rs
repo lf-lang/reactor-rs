@@ -42,9 +42,7 @@ fn iter_batches_hashmap(reactions: &HashMap<LevelIx, HashSet<GlobalReactionId>>)
     while levels_explored < reactions.len() {
         if let Some(reactions) = reactions.get(&min_level) {
             levels_explored += 1;
-            for n in reactions {  //* \label{process_tag:inner_loop}
-                black_box(n);
-            }
+            black_box(reactions);
         }
         min_level = min_level.next();
     }
@@ -54,9 +52,7 @@ fn iter_batches_executable_reactions(reactions: &ExecutableReactions) {
     let mut min_level = LevelIx::ZERO;
     while let Some((level_no, reactions)) = reactions.next_batch(min_level) {
         min_level = level_no.next();
-        for n in reactions {  //* \label{process_tag:inner_loop}
-            black_box(n);
-        }
+        black_box(reactions);
     }
 }
 
