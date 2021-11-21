@@ -43,10 +43,41 @@ where
         Self { v: Vec::new() }
     }
 
+    /// Find an entry with assumption that the key is random access.
+    /// Logarithmic complexity.
     pub fn entry(&mut self, key: K) -> Entry<K, V> {
         match self.find_k(&key) {
-            Ok(index) => Entry::Occupied(key, &mut self.v[index].1),
+            Ok(index) => Entry::Occupied(OccupiedEntry { map: self, index, key }),
             Err(index) => Entry::Vacant(VacantEntry { map: self, index, key }),
+        }
+    }
+
+    pub fn entry_from_ref(&mut self, key: KeyRef<K>) -> Entry<K, V> {
+        let KeyRef { min_idx, key } = key;
+        for i in min_idx..self.v.len() {
+            if self.v[i].0 == key {
+                return Entry::Occupied(OccupiedEntry { map: self, index: i, key });
+            } else if self.v[i].0 > key {
+                assert!(i >= 1, "keyref was invalid"); // otherwise min_idx
+                return Entry::Vacant(VacantEntry { map: self, index: i, key });
+            }
+        }
+        let i = self.v.len();
+        return Entry::Vacant(VacantEntry { map: self, index: i, key });
+    }
+
+    /// Find a mapping with assumption that the key is random access.
+    /// Logarithmic complexity.
+    pub fn find_random_mapping_after(&self, min_key_inclusive: K) -> Option<(KeyRef<&K>, &V)> {
+        match self.find_k(&min_key_inclusive) {
+            Ok(index) => {
+                let (key, v) = &self.v[index];
+                Some((KeyRef { key, min_idx: index }, v))
+            }
+            Err(index) => self.v.get(index).map(move |(k, v)| {
+                assert!(k >= &min_key_inclusive);
+                (KeyRef { key: k, min_idx: index }, v)
+            }),
         }
     }
 
@@ -160,7 +191,7 @@ where
     Vacant(VacantEntry<'a, K, V>),
 
     /// An occupied Entry
-    Occupied(K, &'a mut V),
+    Occupied(OccupiedEntry<'a, K, V>),
 }
 
 /// A vacant Entry.
@@ -173,6 +204,35 @@ where
     index: usize,
 }
 
+/// An occupied Entry.
+pub struct OccupiedEntry<'a, K, V>
+where
+    K: Ord + Eq,
+{
+    map: &'a mut VecMap<K, V>,
+    key: K,
+    index: usize,
+}
+
+impl<K, V> Entry<'_, K, V>
+where
+    K: Ord + Eq,
+{
+    pub fn key(&self) -> &K {
+        match self {
+            Entry::Vacant(VacantEntry { key, .. }) => key,
+            Entry::Occupied(OccupiedEntry { key, .. }) => key,
+        }
+    }
+
+    pub fn keyref(&self) -> KeyRef<&K> {
+        match self {
+            Entry::Vacant(VacantEntry { key, index, .. }) => KeyRef { min_idx: *index, key },
+            Entry::Occupied(OccupiedEntry { key, index, .. }) => KeyRef { min_idx: *index, key },
+        }
+    }
+}
+
 impl<K, V> VacantEntry<'_, K, V>
 where
     K: Ord + Eq,
@@ -182,6 +242,19 @@ where
     pub fn insert(self, value: V) {
         let index = self.index;
         self.map.insert_internal(index, self.key, value)
+    }
+}
+
+impl<K, V> OccupiedEntry<'_, K, V>
+where
+    K: Ord + Eq,
+{
+    pub fn replace(self, value: V) {
+        self.map.v[self.index].1 = value;
+    }
+
+    pub fn get_mut(&mut self) -> &mut V {
+        &mut self.map.v[self.index].1
     }
 }
 

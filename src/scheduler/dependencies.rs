@@ -560,24 +560,37 @@ impl<'x> ExecutableReactions<'x> {
 
     /// Merge the given set of reactions into this one.
     /// Ignore levels that come strictly before `min_level_inclusive`, may even clear them.
-    pub fn absorb_after(&mut self, src: &ExecutableReactions<'x>, min_level_inclusive: KeyRef<&LevelIx>) {
+    pub fn absorb_after(&mut self, src: &ExecutableReactions<'x>, min_level_inclusive: LevelIx) {
         let src = &src.levels;
         let dst = &mut self.levels;
 
-        for (i, src_level) in src.iter_from(min_level_inclusive) {
-            match dst.entry(*i.key) {
+        let mut next_src = src.find_random_mapping_after(min_level_inclusive);
+        let mut dst_keyref: Option<KeyRef<LevelIx>> = None;
+
+        while let Some((src_ix, src_level)) = next_src {
+            // find destination entry
+            let dst_entry = match dst_keyref {
+                Some(kr) => dst.entry_from_ref(kr), // linear probing from where we left off
+                None => dst.entry(*src_ix.key),     // first iteration, binary search
+            };
+            // save this for next iteration
+            dst_keyref = Some(dst_entry.keyref().cloned());
+
+            match dst_entry {
                 VEntry::Vacant(e) => {
                     e.insert(src_level.clone());
                 }
-                VEntry::Occupied(_, e) => {
-                    if e.is_empty() {
-                        *e = src_level.clone();
+                VEntry::Occupied(mut e) => {
+                    if e.get_mut().is_empty() {
+                        e.replace(src_level.clone());
                     } else {
-                        // todo maybe set is not modified
-                        e.to_mut().extend(src_level.iter());
+                        // todo maybe set is not modified by the union
+                        e.get_mut().to_mut().extend(src_level.iter());
                     }
                 }
             }
+
+            next_src = src.next_mapping(src_ix);
         }
     }
 
@@ -588,14 +601,14 @@ impl<'x> ExecutableReactions<'x> {
                 new_level.insert(reaction);
                 e.insert(Cow::Owned(new_level));
             }
-            VEntry::Occupied(_, e) => {
-                e.to_mut().insert(reaction);
+            VEntry::Occupied(mut e) => {
+                e.get_mut().to_mut().insert(reaction);
             }
         }
     }
 
     pub(super) fn merge_cows(x: ReactionPlan<'x>, y: ReactionPlan<'x>) -> ReactionPlan<'x> {
-        Self::merge_plans_after(x, y, (&LevelIx::ZERO).into())
+        Self::merge_plans_after(x, y, LevelIx::ZERO)
     }
 
     // todo would be nice to simplify this, it's hot
@@ -604,10 +617,10 @@ impl<'x> ExecutableReactions<'x> {
     /// shouldn't query them. For all levels >= `min_level`,
     /// the produced reaction plan has all the reactions of
     /// `x` and `y` for that level.
-    pub(super) fn merge_plans_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_level: KeyRef<&LevelIx>) -> ReactionPlan<'x> {
+    pub(super) fn merge_plans_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_level: LevelIx) -> ReactionPlan<'x> {
         match (x, y) {
             (x, None) | (None, x) => x,
-            (Some(x), y) | (y, Some(x)) if x.max_level() < *min_level.key => y,
+            (Some(x), y) | (y, Some(x)) if x.max_level() < min_level => y,
             (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
                 x.absorb_after(&y, min_level);
                 Some(Cow::Owned(x))

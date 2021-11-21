@@ -439,6 +439,7 @@ where
                 #[cfg(feature = "parallel-runtime")]
                 {
                     // install makes calls to parallel iterators use that thread pool
+                    // todo maybe hoist the install call to be at the top-level of the execution
                     let reactors = &mut self.reactors; // todo this intermediate var won't be needed anymore in Rust 1.57.0
                     self.rayon_thread_pool
                         .install(|| parallel_rt_impl::process_batch(&mut ctx, &debug, reactors, batch))
@@ -454,11 +455,7 @@ where
                 }
             }
 
-            reactions = ExecutableReactions::merge_plans_after(
-                reactions,
-                ctx.insides.todo_now.take(),
-                level_no.as_ref().next(&level_no.key.next()),
-            );
+            reactions = ExecutableReactions::merge_plans_after(reactions, ctx.insides.todo_now.take(), level_no.key.next());
             next_level = reactions.as_ref().and_then(|todo| todo.next_batch(level_no.as_ref()));
         }
 
