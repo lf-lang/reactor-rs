@@ -538,14 +538,17 @@ impl<'x> ExecutableReactions<'x> {
         self.levels.iter()
     }
 
-    pub fn first_key(&self) -> Option<KeyRef<LevelIx>> {
-        self.levels.min_key().map(|k| k.cloned())
+    pub fn first_key(&self) -> Option<KeyRef<&LevelIx>> {
+        self.levels.min_key()
     }
 
-    // todo this can be made more efficient if we also return the index in the map using a private type
+    pub fn first_batch(&self) -> Option<(KeyRef<&LevelIx>, &HashSet<GlobalReactionId>)> {
+        self.levels.min_entry().map(|(ix, cow)| (ix, cow.as_ref()))
+    }
+
     #[inline]
-    pub fn next_batch(&self, min_level: KeyRef<LevelIx>) -> Option<(KeyRef<LevelIx>, &HashSet<GlobalReactionId>)> {
-        self.levels.iter_from(min_level).next().map(|(ix, cow)| (ix.cloned(), cow.as_ref()))
+    pub fn next_batch<'a>(&'a self, min_level_exclusive: KeyRef<&LevelIx>) -> Option<(KeyRef<&'a LevelIx>, &HashSet<GlobalReactionId>)> {
+        self.levels.next_mapping(min_level_exclusive).map(|(ix, cow)| (ix, cow.as_ref()))
     }
 
     /// The greatest level with non-empty value.
@@ -555,7 +558,7 @@ impl<'x> ExecutableReactions<'x> {
 
     /// Merge the given set of reactions into this one.
     /// Ignore levels that come strictly before `min_level_inclusive`, may even clear them.
-    pub fn absorb_after(&mut self, src: &ExecutableReactions<'x>, min_level_inclusive: KeyRef<LevelIx>) {
+    pub fn absorb_after(&mut self, src: &ExecutableReactions<'x>, min_level_inclusive: KeyRef<&LevelIx>) {
         let src = &src.levels;
         let dst = &mut self.levels;
 
@@ -590,7 +593,7 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     pub(super) fn merge_cows(x: ReactionPlan<'x>, y: ReactionPlan<'x>) -> ReactionPlan<'x> {
-        Self::merge_plans_after(x, y, LevelIx::ZERO.into())
+        Self::merge_plans_after(x, y, (&LevelIx::ZERO).into())
     }
 
     // todo would be nice to simplify this, it's hot
@@ -599,10 +602,10 @@ impl<'x> ExecutableReactions<'x> {
     /// shouldn't query them. For all levels >= `min_level`,
     /// the produced reaction plan has all the reactions of
     /// `x` and `y` for that level.
-    pub(super) fn merge_plans_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_level: KeyRef<LevelIx>) -> ReactionPlan<'x> {
+    pub(super) fn merge_plans_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_level: KeyRef<&LevelIx>) -> ReactionPlan<'x> {
         match (x, y) {
             (x, None) | (None, x) => x,
-            (Some(x), y) | (y, Some(x)) if x.max_level() < min_level.key => y,
+            (Some(x), y) | (y, Some(x)) if x.max_level() < *min_level.key => y,
             (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
                 x.absorb_after(&y, min_level);
                 Some(Cow::Owned(x))

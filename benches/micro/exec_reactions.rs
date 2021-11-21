@@ -49,10 +49,10 @@ fn iter_batches_hashmap(reactions: &HashMap<LevelIx, HashSet<GlobalReactionId>>)
 }
 
 fn iter_batches_executable_reactions(reactions: &ExecutableReactions) {
-    let mut min_level = reactions.first_key().unwrap();
-    while let Some((level_no, reactions)) = reactions.next_batch(min_level) {
-        min_level = level_no.next(level_no.key.next());
-        black_box(reactions);
+    let mut next_level = reactions.first_batch();
+    while let Some((level_no, rs)) = next_level {
+        black_box(rs);
+        next_level = reactions.next_batch(level_no);
     }
 }
 

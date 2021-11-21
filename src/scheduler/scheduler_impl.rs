@@ -422,20 +422,20 @@ where
         }
         self.latest_processed_tag = Some(tag);
 
-        // The maximum level number we've seen as of now.
-        // This must be increasing monotonically.
-        let mut min_level: KeyRef<LevelIx> =
-            if let Some(l) = reactions.as_ref().and_then(|todo| todo.first_key()) { l } else { return; };
+        let mut next_level = reactions.as_ref().and_then(|todo| todo.first_batch());
+        if next_level.is_none() {
+            return;
+        }
 
         let mut ctx = self.new_reaction_ctx(tag, None, &self.rx, &self.was_terminated, is_shutdown);
         let debug = debug_info!(self);
 
-        while let Some((level_no, batch)) = reactions.as_ref().and_then(|todo| todo.next_batch(min_level)) {
-            println!("  - Level {}", level_no);
 
-            debug_assert!(level_no.key >= min_level.key, "Reaction dependency violation");
+        while let Some((level_no, batch)) = next_level {
+            let level_no = level_no.cloned();
+
+            println!("  - Level {}", level_no);
             ctx.cur_level = level_no.key;
-            min_level = level_no.next(level_no.key.next()); // the next level to fetch
 
             if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
                 #[cfg(feature = "parallel-runtime")]
@@ -456,7 +456,8 @@ where
                 }
             }
 
-            reactions = ExecutableReactions::merge_plans_after(reactions, ctx.insides.todo_now.take(), min_level);
+            reactions = ExecutableReactions::merge_plans_after(reactions, ctx.insides.todo_now.take(), level_no.as_ref().next(&level_no.key.next()));
+            next_level = reactions.as_ref().and_then(|todo| todo.next_batch(level_no.as_ref()));
         }
 
         for evt in ctx.insides.future_events.drain(..) {

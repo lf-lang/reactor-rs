@@ -78,17 +78,39 @@ impl<K, V> VecMap<K, V>
         self.find_k(key).is_ok()
     }
 
-    // todo maybe just a "next" function would be nice, we could get rid of that skip_while
-    // indeed, we could make an unsafe next function that assumes min_idx is exact and just computes self.v.get(min_idx + 1)
-    //  the outer loop might be less elegant though I'm afraid
-    pub fn iter_from(&self, min_key: KeyRef<K>) -> impl Iterator<Item=(KeyRef<&K>, &V)> + '_ {
-        let from = min_key.min_idx;
+    pub fn next_mapping(&self, key: KeyRef<&K>) -> Option<(KeyRef<&K>, &V)> {
+        self.check_valid_keyref(&key);
+        if &self.v[key.min_idx].0 == key.key {
+            // key is exact,
+            let idx = key.min_idx + 1;
+            self.v.get(idx).map(move |(key, v)| (KeyRef { min_idx: idx, key }, v))
+        } else {
+            for i in key.min_idx..self.v.len() {
+                if &self.v[i].0 == key.key {
+                    let idx = i + 1;
+                    return self.v.get(idx).map(move |(key, v)| (KeyRef { min_idx: idx, key }, v))
+                }
+            }
+            None
+        }
+    }
+
+    fn check_valid_keyref(&self, key: &KeyRef<&K>) {
+        let from = key.min_idx;
         if cfg!(debug_assertions) {
             assert!(from == 0 || from < self.v.len());
             if let Some((k, _)) = self.v.get(from) {
-                assert!(k <= &min_key.key);
+                assert!(k <= key.key);
             }
         }
+    }
+
+    // todo maybe just a "next" function would be nice, we could get rid of that skip_while
+    // indeed, we could make an unsafe next function that assumes min_idx is exact and just computes self.v.get(min_idx + 1)
+    //  the outer loop might be less elegant though I'm afraid
+    pub fn iter_from<'a>(&'a self, min_key: KeyRef<&'a K>) -> impl Iterator<Item=(KeyRef<&'a K>, &V)> + 'a {
+        self.check_valid_keyref(&min_key);
+        let from = min_key.min_idx;
 
         self.v[from..]
             .iter()
@@ -104,6 +126,10 @@ impl<K, V> VecMap<K, V>
 
     pub fn min_key(&self) -> Option<KeyRef<&K>> {
         self.v.first().map(|e| KeyRef { key: &e.0, min_idx: 0 })
+    }
+
+    pub fn min_entry(&self) -> Option<(KeyRef<&K>, &V)> {
+        self.v.first().map(|(key, v)| (KeyRef { key, min_idx: 0 }, v))
     }
 
     pub fn max_key(&self) -> Option<&K> {
@@ -182,10 +208,21 @@ pub struct KeyRef<K> {
 }
 
 impl<K: Clone> KeyRef<&K> {
+    #[inline]
     pub fn cloned(self) -> KeyRef<K> {
         KeyRef {
             min_idx: self.min_idx,
             key: self.key.clone(),
+        }
+    }
+}
+
+impl<K> KeyRef<K> {
+    #[inline]
+    pub fn as_ref(&self) -> KeyRef<&K> {
+        KeyRef {
+            min_idx: self.min_idx,
+            key: &self.key,
         }
     }
 }
