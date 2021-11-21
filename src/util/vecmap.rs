@@ -53,6 +53,7 @@ where
     }
 
     pub fn entry_from_ref(&mut self, key: KeyRef<K>) -> Entry<K, V> {
+        self.check_valid_keyref(&key.as_ref());
         let KeyRef { min_idx, key } = key;
         for i in min_idx..self.v.len() {
             if self.v[i].0 == key {
@@ -132,17 +133,6 @@ where
         }
     }
 
-    pub fn iter_from<'a>(&'a self, min_key: KeyRef<&'a K>) -> impl Iterator<Item = (KeyRef<&'a K>, &V)> + 'a {
-        self.check_valid_keyref(&min_key);
-        let from = min_key.min_idx;
-
-        self.v[from..]
-            .iter()
-            .enumerate()
-            .skip_while(move |(_, (k, _))| k < &min_key.key)
-            .map(move |(idx, (k, v))| (KeyRef { min_idx: from + idx, key: k }, v))
-    }
-
     pub fn iter(&self) -> impl Iterator<Item = &(K, V)> + '_ {
         self.v.iter()
     }
@@ -218,13 +208,6 @@ impl<K, V> Entry<'_, K, V>
 where
     K: Ord + Eq,
 {
-    pub fn key(&self) -> &K {
-        match self {
-            Entry::Vacant(VacantEntry { key, .. }) => key,
-            Entry::Occupied(OccupiedEntry { key, .. }) => key,
-        }
-    }
-
     pub fn keyref(&self) -> KeyRef<&K> {
         match self {
             Entry::Vacant(VacantEntry { key, index, .. }) => KeyRef { min_idx: *index, key },
@@ -280,13 +263,6 @@ impl<K> KeyRef<K> {
     #[inline]
     pub fn as_ref(&self) -> KeyRef<&K> {
         KeyRef { min_idx: self.min_idx, key: &self.key }
-    }
-}
-
-impl<K: Ord> KeyRef<K> {
-    pub fn next(self, key: K) -> KeyRef<K> {
-        debug_assert!(key > self.key);
-        KeyRef { min_idx: self.min_idx, key }
     }
 }
 
