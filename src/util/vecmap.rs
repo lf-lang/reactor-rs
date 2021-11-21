@@ -80,19 +80,13 @@ impl<K, V> VecMap<K, V>
 
     pub fn next_mapping(&self, key: KeyRef<&K>) -> Option<(KeyRef<&K>, &V)> {
         self.check_valid_keyref(&key);
-        if &self.v[key.min_idx].0 == key.key {
-            // key is exact,
-            let idx = key.min_idx + 1;
-            self.v.get(idx).map(move |(key, v)| (KeyRef { min_idx: idx, key }, v))
-        } else {
-            for i in key.min_idx..self.v.len() {
-                if &self.v[i].0 == key.key {
-                    let idx = i + 1;
-                    return self.v.get(idx).map(move |(key, v)| (KeyRef { min_idx: idx, key }, v))
-                }
+        for i in key.min_idx..self.v.len() {
+            if &self.v[i].0 == key.key {
+                let idx = i + 1;
+                return self.v.get(idx).map(move |(key, v)| (KeyRef { min_idx: idx, key }, v))
             }
-            None
         }
+        None
     }
 
     fn check_valid_keyref(&self, key: &KeyRef<&K>) {
