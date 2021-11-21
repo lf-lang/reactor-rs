@@ -112,15 +112,11 @@ where
 
     /// Produces the first mapping that follows the given key
     /// in the ascending order on keys.
-    /// This function expects an exact keyref, which is only
-    /// checked in debug mode.
-    ///
-    /// Note that the keyref must have been produced by a
-    /// VecMap with the same internal structure.
     pub fn next_mapping(&self, key: KeyRef<&K>) -> Option<(KeyRef<&K>, &V)> where K: Debug{
-        let from = match self.v.get(key.min_idx).filter(|(k, _)| k <= key.key) {
-            Some(_) => key.min_idx, // keyref is valid
-            None => 0 // it's not, maybe it was produced by another vecmap
+        let from = if self.is_valid_keyref(&key) {
+            key.min_idx
+        } else {
+            0 // it's not, maybe it was produced by another vecmap
         };
 
         for idx in from..self.v.len() {
@@ -132,17 +128,11 @@ where
         None
     }
 
-    fn check_valid_keyref(&self, key: &KeyRef<&K>) {
-        let from = key.min_idx;
-        if cfg!(debug_assertions) {
-            assert!(from == 0 || from < self.v.len(), "KeyRef is invalid for this vecmap");
-            if let Some((k, _)) = self.v.get(from) {
-                assert!(k <= key.key, "KeyRef is invalid for this vecmap");
-            }
-        }
+    fn is_valid_keyref(&self, key: &KeyRef<&K>) -> bool {
+        self.v.get(key.min_idx).filter(|(k, _)| k <= key.key).is_some()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &(K, V)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item=&(K, V)> + '_ {
         self.v.iter()
     }
 
