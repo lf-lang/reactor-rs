@@ -33,9 +33,9 @@ use crossbeam_utils::thread::{scope, Scope};
 use super::assembly_impl::RootAssembler;
 use super::*;
 use crate::assembly::*;
-use crate::scheduler::dependencies::{DataflowInfo, LevelIx};
+use crate::scheduler::dependencies::{DataflowInfo};
+
 use crate::*;
-use crate::vecmap::KeyRef;
 
 /// Construction parameters for the scheduler.
 ///
@@ -430,7 +430,6 @@ where
         let mut ctx = self.new_reaction_ctx(tag, None, &self.rx, &self.was_terminated, is_shutdown);
         let debug = debug_info!(self);
 
-
         while let Some((level_no, batch)) = next_level {
             let level_no = level_no.cloned();
 
@@ -456,7 +455,11 @@ where
                 }
             }
 
-            reactions = ExecutableReactions::merge_plans_after(reactions, ctx.insides.todo_now.take(), level_no.as_ref().next(&level_no.key.next()));
+            reactions = ExecutableReactions::merge_plans_after(
+                reactions,
+                ctx.insides.todo_now.take(),
+                level_no.as_ref().next(&level_no.key.next()),
+            );
             next_level = reactions.as_ref().and_then(|todo| todo.next_batch(level_no.as_ref()));
         }
 

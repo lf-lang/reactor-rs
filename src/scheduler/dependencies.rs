@@ -40,8 +40,8 @@ use crate::assembly::*;
 use crate::impl_types::GlobalIdImpl;
 use crate::scheduler::dependencies::NodeKind::MultiportUpstream;
 use crate::util::vecmap::{Entry as VEntry, VecMap};
-use crate::*;
 use crate::vecmap::KeyRef;
+use crate::*;
 
 type GraphIx = NodeIndex<GlobalIdImpl>;
 
@@ -547,8 +547,13 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     #[inline]
-    pub fn next_batch<'a>(&'a self, min_level_exclusive: KeyRef<&LevelIx>) -> Option<(KeyRef<&'a LevelIx>, &HashSet<GlobalReactionId>)> {
-        self.levels.next_mapping(min_level_exclusive).map(|(ix, cow)| (ix, cow.as_ref()))
+    pub fn next_batch<'a>(
+        &'a self,
+        min_level_exclusive: KeyRef<&LevelIx>,
+    ) -> Option<(KeyRef<&'a LevelIx>, &HashSet<GlobalReactionId>)> {
+        self.levels
+            .next_mapping(min_level_exclusive)
+            .map(|(ix, cow)| (ix, cow.as_ref()))
     }
 
     /// The greatest level with non-empty value.

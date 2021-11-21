@@ -128,7 +128,6 @@ pub trait ReactorBehavior {
 }
 assert_obj_safe!(ReactorBehavior);
 
-
 #[cfg(feature = "public-internals")]
 #[doc(hidden)]
 pub mod internals {
@@ -136,9 +135,9 @@ pub mod internals {
         pub use crate::util::vecmap::*;
     }
 
-    use crate::{GlobalId, GlobalReactionId};
     pub use crate::ids::impl_types::*;
     pub use crate::scheduler::internals::*;
+    use crate::{GlobalId, GlobalReactionId};
 
     pub fn new_global_rid(u: GlobalIdImpl) -> GlobalReactionId {
         GlobalReactionId(GlobalId::from_raw(u))

@@ -22,22 +22,22 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::fmt::{Debug, Display, Formatter, write};
+use std::fmt::{Debug, Display, Formatter};
 
 /// A sparse map representation over a totally ordered key type.
 ///
 /// Used in [crate::ExecutableReactions]
 ///
 pub struct VecMap<K, V>
-    where
-        K: Eq + Ord,
+where
+    K: Eq + Ord,
 {
     v: Vec<(K, V)>,
 }
 
 impl<K, V> VecMap<K, V>
-    where
-        K: Eq + Ord,
+where
+    K: Eq + Ord,
 {
     pub fn new() -> Self {
         Self { v: Vec::new() }
@@ -83,7 +83,7 @@ impl<K, V> VecMap<K, V>
         for i in key.min_idx..self.v.len() {
             if &self.v[i].0 == key.key {
                 let idx = i + 1;
-                return self.v.get(idx).map(move |(key, v)| (KeyRef { min_idx: idx, key }, v))
+                return self.v.get(idx).map(move |(key, v)| (KeyRef { min_idx: idx, key }, v));
             }
         }
         None
@@ -102,7 +102,7 @@ impl<K, V> VecMap<K, V>
     // todo maybe just a "next" function would be nice, we could get rid of that skip_while
     // indeed, we could make an unsafe next function that assumes min_idx is exact and just computes self.v.get(min_idx + 1)
     //  the outer loop might be less elegant though I'm afraid
-    pub fn iter_from<'a>(&'a self, min_key: KeyRef<&'a K>) -> impl Iterator<Item=(KeyRef<&'a K>, &V)> + 'a {
+    pub fn iter_from<'a>(&'a self, min_key: KeyRef<&'a K>) -> impl Iterator<Item = (KeyRef<&'a K>, &V)> + 'a {
         self.check_valid_keyref(&min_key);
         let from = min_key.min_idx;
 
@@ -113,10 +113,9 @@ impl<K, V> VecMap<K, V>
             .map(move |(idx, (k, v))| (KeyRef { min_idx: from + idx, key: k }, v))
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=&(K, V)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = &(K, V)> + '_ {
         self.v.iter()
     }
-
 
     pub fn min_key(&self) -> Option<KeyRef<&K>> {
         self.v.first().map(|e| KeyRef { key: &e.0, min_idx: 0 })
@@ -180,8 +179,8 @@ where
 }
 
 impl<K, V> VacantEntry<'_, K, V>
-    where
-        K: Ord + Eq,
+where
+    K: Ord + Eq,
 {
     /// Sets the value of the entry with the VacantEntry's key,
     /// and returns a mutable reference to it.
@@ -204,33 +203,23 @@ pub struct KeyRef<K> {
 impl<K: Clone> KeyRef<&K> {
     #[inline]
     pub fn cloned(self) -> KeyRef<K> {
-        KeyRef {
-            min_idx: self.min_idx,
-            key: self.key.clone(),
-        }
+        KeyRef { min_idx: self.min_idx, key: self.key.clone() }
     }
 }
 
 impl<K> KeyRef<K> {
     #[inline]
     pub fn as_ref(&self) -> KeyRef<&K> {
-        KeyRef {
-            min_idx: self.min_idx,
-            key: &self.key,
-        }
+        KeyRef { min_idx: self.min_idx, key: &self.key }
     }
 }
 
 impl<K: Ord> KeyRef<K> {
     pub fn next(self, key: K) -> KeyRef<K> {
         debug_assert!(key > self.key);
-        KeyRef {
-            min_idx: self.min_idx,
-            key,
-        }
+        KeyRef { min_idx: self.min_idx, key }
     }
 }
-
 
 impl<K: Display> Display for KeyRef<K> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
