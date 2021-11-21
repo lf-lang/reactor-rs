@@ -484,6 +484,7 @@ type Level = HashSet<GlobalReactionId>;
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default, Hash)]
 pub struct LevelIx(u32);
 
+#[allow(unused)] // some usages are in tests
 impl LevelIx {
     pub const ZERO: LevelIx = LevelIx(0);
     pub const fn from(i: u32) -> Self {
@@ -536,10 +537,6 @@ impl<'x> ExecutableReactions<'x> {
     /// and avoid more allocation.
     pub fn batches(&self) -> impl Iterator<Item = &(LevelIx, Cow<'x, Level>)> + '_ {
         self.levels.iter()
-    }
-
-    pub fn first_key(&self) -> Option<KeyRef<&LevelIx>> {
-        self.levels.min_key()
     }
 
     pub fn first_batch(&self) -> Option<(KeyRef<&LevelIx>, &HashSet<GlobalReactionId>)> {

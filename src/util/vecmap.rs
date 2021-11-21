@@ -99,9 +99,6 @@ where
         }
     }
 
-    // todo maybe just a "next" function would be nice, we could get rid of that skip_while
-    // indeed, we could make an unsafe next function that assumes min_idx is exact and just computes self.v.get(min_idx + 1)
-    //  the outer loop might be less elegant though I'm afraid
     pub fn iter_from<'a>(&'a self, min_key: KeyRef<&'a K>) -> impl Iterator<Item = (KeyRef<&'a K>, &V)> + 'a {
         self.check_valid_keyref(&min_key);
         let from = min_key.min_idx;
@@ -115,10 +112,6 @@ where
 
     pub fn iter(&self) -> impl Iterator<Item = &(K, V)> + '_ {
         self.v.iter()
-    }
-
-    pub fn min_key(&self) -> Option<KeyRef<&K>> {
-        self.v.first().map(|e| KeyRef { key: &e.0, min_idx: 0 })
     }
 
     pub fn min_entry(&self) -> Option<(KeyRef<&K>, &V)> {

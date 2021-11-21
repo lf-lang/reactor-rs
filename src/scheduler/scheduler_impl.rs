@@ -33,8 +33,7 @@ use crossbeam_utils::thread::{scope, Scope};
 use super::assembly_impl::RootAssembler;
 use super::*;
 use crate::assembly::*;
-use crate::scheduler::dependencies::{DataflowInfo};
-
+use crate::scheduler::dependencies::DataflowInfo;
 use crate::*;
 
 /// Construction parameters for the scheduler.
