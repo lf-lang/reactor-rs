@@ -144,9 +144,6 @@ where
     /// Debug information.
     id_registry: DebugInfoRegistry,
 
-    /// The thread pool to use, if we're using a parallel runtime.
-    #[cfg(feature = "parallel-runtime")]
-    rayon_thread_pool: rayon::ThreadPool,
 }
 
 impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't>
@@ -179,9 +176,19 @@ where
         // to 'x.
         scope(|scope| {
             let initial_time = Instant::now();
+            #[cfg(feature = "parallel-runtime")]
+            let rayon_thread_pool = rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap();
+
             let scheduler = SyncScheduler::new(options, id_registry, &dataflow_info, scope, reactors, initial_time);
 
-            scheduler.launch_event_loop();
+            cfg_if::cfg_if! {
+                if #[cfg(feature = "parallel-runtime")] {
+                    // install makes calls to parallel iterators use that thread pool
+                    rayon_thread_pool.install(|| scheduler.launch_event_loop());
+                } else {
+                    scheduler.launch_event_loop();
+                }
+            }
         })
         .unwrap();
     }
@@ -288,9 +295,6 @@ where
             id_registry,
             thread_spawner,
             was_terminated: Default::default(),
-
-            #[cfg(feature = "parallel-runtime")]
-            rayon_thread_pool: rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap(),
         }
     }
 
@@ -437,11 +441,7 @@ where
             if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
                 #[cfg(feature = "parallel-runtime")]
                 {
-                    // install makes calls to parallel iterators use that thread pool
-                    // todo maybe hoist the install call to be at the top-level of the execution
-                    let reactors = &mut self.reactors; // todo this intermediate var won't be needed anymore in Rust 1.57.0
-                    self.rayon_thread_pool
-                        .install(|| parallel_rt_impl::process_batch(&mut ctx, &debug, reactors, batch))
+                    parallel_rt_impl::process_batch(&mut ctx, &debug, &mut self.reactors, batch);
                 }
             } else {
                 // the impl for non-parallel runtime

@@ -118,7 +118,7 @@ where
     /// Note that the keyref must have been produced by a
     /// VecMap with the same internal structure.
     pub fn next_mapping(&self, key: KeyRef<&K>) -> Option<(KeyRef<&K>, &V)> where K: Debug{
-        let from = match self.v.get(key.min_idx).filter(|(k, v)| k <= key.key) {
+        let from = match self.v.get(key.min_idx).filter(|(k, _)| k <= key.key) {
             Some(_) => key.min_idx, // keyref is valid
             None => 0 // it's not, maybe it was produced by another vecmap
         };
