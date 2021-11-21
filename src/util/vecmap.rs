@@ -78,23 +78,25 @@ where
         self.find_k(key).is_ok()
     }
 
+    /// Produces the first mapping that follows the given key
+    /// in the ascending order on keys.
+    /// This function expects an exact keyref, which is only
+    /// checked in debug mode.
+    ///
+    /// Note that the keyref must have been produced by a
+    /// VecMap with the same internal structure.
     pub fn next_mapping(&self, key: KeyRef<&K>) -> Option<(KeyRef<&K>, &V)> {
-        self.check_valid_keyref(&key);
-        for i in key.min_idx..self.v.len() {
-            if &self.v[i].0 == key.key {
-                let idx = i + 1;
-                return self.v.get(idx).map(move |(key, v)| (KeyRef { min_idx: idx, key }, v));
-            }
-        }
-        None
+        debug_assert!(key.key == &self.v[key.min_idx].0, "Expecting an exact keyref");
+        let idx = key.min_idx + 1;
+        self.v.get(idx).map(move |(key, v)| (KeyRef { min_idx: idx, key }, v))
     }
 
     fn check_valid_keyref(&self, key: &KeyRef<&K>) {
         let from = key.min_idx;
         if cfg!(debug_assertions) {
-            assert!(from == 0 || from < self.v.len());
+            assert!(from == 0 || from < self.v.len(), "KeyRef is invalid for this vecmap");
             if let Some((k, _)) = self.v.get(from) {
-                assert!(k <= key.key);
+                assert!(k <= key.key, "KeyRef is invalid for this vecmap");
             }
         }
     }
@@ -183,13 +185,14 @@ where
     }
 }
 
-/// Note: keyrefs are actually vaguely unsafe as they're only
-/// valid while the vector is unmodified, and for a particular vecmap.
-/// If we could enforce this with references it would be nice
+/// A key zipped with its internal index in this map.
+/// For some operations, like manually implemented iteration,
+/// the index can be used for optimisation.
 #[derive(Copy, Clone)]
 pub struct KeyRef<K> {
     pub key: K,
-    /// this is a lower bound on the actual index
+    /// This is a lower bound on the actual index of key K,
+    /// it doesn't need to be the index (though it usually will be).
     min_idx: usize,
 }
 
