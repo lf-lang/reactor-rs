@@ -117,10 +117,19 @@ where
     ///
     /// Note that the keyref must have been produced by a
     /// VecMap with the same internal structure.
-    pub fn next_mapping(&self, key: KeyRef<&K>) -> Option<(KeyRef<&K>, &V)> {
-        debug_assert!(key.key == &self.v[key.min_idx].0, "Expecting an exact keyref");
-        let idx = key.min_idx + 1;
-        self.v.get(idx).map(move |(key, v)| (KeyRef { min_idx: idx, key }, v))
+    pub fn next_mapping(&self, key: KeyRef<&K>) -> Option<(KeyRef<&K>, &V)> where K: Debug{
+        let from = match self.v.get(key.min_idx).filter(|(k, v)| k <= key.key) {
+            Some(_) => key.min_idx, // keyref is valid
+            None => 0 // it's not, maybe it was produced by another vecmap
+        };
+
+        for idx in from..self.v.len() {
+            if &self.v[idx].0 > key.key {
+                let (key, v) = &self.v[idx];
+                return Some((KeyRef { min_idx: idx, key }, v));
+            }
+        }
+        None
     }
 
     fn check_valid_keyref(&self, key: &KeyRef<&K>) {

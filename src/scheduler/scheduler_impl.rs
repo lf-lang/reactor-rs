@@ -431,8 +431,7 @@ where
 
         while let Some((level_no, batch)) = next_level {
             let level_no = level_no.cloned();
-
-            println!("  - Level {}", level_no);
+            trace!("  - Level {}", level_no);
             ctx.cur_level = level_no.key;
 
             if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
