@@ -53,7 +53,7 @@ where
     }
 
     pub fn entry_from_ref(&mut self, key: KeyRef<K>) -> Entry<K, V> {
-        self.check_valid_keyref(&key.as_ref());
+        debug_assert!(self.is_valid_keyref(&key.as_ref()));
         let KeyRef { min_idx, key } = key;
         for i in min_idx..self.v.len() {
             if self.v[i].0 == key {
@@ -112,7 +112,7 @@ where
 
     /// Produces the first mapping that follows the given key
     /// in the ascending order on keys.
-    pub fn next_mapping(&self, key: KeyRef<&K>) -> Option<(KeyRef<&K>, &V)> where K: Debug{
+    pub fn next_mapping(&self, key: KeyRef<&K>) -> Option<(KeyRef<&K>, &V)> {
         let from = if self.is_valid_keyref(&key) {
             key.min_idx
         } else {
@@ -132,7 +132,7 @@ where
         self.v.get(key.min_idx).filter(|(k, _)| k <= key.key).is_some()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=&(K, V)> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = &(K, V)> + '_ {
         self.v.iter()
     }
 

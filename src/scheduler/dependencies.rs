@@ -388,6 +388,7 @@ impl ReactionLevelInfo {
 pub(super) struct DataflowInfo {
     /// Maps each trigger to the set of reactions that need
     /// to be scheduled when it is triggered.
+    /// Todo: many of those are never asked for, eg those of bound ports
     trigger_to_plan: IndexVec<TriggerId, Arc<ExecutableReactions<'static>>>,
 }
 

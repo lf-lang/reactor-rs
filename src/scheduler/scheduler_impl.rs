@@ -143,7 +143,6 @@ where
 
     /// Debug information.
     id_registry: DebugInfoRegistry,
-
 }
 
 impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't>

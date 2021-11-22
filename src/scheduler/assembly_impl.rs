@@ -263,6 +263,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
     }
 }
 
+/// Declares dependencies between components and reactions.
 pub struct DependencyDeclarator<'a, 'x, S: ReactorInitializer> {
     assembler: &'a mut AssemblyCtx<'x, S>,
 }
