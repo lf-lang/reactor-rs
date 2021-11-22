@@ -22,7 +22,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::fmt::{Debug, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 
 /// A sparse map representation over a totally ordered key type.
 ///
@@ -43,10 +43,42 @@ where
         Self { v: Vec::new() }
     }
 
+    /// Find an entry with assumption that the key is random access.
+    /// Logarithmic complexity.
     pub fn entry(&mut self, key: K) -> Entry<K, V> {
         match self.find_k(&key) {
-            Ok(index) => Entry::Occupied(key, &mut self.v[index].1),
+            Ok(index) => Entry::Occupied(OccupiedEntry { map: self, index, key }),
             Err(index) => Entry::Vacant(VacantEntry { map: self, index, key }),
+        }
+    }
+
+    pub fn entry_from_ref(&mut self, key: KeyRef<K>) -> Entry<K, V> {
+        debug_assert!(self.is_valid_keyref(&key.as_ref()));
+        let KeyRef { min_idx, key } = key;
+        for i in min_idx..self.v.len() {
+            if self.v[i].0 == key {
+                return Entry::Occupied(OccupiedEntry { map: self, index: i, key });
+            } else if self.v[i].0 > key {
+                assert!(i >= 1, "keyref was invalid"); // otherwise min_idx
+                return Entry::Vacant(VacantEntry { map: self, index: i, key });
+            }
+        }
+        let i = self.v.len();
+        return Entry::Vacant(VacantEntry { map: self, index: i, key });
+    }
+
+    /// Find a mapping with assumption that the key is random access.
+    /// Logarithmic complexity.
+    pub fn find_random_mapping_after(&self, min_key_inclusive: K) -> Option<(KeyRef<&K>, &V)> {
+        match self.find_k(&min_key_inclusive) {
+            Ok(index) => {
+                let (key, v) = &self.v[index];
+                Some((KeyRef { key, min_idx: index }, v))
+            }
+            Err(index) => self.v.get(index).map(move |(k, v)| {
+                assert!(k >= &min_key_inclusive);
+                (KeyRef { key: k, min_idx: index }, v)
+            }),
         }
     }
 
@@ -78,8 +110,34 @@ where
         self.find_k(key).is_ok()
     }
 
-    pub fn iter_from(&self, min_key: K) -> impl Iterator<Item = &(K, V)> + '_ {
-        self.v.iter().skip_while(move |(k, _)| k < &min_key)
+    /// Produces the first mapping that follows the given key
+    /// in the ascending order on keys.
+    pub fn next_mapping(&self, key: KeyRef<&K>) -> Option<(KeyRef<&K>, &V)> {
+        let from = if self.is_valid_keyref(&key) {
+            key.min_idx
+        } else {
+            0 // it's not, maybe it was produced by another vecmap
+        };
+
+        for idx in from..self.v.len() {
+            if &self.v[idx].0 > key.key {
+                let (key, v) = &self.v[idx];
+                return Some((KeyRef { min_idx: idx, key }, v));
+            }
+        }
+        None
+    }
+
+    fn is_valid_keyref(&self, key: &KeyRef<&K>) -> bool {
+        self.v.get(key.min_idx).filter(|(k, _)| k <= key.key).is_some()
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &(K, V)> + '_ {
+        self.v.iter()
+    }
+
+    pub fn min_entry(&self) -> Option<(KeyRef<&K>, &V)> {
+        self.v.first().map(|(key, v)| (KeyRef { key, min_idx: 0 }, v))
     }
 
     pub fn max_key(&self) -> Option<&K> {
@@ -122,7 +180,7 @@ where
     Vacant(VacantEntry<'a, K, V>),
 
     /// An occupied Entry
-    Occupied(K, &'a mut V),
+    Occupied(OccupiedEntry<'a, K, V>),
 }
 
 /// A vacant Entry.
@@ -135,6 +193,28 @@ where
     index: usize,
 }
 
+/// An occupied Entry.
+pub struct OccupiedEntry<'a, K, V>
+where
+    K: Ord + Eq,
+{
+    map: &'a mut VecMap<K, V>,
+    key: K,
+    index: usize,
+}
+
+impl<K, V> Entry<'_, K, V>
+where
+    K: Ord + Eq,
+{
+    pub fn keyref(&self) -> KeyRef<&K> {
+        match self {
+            Entry::Vacant(VacantEntry { key, index, .. }) => KeyRef { min_idx: *index, key },
+            Entry::Occupied(OccupiedEntry { key, index, .. }) => KeyRef { min_idx: *index, key },
+        }
+    }
+}
+
 impl<K, V> VacantEntry<'_, K, V>
 where
     K: Ord + Eq,
@@ -144,5 +224,55 @@ where
     pub fn insert(self, value: V) {
         let index = self.index;
         self.map.insert_internal(index, self.key, value)
+    }
+}
+
+impl<K, V> OccupiedEntry<'_, K, V>
+where
+    K: Ord + Eq,
+{
+    pub fn replace(self, value: V) {
+        self.map.v[self.index].1 = value;
+    }
+
+    pub fn get_mut(&mut self) -> &mut V {
+        &mut self.map.v[self.index].1
+    }
+}
+
+/// A key zipped with its internal index in this map.
+/// For some operations, like manually implemented iteration,
+/// the index can be used for optimisation.
+#[derive(Copy, Clone)]
+pub struct KeyRef<K> {
+    pub key: K,
+    /// This is a lower bound on the actual index of key K,
+    /// it doesn't need to be the index (though it usually will be).
+    min_idx: usize,
+}
+
+impl<K: Clone> KeyRef<&K> {
+    #[inline]
+    pub fn cloned(self) -> KeyRef<K> {
+        KeyRef { min_idx: self.min_idx, key: self.key.clone() }
+    }
+}
+
+impl<K> KeyRef<K> {
+    #[inline]
+    pub fn as_ref(&self) -> KeyRef<&K> {
+        KeyRef { min_idx: self.min_idx, key: &self.key }
+    }
+}
+
+impl<K: Display> Display for KeyRef<K> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.key)
+    }
+}
+
+impl<K> From<K> for KeyRef<K> {
+    fn from(key: K) -> Self {
+        Self { key, min_idx: 0 }
     }
 }

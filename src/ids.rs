@@ -192,6 +192,7 @@ impl Display for GlobalId {
 /// private implementation types
 pub(crate) mod impl_types {
     use std::fmt::{Display, Formatter};
+
     use petgraph::graph::IndexType;
     cfg_if! {
         if #[cfg(target_pointer_width = "64")] {

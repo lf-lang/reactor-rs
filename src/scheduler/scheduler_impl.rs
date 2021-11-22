@@ -33,7 +33,7 @@ use crossbeam_utils::thread::{scope, Scope};
 use super::assembly_impl::RootAssembler;
 use super::*;
 use crate::assembly::*;
-use crate::scheduler::dependencies::{DataflowInfo, LevelIx};
+use crate::scheduler::dependencies::DataflowInfo;
 use crate::*;
 
 /// Construction parameters for the scheduler.
@@ -143,10 +143,6 @@ where
 
     /// Debug information.
     id_registry: DebugInfoRegistry,
-
-    /// The thread pool to use, if we're using a parallel runtime.
-    #[cfg(feature = "parallel-runtime")]
-    rayon_thread_pool: rayon::ThreadPool,
 }
 
 impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't>
@@ -179,9 +175,19 @@ where
         // to 'x.
         scope(|scope| {
             let initial_time = Instant::now();
+            #[cfg(feature = "parallel-runtime")]
+            let rayon_thread_pool = rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap();
+
             let scheduler = SyncScheduler::new(options, id_registry, &dataflow_info, scope, reactors, initial_time);
 
-            scheduler.launch_event_loop();
+            cfg_if::cfg_if! {
+                if #[cfg(feature = "parallel-runtime")] {
+                    // install makes calls to parallel iterators use that thread pool
+                    rayon_thread_pool.install(|| scheduler.launch_event_loop());
+                } else {
+                    scheduler.launch_event_loop();
+                }
+            }
         })
         .unwrap();
     }
@@ -288,9 +294,6 @@ where
             id_registry,
             thread_spawner,
             was_terminated: Default::default(),
-
-            #[cfg(feature = "parallel-runtime")]
-            rayon_thread_pool: rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap(),
         }
     }
 
@@ -421,31 +424,23 @@ where
         }
         self.latest_processed_tag = Some(tag);
 
-        if reactions.is_none() {
+        let mut next_level = reactions.as_ref().and_then(|todo| todo.first_batch());
+        if next_level.is_none() {
             return;
         }
 
         let mut ctx = self.new_reaction_ctx(tag, None, &self.rx, &self.was_terminated, is_shutdown);
         let debug = debug_info!(self);
 
-        // The maximum level number we've seen as of now.
-        // This must be increasing monotonically.
-        let mut min_level: LevelIx = Default::default();
-
-        while let Some((level_no, batch)) = reactions.as_ref().and_then(|todo| todo.next_batch(min_level)) {
+        while let Some((level_no, batch)) = next_level {
+            let level_no = level_no.cloned();
             trace!("  - Level {}", level_no);
-
-            debug_assert!(level_no >= min_level, "Reaction dependency violation");
-            ctx.cur_level = level_no;
-            min_level = level_no.next(); // the next level to fetch
+            ctx.cur_level = level_no.key;
 
             if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
                 #[cfg(feature = "parallel-runtime")]
                 {
-                    // install makes calls to parallel iterators use that thread pool
-                    let reactors = &mut self.reactors; // todo this intermediate var won't be needed anymore in Rust 1.57.0
-                    self.rayon_thread_pool
-                        .install(|| parallel_rt_impl::process_batch(&mut ctx, &debug, reactors, batch))
+                    parallel_rt_impl::process_batch(&mut ctx, &debug, &mut self.reactors, batch);
                 }
             } else {
                 // the impl for non-parallel runtime
@@ -458,7 +453,8 @@ where
                 }
             }
 
-            reactions = ExecutableReactions::merge_plans_after(reactions, ctx.insides.todo_now.take(), min_level);
+            reactions = ExecutableReactions::merge_plans_after(reactions, ctx.insides.todo_now.take(), level_no.key.next());
+            next_level = reactions.as_ref().and_then(|todo| todo.next_batch(level_no.as_ref()));
         }
 
         for evt in ctx.insides.future_events.drain(..) {

@@ -22,7 +22,6 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #![allow(unused, non_snake_case, non_camel_case_types)]
 #[macro_use]
 extern crate reactor_rt;
@@ -30,11 +29,9 @@ extern crate reactor_rt;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
+use reactor_rt::internals::{new_global_rid, ExecutableReactions, GlobalIdImpl, LevelIx, ReactionLevelInfo};
 use reactor_rt::{GlobalReactionId, LocalReactionId};
-use reactor_rt::internals::{ExecutableReactions, ReactionLevelInfo, new_global_rid, GlobalIdImpl};
-use reactor_rt::internals::LevelIx;
-
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, black_box};
 
 fn iter_batches_hashmap(reactions: &HashMap<LevelIx, HashSet<GlobalReactionId>>) {
     let mut min_level = LevelIx::ZERO;
@@ -49,17 +46,12 @@ fn iter_batches_hashmap(reactions: &HashMap<LevelIx, HashSet<GlobalReactionId>>)
 }
 
 fn iter_batches_executable_reactions(reactions: &ExecutableReactions) {
-    let mut min_level = LevelIx::ZERO;
-    while let Some((level_no, reactions)) = reactions.next_batch(min_level) {
-        min_level = level_no.next();
-        black_box(reactions);
+    let mut next_level = reactions.first_batch();
+    while let Some((level_no, rs)) = next_level {
+        black_box(rs);
+        next_level = reactions.next_batch(level_no);
     }
 }
-
-
-
-
-
 
 pub fn r(u: u32) -> GlobalReactionId {
     new_global_rid(GlobalIdImpl::from(u))
@@ -83,22 +75,23 @@ fn test_cases() -> Vec<TestCase> {
     vec![
         TestCase(
             "single",
-            HashMap::from([
-                (LevelIx::from(0), (0..10).into_iter().map(r).collect())
-            ]),
-        ), TestCase(
+            HashMap::from([(LevelIx::from(0), (0..10).into_iter().map(r).collect())]),
+        ),
+        TestCase(
             "sparse",
             HashMap::from([
                 (LevelIx::from(0), (0..10).into_iter().map(r).collect()),
                 (LevelIx::from(10), (0..10).into_iter().map(r).collect()),
             ]),
-        ), TestCase(
+        ),
+        TestCase(
             "wide-compact",
             // This is compact so the hashmap fun doesn't suffer from sparsity.
             // ExecutableReaction iteration should be 75 * sparse
-            (0..150).into_iter().map(|i|
-                (LevelIx::from(i), (0..10).into_iter().map(r).collect())
-            ).collect(),
+            (0..150)
+                .into_iter()
+                .map(|i| (LevelIx::from(i), (0..10).into_iter().map(r).collect()))
+                .collect(),
         ),
     ]
 }
@@ -110,12 +103,15 @@ fn bench_gid(c: &mut Criterion) {
         let hashmap = &test.1;
         // let level_fun: ReactionLevelInfo = todo!();
         // let set: HashSet<GlobalReactionId> = todo!();
-        group.bench_with_input(BenchmarkId::new("iter/HashMap", test.0), hashmap, |b, i| b.iter(|| iter_batches_hashmap(i)));
-        group.bench_with_input(BenchmarkId::new("iter/VecMap", test.0), &executable, |b, i| b.iter(|| iter_batches_executable_reactions(i)));
+        group.bench_with_input(BenchmarkId::new("iter/HashMap", test.0), hashmap, |b, i| {
+            b.iter(|| iter_batches_hashmap(i))
+        });
+        group.bench_with_input(BenchmarkId::new("iter/VecMap", test.0), &executable, |b, i| {
+            b.iter(|| iter_batches_executable_reactions(i))
+        });
     }
     group.finish();
 }
-
 
 criterion_group!(benches, bench_gid);
 criterion_main!(benches);

@@ -30,8 +30,9 @@ assert_matches = "1.5"
 # dump the graph to a DOT representation
 parallel-runtime=["rayon"]
 no-unsafe=[]
-# used only for benchmarking
+# used mostly only for benchmarking
 public-internals=[]
+benchmarking=["public-internals"]
 
 [[bench]]
 name = "savina_pong"

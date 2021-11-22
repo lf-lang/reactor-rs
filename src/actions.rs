@@ -66,10 +66,10 @@ impl<K, T: Sync> Action<K, T> {
     pub(crate) fn schedule_future_value(&mut self, time: EventTag, value: Option<T>) {
         match self.map.entry(Reverse(time)) {
             Entry::Vacant(e) => e.insert(value),
-            Entry::Occupied(_, v) => {
+            Entry::Occupied(e) => {
                 trace!("Value overwritten in an action for tag {}", time);
                 trace!("This means an action was scheduled several times for the same tag.");
-                *v = value
+                e.replace(value)
             }
         }
     }
