@@ -97,7 +97,7 @@ pub mod prelude {
     pub use crate::Offset::*;
     pub use crate::{
         after, assert_tag_is, delay, tag, Duration, EventTag, Instant, LogicalAction, PhysicalActionRef, ReactionCtx,
-        ReadablePort, Timer, WritablePort,
+        ReadablePort, Timer, WritablePort, ReadablePortBank, WritablePortBank, PhysicalSchedulerLink
     };
 }
 
