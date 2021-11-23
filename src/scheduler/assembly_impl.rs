@@ -75,6 +75,7 @@ impl RootAssembler {
             Ok(main) => main,
             Err(e) => std::panic::panic_any(e.lift(&root.debug_info)),
         };
+        root.debug_info.record_main_reactor(main_reactor.id());
         root.register_reactor(main_reactor);
 
         let RootAssembler { graph, reactors, debug_info: id_registry, .. } = root;

@@ -51,6 +51,8 @@ pub(crate) struct DebugInfoRegistry {
     /// The main reactor is mapped to itself.
     reactor_container: IndexVec<ReactorId, ReactorId>,
 
+    main_reactor: Option<ReactorId>,
+
     // todo better data structure, eg IndexVec<ReactorId, IndexVec<LocalReactionId, _>>
     /// Labels of each reaction, only reactions that have one are in here.
     reaction_labels: HashMap<GlobalReactionId, Cow<'static, str>>,
@@ -70,6 +72,7 @@ impl DebugInfoRegistry {
             trigger_infos: Default::default(),
             reaction_labels: Default::default(),
             reactor_container: Default::default(),
+            main_reactor: None
         };
 
         assert_eq!(ich.trigger_infos.push(Cow::Borrowed("startup")), TriggerId::STARTUP);
@@ -126,8 +129,20 @@ impl DebugInfoRegistry {
     }
 
     #[inline]
-    pub(crate) fn fmt_component<'a>(&'a self, id: TriggerId) -> impl Display + 'a {
+    pub fn fmt_component<'a>(&'a self, id: TriggerId) -> impl Display + 'a {
         self.fmt_component_path(self.raw_id_of_trigger(id), Some(&self.trigger_infos[id]), false)
+    }
+
+    #[inline]
+    pub fn get_container(&self, id: ReactorId) -> Option<ReactorId> {
+        let container = self.reactor_container.get(id);
+        debug_assert!(container.is_some() || self.is_main(id));
+        container.cloned()
+    }
+
+    #[inline]
+    pub fn is_main(&self, id: ReactorId) -> bool {
+        self.main_reactor.unwrap() == id
     }
 
     fn raw_id_of_trigger(&self, id: TriggerId) -> RawId {
@@ -178,6 +193,10 @@ impl DebugInfoRegistry {
     pub(super) fn record_reactor(&mut self, id: ReactorId, debug: ReactorDebugInfo) {
         let ix = self.reactor_infos.push(debug);
         debug_assert_eq!(ix, id);
+    }
+
+    pub(super) fn record_main_reactor(&mut self, id: ReactorId) {
+        self.main_reactor.replace(id).expect("should not call record_main twice");
     }
 
     pub(super) fn record_reactor_container(&mut self, parent: ReactorId, child: ReactorId) {
