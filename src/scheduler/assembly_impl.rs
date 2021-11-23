@@ -107,6 +107,8 @@ pub struct AssemblyCtx<'x, S: ReactorInitializer> {
     /// assemble_self has run, and the info is recorded
     /// into the debug info registry.
     debug: Option<ReactorDebugInfo>,
+    /// IDs of children used for debug info.
+    children_ids: Vec<ReactorId>,
 
     _phantom: PhantomData<S>,
 }
@@ -126,12 +128,16 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
             cur_local: S::MAX_REACTION_ID,
             debug: Some(debug),
             _phantom: PhantomData,
+            children_ids: Vec::default(),
         }
     }
 
     /// top level function
-    pub fn assemble(mut self, build_reactor_tree: impl FnOnce(Self) -> AssemblyResult<BuiltReactor<'x, S>>) -> AssemblyResult<S> {
-        let BuiltReactor(ich, reactor) = build_reactor_tree(self)?;
+    pub fn assemble(self, build_reactor_tree: impl FnOnce(Self) -> AssemblyResult<BuiltReactor<'x, S>>) -> AssemblyResult<S> {
+        let BuiltReactor(mut ich, reactor) = build_reactor_tree(self)?;
+        for child_id in ich.children_ids.drain(..) {
+            ich.globals.debug_info.record_reactor_container(reactor.id(), child_id);
+        }
         Ok(reactor)
     }
 
@@ -278,8 +284,10 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
             Some(i) => my_debug.derive_bank_item::<Sub>(inst_name, i),
         };
 
-        let sub = AssemblyCtx::new(&mut self.globals, debug_info);
-        Sub::assemble(args, sub)
+        let subctx = AssemblyCtx::new(&mut self.globals, debug_info);
+        let subinst = Sub::assemble(args, subctx)?;
+        self.children_ids.push(subinst.id());
+        Ok(subinst)
     }
 }
 
