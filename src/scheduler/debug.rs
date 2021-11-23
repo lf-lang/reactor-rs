@@ -187,31 +187,32 @@ impl DebugInfoRegistry {
             .unwrap_or(TriggerId::FIRST_REGULAR)
     }
 
-    pub(super) fn record_trigger(&mut self, id: TriggerId, name: Cow<'static, str>) {
+    pub(crate) fn record_trigger(&mut self, id: TriggerId, name: Cow<'static, str>) {
         let ix = self.trigger_infos.push(name);
         debug_assert_eq!(ix, id);
     }
 
-    pub(super) fn record_reaction(&mut self, id: GlobalReactionId, name: Cow<'static, str>) {
+    pub(crate) fn record_reaction(&mut self, id: GlobalReactionId, name: Cow<'static, str>) {
         let existing = self.reaction_labels.insert(id, name);
         debug_assert!(existing.is_none())
     }
 
-    pub(super) fn record_reactor(&mut self, id: ReactorId, debug: ReactorDebugInfo) {
+    pub(crate) fn record_reactor(&mut self, id: ReactorId, debug: ReactorDebugInfo) {
         let ix = self.reactor_infos.push(debug);
         debug_assert_eq!(ix, id);
     }
 
-    pub(super) fn record_main_reactor(&mut self, id: ReactorId) {
-        self.main_reactor.replace(id).expect("should not call record_main twice");
+    pub(crate) fn record_main_reactor(&mut self, id: ReactorId) {
+        let prev = self.main_reactor.replace(id);
+        assert!(prev.is_none(), "cannot call record_main twice");
     }
 
-    pub(super) fn record_reactor_container(&mut self, parent: ReactorId, child: ReactorId) {
+    pub(crate) fn record_reactor_container(&mut self, parent: ReactorId, child: ReactorId) {
         let ix = self.reactor_container.push(parent);
         debug_assert_eq!(ix, child);
     }
 
-    pub(super) fn set_id_range(&mut self, id: ReactorId, range: Range<TriggerId>) {
+    pub(crate) fn set_id_range(&mut self, id: ReactorId, range: Range<TriggerId>) {
         assert!(range.start <= range.end, "Malformed range {:?}", range);
         assert!(range.start >= TriggerId::FIRST_REGULAR, "Trigger IDs 0-1 are reserved");
 

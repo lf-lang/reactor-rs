@@ -38,6 +38,7 @@ mod context;
 mod dependencies;
 mod events;
 mod scheduler_impl;
+pub(crate) mod debug;
 
 #[cfg(feature = "public-internals")]
 pub mod internals {
