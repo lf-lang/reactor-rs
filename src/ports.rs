@@ -36,7 +36,7 @@ use std::time::Instant;
 use atomic_refcell::AtomicRefCell;
 use AssemblyErrorImpl::{CannotBind, CyclicDependency};
 
-use crate::assembly::{AssemblyError, AssemblyErrorImpl, PortId, TriggerId, TriggerLike};
+use crate::assembly::{AssemblyError, AssemblyErrorImpl, PortId, PortKind, TriggerId, TriggerLike};
 use crate::{EventTag, ReactionTrigger};
 
 /// A read-only reference to a port.
@@ -85,8 +85,9 @@ impl<'a, T: Sync> WritablePort<'a, T> {
     pub(crate) fn get_id(&self) -> TriggerId {
         self.0.get_id()
     }
-    pub(crate) fn is_input(&self) -> bool {
-        self.0.is_input
+
+    pub(crate) fn kind(&self) -> PortKind {
+        self.0.kind
     }
 }
 
@@ -218,7 +219,7 @@ impl<'a, T: Sync> IntoIterator for WritablePortBank<'a, T> {
 ///
 pub struct Port<T: Sync> {
     id: TriggerId,
-    is_input: bool,
+    kind: PortKind,
     bind_status: BindStatus,
     #[cfg(feature = "no-unsafe")]
     upstream_binding: Rc<AtomicRefCell<Rc<PortCell<T>>>>,
@@ -248,20 +249,16 @@ unsafe impl<T: Sync> Send for Port<T> {}
 
 impl<T: Sync> Port<T> {
     /// Create a new port
-    pub(crate) fn new(id: TriggerId, is_input: bool) -> Self {
+    pub(crate) fn new(id: TriggerId, kind: PortKind) -> Self {
         Self {
             id,
-            is_input,
+            kind,
             bind_status: BindStatus::Free,
             #[cfg(feature = "no-unsafe")]
             upstream_binding: Rc::new(AtomicRefCell::new(Default::default())),
             #[cfg(not(feature = "no-unsafe"))]
             upstream_binding: Rc::new(UnsafeCell::new(Default::default())),
         }
-    }
-
-    pub fn is_input(&self) -> bool {
-        self.is_input
     }
 
     #[inline]

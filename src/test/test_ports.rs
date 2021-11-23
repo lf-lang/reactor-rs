@@ -24,7 +24,7 @@
 
 use std::borrow::Cow;
 
-use crate::assembly::TriggerId;
+use crate::assembly::{PortKind, TriggerId};
 use crate::*;
 
 struct TestAssembler {
@@ -47,7 +47,7 @@ impl TestAssembler {
     pub fn new_port<T: Sync>(&mut self, name: &'static str) -> Port<T> {
         let id = self.cur_id.get_and_incr().unwrap();
         self.debug.record_trigger(id, Cow::Borrowed(name));
-        Port::new(id, true)
+        Port::new(id, PortKind::Input)
     }
 
     fn ready(mut self) -> TestFixture {

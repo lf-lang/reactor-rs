@@ -71,3 +71,9 @@ impl AssemblyError {
         }
     }
 }
+
+/// Kind of a port.
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+pub enum PortKind {
+    Input, Output, ChildInputReference, ChildOutputReference
+}

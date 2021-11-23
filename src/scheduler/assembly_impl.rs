@@ -392,20 +392,20 @@ pub struct ComponentCreator<'a, 'x, S: ReactorInitializer> {
 }
 
 impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
-    pub fn new_port<T: Sync>(&mut self, lf_name: &'static str, is_input: bool) -> Port<T> {
-        self.new_port_impl(Cow::Borrowed(lf_name), is_input)
+    pub fn new_port<T: Sync>(&mut self, lf_name: &'static str, kind: PortKind) -> Port<T> {
+        self.new_port_impl(Cow::Borrowed(lf_name), kind)
     }
 
-    fn new_port_impl<T: Sync>(&mut self, lf_name: Cow<'static, str>, is_input: bool) -> Port<T> {
+    fn new_port_impl<T: Sync>(&mut self, lf_name: Cow<'static, str>, kind: PortKind) -> Port<T> {
         let id = self.next_comp_id(Some(lf_name));
         self.graph().record_port(id);
-        Port::new(id, is_input)
+        Port::new(id, kind)
     }
 
     pub fn new_port_bank<T: Sync>(
         &mut self,
         lf_name: &'static str,
-        is_input: bool,
+        kind: PortKind,
         len: usize,
     ) -> Result<PortBank<T>, AssemblyError> {
         let bank_id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
@@ -413,7 +413,7 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
         Ok(PortBank::new(
             (0..len)
                 .into_iter()
-                .map(|i| self.new_port_bank_component(lf_name, is_input, bank_id, i))
+                .map(|i| self.new_port_bank_component(lf_name, kind, bank_id, i))
                 .collect(),
             bank_id,
         ))
@@ -422,13 +422,13 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
     fn new_port_bank_component<T: Sync>(
         &mut self,
         lf_name: &'static str,
-        is_input: bool,
+        kind: PortKind,
         bank_id: TriggerId,
         index: usize,
     ) -> Port<T> {
         let channel_id = self.next_comp_id(Some(Cow::Owned(format!("{}[{}]", lf_name, index))));
         self.graph().record_port_bank_component(bank_id, channel_id);
-        Port::new(channel_id, is_input)
+        Port::new(channel_id, kind)
     }
 
     pub fn new_logical_action<T: Sync>(&mut self, lf_name: &'static str, min_delay: Option<Duration>) -> LogicalAction<T> {

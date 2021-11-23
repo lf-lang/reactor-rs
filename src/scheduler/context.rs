@@ -215,23 +215,29 @@ where
         let port_id = port.get_id();
         let port_container = self.debug_info.id_registry.get_trigger_container(port_id).unwrap();
         let reaction_container = self.current_reaction.unwrap().0.container();
-        if port.is_input() {
-            let port_grandpa = self.debug_info.id_registry.get_container(port_container);
-            assert_eq!(
-                Some(reaction_container),
-                port_grandpa,
-                "Input port {} can only be set by reactions of its grandparent, got reaction {}",
-                self.debug_info.id_registry.fmt_component(port_id),
-                self.debug_info.display_reaction(self.current_reaction.unwrap()),
-            );
-        } else {
-            assert_eq!(
-                reaction_container,
-                port_container,
-                "Input port {} can only be set by reactions of its parent, got reaction {}",
-                self.debug_info.id_registry.fmt_component(port_id),
-                self.debug_info.display_reaction(self.current_reaction.unwrap()),
-            );
+        match port.kind() {
+            PortKind::Input => {
+                let port_grandpa = self.debug_info.id_registry.get_container(port_container);
+                assert_eq!(
+                    Some(reaction_container),
+                    port_grandpa,
+                    "Input port {} can only be set by reactions of its grandparent, got reaction {}",
+                    self.debug_info.id_registry.fmt_component(port_id),
+                    self.debug_info.display_reaction(self.current_reaction.unwrap()),
+                );
+            }
+            PortKind::Output => {
+                assert_eq!(
+                    reaction_container,
+                    port_container,
+                    "Input port {} can only be set by reactions of its parent, got reaction {}",
+                    self.debug_info.id_registry.fmt_component(port_id),
+                    self.debug_info.display_reaction(self.current_reaction.unwrap()),
+                );
+            }
+            // todo
+            PortKind::ChildInputReference => {}
+            PortKind::ChildOutputReference => {}
         }
     }
 
