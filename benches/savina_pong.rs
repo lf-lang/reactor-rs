@@ -245,6 +245,7 @@ mod reactors {
         #![allow(unused)]
 
         use ::reactor_rt::prelude::*;
+        use reactor_rt::assembly::BuiltReactor;
 
         /// Generated from /home/clem/Documents/LF/reactor-rust/benches/SavinaPong.lf:5
         ///
@@ -342,31 +343,31 @@ mod reactors {
                 use ::reactor_rt::assembly::TriggerLike;
 
                 let PingParams { __phantom, count } = __params;
-                let (_, __self) = __ctx.do_assembly(
-                    |cc, id| Self::user_assemble(cc, id, PingParams { __phantom, count }),
-                    // number of non-synthetic reactions
-                    2,
-                    // reaction debug labels
-                    [None, None],
-                    // dependency declarations
-                    |__assembler, __self, [react_0, react_1]| {
-                        #[allow(unused)]
-                        use reactor_rt::unsafe_iter_bank;
-                        // --- reaction(startup, serve) -> send {= ... =}
-                        __assembler.declare_triggers(__self.__serve.get_id(), react_0)?;
-                        __assembler.declare_triggers(::reactor_rt::assembly::TriggerId::STARTUP, react_0)?;
-                        __assembler.effects_port(react_0, &__self.__send)?;
-                        // --- reaction (receive) -> serve {= ... =}
-                        __assembler.declare_triggers(__self.__receive.get_id(), react_1)?;
-                        // Declare connections
+                __ctx.assemble(|__ctx|
+                    __ctx.assemble_self(
+                        |cc, id| Self::user_assemble(cc, id, PingParams { __phantom, count }),
+                        // number of non-synthetic reactions
+                        2,
+                        // reaction debug labels
+                        [None, None],
+                        // dependency declarations
+                        |__assembler, __self, [react_0, react_1]| {
+                            #[allow(unused)]
+                            use reactor_rt::unsafe_iter_bank;
+                            // --- reaction(startup, serve) -> send {= ... =}
+                            __assembler.declare_triggers(__self.__serve.get_id(), react_0)?;
+                            __assembler.declare_triggers(::reactor_rt::assembly::TriggerId::STARTUP, react_0)?;
+                            __assembler.effects_port(react_0, &__self.__send)?;
+                            // --- reaction (receive) -> serve {= ... =}
+                            __assembler.declare_triggers(__self.__receive.get_id(), react_1)?;
+                            // Declare connections
 
-                        // Declare port references
+                            // Declare port references
 
-                        Ok(())
-                    },
-                )?;
-
-                Ok(__self)
+                            Ok(())
+                        },
+                    )
+                )
             }
         }
 

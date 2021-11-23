@@ -78,6 +78,7 @@ impl RootAssembler {
         root.register_reactor(main_reactor);
 
         let RootAssembler { graph, reactors, debug_info: id_registry, .. } = root;
+
         let reactors = reactors.into_iter().map(|r| r.expect("Uninitialized reactor!")).collect();
         (reactors, graph, id_registry)
     }
@@ -110,6 +111,13 @@ pub struct AssemblyCtx<'x, S: ReactorInitializer> {
     _phantom: PhantomData<S>,
 }
 
+/// Intermediary result. Forces [ReactorInitializer::assemble]
+/// to be written a certain way.
+pub struct BuiltReactor<'x, S: ReactorInitializer>(
+    AssemblyCtx<'x, S>,
+    S,
+);
+
 impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
     fn new(globals: &'x mut RootAssembler, debug: ReactorDebugInfo) -> Self {
         Self {
@@ -121,25 +129,36 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         }
     }
 
-    /// Note: this needs to be called after all children reactors
-    /// have been built, as they're pushed into the global reactor
-    /// vec before their parent. So the ID of the parent needs to
-    /// be fixed only after all descendants have been built.
-    pub fn do_assembly<const N: usize>(
+    /// top level function
+    pub fn assemble(mut self, build_reactor_tree: impl FnOnce(Self) -> AssemblyResult<BuiltReactor<'x, S>>) -> AssemblyResult<S> {
+        let BuiltReactor(ich, reactor) = build_reactor_tree(self)?;
+        Ok(reactor)
+    }
+
+    /// Innermost function.
+    pub fn assemble_self<const N: usize>(
         mut self,
         create_self: impl FnOnce(&mut ComponentCreator<S>, ReactorId) -> Result<S, AssemblyError>,
         num_non_synthetic_reactions: usize,
         reaction_names: [Option<&'static str>; N],
         declare_dependencies: impl FnOnce(&mut DependencyDeclarator<S>, &mut S, [GlobalReactionId; N]) -> AssemblyResult<()>,
-    ) -> Result<(Self, S), AssemblyError> {
+    ) -> AssemblyResult<BuiltReactor<'x, S>> {
         // todo when feature(generic_const_exprs) is stabilized,
         //  replace const parameter N with S::MAX_REACTION_ID.index().
         debug_assert_eq!(N, S::MAX_REACTION_ID.index(), "Should initialize all reactions");
 
+        // note: the ID is not known until all descendants
+        // have been built.
+        // This is because the ID is the index in the different
+        // IndexVec we use around within the scheduler
+        // (in SyncScheduler and also in DebugInfoRegistry),
+        // and descendants need to be pushed before Self.
+        // Effectively, IDs are assigned depth first. This
+        // makes this whole debug info recording very complicated.
         let id = self.globals.reactor_id.get_and_incr();
         self.globals
             .debug_info
-            .record_reactor(id, self.debug.take().expect("Can only call assemble_self once"));
+            .record_reactor(id, self.debug.take().expect("unreachable - can only call assemble_self once"));
 
         let first_trigger_id = self.globals.cur_trigger;
 
@@ -153,7 +172,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         // declare dependencies
         let reactions = self.new_reactions(id, num_non_synthetic_reactions, reaction_names);
         declare_dependencies(&mut DependencyDeclarator { assembler: &mut self }, &mut ich, reactions)?;
-        Ok((self, ich))
+        Ok(BuiltReactor(self, ich))
     }
 
     /// Create N reactions. The first `num_non_synthetic` get
@@ -199,17 +218,18 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         inst_name: &'static str,
         args: Sub::Params,
         action: F,
-    ) -> Result<(Self, S), AssemblyError>
-    // we can't use impl FnOnce(...) because we want to specify explicit type parameters in the calle
-    where
-        F: FnOnce(Self, &mut Sub) -> Result<(Self, S), AssemblyError>,
+    ) -> AssemblyResult<BuiltReactor<'x, S>>
+    // we can't use impl FnOnce(...) because we want to specify explicit type parameters in the caller
+        where
+            F: FnOnce(Self, &mut Sub) -> AssemblyResult<BuiltReactor<'x, S>>,
     {
-        info!("Assembling {}", inst_name);
+        trace!("Assembling {}", inst_name);
         let mut sub = self.assemble_sub(inst_name, None, args)?;
-        let (ich, r) = action(self, &mut sub)?;
-        info!("Registering {}", inst_name);
+        let BuiltReactor(ich, s) = action(self, &mut sub)?;
+        trace!("Registering {}", inst_name);
+        // ich.globals.debug_info.record_reactor_container(sub.id(), s.id());
         ich.globals.register_reactor(sub);
-        Ok((ich, r))
+        Ok(BuiltReactor(ich, s))
     }
 
     /// Assembles a bank of children reactor and makes it
@@ -221,12 +241,12 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         bank_width: usize,
         arg_maker: A,
         action: F,
-    ) -> Result<(Self, S), AssemblyError>
-    where
-        Sub: ReactorInitializer + 'static + Send,
+    ) -> AssemblyResult<BuiltReactor<'x, S>>
+        where
+            Sub: ReactorInitializer + 'static + Send,
         // we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
-        F: FnOnce(Self, &mut Vec<Sub>) -> Result<(Self, S), AssemblyError>,
-        A: Fn(/*bank_index:*/ usize) -> Sub::Params,
+            F: FnOnce(Self, &mut Vec<Sub>) -> AssemblyResult<BuiltReactor<'x, S>>,
+            A: Fn(/*bank_index:*/ usize) -> Sub::Params,
     {
         info!("Assembling {}", inst_name);
 
@@ -235,11 +255,11 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
             .map(|i| self.assemble_sub(inst_name, Some(i), arg_maker(i)))
             .collect::<Result<Vec<Sub>, _>>()?;
 
-        let (ich, r) = action(self, &mut sub)?;
+        let BuiltReactor(ich, r) = action(self, &mut sub)?;
 
         info!("Registering {}", inst_name);
         ich.globals.register_bank(sub);
-        Ok((ich, r))
+        Ok(BuiltReactor(ich, r))
     }
 
     /// Assemble a child reactor. The child needs to be registered
@@ -250,7 +270,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         inst_name: &'static str,
         bank_idx: Option<usize>,
         args: Sub::Params,
-    ) -> Result<Sub, AssemblyError> {
+    ) -> AssemblyResult<Sub> {
         let my_debug = self.debug.as_ref().expect("should assemble sub-reactors before self");
 
         let debug_info = match bank_idx {

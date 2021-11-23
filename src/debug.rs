@@ -47,7 +47,11 @@ pub(crate) struct DebugInfoRegistry {
     /// is registered here.
     trigger_infos: IndexVec<TriggerId, Cow<'static, str>>,
 
-    // todo better data structures
+    /// Maps each reactor id to the id of its container.
+    /// The main reactor is mapped to itself.
+    reactor_container: IndexVec<ReactorId, ReactorId>,
+
+    // todo better data structure, eg IndexVec<ReactorId, IndexVec<LocalReactionId, _>>
     /// Labels of each reaction, only reactions that have one are in here.
     reaction_labels: HashMap<GlobalReactionId, Cow<'static, str>>,
 }
@@ -65,6 +69,7 @@ impl DebugInfoRegistry {
             reactor_bound: Default::default(),
             trigger_infos: Default::default(),
             reaction_labels: Default::default(),
+            reactor_container: Default::default(),
         };
 
         assert_eq!(ich.trigger_infos.push(Cow::Borrowed("startup")), TriggerId::STARTUP);
@@ -173,6 +178,11 @@ impl DebugInfoRegistry {
     pub(super) fn record_reactor(&mut self, id: ReactorId, debug: ReactorDebugInfo) {
         let ix = self.reactor_infos.push(debug);
         debug_assert_eq!(ix, id);
+    }
+
+    pub(super) fn record_reactor_container(&mut self, parent: ReactorId, child: ReactorId) {
+        let ix = self.reactor_container.push(parent);
+        debug_assert_eq!(ix, child);
     }
 
     pub(super) fn set_id_range(&mut self, id: ReactorId, range: Range<TriggerId>) {
