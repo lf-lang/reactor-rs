@@ -72,7 +72,7 @@ impl DebugInfoRegistry {
             trigger_infos: Default::default(),
             reaction_labels: Default::default(),
             reactor_container: Default::default(),
-            main_reactor: None
+            main_reactor: None,
         };
 
         assert_eq!(ich.trigger_infos.push(Cow::Borrowed("startup")), TriggerId::STARTUP);
@@ -138,6 +138,13 @@ impl DebugInfoRegistry {
         let container = self.reactor_container.get(id);
         debug_assert!(container.is_some() || self.is_main(id));
         container.cloned()
+    }
+    #[inline]
+    pub fn get_trigger_container(&self, id: TriggerId) -> Option<ReactorId> {
+        match id {
+            TriggerId::SHUTDOWN | TriggerId::STARTUP => None,
+            _ => Some(self.raw_id_of_trigger(id).0),
+        }
     }
 
     #[inline]

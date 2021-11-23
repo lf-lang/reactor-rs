@@ -428,15 +428,7 @@ where
             return;
         }
 
-        let mut ctx = self.new_reaction_ctx(
-            tag,
-            None,
-            &self.rx,
-            debug_info!(self),
-            &self.was_terminated,
-            is_shutdown
-        );
-        let debug = debug_info!(self);
+        let mut ctx = self.new_reaction_ctx(tag, None, &self.rx, debug_info!(self), &self.was_terminated, is_shutdown);
 
         while let Some((level_no, batch)) = next_level {
             let level_no = level_no.cloned();
@@ -445,17 +437,12 @@ where
 
             if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
                 #[cfg(feature = "parallel-runtime")]
-                {
-                    parallel_rt_impl::process_batch(&mut ctx, &debug, &mut self.reactors, batch);
-                }
+                parallel_rt_impl::process_batch(&mut ctx, &mut self.reactors, batch);
             } else {
                 // the impl for non-parallel runtime
                 for reaction_id in batch {
-                    trace!("  - Executing {} (level {})", debug.display_reaction(*reaction_id), level_no);
-                    let container_id = reaction_id.0.container();
-                    let reactor = &mut self.reactors[container_id];
-                    debug_assert_eq!(reactor.id(), container_id, "Wrong reactor");
-                    reactor.react(&mut ctx, reaction_id.0.local());
+                    let reactor = &mut self.reactors[reaction_id.0.container()];
+                    ctx.execute(reactor, *reaction_id);
                 }
             }
 
@@ -487,7 +474,6 @@ mod parallel_rt_impl {
 
     pub(super) fn process_batch(
         ctx: &mut ReactionCtx<'_, '_, '_>,
-        debug: &DebugInfoProvider<'_>,
         reactors: &mut ReactorVec<'_>,
         batch: &HashSet<GlobalReactionId>,
     ) {
@@ -497,7 +483,6 @@ mod parallel_rt_impl {
             .iter()
             .par_bridge()
             .fold_with(CloneableCtx(ctx.fork()), |CloneableCtx(mut ctx), reaction_id| {
-                trace!("  - Executing {}", debug.display_reaction(*reaction_id));
                 let reactor = unsafe {
                     // safety:
                     // - no two reactions in the batch refer belong to the same reactor
@@ -505,9 +490,7 @@ mod parallel_rt_impl {
                     &mut *reactors_mut.0.add(reaction_id.0.container().index())
                 };
 
-                // this may append new elements into the queue,
-                // which is why we can't use an iterator
-                reactor.react(&mut ctx, reaction_id.0.local());
+                ctx.execute(reactor, *reaction_id);
 
                 CloneableCtx(ctx)
             })

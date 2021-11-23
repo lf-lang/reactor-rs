@@ -85,6 +85,9 @@ impl<'a, T: Sync> WritablePort<'a, T> {
     pub(crate) fn get_id(&self) -> TriggerId {
         self.0.get_id()
     }
+    pub(crate) fn is_input(&self) -> bool {
+        self.0.is_input
+    }
 }
 
 /// Internal type, not communicated to reactions.

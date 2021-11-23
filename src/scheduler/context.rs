@@ -33,6 +33,9 @@ where
     /// Level of the reaction being executed.
     pub(super) cur_level: LevelIx,
 
+    /// ID of the reaction being executed.
+    current_reaction: Option<GlobalReactionId>,
+
     /// Sender to schedule events that should be executed later than this wave.
     rx: &'a Receiver<Event<'x>>,
 
@@ -200,6 +203,28 @@ where
         W: BorrowMut<WritablePort<'b, T>>,
     {
         let port = port.borrow_mut();
+
+        if cfg!(debug_assertions) {
+            let port_id = port.get_id();
+            let port_container = self.debug_info.id_registry.get_trigger_container(port_id).unwrap();
+            let reaction_container = self.current_reaction.unwrap().0.container();
+            if port.is_input() {
+                let port_grandpa = self.debug_info.id_registry.get_container(port_container);
+                assert_eq!(
+                    Some(reaction_container),
+                    port_grandpa,
+                    "Input port {} can only be set by a reactions of its grandparent ",
+                    self.debug_info.id_registry.fmt_component(port_id)
+                );
+            } else {
+                assert_eq!(
+                    reaction_container,
+                    port_container,
+                    "Input port {} can only be set by a reactions of its parent ",
+                    self.debug_info.id_registry.fmt_component(port_id)
+                );
+            }
+        }
         port.set_impl(value);
         self.enqueue_now(Cow::Borrowed(self.reactions_triggered_by(port.get_id())));
     }
@@ -215,8 +240,8 @@ where
     /// ```no_run
     /// # use reactor_rt::{ReactionCtx, ReadablePort, WritablePort};
     /// # let ctx: &mut ReactionCtx = unimplemented!();
-    /// # let source: &ReadablePort<String> = unimplemented!();
-    /// # let sink: &mut WritablePort<String> = unimplemented!();
+    /// # let source: &ReadablePort<u32> = unimplemented!();
+    /// # let sink: &mut WritablePort<u32> = unimplemented!();
     ///
     /// ctx.set_opt(sink, ctx.get(source));
     /// // equivalent to
@@ -429,6 +454,20 @@ where
         }
     }
 
+    /// Execute the given reaction with the given reactor.
+    #[inline]
+    pub(super) fn execute(&mut self, reactor: &mut ReactorBox, reaction_id: GlobalReactionId) {
+        trace!(
+            "  - Executing {} (level {})",
+            self.debug_info.display_reaction(reaction_id),
+            self.cur_level
+        );
+        debug_assert_eq!(reactor.id(), reaction_id.0.container(), "Wrong reactor");
+        self.current_reaction.replace(reaction_id);
+        reactor.react(self, reaction_id.0.local());
+        self.current_reaction.take();
+    }
+
     pub(super) fn new(
         rx: &'a Receiver<Event<'x>>,
         tag: EventTag,
@@ -444,6 +483,8 @@ where
             insides: RContextForwardableStuff { todo_now: todo, future_events: Default::default() },
             cur_level: Default::default(),
             tag,
+            #[cfg(debug_assertions)]
+            current_reaction: None,
             rx,
             initial_time,
             dataflow,
@@ -470,7 +511,9 @@ where
             dataflow: self.dataflow,
             was_terminated: self.was_terminated,
             was_terminated_atomic: self.was_terminated_atomic,
-            debug_info: self.debug_info,
+            debug_info: self.debug_info.clone(),
+            #[cfg(debug_assertions)]
+            current_reaction: self.current_reaction,
         }
     }
 }

@@ -116,10 +116,7 @@ pub struct AssemblyCtx<'x, S: ReactorInitializer> {
 
 /// Intermediary result. Forces [ReactorInitializer::assemble]
 /// to be written a certain way.
-pub struct BuiltReactor<'x, S: ReactorInitializer>(
-    AssemblyCtx<'x, S>,
-    S,
-);
+pub struct BuiltReactor<'x, S: ReactorInitializer>(AssemblyCtx<'x, S>, S);
 
 impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
     fn new(globals: &'x mut RootAssembler, debug: ReactorDebugInfo) -> Self {
@@ -227,8 +224,8 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         action: F,
     ) -> AssemblyResult<BuiltReactor<'x, S>>
     // we can't use impl FnOnce(...) because we want to specify explicit type parameters in the caller
-        where
-            F: FnOnce(Self, &mut Sub) -> AssemblyResult<BuiltReactor<'x, S>>,
+    where
+        F: FnOnce(Self, &mut Sub) -> AssemblyResult<BuiltReactor<'x, S>>,
     {
         trace!("Assembling {}", inst_name);
         let mut sub = self.assemble_sub(inst_name, None, args)?;
@@ -249,11 +246,11 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         arg_maker: A,
         action: F,
     ) -> AssemblyResult<BuiltReactor<'x, S>>
-        where
-            Sub: ReactorInitializer + 'static + Send,
+    where
+        Sub: ReactorInitializer + 'static + Send,
         // we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
-            F: FnOnce(Self, &mut Vec<Sub>) -> AssemblyResult<BuiltReactor<'x, S>>,
-            A: Fn(/*bank_index:*/ usize) -> Sub::Params,
+        F: FnOnce(Self, &mut Vec<Sub>) -> AssemblyResult<BuiltReactor<'x, S>>,
+        A: Fn(/*bank_index:*/ usize) -> Sub::Params,
     {
         info!("Assembling {}", inst_name);
 

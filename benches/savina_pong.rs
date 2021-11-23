@@ -343,7 +343,7 @@ mod reactors {
                 use ::reactor_rt::assembly::TriggerLike;
 
                 let PingParams { __phantom, count } = __params;
-                __ctx.assemble(|__ctx|
+                __ctx.assemble(|__ctx| {
                     __ctx.assemble_self(
                         |cc, id| Self::user_assemble(cc, id, PingParams { __phantom, count }),
                         // number of non-synthetic reactions
@@ -367,7 +367,7 @@ mod reactors {
                             Ok(())
                         },
                     )
-                )
+                })
             }
         }
 
