@@ -65,14 +65,15 @@ impl RootAssembler {
         }
     }
 
-    pub(crate) fn assemble_tree<R: ReactorInitializer + 'static + Send>(
+    /// Top level fun that assembles the main reactor
+    pub fn assemble_tree<R: ReactorInitializer + 'static + Send>(
         main_args: R::Params,
     ) -> (ReactorVec<'static>, DepGraph, DebugInfoRegistry) {
         let mut root = RootAssembler::default();
         let assembler = AssemblyCtx::new(&mut root, ReactorDebugInfo::root::<R::Wrapped>());
 
         let main_reactor = match R::assemble(main_args, assembler) {
-            Ok(main) => main,
+            Ok(main) => main.finish(),
             Err(e) => std::panic::panic_any(e.lift(&root.debug_info)),
         };
         root.debug_info.record_main_reactor(main_reactor.id());
@@ -99,7 +100,7 @@ impl Default for RootAssembler {
 
 /// Helper struct to assemble reactors during initialization.
 /// One assembly context is used per reactor, they can't be shared.
-pub struct AssemblyCtx<'x, S: ReactorInitializer> {
+pub struct AssemblyCtx<'x, S> where S: ReactorInitializer {
     globals: &'x mut RootAssembler,
     /// Next local ID for components != reactions
     cur_local: LocalReactionId,
@@ -114,11 +115,13 @@ pub struct AssemblyCtx<'x, S: ReactorInitializer> {
     _phantom: PhantomData<S>,
 }
 
-/// Intermediary result. Forces [ReactorInitializer::assemble]
-/// to be written a certain way.
-pub struct BuiltReactor<'x, S: ReactorInitializer>(AssemblyCtx<'x, S>, S);
+/// Final result of the assembly of a reactor.
+pub struct FinishedReactor<'x, S>(AssemblyCtx<'x, S>, S) where S: ReactorInitializer;
 
-impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
+/// Intermediate result of assembly.
+pub struct AssemblyIntermediate<'x, S>(AssemblyCtx<'x, S>, S) where S: ReactorInitializer;
+
+impl<'x, S> AssemblyCtx<'x, S> where S: ReactorInitializer {
     fn new(globals: &'x mut RootAssembler, debug: ReactorDebugInfo) -> Self {
         Self {
             globals,
@@ -131,12 +134,10 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
     }
 
     /// top level function
-    pub fn assemble(self, build_reactor_tree: impl FnOnce(Self) -> AssemblyResult<BuiltReactor<'x, S>>) -> AssemblyResult<S> {
-        let BuiltReactor(mut ich, reactor) = build_reactor_tree(self)?;
-        for child_id in ich.children_ids.drain(..) {
-            ich.globals.debug_info.record_reactor_container(reactor.id(), child_id);
-        }
-        Ok(reactor)
+    pub fn assemble(self, build_reactor_tree: impl FnOnce(Self) -> AssemblyResult<AssemblyIntermediate<'x, S>>)
+                    -> AssemblyResult<FinishedReactor<'x, S>> {
+        let AssemblyIntermediate(ich, reactor) = build_reactor_tree(self)?;
+        Ok(FinishedReactor(ich, reactor))
     }
 
     /// Innermost function.
@@ -146,7 +147,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         num_non_synthetic_reactions: usize,
         reaction_names: [Option<&'static str>; N],
         declare_dependencies: impl FnOnce(&mut DependencyDeclarator<S>, &mut S, [GlobalReactionId; N]) -> AssemblyResult<()>,
-    ) -> AssemblyResult<BuiltReactor<'x, S>> {
+    ) -> AssemblyResult<AssemblyIntermediate<'x, S>> {
         // todo when feature(generic_const_exprs) is stabilized,
         //  replace const parameter N with S::MAX_REACTION_ID.index().
         debug_assert_eq!(N, S::MAX_REACTION_ID.index(), "Should initialize all reactions");
@@ -176,7 +177,7 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         // declare dependencies
         let reactions = self.new_reactions(id, num_non_synthetic_reactions, reaction_names);
         declare_dependencies(&mut DependencyDeclarator { assembler: &mut self }, &mut ich, reactions)?;
-        Ok(BuiltReactor(self, ich))
+        Ok(AssemblyIntermediate(self, ich))
     }
 
     /// Create N reactions. The first `num_non_synthetic` get
@@ -222,18 +223,17 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         inst_name: &'static str,
         args: Sub::Params,
         action: F,
-    ) -> AssemblyResult<BuiltReactor<'x, S>>
+    ) -> AssemblyResult<AssemblyIntermediate<'x, S>>
     // we can't use impl FnOnce(...) because we want to specify explicit type parameters in the caller
-    where
-        F: FnOnce(Self, &mut Sub) -> AssemblyResult<BuiltReactor<'x, S>>,
+        where
+            F: FnOnce(Self, &mut Sub) -> AssemblyResult<AssemblyIntermediate<'x, S>>,
     {
         trace!("Assembling {}", inst_name);
         let mut sub = self.assemble_sub(inst_name, None, args)?;
-        let BuiltReactor(ich, s) = action(self, &mut sub)?;
+        let AssemblyIntermediate(ich, s) = action(self, &mut sub)?;
         trace!("Registering {}", inst_name);
-        // ich.globals.debug_info.record_reactor_container(sub.id(), s.id());
         ich.globals.register_reactor(sub);
-        Ok(BuiltReactor(ich, s))
+        Ok(AssemblyIntermediate(ich, s))
     }
 
     /// Assembles a bank of children reactor and makes it
@@ -245,25 +245,25 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         bank_width: usize,
         arg_maker: A,
         action: F,
-    ) -> AssemblyResult<BuiltReactor<'x, S>>
-    where
-        Sub: ReactorInitializer + 'static + Send,
+    ) -> AssemblyResult<AssemblyIntermediate<'x, S>>
+        where
+            Sub: ReactorInitializer + 'static + Send,
         // we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
-        F: FnOnce(Self, &mut Vec<Sub>) -> AssemblyResult<BuiltReactor<'x, S>>,
-        A: Fn(/*bank_index:*/ usize) -> Sub::Params,
+            F: FnOnce(Self, &mut Vec<Sub>) -> AssemblyResult<AssemblyIntermediate<'x, S>>,
+            A: Fn(/*bank_index:*/ usize) -> Sub::Params,
     {
-        info!("Assembling {}", inst_name);
+        trace!("Assembling bank {}", inst_name);
 
         let mut sub = (0..bank_width)
             .into_iter()
             .map(|i| self.assemble_sub(inst_name, Some(i), arg_maker(i)))
             .collect::<Result<Vec<Sub>, _>>()?;
 
-        let BuiltReactor(ich, r) = action(self, &mut sub)?;
+        let AssemblyIntermediate(ich, r) = action(self, &mut sub)?;
 
-        info!("Registering {}", inst_name);
+        trace!("Registering bank {}", inst_name);
         ich.globals.register_bank(sub);
-        Ok(BuiltReactor(ich, r))
+        Ok(AssemblyIntermediate(ich, r))
     }
 
     /// Assemble a child reactor. The child needs to be registered
@@ -283,9 +283,20 @@ impl<'x, S: ReactorInitializer> AssemblyCtx<'x, S> {
         };
 
         let subctx = AssemblyCtx::new(&mut self.globals, debug_info);
-        let subinst = Sub::assemble(args, subctx)?;
+        let subinst = Sub::assemble(args, subctx)?.finish();
         self.children_ids.push(subinst.id());
         Ok(subinst)
+    }
+}
+
+impl<S> FinishedReactor<'_, S> where S: ReactorInitializer {
+    fn finish(self) -> S {
+        let FinishedReactor(assembler, reactor) = self;
+        let id = reactor.id();
+        for child in assembler.children_ids {
+            assembler.globals.debug_info.record_reactor_container(id, child);
+        }
+        reactor
     }
 }
 

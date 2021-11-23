@@ -205,28 +205,34 @@ where
         let port = port.borrow_mut();
 
         if cfg!(debug_assertions) {
-            let port_id = port.get_id();
-            let port_container = self.debug_info.id_registry.get_trigger_container(port_id).unwrap();
-            let reaction_container = self.current_reaction.unwrap().0.container();
-            if port.is_input() {
-                let port_grandpa = self.debug_info.id_registry.get_container(port_container);
-                assert_eq!(
-                    Some(reaction_container),
-                    port_grandpa,
-                    "Input port {} can only be set by a reactions of its grandparent ",
-                    self.debug_info.id_registry.fmt_component(port_id)
-                );
-            } else {
-                assert_eq!(
-                    reaction_container,
-                    port_container,
-                    "Input port {} can only be set by a reactions of its parent ",
-                    self.debug_info.id_registry.fmt_component(port_id)
-                );
-            }
+            self.check_set_port_is_legal(port)
         }
         port.set_impl(value);
         self.enqueue_now(Cow::Borrowed(self.reactions_triggered_by(port.get_id())));
+    }
+
+    fn check_set_port_is_legal<T: Sync>(&self, port: &mut WritablePort<T>) {
+        let port_id = port.get_id();
+        let port_container = self.debug_info.id_registry.get_trigger_container(port_id).unwrap();
+        let reaction_container = self.current_reaction.unwrap().0.container();
+        if port.is_input() {
+            let port_grandpa = self.debug_info.id_registry.get_container(port_container);
+            assert_eq!(
+                Some(reaction_container),
+                port_grandpa,
+                "Input port {} can only be set by reactions of its grandparent, got reaction {}",
+                self.debug_info.id_registry.fmt_component(port_id),
+                self.debug_info.display_reaction(self.current_reaction.unwrap()),
+            );
+        } else {
+            assert_eq!(
+                reaction_container,
+                port_container,
+                "Input port {} can only be set by reactions of its parent, got reaction {}",
+                self.debug_info.id_registry.fmt_component(port_id),
+                self.debug_info.display_reaction(self.current_reaction.unwrap()),
+            );
+        }
     }
 
     /// Sets the value of the given port, if the given value is `Some`.
@@ -483,7 +489,6 @@ where
             insides: RContextForwardableStuff { todo_now: todo, future_events: Default::default() },
             cur_level: Default::default(),
             tag,
-            #[cfg(debug_assertions)]
             current_reaction: None,
             rx,
             initial_time,

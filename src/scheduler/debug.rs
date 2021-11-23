@@ -34,7 +34,10 @@ use crate::assembly::{ReactorInitializer, TriggerId};
 use crate::{GlobalReactionId, ReactorId};
 
 /// Maps IDs to debug information, stores all the debug info.
-/// This is built during asembly.
+/// This is built during assembly.
+/// At runtime, this is only used to format debug messages and
+/// perform debug assertions, so compactness is more important
+/// than speed of the methods.
 pub(crate) struct DebugInfoRegistry {
     /// Maps reactor ids to their debug info.
     reactor_infos: IndexVec<ReactorId, ReactorDebugInfo>,

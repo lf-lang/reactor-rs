@@ -245,7 +245,7 @@ mod reactors {
         #![allow(unused)]
 
         use ::reactor_rt::prelude::*;
-        use reactor_rt::assembly::BuiltReactor;
+        use reactor_rt::assembly::AssemblyIntermediate;
 
         /// Generated from /home/clem/Documents/LF/reactor-rust/benches/SavinaPong.lf:5
         ///

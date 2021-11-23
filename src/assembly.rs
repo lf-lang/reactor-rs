@@ -27,9 +27,10 @@ pub trait ReactorInitializer: ReactorBehavior {
     /// Assemble this reactor. This initializes state variables,
     /// produces internal components, assembles children reactor
     /// instances, and declares dependencies between them.
-    fn assemble(args: Self::Params, assembler: AssemblyCtx<Self>) -> AssemblyResult<Self>
-    where
-        Self: Sized;
+    fn assemble(args: Self::Params, assembler: AssemblyCtx<Self>)
+                -> AssemblyResult<FinishedReactor<Self>>
+        where
+            Self: Sized;
 }
 
 pub type AssemblyResult<T = ()> = Result<T, AssemblyError>;
