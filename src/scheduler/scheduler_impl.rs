@@ -391,6 +391,7 @@ where
         tag: EventTag,
         todo: ReactionPlan<'x>,
         rx: &'a Receiver<Event<'x>>,
+        debug_info: DebugInfoProvider<'a>,
         was_terminated_atomic: &'a Arc<AtomicBool>,
         was_terminated: bool,
     ) -> ReactionCtx<'a, 'x, 't> {
@@ -401,6 +402,7 @@ where
             todo,
             self.dataflow,
             self.thread_spawner,
+            debug_info,
             was_terminated_atomic,
             was_terminated,
         )
@@ -426,7 +428,14 @@ where
             return;
         }
 
-        let mut ctx = self.new_reaction_ctx(tag, None, &self.rx, &self.was_terminated, is_shutdown);
+        let mut ctx = self.new_reaction_ctx(
+            tag,
+            None,
+            &self.rx,
+            debug_info!(self),
+            &self.was_terminated,
+            is_shutdown
+        );
         let debug = debug_info!(self);
 
         while let Some((level_no, batch)) = next_level {

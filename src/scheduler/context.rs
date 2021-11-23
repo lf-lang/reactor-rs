@@ -41,6 +41,7 @@ where
 
     // globals, also they might be copied and passed to PhysicalSchedulerLink
     dataflow: &'x DataflowInfo,
+    debug_info: DebugInfoProvider<'a>,
     thread_spawner: &'a Scope<'t>,
     /// Whether the scheduler has been shut down.
     was_terminated_atomic: &'a Arc<AtomicBool>,
@@ -435,6 +436,7 @@ where
         todo: ReactionPlan<'x>,
         dataflow: &'x DataflowInfo,
         thread_spawner: &'a Scope<'t>,
+        debug_info: DebugInfoProvider<'a>,
         was_terminated_atomic: &'a Arc<AtomicBool>,
         was_terminated: bool,
     ) -> Self {
@@ -447,6 +449,7 @@ where
             dataflow,
             thread_spawner,
             was_terminated_atomic,
+            debug_info,
             was_terminated,
         }
     }
@@ -467,6 +470,7 @@ where
             dataflow: self.dataflow,
             was_terminated: self.was_terminated,
             was_terminated_atomic: self.was_terminated_atomic,
+            debug_info: self.debug_info,
         }
     }
 }
