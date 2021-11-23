@@ -99,6 +99,12 @@ pub mod prelude {
         after, assert_tag_is, delay, tag, Duration, EventTag, Instant, LogicalAction, PhysicalActionRef, ReactionCtx,
         ReadablePort, Timer, WritablePort, ReadablePortBank, WritablePortBank, PhysicalSchedulerLink
     };
+
+    /// Alias for the unit type, so that it can be written without quotes in LF.
+    /// Otherwise it needs to be written `{= () =}`.
+    /// It is not camel-case as it is actually a primitive type.
+    #[allow(non_camel_case_types)]
+    pub type unit = ();
 }
 
 /// The trait used by the framework to interact with the reactor
