@@ -26,6 +26,21 @@
 #[macro_use]
 extern crate reactor_rt;
 
+//! Compares using a HashMap vs ExecutableReactions to iterate over levels.
+//! It's kicking down in a way, since for sparse levels, the HashMap impl
+//! is disadvantaged as it queries the map for each level.
+//! For test cases that aren't sparse, the comparison is fairer, and shows
+//! that the constant factor in VecMap is much lower than that of HashMap,
+//! for our use case.
+//! Also note that the loop for ExecutableReactions is in theory
+//! more efficient than the actual loop of process_tag, since
+//! in process_tag, we might swap the ExecutableReactions instance,
+//! and invalidate the KeyRef, which makes accessing the next
+//! level linear. This happens often in actual reactor programs,
+//! but I don't think it happens often that the new ExecutableReactions
+//! instance has a lot of levels before the actual level we fetch,
+//! so the linear constant factor should realistically be very very low.
+
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 
@@ -101,8 +116,6 @@ fn bench_gid(c: &mut Criterion) {
     for test in test_cases() {
         let executable = test.get_exec();
         let hashmap = &test.1;
-        // let level_fun: ReactionLevelInfo = todo!();
-        // let set: HashSet<GlobalReactionId> = todo!();
         group.bench_with_input(BenchmarkId::new("iter/HashMap", test.0), hashmap, |b, i| {
             b.iter(|| iter_batches_hashmap(i))
         });
