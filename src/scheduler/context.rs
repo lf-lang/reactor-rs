@@ -523,7 +523,6 @@ where
             was_terminated: self.was_terminated,
             was_terminated_atomic: self.was_terminated_atomic,
             debug_info: self.debug_info.clone(),
-            #[cfg(debug_assertions)]
             current_reaction: self.current_reaction,
         }
     }
