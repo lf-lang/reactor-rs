@@ -100,7 +100,10 @@ impl Default for RootAssembler {
 
 /// Helper struct to assemble reactors during initialization.
 /// One assembly context is used per reactor, they can't be shared.
-pub struct AssemblyCtx<'x, S> where S: ReactorInitializer {
+pub struct AssemblyCtx<'x, S>
+where
+    S: ReactorInitializer,
+{
     globals: &'x mut RootAssembler,
     /// Next local ID for components != reactions
     cur_local: LocalReactionId,
@@ -116,12 +119,19 @@ pub struct AssemblyCtx<'x, S> where S: ReactorInitializer {
 }
 
 /// Final result of the assembly of a reactor.
-pub struct FinishedReactor<'x, S>(AssemblyCtx<'x, S>, S) where S: ReactorInitializer;
+pub struct FinishedReactor<'x, S>(AssemblyCtx<'x, S>, S)
+where
+    S: ReactorInitializer;
 
 /// Intermediate result of assembly.
-pub struct AssemblyIntermediate<'x, S>(AssemblyCtx<'x, S>, S) where S: ReactorInitializer;
+pub struct AssemblyIntermediate<'x, S>(AssemblyCtx<'x, S>, S)
+where
+    S: ReactorInitializer;
 
-impl<'x, S> AssemblyCtx<'x, S> where S: ReactorInitializer {
+impl<'x, S> AssemblyCtx<'x, S>
+where
+    S: ReactorInitializer,
+{
     fn new(globals: &'x mut RootAssembler, debug: ReactorDebugInfo) -> Self {
         Self {
             globals,
@@ -134,8 +144,10 @@ impl<'x, S> AssemblyCtx<'x, S> where S: ReactorInitializer {
     }
 
     /// top level function
-    pub fn assemble(self, build_reactor_tree: impl FnOnce(Self) -> AssemblyResult<AssemblyIntermediate<'x, S>>)
-                    -> AssemblyResult<FinishedReactor<'x, S>> {
+    pub fn assemble(
+        self,
+        build_reactor_tree: impl FnOnce(Self) -> AssemblyResult<AssemblyIntermediate<'x, S>>,
+    ) -> AssemblyResult<FinishedReactor<'x, S>> {
         let AssemblyIntermediate(ich, reactor) = build_reactor_tree(self)?;
         Ok(FinishedReactor(ich, reactor))
     }
@@ -161,9 +173,12 @@ impl<'x, S> AssemblyCtx<'x, S> where S: ReactorInitializer {
         // Effectively, IDs are assigned depth first. This
         // makes this whole debug info recording very complicated.
         let id = self.globals.reactor_id.get_and_incr();
-        self.globals
-            .debug_info
-            .record_reactor(id, self.debug.take().expect("unreachable - can only call assemble_self once"));
+        let debug = self.debug.take().expect("unreachable - can only call assemble_self once");
+        trace!("Children of {}: {:?}", debug.to_string(), self.children_ids);
+        self.globals.debug_info.record_reactor(id, debug);
+        for child in self.children_ids.drain(..) {
+            self.globals.debug_info.record_reactor_container(id, child);
+        }
 
         let first_trigger_id = self.globals.cur_trigger;
 
@@ -225,8 +240,8 @@ impl<'x, S> AssemblyCtx<'x, S> where S: ReactorInitializer {
         action: F,
     ) -> AssemblyResult<AssemblyIntermediate<'x, S>>
     // we can't use impl FnOnce(...) because we want to specify explicit type parameters in the caller
-        where
-            F: FnOnce(Self, &mut Sub) -> AssemblyResult<AssemblyIntermediate<'x, S>>,
+    where
+        F: FnOnce(Self, &mut Sub) -> AssemblyResult<AssemblyIntermediate<'x, S>>,
     {
         trace!("Assembling {}", inst_name);
         let mut sub = self.assemble_sub(inst_name, None, args)?;
@@ -246,11 +261,11 @@ impl<'x, S> AssemblyCtx<'x, S> where S: ReactorInitializer {
         arg_maker: A,
         action: F,
     ) -> AssemblyResult<AssemblyIntermediate<'x, S>>
-        where
-            Sub: ReactorInitializer + 'static + Send,
+    where
+        Sub: ReactorInitializer + 'static + Send,
         // we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
-            F: FnOnce(Self, &mut Vec<Sub>) -> AssemblyResult<AssemblyIntermediate<'x, S>>,
-            A: Fn(/*bank_index:*/ usize) -> Sub::Params,
+        F: FnOnce(Self, &mut Vec<Sub>) -> AssemblyResult<AssemblyIntermediate<'x, S>>,
+        A: Fn(/*bank_index:*/ usize) -> Sub::Params,
     {
         trace!("Assembling bank {}", inst_name);
 
@@ -289,13 +304,12 @@ impl<'x, S> AssemblyCtx<'x, S> where S: ReactorInitializer {
     }
 }
 
-impl<S> FinishedReactor<'_, S> where S: ReactorInitializer {
+impl<S> FinishedReactor<'_, S>
+where
+    S: ReactorInitializer,
+{
     fn finish(self) -> S {
-        let FinishedReactor(assembler, reactor) = self;
-        let id = reactor.id();
-        for child in assembler.children_ids {
-            assembler.globals.debug_info.record_reactor_container(id, child);
-        }
+        let FinishedReactor(_, reactor) = self;
         reactor
     }
 }

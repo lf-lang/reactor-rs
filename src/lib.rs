@@ -67,7 +67,6 @@ extern crate cfg_if;
 pub use std::time::{Duration, Instant};
 
 pub use self::actions::*;
-pub(crate) use scheduler::debug::*;
 pub use self::ids::*;
 pub use self::ports::*;
 pub use self::scheduler::*;
@@ -75,6 +74,7 @@ pub use self::time::*;
 pub use self::timers::*;
 pub use self::triggers::ReactionTrigger;
 pub use self::util::*;
+pub(crate) use scheduler::debug::*;
 
 #[cfg(test)]
 pub mod test;
@@ -95,8 +95,8 @@ pub mod assembly;
 pub mod prelude {
     pub use crate::Offset::*;
     pub use crate::{
-        after, assert_tag_is, delay, Duration, EventTag, Instant, LogicalAction, PhysicalActionRef, PhysicalSchedulerLink, ReactionCtx,
-        ReadablePort, ReadablePortBank, tag, Timer, WritablePort, WritablePortBank,
+        after, assert_tag_is, delay, tag, Duration, EventTag, Instant, LogicalAction, PhysicalActionRef, PhysicalSchedulerLink,
+        ReactionCtx, ReadablePort, ReadablePortBank, Timer, WritablePort, WritablePortBank,
     };
 
     /// Alias for the unit type, so that it can be written without quotes in LF.

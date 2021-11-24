@@ -150,7 +150,11 @@ where
     'x: 't,
 {
     pub fn run_main<R: ReactorInitializer + 'static + Send>(options: SchedulerOptions, args: R::Params) {
+        let start = Instant::now();
+        info!("Starting assembly...");
         let (reactors, graph, id_registry) = RootAssembler::assemble_tree::<R>(args);
+        let time = Instant::now() - start;
+        info!("Assembly done in {} µs...", time.as_micros());
 
         if options.dump_graph {
             use std::fs::File;

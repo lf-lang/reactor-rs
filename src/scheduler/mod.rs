@@ -35,10 +35,10 @@ use crate::*;
 
 pub(crate) mod assembly_impl;
 mod context;
+pub(crate) mod debug;
 mod dependencies;
 mod events;
 mod scheduler_impl;
-pub(crate) mod debug;
 
 #[cfg(feature = "public-internals")]
 pub mod internals {

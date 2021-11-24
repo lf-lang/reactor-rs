@@ -31,6 +31,7 @@ use std::ops::Range;
 use index_vec::{Idx, IndexVec};
 
 use crate::assembly::{ReactorInitializer, TriggerId};
+use crate::vecmap::VecMap;
 use crate::{GlobalReactionId, ReactorId};
 
 /// Maps IDs to debug information, stores all the debug info.
@@ -51,8 +52,8 @@ pub(crate) struct DebugInfoRegistry {
     trigger_infos: IndexVec<TriggerId, Cow<'static, str>>,
 
     /// Maps each reactor id to the id of its container.
-    /// The main reactor is mapped to itself.
-    reactor_container: IndexVec<ReactorId, ReactorId>,
+    /// The main reactor is not registered.
+    reactor_container: VecMap<ReactorId, ReactorId>,
 
     main_reactor: Option<ReactorId>,
 
@@ -138,7 +139,7 @@ impl DebugInfoRegistry {
 
     #[inline]
     pub fn get_container(&self, id: ReactorId) -> Option<ReactorId> {
-        let container = self.reactor_container.get(id);
+        let container = self.reactor_container.get(&id);
         debug_assert!(container.is_some() || self.is_main(id));
         container.cloned()
     }
@@ -211,8 +212,8 @@ impl DebugInfoRegistry {
     }
 
     pub(crate) fn record_reactor_container(&mut self, parent: ReactorId, child: ReactorId) {
-        let ix = self.reactor_container.push(parent);
-        debug_assert_eq!(ix, child);
+        let ix = self.reactor_container.insert(child, parent);
+        debug_assert!(ix.is_none(), "overwrote reactor");
     }
 
     pub(crate) fn set_id_range(&mut self, id: ReactorId, range: Range<TriggerId>) {
