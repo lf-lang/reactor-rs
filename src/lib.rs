@@ -66,6 +66,8 @@ extern crate cfg_if;
 
 pub use std::time::{Duration, Instant};
 
+pub(crate) use scheduler::debug::*;
+
 pub use self::actions::*;
 pub use self::ids::*;
 pub use self::ports::*;
@@ -74,7 +76,6 @@ pub use self::time::*;
 pub use self::timers::*;
 pub use self::triggers::ReactionTrigger;
 pub use self::util::*;
-pub(crate) use scheduler::debug::*;
 
 #[cfg(test)]
 pub mod test;

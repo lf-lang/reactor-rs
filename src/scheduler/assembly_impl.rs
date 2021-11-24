@@ -465,7 +465,10 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
 
     /// Create and return a new id for a trigger component.
     fn next_comp_id(&mut self, debug_name: Cow<'static, str>) -> TriggerId {
-        let id = self.assembler.globals.cur_trigger
+        let id = self
+            .assembler
+            .globals
+            .cur_trigger
             .get_and_incr()
             .expect("Overflow while allocating ID");
         self.assembler.globals.debug_info.record_trigger(id, debug_name);
