@@ -24,6 +24,12 @@
 
 //! Compares the implementation of global ID based on u32
 //! vs a struct with two u16.
+//! This benchmark verified that the hashing function provided
+//! by #\[derive(Hash)] is slower than transmuting to u32 and
+//! writing that into the hasher.
+//! With --features wide-ids you can run the same benchmark
+//! with ids that are twice as wide, if your machine supports
+//! it.
 
 #![allow(unused, non_snake_case, non_camel_case_types)]
 #[macro_use]
@@ -34,17 +40,7 @@ use std::hash::{Hash, Hasher};
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 
-cfg_if::cfg_if! {
-    if #[cfg(target_pointer_width = "64")] {
-        type GlobalIdImpl = u64;
-        type ReactorIdImpl = u32;
-        type ReactionIdImpl = u32;
-    } else {
-        type GlobalIdImpl = u32;
-        type ReactorIdImpl = u16;
-        type ReactionIdImpl = u16;
-    }
-}
+use reactor_rt::internals::*;
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 struct GID_raw {

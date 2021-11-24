@@ -27,12 +27,16 @@ env_logger = "0.9"
 assert_matches = "1.5"
 
 [features]
-# dump the graph to a DOT representation
+# Enable the parallel runtime implementation todo make default
 parallel-runtime=["rayon"]
+# Enables 64-bit wide reaction ids on 64 bit architectures.
+# This may reduce performance, but allows for 2^32 reactor
+# instances compared to the default of 2^16, which may feel
+# a bit tight for some applications.
+wide-ids=[]
 no-unsafe=[]
-# used mostly only for benchmarking
+# used internally for benchmarking, to access private APIs
 public-internals=[]
-benchmarking=["public-internals"]
 
 [[bench]]
 name = "savina_pong"
@@ -41,11 +45,13 @@ harness = false
 [[bench]]
 name = "global_id"
 path = "benches/micro/global_id.rs"
+required-features = ["public-internals"]
 harness = false
 
 [[bench]]
 name = "exec_reactions"
 path = "benches/micro/exec_reactions.rs"
+required-features = ["public-internals"]
 harness = false
 
 [profile.bench]

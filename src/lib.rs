@@ -32,9 +32,15 @@
 //!
 //! Crate-level features include:
 //! - `parallel-runtime`: use Rayon to execute reactions in parallel
-//! when possible. This is off by default. For some applications,
+//! when possible. This is not yet the default. For some applications,
 //! where there is no data parallelism, this may harm performance
-//! (as well as pull in unneeded dependencies) and should stay off.
+//! (as well as pull in unneeded dependencies) and should be off.
+//! - `wide-ids`: Enables 64-bit wide reaction ids on 64-bit
+//! architectures. This may reduce performance, but allows for
+//! 2^32 reactor instances compared to the default of 2^16,
+//! which may feel a bit tight for some applications. On machines
+//! with a pointer-width of less than 64 bits, ID types are
+//! always 32 bits.
 //! - `no-unsafe`: disable optimisations that use unsafe code in this runtime.
 //! Just provided for comparison, should probably be removed (unsafe code is fine).
 
@@ -134,6 +140,7 @@ pub trait ReactorBehavior {
 }
 assert_obj_safe!(ReactorBehavior);
 
+/// Used for benchmarking to access private API of the crate.
 #[cfg(feature = "public-internals")]
 #[doc(hidden)]
 pub mod internals {

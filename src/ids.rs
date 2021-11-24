@@ -165,12 +165,15 @@ impl FromStr for GlobalId {
     }
 }
 
-// hashing global ids is a very hot operation in the framework,
-// therefore we give it an optimal implementation
+// Hashing global ids is a very hot operation in the framework,
+// therefore we give it an optimal implementation.
+// The implementation was verified to be faster than the default
+// derive by a micro benchmark in this repo.
 impl Hash for GlobalId {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         let as_impl: &GlobalIdImpl = unsafe { std::mem::transmute(self) };
+        // this is written so that it works regardless of the concrete type of GlobalIdImpl
         Hash::hash(as_impl, state);
     }
 }
@@ -191,12 +194,9 @@ impl Display for GlobalId {
 
 /// private implementation types
 pub(crate) mod impl_types {
-    use std::fmt::{Display, Formatter};
-
-    use petgraph::graph::IndexType;
     cfg_if! {
-        if #[cfg(target_pointer_width = "64")] {
-            type MyUsize = IndexTypeU64;
+        if #[cfg(all(target_pointer_width = "64", feature = "wide-ids"))] {
+            type MyUsize = usize;
             type HalfUsize = u32;
         } else {
             type MyUsize = u32;
@@ -208,42 +208,6 @@ pub(crate) mod impl_types {
     pub type ReactorIdImpl = HalfUsize;
     pub type GlobalIdImpl = MyUsize;
     assert_eq_size!(GlobalIdImpl, (ReactorIdImpl, ReactionIdImpl));
-
-    // petgraph doesn't implement IndexType for u64, so we need our own wrapper
-    #[cfg(target_pointer_width = "64")]
-    #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default, Hash)]
-    #[repr(transparent)]
-    #[doc(hidden)]
-    pub struct IndexTypeU64(u64);
-
-    #[cfg(target_pointer_width = "64")]
-    unsafe impl IndexType for IndexTypeU64 {
-        #[inline(always)]
-        fn new(x: usize) -> Self {
-            assert_eq_size!(usize, u64);
-            IndexTypeU64(x as u64)
-        }
-
-        #[inline(always)]
-        fn index(&self) -> usize {
-            self.0 as usize
-        }
-
-        #[inline(always)]
-        fn max() -> Self {
-            IndexTypeU64(u64::MAX)
-        }
-    }
-
-    impl From<u32> for IndexTypeU64 {
-        fn from(i: u32) -> Self {
-            Self(i as u64)
-        }
-    }
-
-    impl Display for IndexTypeU64 {
-        fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            write!(f, "{}", self.0)
-        }
-    }
+    assert_impl_all!(GlobalIdImpl: petgraph::graph::IndexType);
+    assert_impl_all!(ReactorIdImpl: petgraph::graph::IndexType);
 }
