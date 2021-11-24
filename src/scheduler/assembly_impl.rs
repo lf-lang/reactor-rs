@@ -411,7 +411,7 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
     }
 
     fn new_port_impl<T: Sync>(&mut self, lf_name: Cow<'static, str>, kind: PortKind) -> Port<T> {
-        let id = self.next_comp_id(Some(lf_name));
+        let id = self.next_comp_id(lf_name);
         self.graph().record_port(id);
         Port::new(id, kind)
     }
@@ -422,7 +422,7 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
         kind: PortKind,
         len: usize,
     ) -> Result<PortBank<T>, AssemblyError> {
-        let bank_id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
+        let bank_id = self.next_comp_id(Cow::Borrowed(lf_name));
         self.graph().record_port_bank(bank_id, len)?;
         Ok(PortBank::new(
             (0..len)
@@ -440,46 +440,35 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
         bank_id: TriggerId,
         index: usize,
     ) -> Port<T> {
-        let channel_id = self.next_comp_id(Some(Cow::Owned(format!("{}[{}]", lf_name, index))));
+        let channel_id = self.next_comp_id(Cow::Owned(format!("{}[{}]", lf_name, index)));
         self.graph().record_port_bank_component(bank_id, channel_id);
         Port::new(channel_id, kind)
     }
 
     pub fn new_logical_action<T: Sync>(&mut self, lf_name: &'static str, min_delay: Option<Duration>) -> LogicalAction<T> {
-        let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
+        let id = self.next_comp_id(Cow::Borrowed(lf_name));
         self.graph().record_laction(id);
         LogicalAction::new(id, min_delay)
     }
 
     pub fn new_physical_action<T: Sync>(&mut self, lf_name: &'static str, min_delay: Option<Duration>) -> PhysicalActionRef<T> {
-        let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
+        let id = self.next_comp_id(Cow::Borrowed(lf_name));
         self.graph().record_paction(id);
         PhysicalActionRef::new(id, min_delay)
     }
 
     pub fn new_timer(&mut self, lf_name: &'static str, offset: Duration, period: Duration) -> Timer {
-        let id = self.next_comp_id(Some(Cow::Borrowed(lf_name)));
+        let id = self.next_comp_id(Cow::Borrowed(lf_name));
         self.graph().record_timer(id);
         Timer::new(id, offset, period)
     }
 
-    /// Create and return a new global id for a new component.
-    /// Note: reactions don't share the same namespace as components.
-    ///
-    /// ### Panics
-    ///
-    /// See [get_id].
-    fn next_comp_id(&mut self, debug_name: Option<Cow<'static, str>>) -> TriggerId {
-        let id = self.assembler.globals.cur_trigger;
-        if let Some(label) = debug_name {
-            self.assembler.globals.debug_info.record_trigger(id, label);
-        }
-        self.assembler.globals.cur_trigger = self
-            .assembler
-            .globals
-            .cur_trigger
-            .next()
+    /// Create and return a new id for a trigger component.
+    fn next_comp_id(&mut self, debug_name: Cow<'static, str>) -> TriggerId {
+        let id = self.assembler.globals.cur_trigger
+            .get_and_incr()
             .expect("Overflow while allocating ID");
+        self.assembler.globals.debug_info.record_trigger(id, debug_name);
         id
     }
 
