@@ -36,7 +36,7 @@ use crate::*;
 pub struct LogicalAction<T: Sync>(pub(crate) Action<Logical, T>);
 
 /// A physical action. Physical actions may only be used with
-/// the API of [PhysicalSchedulerLink](crate::PhysicalSchedulerLink).
+/// the API of [AsyncCtx](crate::AsyncCtx).
 /// See [ReactionCtx::spawn_physical_thread](crate::ReactionCtx::spawn_physical_thread).
 pub struct PhysicalAction<T: Sync>(pub(crate) Action<Physical, T>);
 

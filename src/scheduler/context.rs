@@ -42,7 +42,7 @@ where
     /// Start time of the program.
     initial_time: Instant,
 
-    // globals, also they might be copied and passed to PhysicalSchedulerLink
+    // globals, also they might be copied and passed to AsyncCtx
     dataflow: &'x DataflowInfo,
     debug_info: DebugInfoProvider<'a>,
     thread_spawner: &'a Scope<'t>,
@@ -362,7 +362,7 @@ where
         self.get_tag().successor(offset_from_now)
     }
 
-    /// Spawn a new thread that can use a [PhysicalSchedulerLink]
+    /// Spawn a new thread that can use a [AsyncCtx]
     /// to push asynchronous events to the reaction queue. This is
     /// only useful with [physical actions](crate::PhysicalAction).
     ///
@@ -372,7 +372,7 @@ where
     /// thread to finish its task. For that reason, the thread's
     /// closure should not execute an infinite loop, it should at
     /// least check that the scheduler has not been terminated by
-    /// polling [PhysicalSchedulerLink::was_terminated].
+    /// polling [AsyncCtx::was_terminated].
     ///
     /// ### Example
     ///
@@ -392,7 +392,7 @@ where
     ///
     pub fn spawn_physical_thread<F, R>(&mut self, f: F) -> ScopedJoinHandle<R>
     where
-        F: FnOnce(&mut PhysicalSchedulerLink<'_, 'x, 't>) -> R,
+        F: FnOnce(&mut AsyncCtx<'_, 'x, 't>) -> R,
         F: 'x + Send,
         R: 'x + Send,
     {
@@ -402,7 +402,7 @@ where
         let was_terminated = self.was_terminated_atomic.clone();
 
         self.thread_spawner.spawn(move |subscope| {
-            let mut link = PhysicalSchedulerLink {
+            let mut link = AsyncCtx {
                 tx,
                 dataflow,
                 initial_time,
@@ -567,7 +567,7 @@ impl RContextForwardableStuff<'_> {
 /// See [ReactionCtx::spawn_physical_thread].
 ///
 #[derive(Clone)]
-pub struct PhysicalSchedulerLink<'a, 'x, 't> {
+pub struct AsyncCtx<'a, 'x, 't> {
     tx: Sender<Event<'x>>,
     initial_time: Instant,
     dataflow: &'x DataflowInfo,
@@ -577,7 +577,7 @@ pub struct PhysicalSchedulerLink<'a, 'x, 't> {
     thread_spawner: &'a Scope<'t>,
 }
 
-impl PhysicalSchedulerLink<'_, '_, '_> {
+impl AsyncCtx<'_, '_, '_> {
     /// Returns true if the scheduler has been shutdown. When
     /// that's true, calls to other methods of this type will
     /// fail with [SendError].

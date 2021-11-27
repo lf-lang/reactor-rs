@@ -102,7 +102,7 @@ pub mod assembly;
 pub mod prelude {
     pub use crate::Offset::*;
     pub use crate::{
-        after, assert_tag_is, delay, tag, Duration, EventTag, Instant, LogicalAction, PhysicalActionRef, PhysicalSchedulerLink,
+        after, assert_tag_is, delay, tag, Duration, EventTag, Instant, LogicalAction, PhysicalActionRef, AsyncCtx,
         ReactionCtx, ReadablePort, ReadablePortBank, Timer, WritablePort, WritablePortBank,
     };
 

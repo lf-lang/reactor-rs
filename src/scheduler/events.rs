@@ -128,7 +128,7 @@ impl Display for EventTag {
 /// with the logical instant at which they must be processed.
 /// They are queued and processed in order. See [self::EventQueue].
 ///
-/// [self::PhysicalSchedulerLink] may only communicate with
+/// [self::AsyncCtx] may only communicate with
 /// the scheduler by sending events.
 #[derive(Debug)]
 pub(super) struct Event<'x> {
