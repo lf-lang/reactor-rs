@@ -39,7 +39,6 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-
 use reactor_rt::internals::*;
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]

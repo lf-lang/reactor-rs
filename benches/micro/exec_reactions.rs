@@ -22,10 +22,6 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#![allow(unused, non_snake_case, non_camel_case_types)]
-#[macro_use]
-extern crate reactor_rt;
-
 //! Compares using a HashMap vs ExecutableReactions to iterate over levels.
 //! It's kicking down in a way, since for sparse levels, the HashMap impl
 //! is disadvantaged as it queries the map for each level.
@@ -41,7 +37,12 @@ extern crate reactor_rt;
 //! instance has a lot of levels before the actual level we fetch,
 //! so the linear constant factor should realistically be very very low.
 
+#![allow(unused, non_snake_case, non_camel_case_types)]
+#[macro_use]
+extern crate reactor_rt;
+
 use std::collections::{HashMap, HashSet};
+use std::convert::TryFrom;
 use std::hash::{Hash, Hasher};
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
@@ -69,7 +70,7 @@ fn iter_batches_executable_reactions(reactions: &ExecutableReactions) {
 }
 
 pub fn r(u: u32) -> GlobalReactionId {
-    new_global_rid(GlobalIdImpl::from(u))
+    new_global_rid(GlobalIdImpl::try_from(u).unwrap())
 }
 
 struct TestCase(&'static str, HashMap<LevelIx, HashSet<GlobalReactionId>>);
