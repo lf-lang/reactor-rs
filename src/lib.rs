@@ -41,6 +41,11 @@
 //! which may feel a bit tight for some applications. On machines
 //! with a pointer-width of less than 64 bits, ID types are
 //! always 32 bits.
+//! - `vec-id-sets`: Change the implementation of reaction sets
+//! to be a sorted vector instead of a hash set. This has a positive
+//! performance impact, as reaction sets are typically very small.
+//! More testing is required to determine pathological cases.
+//! This is a default feature.
 //! - `no-unsafe`: disable optimisations that use unsafe code in this runtime.
 //! Just provided for comparison, should probably be removed (unsafe code is fine).
 

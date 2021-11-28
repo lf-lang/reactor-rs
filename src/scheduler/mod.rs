@@ -42,7 +42,7 @@ mod scheduler_impl;
 
 #[cfg(feature = "public-internals")]
 pub mod internals {
-    pub use super::dependencies::{ExecutableReactions, LevelIx, ReactionLevelInfo, Level};
+    pub use super::dependencies::{ExecutableReactions, Level, LevelIx, ReactionLevelInfo};
 }
 
 pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions<'x>>>;

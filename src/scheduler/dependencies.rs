@@ -24,7 +24,7 @@
 
 use std::borrow::Cow;
 use std::collections::hash_map::Entry as HEntry;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::default::Default;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Range;
@@ -477,9 +477,17 @@ impl DataflowInfo {
     }
 }
 
-// todo try replacing that with a Vec that sorts + dedups members
-type LevelImpl = HashSet<GlobalReactionId>;
+cfg_if! {
+    if #[cfg(feature = "vec-id-sets")] {
+        type LevelImpl = Vec<GlobalReactionId>;
+    } else {
+        type LevelImpl = std::collections::HashSet<GlobalReactionId>;
+    }
+}
 
+/// A set of global reaction IDS.
+/// The implementation can be changed with the vec-id-sets feature,
+/// which is more performant when relatively few
 #[derive(Clone, Default, Debug)]
 #[repr(transparent)]
 pub struct Level(LevelImpl);
@@ -494,18 +502,35 @@ impl Level {
     }
 
     fn insert(&mut self, id: GlobalReactionId) {
-        self.0.insert(id);
+        cfg_if! {
+            if #[cfg(feature = "vec-id-sets")] {
+                 match self.0.binary_search(&id) {
+                    Ok(_) => {}
+                    Err(ix) => {
+                        self.0.insert(ix, id);
+                    }
+                }
+            } else {
+                self.0.insert(id);
+            }
+        }
     }
 
     fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 
-    fn extend(&mut self, iter: impl Iterator<Item=GlobalReactionId>) {
-        self.0.extend(iter)
+    fn extend(&mut self, iter: impl Iterator<Item = GlobalReactionId>) {
+        self.0.extend(iter);
+        cfg_if! {
+            if #[cfg(feature = "vec-id-sets")] {
+                dmsort::sort(&mut self.0);
+                self.0.dedup();
+            }
+        }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=GlobalReactionId> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = GlobalReactionId> + '_ {
         self.0.iter().cloned()
     }
 }
@@ -527,7 +552,6 @@ impl IntoIterator for Level {
         self.0.into_iter()
     }
 }
-
 
 /// Type of the label of a level. The max value is the maximum
 /// depth of the dependency graph.
@@ -594,10 +618,7 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     #[inline]
-    pub fn next_batch<'a>(
-        &'a self,
-        min_level_exclusive: KeyRef<&LevelIx>,
-    ) -> Option<(KeyRef<&'a LevelIx>, &Level)> {
+    pub fn next_batch<'a>(&'a self, min_level_exclusive: KeyRef<&LevelIx>) -> Option<(KeyRef<&'a LevelIx>, &Level)> {
         self.levels
             .next_mapping(min_level_exclusive)
             .map(|(ix, cow)| (ix, cow.as_ref()))
