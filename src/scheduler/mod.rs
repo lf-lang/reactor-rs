@@ -42,7 +42,7 @@ mod scheduler_impl;
 
 #[cfg(feature = "public-internals")]
 pub mod internals {
-    pub use super::dependencies::{ExecutableReactions, LevelIx, ReactionLevelInfo};
+    pub use super::dependencies::{ExecutableReactions, LevelIx, ReactionLevelInfo, Level};
 }
 
 pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions<'x>>>;
@@ -76,7 +76,7 @@ impl DebugInfoProvider<'_> {
                 write!(str, "{}: ", level_no).unwrap();
                 join_to!(&mut str, batch.iter(), ", ", "{", "}", |x| format!(
                     "{}",
-                    self.display_reaction(*x)
+                    self.display_reaction(x)
                 ))
                 .unwrap();
             }

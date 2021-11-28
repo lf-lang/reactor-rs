@@ -478,7 +478,56 @@ impl DataflowInfo {
 }
 
 // todo try replacing that with a Vec that sorts + dedups members
-type Level = HashSet<GlobalReactionId>;
+type LevelImpl = HashSet<GlobalReactionId>;
+
+#[derive(Clone, Default, Debug)]
+#[repr(transparent)]
+pub struct Level(LevelImpl);
+
+impl Level {
+    fn with_capacity(cap: usize) -> Self {
+        Self(LevelImpl::with_capacity(cap))
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn insert(&mut self, id: GlobalReactionId) {
+        self.0.insert(id);
+    }
+
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    fn extend(&mut self, iter: impl Iterator<Item=GlobalReactionId>) {
+        self.0.extend(iter)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item=GlobalReactionId> + '_ {
+        self.0.iter().cloned()
+    }
+}
+
+impl<'a> IntoIterator for &'a Level {
+    type Item = &'a GlobalReactionId;
+    type IntoIter = <&'a LevelImpl as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.0).into_iter()
+    }
+}
+
+impl IntoIterator for Level {
+    type Item = <LevelImpl as IntoIterator>::Item;
+    type IntoIter = <LevelImpl as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 
 /// Type of the label of a level. The max value is the maximum
 /// depth of the dependency graph.
@@ -540,7 +589,7 @@ impl<'x> ExecutableReactions<'x> {
         self.levels.iter()
     }
 
-    pub fn first_batch(&self) -> Option<(KeyRef<&LevelIx>, &HashSet<GlobalReactionId>)> {
+    pub fn first_batch(&self) -> Option<(KeyRef<&LevelIx>, &Level)> {
         self.levels.min_entry().map(|(ix, cow)| (ix, cow.as_ref()))
     }
 
@@ -548,7 +597,7 @@ impl<'x> ExecutableReactions<'x> {
     pub fn next_batch<'a>(
         &'a self,
         min_level_exclusive: KeyRef<&LevelIx>,
-    ) -> Option<(KeyRef<&'a LevelIx>, &HashSet<GlobalReactionId>)> {
+    ) -> Option<(KeyRef<&'a LevelIx>, &Level)> {
         self.levels
             .next_mapping(min_level_exclusive)
             .map(|(ix, cow)| (ix, cow.as_ref()))
