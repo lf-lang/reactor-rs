@@ -194,18 +194,15 @@ impl DepGraph {
         assert!(len > 0, "empty port bank");
         self.record(GraphId::Trigger(id), NodeKind::MultiportUpstream);
 
-        for channel_id in id.next_range(len).map_err(|_| AssemblyError(AssemblyErrorImpl::IdOverflow))? {
+        for channel_id in id
+            .iter_next_range(len)
+            .map_err(|_| AssemblyError(AssemblyErrorImpl::IdOverflow))?
+        {
             self.multiport_containment.insert(GraphId::Trigger(channel_id), id);
 
             // self.dataflow.add_edge(upstream_ix, channel_ix, EdgeWeight::Default);
         }
-        self.multiport_ranges.insert(
-            id,
-            Range {
-                start: TriggerId::new(id.index() + 1),
-                end: TriggerId::new(id.index() + 1 + len),
-            },
-        );
+        self.multiport_ranges.insert(id, id.next_range(len).unwrap());
         Ok(())
     }
 

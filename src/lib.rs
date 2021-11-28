@@ -40,7 +40,9 @@
 //! 2^32 reactor instances compared to the default of 2^16,
 //! which may feel a bit tight for some applications. On machines
 //! with a pointer-width of less than 64 bits, ID types are
-//! always 32 bits.
+//! always 32 bits. The feature also widens trigger ids to 64 bits
+//! if possible, which enables 2^64 individual trigger components
+//! (ports, actions, etc.) instead of 2^32.
 //! - `vec-id-sets`: Change the implementation of reaction sets
 //! to be a sorted vector instead of a hash set. This has a positive
 //! performance impact, as reaction sets are typically very small.

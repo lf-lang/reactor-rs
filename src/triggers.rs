@@ -29,6 +29,7 @@ use std::time::Instant;
 
 use index_vec::Idx;
 
+use crate::impl_types::TriggerIdImpl;
 use crate::EventTag;
 
 /// Common trait for actions, ports, and timer objects handed
@@ -64,7 +65,7 @@ pub trait TriggerLike {
 
 /// The ID of a trigger component.
 #[derive(Eq, PartialEq, Copy, Clone, Hash, Ord, PartialOrd)]
-pub struct TriggerId(usize);
+pub struct TriggerId(TriggerIdImpl);
 
 // Historical note: in the past, TriggerId was a newtype over a GlobalId.
 // The structure of GlobalId was nice, as it allows us to print nice debug
@@ -84,7 +85,7 @@ impl TriggerId {
     pub(crate) const FIRST_REGULAR: TriggerId = TriggerId(2);
 
     #[allow(unused)]
-    pub(crate) fn new(id: usize) -> Self {
+    pub(crate) fn new(id: TriggerIdImpl) -> Self {
         assert!(id > 1, "0-1 are reserved for startup & shutdown!");
         TriggerId(id)
     }
@@ -102,9 +103,17 @@ impl TriggerId {
 
     /// Returns an iterator that iterates over the range `(self+1)..(self+1+len)`.
     /// Returns `Err` on overflow.
-    pub(crate) fn next_range(&self, len: usize) -> Result<impl Iterator<Item = Self>, ()> {
-        if let Some(upper) = self.0.checked_add(1 + len) {
+    pub(crate) fn iter_next_range(&self, len: usize) -> Result<impl Iterator<Item = Self>, ()> {
+        if let Some(upper) = self.0.checked_add(1 + (len as TriggerIdImpl)) {
             Ok(((self.0 + 1)..upper).into_iter().map(TriggerId))
+        } else {
+            Err(())
+        }
+    }
+
+    pub(crate) fn next_range(&self, len: usize) -> Result<Range<Self>, ()> {
+        if let Some(upper) = self.0.checked_add(1 + (len as TriggerIdImpl)) {
+            Ok(Range { start: self.next()?, end: Self::new(upper) })
         } else {
             Err(())
         }
@@ -119,11 +128,11 @@ impl Idx for TriggerId {
     fn from_usize(idx: usize) -> Self {
         // note that this is basically an unchecked call to the ctor
         // when Self::new checks
-        TriggerId(idx)
+        TriggerId(idx as TriggerIdImpl)
     }
 
     fn index(self) -> usize {
-        self.0
+        self.0 as usize
     }
 }
 

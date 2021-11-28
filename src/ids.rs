@@ -215,6 +215,7 @@ pub(crate) mod impl_types {
         }
     }
 
+    pub type TriggerIdImpl = MyUsize;
     pub type ReactionIdImpl = HalfUsize;
     pub type ReactorIdImpl = HalfUsize;
     pub type GlobalIdImpl = MyUsize;
