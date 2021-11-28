@@ -22,6 +22,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
@@ -126,7 +127,7 @@ global_id_newtype! {
 
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
-#[derive(Eq, Ord, PartialOrd, PartialEq, Copy, Clone)]
+#[derive(Eq, PartialOrd, PartialEq, Copy, Clone)]
 pub(crate) struct GlobalId {
     container: ReactorId,
     local: LocalReactionId,
@@ -175,6 +176,16 @@ impl Hash for GlobalId {
         let as_impl: &GlobalIdImpl = unsafe { std::mem::transmute(self) };
         // this is written so that it works regardless of the concrete type of GlobalIdImpl
         Hash::hash(as_impl, state);
+    }
+}
+
+// Same reasoning as for Hash, comparison is used to keep Level
+// sets sorted, when feature `vec-id-sets` is enabled.
+impl Ord for GlobalId {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let self_as_impl: &GlobalIdImpl = unsafe { std::mem::transmute(self) };
+        let other_as_impl: &GlobalIdImpl = unsafe { std::mem::transmute(other) };
+        self_as_impl.cmp(other_as_impl)
     }
 }
 
