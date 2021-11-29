@@ -521,7 +521,7 @@ impl Level {
         self.0.extend(iter);
         cfg_if! {
             if #[cfg(feature = "vec-id-sets")] {
-                dmsort::sort(&mut self.0);
+                self.0.sort();
                 self.0.dedup();
             }
         }

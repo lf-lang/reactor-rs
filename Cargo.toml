@@ -19,7 +19,6 @@ crossbeam-utils = "0.8"
 crossbeam-channel = { git = "https://github.com/oowekyala/crossbeam.git", rev = "9eed66904f969156dedad4eef61ce91d23b9cccb" }
 static_assertions = "1.1.0"
 rayon = { version = "1.5", optional = true }
-dmsort = { version = "1.0", optional = true }
 cfg-if = "1.0.0"
 
 [dev-dependencies]
@@ -36,7 +35,7 @@ parallel-runtime=["rayon"]
 # instances compared to the default of 2^16, which may feel
 # a bit tight for some applications.
 wide-ids=[]
-vec-id-sets=["dmsort"]
+vec-id-sets=[]
 no-unsafe=[]
 # used internally for benchmarking, to access private APIs
 public-internals=[]
