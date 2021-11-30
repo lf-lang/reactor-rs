@@ -244,9 +244,6 @@ pub struct Port<T: Sync> {
     //
 }
 
-// todo document that
-unsafe impl<T: Sync> Send for Port<T> {}
-
 impl<T: Sync> Port<T> {
     /// Create a new port
     pub(crate) fn new(id: TriggerId, kind: PortKind) -> Self {

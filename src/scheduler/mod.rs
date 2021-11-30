@@ -46,7 +46,7 @@ pub mod internals {
 }
 
 pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions<'x>>>;
-pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a + Send>;
+pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a>;
 pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
 
 /// Can format stuff for trace messages.

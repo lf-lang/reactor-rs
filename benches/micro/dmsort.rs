@@ -33,9 +33,9 @@ extern crate reactor_rt;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, black_box};
-use reactor_rt::GlobalReactionId;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use reactor_rt::internals::*;
+use reactor_rt::GlobalReactionId;
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone)]
 struct GID_raw {
@@ -68,7 +68,6 @@ fn vec_sort(mut up: Vec<GlobalReactionId>) {
     black_box(up);
 }
 
-
 pub fn r(u: u32) -> GlobalReactionId {
     new_global_rid(GlobalIdImpl::try_from(u).unwrap())
 }
@@ -87,8 +86,12 @@ fn bench_gid(c: &mut Criterion) {
         TestCase("large", large),
     ];
     for test in test_cases.into_iter() {
-        group.bench_with_input(BenchmarkId::new("dmsort", test.0), &test.1, |b, i| b.iter(|| dmsort_sort(i.clone())));
-        group.bench_with_input(BenchmarkId::new("Vec::sort", test.0), &test.1, |b, i| b.iter(|| vec_sort(i.clone())));
+        group.bench_with_input(BenchmarkId::new("dmsort", test.0), &test.1, |b, i| {
+            b.iter(|| dmsort_sort(i.clone()))
+        });
+        group.bench_with_input(BenchmarkId::new("Vec::sort", test.0), &test.1, |b, i| {
+            b.iter(|| vec_sort(i.clone()))
+        });
     }
     group.finish();
 }

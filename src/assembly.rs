@@ -17,9 +17,9 @@ pub(crate) type PortId = TriggerId;
 /// 3. every logical action and port declared by the reactor.
 ///
 pub trait ReactorInitializer: ReactorBehavior {
-    /// Type of the user struct
+    /// Type of the user struct, which contains state variabes of the reactor.
     type Wrapped;
-    /// Type of the construction parameters
+    /// Type of the construction parameters.
     type Params;
     /// Exclusive maximum value of the `local_rid` parameter of [ReactorBehavior.react].
     const MAX_REACTION_ID: LocalReactionId;

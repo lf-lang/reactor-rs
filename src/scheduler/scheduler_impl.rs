@@ -186,6 +186,13 @@ where
 
             cfg_if::cfg_if! {
                 if #[cfg(feature = "parallel-runtime")] {
+                    /// The unsafe impl is safe if scheduler instances
+                    /// are only sent between threads like this (their Rc
+                    /// internals are not copied).
+                    /// So long as the framework entirely controls the lifetime
+                    /// of SyncScheduler instances, this is enforceable.
+                    unsafe impl Send for SyncScheduler<'_, '_, '_> {}
+
                     // install makes calls to parallel iterators use that thread pool
                     rayon_thread_pool.install(|| scheduler.launch_event_loop());
                 } else {
@@ -470,23 +477,20 @@ where
 
 #[cfg(feature = "parallel-runtime")]
 mod parallel_rt_impl {
-    use std::collections::HashSet;
-
     use rayon::prelude::*;
 
     use super::*;
+    use crate::scheduler::dependencies::Level;
 
-    pub(super) fn process_batch(
-        ctx: &mut ReactionCtx<'_, '_, '_>,
-        reactors: &mut ReactorVec<'_>,
-        batch: &HashSet<GlobalReactionId>,
-    ) {
+    pub(super) fn process_batch(ctx: &mut ReactionCtx<'_, '_, '_>, reactors: &mut ReactorVec<'_>, batch: &Level) {
         let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
 
         ctx.insides = batch
             .iter()
             .par_bridge()
             .fold_with(CloneableCtx(ctx.fork()), |CloneableCtx(mut ctx), reaction_id| {
+                // capture the newtype instead of capturing its field, which is not Send
+                let reactors_mut = &reactors_mut;
                 let reactor = unsafe {
                     // safety:
                     // - no two reactions in the batch refer belong to the same reactor
@@ -494,7 +498,7 @@ mod parallel_rt_impl {
                     &mut *reactors_mut.0.add(reaction_id.0.container().index())
                 };
 
-                ctx.execute(reactor, *reaction_id);
+                ctx.execute(reactor, reaction_id);
 
                 CloneableCtx(ctx)
             })
@@ -502,6 +506,7 @@ mod parallel_rt_impl {
             .reduce(|| Default::default(), RContextForwardableStuff::merge);
     }
 
+    #[derive(Copy, Clone)]
     struct UnsafeSharedPointer<T>(*mut T);
 
     unsafe impl<T> Send for UnsafeSharedPointer<T> {}
