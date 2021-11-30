@@ -446,7 +446,12 @@ where
             trace!("  - Level {}", level_no);
             ctx.cur_level = level_no.key;
 
-            if cfg!(feature = "parallel-runtime") && batch.len() > 1 {
+            /// Minimum number of reactions (inclusive) required
+            /// to parallelize reactions.
+            /// TODO experiment with tweaking this
+            const PARALLEL_THRESHOLD: usize = 3;
+
+            if cfg!(feature = "parallel-runtime") && batch.len() >= PARALLEL_THRESHOLD {
                 #[cfg(feature = "parallel-runtime")]
                 parallel_rt_impl::process_batch(&mut ctx, &mut self.reactors, batch);
             } else {
