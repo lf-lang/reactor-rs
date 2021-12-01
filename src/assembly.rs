@@ -17,7 +17,8 @@ pub(crate) type PortId = TriggerId;
 /// 3. every logical action and port declared by the reactor.
 ///
 pub trait ReactorInitializer: ReactorBehavior {
-    /// Type of the user struct, which contains state variabes of the reactor.
+    /// Type of the user struct, which contains state variables of the reactor.
+    /// Used by the runtime to produce debug information.
     type Wrapped;
     /// Type of the construction parameters.
     type Params;

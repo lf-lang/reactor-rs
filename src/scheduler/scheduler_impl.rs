@@ -149,7 +149,7 @@ impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't>
 where
     'x: 't,
 {
-    pub fn run_main<R: ReactorInitializer + 'static + Send>(options: SchedulerOptions, args: R::Params) {
+    pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
         let start = Instant::now();
         info!("Starting assembly...");
         let (reactors, graph, id_registry) = RootAssembler::assemble_tree::<R>(args);
