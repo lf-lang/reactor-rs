@@ -675,6 +675,7 @@ impl<'x> ExecutableReactions<'x> {
         }
     }
 
+    /// Fully merge plans of `x` and `y`.
     pub(super) fn merge_cows(x: ReactionPlan<'x>, y: ReactionPlan<'x>) -> ReactionPlan<'x> {
         Self::merge_plans_after(x, y, LevelIx::ZERO)
     }

@@ -67,8 +67,9 @@ where
         return Entry::Vacant(VacantEntry { map: self, index: i, key });
     }
 
-    /// Find a mapping with assumption that the key is random access.
-    /// Logarithmic complexity.
+    /// Finds entry reference, either directly associated with `min_key_inclusive`, or the entry with the
+    /// closest key (in terms of sorting order) greater than `min_key_inclusive`. Returns `None` if
+    /// map does not contain entry with key greater or equal to `min_key_inclusive`.
     pub fn find_random_mapping_after(&self, min_key_inclusive: K) -> Option<(KeyRef<&K>, &V)> {
         match self.find_k(&min_key_inclusive) {
             Ok(index) => {
@@ -144,10 +145,15 @@ where
         self.v.last().map(|e| &e.0)
     }
 
+    /// Attempts to find the given `key`. If found, it returns `Ok` with the index of the key in the
+    /// underlying `Vec`. Otherwise it returns `Err` with the index where a matching element could be
+    /// inserted while maintaining sorted order.
     fn find_k(&self, key: &K) -> Result<usize, usize> {
         self.v.binary_search_by_key(&key, |(k, _)| k)
     }
 
+    /// Directly insert into the underlying `Vec`. This does not maintain the sorting of elements
+    /// by itself.
     fn insert_internal(&mut self, idx: usize, key: K, value: V) {
         self.v.insert(idx, (key, value))
     }
