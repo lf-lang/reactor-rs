@@ -694,7 +694,7 @@ impl<'x> ExecutableReactions<'x> {
                 Some(Cow::Owned(x))
             }
             (Some(mut x), Some(mut y)) => {
-                if x.max_level() > y.max_level() {
+                if x.max_level() < y.max_level() {
                     std::mem::swap(&mut x, &mut y);
                 }
                 // x is the largest one here
