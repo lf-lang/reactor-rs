@@ -498,7 +498,7 @@ mod parallel_rt_impl {
                 let reactors_mut = &reactors_mut;
                 let reactor = unsafe {
                     // safety:
-                    // - no two reactions in the batch refer belong to the same reactor
+                    // - no two reactions in the batch belong to the same reactor
                     // - the vec does not change size so there is no reallocation
                     &mut *reactors_mut.0.add(reaction_id.0.container().index())
                 };
