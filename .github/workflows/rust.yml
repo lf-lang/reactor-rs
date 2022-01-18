@@ -54,3 +54,16 @@ jobs:
         components: rustfmt
     - name: Check format
       run: cargo +nightly fmt -- --check
+
+  fetch-lf:
+    uses: lf-lang/lingua-franca/.github/workflows/extract-ref.yml@master
+    with:
+      file: 'lingua-franca-ref.txt'
+
+  lf-tests:
+    needs: fetch-lf
+    uses: lf-lang/lingua-franca/.github/workflows/rs-tests.yml@ci-rust-ref
+    with:
+      runtime-ref: ${{ github.ref_name }}
+      compiler-ref: ${{ needs.fetch-lf.outputs.ref }}
+
