@@ -56,7 +56,7 @@ jobs:
       run: cargo +nightly fmt -- --check
 
   fetch-lf:
-    uses: lf-lang/lingua-franca/.github/workflows/extract-ref.yml@master
+    uses: lf-lang/lingua-franca/.github/workflows/extract-ref.yml@ci-rust-ref
     with:
       file: 'lingua-franca-ref.txt'
 
