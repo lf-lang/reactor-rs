@@ -66,7 +66,7 @@ jobs:
     with:
       runtime-ref: ${{github.event.pull_request.head.sha}}
       compiler-ref: ci-rust-ref
-   if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ github.event_name == 'pull_request' }}
 
   lf-tests-push:
     needs: fetch-lf
@@ -74,4 +74,4 @@ jobs:
     with:
       runtime-ref: ${{github.sha}}
       compiler-ref: ci-rust-ref
-   if: ${{ github.event_name != 'pull_request' }}
+    if: ${{ github.event_name != 'pull_request' }}
