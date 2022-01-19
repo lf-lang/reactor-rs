@@ -65,5 +65,5 @@ jobs:
     uses: lf-lang/lingua-franca/.github/workflows/rs-tests.yml@ci-rust-ref
     with:
       runtime-ref: ${{ github.ref_name }}
-      compiler-ref: ${{ needs.fetch-lf.outputs.ref }}
+      compiler-ref: ci-rust-ref
 
