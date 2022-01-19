@@ -64,7 +64,7 @@ jobs:
     needs: fetch-lf
     uses: lf-lang/lingua-franca/.github/workflows/rs-tests.yml@master
     with:
-      runtime-ref: ${{github.event.pull_request.head.sha}}
+      runtime-ref: ${{github.ref}}
       compiler-ref: ${{ needs.fetch-lf.outputs.ref }}
     if: ${{ github.event_name == 'pull_request' }}
 
@@ -72,6 +72,6 @@ jobs:
     needs: fetch-lf
     uses: lf-lang/lingua-franca/.github/workflows/rs-tests.yml@master
     with:
-      runtime-ref: ${{github.sha}}
+      runtime-ref: ${{github.ref}}
       compiler-ref: ${{ needs.fetch-lf.outputs.ref }}
     if: ${{ github.event_name != 'pull_request' }}
