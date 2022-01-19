@@ -279,6 +279,12 @@
 <span id="276">276</span>
 <span id="277">277</span>
 <span id="278">278</span>
+<span id="279">279</span>
+<span id="280">280</span>
+<span id="281">281</span>
+<span id="282">282</span>
+<span id="283">283</span>
+<span id="284">284</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -348,8 +354,9 @@
         <span class="kw">return</span> <span class="ident">Entry::Vacant</span>(<span class="ident">VacantEntry</span> { <span class="ident">map</span>: <span class="self">self</span>, <span class="ident">index</span>: <span class="ident">i</span>, <span class="ident">key</span> });
     }
 
-    <span class="doccomment">/// Find a mapping with assumption that the key is random access.</span>
-    <span class="doccomment">/// Logarithmic complexity.</span>
+    <span class="doccomment">/// Finds entry reference, either directly associated with `min_key_inclusive`, or the entry with the</span>
+    <span class="doccomment">/// closest key (in terms of sorting order) greater than `min_key_inclusive`. Returns `None` if</span>
+    <span class="doccomment">/// map does not contain entry with key greater or equal to `min_key_inclusive`.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">find_random_mapping_after</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">min_key_inclusive</span>: <span class="ident">K</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">KeyRef</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">K</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="ident">V</span>)<span class="op">&gt;</span> {
         <span class="kw">match</span> <span class="self">self</span>.<span class="ident">find_k</span>(<span class="kw-2">&amp;</span><span class="ident">min_key_inclusive</span>) {
             <span class="prelude-val">Ok</span>(<span class="ident">index</span>) =&gt; {
@@ -425,10 +432,15 @@
         <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">last</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="kw-2">&amp;</span><span class="ident">e</span>.<span class="number">0</span>)
     }
 
+    <span class="doccomment">/// Attempts to find the given `key`. If found, it returns `Ok` with the index of the key in the</span>
+    <span class="doccomment">/// underlying `Vec`. Otherwise it returns `Err` with the index where a matching element could be</span>
+    <span class="doccomment">/// inserted while maintaining sorted order.</span>
     <span class="kw">fn</span> <span class="ident">find_k</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="ident">K</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">usize</span>, <span class="ident">usize</span><span class="op">&gt;</span> {
         <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">binary_search_by_key</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>, <span class="op">|</span>(<span class="ident">k</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">k</span>)
     }
 
+    <span class="doccomment">/// Directly insert into the underlying `Vec`. This does not maintain the sorting of elements</span>
+    <span class="doccomment">/// by itself.</span>
     <span class="kw">fn</span> <span class="ident">insert_internal</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">idx</span>: <span class="ident">usize</span>, <span class="ident">key</span>: <span class="ident">K</span>, <span class="ident">value</span>: <span class="ident">V</span>) {
         <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">insert</span>(<span class="ident">idx</span>, (<span class="ident">key</span>, <span class="ident">value</span>))
     }

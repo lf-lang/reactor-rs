@@ -958,6 +958,7 @@
 <span id="955">955</span>
 <span id="956">956</span>
 <span id="957">957</span>
+<span id="958">958</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -1635,6 +1636,7 @@
         }
     }
 
+    <span class="doccomment">/// Fully merge plans of `x` and `y`.</span>
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">merge_cows</span>(<span class="ident">x</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>, <span class="ident">y</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>) -&gt; <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> {
         <span class="ident"><span class="self">Self</span>::merge_plans_after</span>(<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">LevelIx::ZERO</span>)
     }
