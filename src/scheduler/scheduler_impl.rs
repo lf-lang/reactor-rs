@@ -490,25 +490,27 @@ mod parallel_rt_impl {
     pub(super) fn process_batch(ctx: &mut ReactionCtx<'_, '_, '_>, reactors: &mut ReactorVec<'_>, batch: &Level) {
         let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
 
-        ctx.insides = batch
-            .iter()
-            .par_bridge()
-            .fold_with(CloneableCtx(ctx.fork()), |CloneableCtx(mut ctx), reaction_id| {
-                // capture the newtype instead of capturing its field, which is not Send
-                let reactors_mut = &reactors_mut;
-                let reactor = unsafe {
-                    // safety:
-                    // - no two reactions in the batch belong to the same reactor
-                    // - the vec does not change size so there is no reallocation
-                    &mut *reactors_mut.0.add(reaction_id.0.container().index())
-                };
+        ctx.insides.merge_in_place(
+            batch
+                .iter()
+                .par_bridge()
+                .fold_with(CloneableCtx(ctx.fork()), |CloneableCtx(mut ctx), reaction_id| {
+                    // capture the newtype instead of capturing its field, which is not Send
+                    let reactors_mut = &reactors_mut;
+                    let reactor = unsafe {
+                        // safety:
+                        // - no two reactions in the batch belong to the same reactor
+                        // - the vec does not change size so there is no reallocation
+                        &mut *reactors_mut.0.add(reaction_id.0.container().index())
+                    };
 
-                ctx.execute(reactor, reaction_id);
+                    ctx.execute(reactor, reaction_id);
 
-                CloneableCtx(ctx)
-            })
-            .fold(|| RContextForwardableStuff::default(), |cx1, cx2| cx1.merge(cx2.0.insides))
-            .reduce(|| Default::default(), RContextForwardableStuff::merge);
+                    CloneableCtx(ctx)
+                })
+                .fold(|| RContextForwardableStuff::default(), |cx1, cx2| cx1.merge(cx2.0.insides))
+                .reduce(|| Default::default(), RContextForwardableStuff::merge),
+        );
     }
 
     #[derive(Copy, Clone)]

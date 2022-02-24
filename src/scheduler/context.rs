@@ -558,6 +558,11 @@ impl RContextForwardableStuff<'_> {
         self.future_events.append(&mut other.future_events);
         self
     }
+
+    pub(super) fn merge_in_place(&mut self, mut other: Self) {
+        self.todo_now = ExecutableReactions::merge_cows(self.todo_now.clone(), other.todo_now);
+        self.future_events.append(&mut other.future_events);
+    }
 }
 
 /// A type that can affect the logical event queue to implement
