@@ -490,7 +490,7 @@ mod parallel_rt_impl {
     pub(super) fn process_batch(ctx: &mut ReactionCtx<'_, '_, '_>, reactors: &mut ReactorVec<'_>, batch: &Level) {
         let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
 
-        ctx.insides.merge_in_place(
+        ctx.insides.absorb(
             batch
                 .iter()
                 .par_bridge()
