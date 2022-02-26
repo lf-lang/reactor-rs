@@ -553,10 +553,14 @@ impl Default for RContextForwardableStuff<'_> {
 
 #[cfg(feature = "parallel-runtime")]
 impl RContextForwardableStuff<'_> {
-    pub(super) fn merge(mut self, mut other: Self) -> Self {
-        self.todo_now = ExecutableReactions::merge_cows(self.todo_now, other.todo_now);
-        self.future_events.append(&mut other.future_events);
+    pub(super) fn merge(mut self, other: Self) -> Self {
+        self.absorb(other);
         self
+    }
+
+    pub(super) fn absorb(&mut self, mut other: Self) {
+        self.todo_now = ExecutableReactions::merge_cows(self.todo_now.take(), other.todo_now);
+        self.future_events.append(&mut other.future_events);
     }
 }
 
