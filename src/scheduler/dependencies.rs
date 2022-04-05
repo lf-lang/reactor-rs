@@ -694,21 +694,19 @@ impl<'x> ExecutableReactions<'x> {
     /// the produced reaction plan has all the reactions of
     /// `x` and `y` for that level.
     pub(super) fn merge_plans_after(x: ReactionPlan<'x>, y: ReactionPlan<'x>, min_level: LevelIx) -> ReactionPlan<'x> {
-        match (x, y) {
-            (x, None) | (None, x) => x,
-            (Some(x), y) | (y, Some(x)) if x.max_level() < min_level => y,
-            (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
-                x.absorb_after(&y, min_level);
-                Some(Cow::Owned(x))
-            }
-            (Some(mut x), Some(mut y)) => {
-                if x.max_level() > y.max_level() {
+        if x.is_some() && y.is_some() {
+            let mut x = x.unwrap();
+            let mut y = y.unwrap();
+
+            if x.max_level() > y.max_level() {
+                if let Cow::Owned(_) = y {
                     std::mem::swap(&mut x, &mut y);
                 }
-                // x is the largest one here
-                x.to_mut().absorb_after(&y, min_level);
-                Some(x)
             }
+            x.to_mut().absorb_after(&y, min_level);
+            Some(x)
+        } else {
+            x.or(y)
         }
     }
 }
