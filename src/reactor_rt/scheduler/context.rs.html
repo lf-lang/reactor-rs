@@ -911,9 +911,9 @@
     <span class="doccomment">/// Return values:</span>
     <span class="doccomment">/// * `1` if threading is not enabled.</span>
     <span class="doccomment">/// * If threading is enabled and a number of workers was specified,</span>
-    <span class="doccomment">/// it returns that number.</span>
+    <span class="doccomment">///   it returns that number.</span>
     <span class="doccomment">/// * And if the number of workers was left unspecified,</span>
-    <span class="doccomment">/// the return value might vary.</span>
+    <span class="doccomment">///   the return value might vary.</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">num_workers</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="macro">cfg_if::cfg_if!</span> {
             <span class="kw">if</span> <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;parallel-runtime&quot;</span>)]</span> {
