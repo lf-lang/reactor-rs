@@ -4,6 +4,8 @@ use std::sync::Arc;
 
 use crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
+#[cfg(feature = "parallel-runtime")]
+use rayon;
 use smallvec::SmallVec;
 
 use super::*;
@@ -123,6 +125,25 @@ where
     #[inline]
     pub fn get_elapsed_physical_time(&self) -> Duration {
         self.get_physical_time() - self.get_start_time()
+    }
+
+    /// Returns the number of active workers in the execution of
+    /// a reactor program.
+    ///
+    /// Return values:
+    /// * `1` if threading is not enabled.
+    /// * If threading is enabled and a number of workers was specified,
+    ///   it returns that number.
+    /// * And if the number of workers was left unspecified,
+    ///   the return value might vary.
+    pub fn num_workers(&self) -> usize {
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "parallel-runtime")] {
+                rayon::current_num_threads()
+            } else {
+                1
+            }
+        }
     }
 
     /// Returns the current value of a port or action at this
