@@ -513,4 +513,35 @@ macro_rules! unsafe_iter_bank {
             .map(move |i| unsafe { &mut (*__ptr.add(i)) })
             .flat_map(|a| a.$field_name.iter_mut())
     }};
+    // the field is a multiport, we interleave all of them
+    ($bank:ident # interleaved($field_name:ident)) => {{
+        let __ptr = $bank.as_mut_ptr();
+        let __bank_len = $bank.len();
+        // Assume that the contained multiports of the bank
+        // are all of the same length.
+        let __multiport_len = $bank[0].$field_name.len();
+
+        // Build an iterator of tuples that get mapped to their
+        // respective bank element and multiport.
+        let mut bank_idx = 0;
+        let mut multiport_idx = 0;
+        let mut iter = std::iter::from_fn(move || {
+            // The inner loop iterates over bank_idx.
+            if bank_idx >= __bank_len {
+                // When one iteration is done we reset the bank_idx
+                // and increment the outer loop over multiport_idx.
+                bank_idx = 0;
+                multiport_idx += 1;
+
+                if multiport_idx >= __multiport_len {
+                    return None;
+                }
+            }
+
+            let bank_idx_copy = bank_idx;
+            bank_idx += 1;
+            Some((bank_idx_copy, multiport_idx))
+        });
+        iter.map(move |(i, j)| unsafe { &mut (*__ptr.add(i)).$field_name[j] })
+    }};
 }
