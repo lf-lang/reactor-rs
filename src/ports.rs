@@ -105,6 +105,10 @@ impl<T: Sync> PortBank<T> {
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Port<T>> {
         self.ports.iter_mut()
     }
+
+    pub fn len(&self) -> usize {
+        self.ports.len()
+    }
 }
 
 impl<T: Sync> TriggerLike for PortBank<T> {
