@@ -274,7 +274,7 @@ where
         initial_time: Instant,
     ) -> Self {
         if !cfg!(feature = "parallel-runtime") && options.threads != 0 {
-            warn!("'threads' runtime parameter has no effect unless feature 'parallel-runtime' is enabled")
+            warn!("'workers' runtime parameter has no effect unless feature 'parallel-runtime' is enabled")
         }
 
         if options.keep_alive {
