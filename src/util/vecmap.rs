@@ -64,7 +64,7 @@ where
             }
         }
         let i = self.v.len();
-        return Entry::Vacant(VacantEntry { map: self, index: i, key });
+        Entry::Vacant(VacantEntry { map: self, index: i, key })
     }
 
     /// Finds entry reference, either directly associated with `min_key_inclusive`, or the entry with the

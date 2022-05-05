@@ -289,7 +289,7 @@ where
         T: Sync + 'b,
         W: BorrowMut<WritablePort<'b, T>>,
     {
-        value.map(|v| self.set(port, v));
+        if let Some(v) = value { self.set(port, v) }
     }
 
     /// Returns true if the given action was triggered at the

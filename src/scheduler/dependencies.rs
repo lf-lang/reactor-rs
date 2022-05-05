@@ -423,7 +423,7 @@ impl DataflowInfo {
                 // }
 
                 let mut reactions = ExecutableReactions::new();
-                Self::collect_reactions_rec(&dataflow, trigger, level_info, &mut reactions);
+                Self::collect_reactions_rec(dataflow, trigger, level_info, &mut reactions);
                 result.insert(trigger_id, Arc::new(reactions));
             }
         }
@@ -537,7 +537,7 @@ impl<'a> IntoIterator for &'a Level {
     type IntoIter = <&'a LevelImpl as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        (&self.0).into_iter()
+        (&self.0).iter()
     }
 }
 
@@ -775,7 +775,7 @@ pub mod test {
 
         fn new_ports<const N: usize>(&mut self, names: [&'static str; N]) -> [TriggerId; N] {
             let result = array![_ => self.fixture.next_trigger_id.get_and_incr().unwrap(); N];
-            for (i, p) in (&result).into_iter().enumerate() {
+            for (i, p) in (&result).iter().enumerate() {
                 self.fixture.graph.record_port(*p);
                 self.fixture.debug_info.record_trigger(*p, Cow::Borrowed(names[i]));
             }

@@ -362,13 +362,13 @@ impl<T: Sync> Port<T> {
         my_class
             .downstreams
             .borrow_mut()
-            .insert(downstream.id.clone(), Rc::clone(&downstream.upstream_binding));
+            .insert(downstream.id, Rc::clone(&downstream.upstream_binding));
 
-        let new_binding = Rc::clone(&my_class);
+        let new_binding = Rc::clone(my_class);
 
         mut_downstream_cell.check_cycle(&self.id, &downstream.id)?;
 
-        mut_downstream_cell.set_upstream(&my_class);
+        mut_downstream_cell.set_upstream(my_class);
         *mut_downstream_cell.deref_mut() = new_binding;
         Ok(())
     }
