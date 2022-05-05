@@ -1,4 +1,5 @@
 use std::borrow::{Borrow, BorrowMut};
+use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -689,7 +690,7 @@ impl AsyncCtx<'_, '_, '_> {
 /// An offset from the current event.
 ///
 /// This is to be used with [ReactionCtx::schedule].
-#[derive(Copy, Clone, Hash, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Offset {
     /// Specify that the trigger will fire at least after
     /// the provided duration.
@@ -737,6 +738,12 @@ impl PartialEq<Self> for Offset {
 }
 
 impl Eq for Offset {}
+
+impl Hash for Offset {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.to_duration().hash(state);
+    }
+}
 
 /// Cleans up a tag
 /// TODO get rid of this!
