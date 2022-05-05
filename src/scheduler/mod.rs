@@ -87,7 +87,7 @@ impl DebugInfoProvider<'_> {
     }
 
     #[inline]
-    pub(self) fn display_reaction<'a>(&'a self, id: GlobalReactionId) -> impl Display + 'a {
+    pub(self) fn display_reaction(&self, id: GlobalReactionId) -> impl Display + '_ {
         self.id_registry.fmt_reaction(id)
     }
 }

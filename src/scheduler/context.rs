@@ -289,7 +289,9 @@ where
         T: Sync + 'b,
         W: BorrowMut<WritablePort<'b, T>>,
     {
-        if let Some(v) = value { self.set(port, v) }
+        if let Some(v) = value {
+            self.set(port, v)
+        }
     }
 
     /// Returns true if the given action was triggered at the
@@ -550,6 +552,7 @@ where
 }
 
 /// Info that executing reactions need to make known to the scheduler.
+#[derive(Default)]
 pub(super) struct RContextForwardableStuff<'x> {
     /// Remaining reactions to execute before the wave dies.
     /// Using [Option] and [Cow] optimises for the case where
@@ -564,12 +567,6 @@ pub(super) struct RContextForwardableStuff<'x> {
     /// Events that were produced for a strictly greater
     /// logical time than a current one.
     pub(super) future_events: SmallVec<[Event<'x>; 4]>,
-}
-
-impl Default for RContextForwardableStuff<'_> {
-    fn default() -> Self {
-        Self { todo_now: None, future_events: Default::default() }
-    }
 }
 
 #[cfg(feature = "parallel-runtime")]

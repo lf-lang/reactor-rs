@@ -109,6 +109,10 @@ impl<T: Sync> PortBank<T> {
     pub fn len(&self) -> usize {
         self.ports.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.ports.is_empty()
+    }
 }
 
 impl<T: Sync> TriggerLike for PortBank<T> {
@@ -156,6 +160,12 @@ impl<'a, T: Sync> ReadablePortBank<'a, T> {
         self.0.ports.len()
     }
 
+    /// Returns true if the bank is empty.
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.0.ports.is_empty()
+    }
+
     /// Returns the ith component
     #[inline(always)]
     pub fn get(&self, i: usize) -> ReadablePort<T> {
@@ -185,6 +195,12 @@ impl<'a, T: Sync> WritablePortBank<'a, T> {
     #[inline(always)]
     pub fn len(&self) -> usize {
         self.0.ports.len()
+    }
+
+    /// Returns true if the bank is empty.
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.0.ports.is_empty()
     }
 
     /// Returns the ith component

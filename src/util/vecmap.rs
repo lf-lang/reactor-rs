@@ -22,6 +22,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 
 /// A sparse map representation over a totally ordered key type.
@@ -56,11 +57,13 @@ where
         debug_assert!(self.is_valid_keyref(&key.as_ref()));
         let KeyRef { min_idx, key } = key;
         for i in min_idx..self.v.len() {
-            if self.v[i].0 == key {
-                return Entry::Occupied(OccupiedEntry { map: self, index: i, key });
-            } else if self.v[i].0 > key {
-                assert!(i >= 1, "keyref was invalid"); // otherwise min_idx
-                return Entry::Vacant(VacantEntry { map: self, index: i, key });
+            match self.v[i].0.cmp(&key) {
+                Ordering::Equal => return Entry::Occupied(OccupiedEntry { map: self, index: i, key }),
+                Ordering::Greater => {
+                    assert!(i >= 1, "keyref was invalid"); // otherwise min_idx
+                    return Entry::Vacant(VacantEntry { map: self, index: i, key });
+                }
+                _ => {}
             }
         }
         let i = self.v.len();
