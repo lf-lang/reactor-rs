@@ -148,13 +148,13 @@
                 <span class="ident">debug</span>.<span class="ident">fmt_component</span>(<span class="ident">upstream</span>),
                 <span class="ident">debug</span>.<span class="ident">fmt_component</span>(<span class="ident">downstream</span>)
             ),
-            <span class="ident">CyclicDependencyGraph</span> =&gt; <span class="macro">format!</span>(<span class="string">&quot;Cyclic dependency graph&quot;</span>),
+            <span class="ident">CyclicDependencyGraph</span> =&gt; <span class="string">&quot;Cyclic dependency graph&quot;</span>.<span class="ident">to_string</span>(),
             <span class="ident">CannotBind</span>(<span class="ident">upstream</span>, <span class="ident">downstream</span>) =&gt; <span class="macro">format!</span>(
                 <span class="string">&quot;Cannot bind {} to {}, downstream is already bound&quot;</span>,
                 <span class="ident">debug</span>.<span class="ident">fmt_component</span>(<span class="ident">upstream</span>),
                 <span class="ident">debug</span>.<span class="ident">fmt_component</span>(<span class="ident">downstream</span>)
             ),
-            <span class="ident">IdOverflow</span> =&gt; <span class="macro">format!</span>(<span class="string">&quot;Overflow when allocating component ID&quot;</span>),
+            <span class="ident">IdOverflow</span> =&gt; <span class="string">&quot;Overflow when allocating component ID&quot;</span>.<span class="ident">to_string</span>(),
         }
     }
 }
@@ -168,5 +168,5 @@
     <span class="ident">ChildOutputReference</span>,
 }
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (bed05e996 2022-05-02)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (cb1219871 2022-05-08)" ></div>
 </body></html>

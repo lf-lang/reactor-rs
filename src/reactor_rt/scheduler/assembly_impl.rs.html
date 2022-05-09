@@ -849,7 +849,7 @@
             <span class="prelude-val">Some</span>(<span class="ident">i</span>) =&gt; <span class="ident">my_debug</span>.<span class="ident">derive_bank_item</span>::<span class="op">&lt;</span><span class="ident">Sub</span><span class="op">&gt;</span>(<span class="ident">inst_name</span>, <span class="ident">i</span>),
         };
 
-        <span class="kw">let</span> <span class="ident">subctx</span> <span class="op">=</span> <span class="ident">AssemblyCtx::new</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">globals</span>, <span class="ident">debug_info</span>);
+        <span class="kw">let</span> <span class="ident">subctx</span> <span class="op">=</span> <span class="ident">AssemblyCtx::new</span>(<span class="self">self</span>.<span class="ident">globals</span>, <span class="ident">debug_info</span>);
         <span class="kw">let</span> <span class="ident">subinst</span> <span class="op">=</span> <span class="ident">Sub::assemble</span>(<span class="ident">args</span>, <span class="ident">subctx</span>)<span class="question-mark">?</span>.<span class="ident">finish</span>();
         <span class="self">self</span>.<span class="ident">children_ids</span>.<span class="ident">push</span>(<span class="ident">subinst</span>.<span class="ident">id</span>());
         <span class="prelude-val">Ok</span>(<span class="ident">subinst</span>)
@@ -1098,5 +1098,5 @@
     }};
 }
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (bed05e996 2022-05-02)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (cb1219871 2022-05-08)" ></div>
 </body></html>

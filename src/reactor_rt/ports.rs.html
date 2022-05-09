@@ -463,6 +463,22 @@
 <span id="458">458</span>
 <span id="459">459</span>
 <span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
+<span id="463">463</span>
+<span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
+<span id="472">472</span>
+<span id="473">473</span>
+<span id="474">474</span>
+<span id="475">475</span>
+<span id="476">476</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -574,6 +590,10 @@
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="ident">ports</span>.<span class="ident">len</span>()
     }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">ports</span>.<span class="ident">is_empty</span>()
+    }
 }
 
 <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span> <span class="ident">TriggerLike</span> <span class="kw">for</span> <span class="ident">PortBank</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
@@ -621,6 +641,12 @@
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">ports</span>.<span class="ident">len</span>()
     }
 
+    <span class="doccomment">/// Returns true if the bank is empty.</span>
+    <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">ports</span>.<span class="ident">is_empty</span>()
+    }
+
     <span class="doccomment">/// Returns the ith component</span>
     <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">i</span>: <span class="ident">usize</span>) -&gt; <span class="ident">ReadablePort</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
@@ -650,6 +676,12 @@
     <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
     <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
         <span class="self">self</span>.<span class="number">0</span>.<span class="ident">ports</span>.<span class="ident">len</span>()
+    }
+
+    <span class="doccomment">/// Returns true if the bank is empty.</span>
+    <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">always</span>)]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">ports</span>.<span class="ident">is_empty</span>()
     }
 
     <span class="doccomment">/// Returns the ith component</span>
@@ -827,7 +859,7 @@
         <span class="ident">my_class</span>
             .<span class="ident">downstreams</span>
             .<span class="ident">borrow_mut</span>()
-            .<span class="ident">insert</span>(<span class="ident">downstream</span>.<span class="ident">id</span>.<span class="ident">clone</span>(), <span class="ident">Rc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">downstream</span>.<span class="ident">upstream_binding</span>));
+            .<span class="ident">insert</span>(<span class="ident">downstream</span>.<span class="ident">id</span>, <span class="ident">Rc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">downstream</span>.<span class="ident">upstream_binding</span>));
 
         <span class="kw">let</span> <span class="ident">new_binding</span> <span class="op">=</span> <span class="ident">Rc::clone</span>(<span class="kw-2">&amp;</span><span class="ident">my_class</span>);
 
@@ -900,7 +932,7 @@
 
     <span class="doccomment">/// This updates all downstreams to point to the given equiv class instead of `self`</span>
     <span class="kw">fn</span> <span class="ident">set_upstream</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">new_binding</span>: <span class="kw-2">&amp;</span><span class="ident">Rc</span><span class="op">&lt;</span><span class="ident">PortCell</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span><span class="op">&gt;</span>) {
-        <span class="kw">for</span> (<span class="kw">_</span>, <span class="ident">cell_rc</span>) <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="kw-2">*</span><span class="self">self</span>.<span class="ident">downstreams</span>.<span class="ident">borrow</span>() {
+        <span class="kw">for</span> <span class="ident">cell_rc</span> <span class="kw">in</span> (<span class="kw-2">*</span><span class="self">self</span>.<span class="ident">downstreams</span>.<span class="ident">borrow</span>()).<span class="ident">values</span>() {
             <span class="macro">cfg_if!</span> {
                 <span class="kw">if</span> <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;no-unsafe&quot;</span>)]</span> {
                     <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ref_mut</span> <span class="op">=</span> <span class="ident">cell_rc</span>.<span class="ident">borrow_mut</span>();
@@ -924,5 +956,5 @@
     }
 }
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (bed05e996 2022-05-02)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (cb1219871 2022-05-08)" ></div>
 </body></html>

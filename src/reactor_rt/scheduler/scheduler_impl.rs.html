@@ -525,16 +525,6 @@
 <span id="520">520</span>
 <span id="521">521</span>
 <span id="522">522</span>
-<span id="523">523</span>
-<span id="524">524</span>
-<span id="525">525</span>
-<span id="526">526</span>
-<span id="527">527</span>
-<span id="528">528</span>
-<span id="529">529</span>
-<span id="530">530</span>
-<span id="531">531</span>
-<span id="532">532</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -578,6 +568,7 @@
 <span class="doccomment">/// LFC uses target properties to set them. With the &quot;cli&quot;</span>
 <span class="doccomment">/// feature, generated programs also feature CLI options to</span>
 <span class="doccomment">/// override the defaults at runtime.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Default</span>)]</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SchedulerOptions</span> {
     <span class="doccomment">/// If true, we won&#39;t shut down the scheduler as soon as</span>
     <span class="doccomment">/// the event queue is empty, provided there are still</span>
@@ -598,17 +589,6 @@
     <span class="doccomment">/// If true, dump the dependency graph to a file before</span>
     <span class="doccomment">/// starting execution.</span>
     <span class="kw">pub</span> <span class="ident">dump_graph</span>: <span class="ident">bool</span>,
-}
-
-<span class="kw">impl</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">SchedulerOptions</span> {
-    <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> {
-            <span class="ident">keep_alive</span>: <span class="bool-val">false</span>,
-            <span class="ident">timeout</span>: <span class="prelude-val">None</span>,
-            <span class="ident">threads</span>: <span class="number">0</span>,
-            <span class="ident">dump_graph</span>: <span class="bool-val">false</span>,
-        }
-    }
 }
 
 <span class="comment">// Macros are placed a bit out of order to avoid exporting them</span>
@@ -1045,8 +1025,8 @@
 
                     <span class="ident">CloneableCtx</span>(<span class="ident">ctx</span>)
                 })
-                .<span class="ident">fold</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">RContextForwardableStuff::default</span>(), <span class="op">|</span><span class="ident">cx1</span>, <span class="ident">cx2</span><span class="op">|</span> <span class="ident">cx1</span>.<span class="ident">merge</span>(<span class="ident">cx2</span>.<span class="number">0</span>.<span class="ident">insides</span>))
-                .<span class="ident">reduce</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">Default::default</span>(), <span class="ident">RContextForwardableStuff::merge</span>),
+                .<span class="ident">fold</span>(<span class="ident">RContextForwardableStuff::default</span>, <span class="op">|</span><span class="ident">cx1</span>, <span class="ident">cx2</span><span class="op">|</span> <span class="ident">cx1</span>.<span class="ident">merge</span>(<span class="ident">cx2</span>.<span class="number">0</span>.<span class="ident">insides</span>))
+                .<span class="ident">reduce</span>(<span class="ident">Default::default</span>, <span class="ident">RContextForwardableStuff::merge</span>),
         );
     }
 
@@ -1068,5 +1048,5 @@
     }
 }
 </code></pre></div>
-</section><section id="search" class="content hidden"></section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (bed05e996 2022-05-02)" ></div>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.62.0-nightly (cb1219871 2022-05-08)" ></div>
 </body></html>
