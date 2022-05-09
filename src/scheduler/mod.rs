@@ -69,7 +69,7 @@ impl DebugInfoProvider<'_> {
     pub(self) fn display_reactions(&self, reactions: &ReactionPlan) -> String {
         use std::fmt::*;
 
-        let mut str = format!("[");
+        let mut str = "[".to_string();
 
         if let Some(reactions) = reactions {
             for (level_no, batch) in reactions.batches() {
@@ -87,7 +87,7 @@ impl DebugInfoProvider<'_> {
     }
 
     #[inline]
-    pub(self) fn display_reaction<'a>(&'a self, id: GlobalReactionId) -> impl Display + 'a {
+    pub(self) fn display_reaction(&self, id: GlobalReactionId) -> impl Display + '_ {
         self.id_registry.fmt_reaction(id)
     }
 }

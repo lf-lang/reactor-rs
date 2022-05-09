@@ -61,13 +61,13 @@ impl AssemblyError {
                 debug.fmt_component(upstream),
                 debug.fmt_component(downstream)
             ),
-            CyclicDependencyGraph => format!("Cyclic dependency graph"),
+            CyclicDependencyGraph => "Cyclic dependency graph".to_string(),
             CannotBind(upstream, downstream) => format!(
                 "Cannot bind {} to {}, downstream is already bound",
                 debug.fmt_component(upstream),
                 debug.fmt_component(downstream)
             ),
-            IdOverflow => format!("Overflow when allocating component ID"),
+            IdOverflow => "Overflow when allocating component ID".to_string(),
         }
     }
 }

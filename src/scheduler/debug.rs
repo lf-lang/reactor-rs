@@ -127,13 +127,13 @@ impl DebugInfoRegistry {
     }
 
     #[inline]
-    pub fn fmt_reaction<'a>(&'a self, id: GlobalReactionId) -> impl Display + 'a {
+    pub fn fmt_reaction(&self, id: GlobalReactionId) -> impl Display + '_ {
         let raw = (id.0.container(), id.0.local().index());
         self.fmt_component_path(raw, self.reaction_labels.get(&id), true)
     }
 
     #[inline]
-    pub fn fmt_component<'a>(&'a self, id: TriggerId) -> impl Display + 'a {
+    pub fn fmt_component(&self, id: TriggerId) -> impl Display + '_ {
         self.fmt_component_path(self.raw_id_of_trigger(id), Some(&self.trigger_infos[id]), false)
     }
 

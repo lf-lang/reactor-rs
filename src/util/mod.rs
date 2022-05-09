@@ -40,7 +40,7 @@ macro_rules! join_to {
         join_to!($f, $iter, $sep, $prefix, $suffix, |x| format!("{}", x))
     };
     ($f:expr, $iter:expr, $sep:literal, $prefix:literal, $suffix:literal, $display:expr) => {{
-        crate::util::do_write($f, $iter, $sep, $prefix, $suffix, $display)
+        $crate::util::do_write($f, $iter, $sep, $prefix, $suffix, $display)
     }};
 }
 
@@ -264,7 +264,7 @@ pub fn try_parse_duration(t: &str) -> Result<Duration, String> {
     let mut chars = t.char_indices().skip_while(|(_, c)| c.is_numeric());
 
     if let Some((num_end, _)) = &chars.next() {
-        let magnitude: u64 = (&t)[0..*num_end].parse::<u64>().map_err(|e| format!("{}", e))?;
+        let magnitude: u64 = t[0..*num_end].parse::<u64>().map_err(|e| format!("{}", e))?;
 
         let unit = t[*num_end..].trim();
 
@@ -275,7 +275,7 @@ pub fn try_parse_duration(t: &str) -> Result<Duration, String> {
         Ok(duration)
     } else if t != "0" {
         // no unit
-        if t.len() > 0 {
+        if !t.is_empty() {
             Err("time unit required".into())
         } else {
             Err("cannot parse empty string".into())

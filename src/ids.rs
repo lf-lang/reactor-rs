@@ -127,7 +127,7 @@ global_id_newtype! {
 
 /// Identifies a component of a reactor using the ID of its container
 /// and a local component ID.
-#[derive(Eq, PartialOrd, PartialEq, Copy, Clone)]
+#[derive(Eq, Copy, Clone)]
 pub(crate) struct GlobalId {
     container: ReactorId,
     local: LocalReactionId,
@@ -179,6 +179,15 @@ impl Hash for GlobalId {
     }
 }
 
+// Since Hash was implemented explicitly, we have to do it for PartialEq as well.
+impl PartialEq for GlobalId {
+    fn eq(&self, other: &Self) -> bool {
+        let self_impl: &GlobalIdImpl = unsafe { std::mem::transmute(self) };
+        let other_impl: &GlobalIdImpl = unsafe { std::mem::transmute(other) };
+        self_impl == other_impl
+    }
+}
+
 // Same reasoning as for Hash, comparison is used to keep Level
 // sets sorted, when feature `vec-id-sets` is enabled.
 impl Ord for GlobalId {
@@ -186,6 +195,12 @@ impl Ord for GlobalId {
         let self_as_impl: &GlobalIdImpl = unsafe { std::mem::transmute(self) };
         let other_as_impl: &GlobalIdImpl = unsafe { std::mem::transmute(other) };
         self_as_impl.cmp(other_as_impl)
+    }
+}
+
+impl PartialOrd for GlobalId {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 

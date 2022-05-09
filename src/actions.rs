@@ -107,7 +107,7 @@ impl<T: Sync, K> ReactionTrigger<T> for Action<K, T> {
     #[inline]
     fn use_value_ref<O>(&self, now: &EventTag, _start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
         let inmap: Option<&Option<T>> = self.map.get(&Reverse(*now));
-        let v = inmap.map(|i| i.as_ref()).flatten();
+        let v = inmap.and_then(|i| i.as_ref());
         action(v)
     }
 }

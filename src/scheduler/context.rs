@@ -1,11 +1,10 @@
 use std::borrow::{Borrow, BorrowMut};
+use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
-#[cfg(feature = "parallel-runtime")]
-use rayon;
 use smallvec::SmallVec;
 
 use super::*;
@@ -289,7 +288,9 @@ where
         T: Sync + 'b,
         W: BorrowMut<WritablePort<'b, T>>,
     {
-        value.map(|v| self.set(port, v));
+        if let Some(v) = value {
+            self.set(port, v)
+        }
     }
 
     /// Returns true if the given action was triggered at the
@@ -550,6 +551,7 @@ where
 }
 
 /// Info that executing reactions need to make known to the scheduler.
+#[derive(Default)]
 pub(super) struct RContextForwardableStuff<'x> {
     /// Remaining reactions to execute before the wave dies.
     /// Using [Option] and [Cow] optimises for the case where
@@ -564,12 +566,6 @@ pub(super) struct RContextForwardableStuff<'x> {
     /// Events that were produced for a strictly greater
     /// logical time than a current one.
     pub(super) future_events: SmallVec<[Event<'x>; 4]>,
-}
-
-impl Default for RContextForwardableStuff<'_> {
-    fn default() -> Self {
-        Self { todo_now: None, future_events: Default::default() }
-    }
 }
 
 #[cfg(feature = "parallel-runtime")]
@@ -692,7 +688,7 @@ impl AsyncCtx<'_, '_, '_> {
 /// An offset from the current event.
 ///
 /// This is to be used with [ReactionCtx::schedule].
-#[derive(Copy, Clone, Hash, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Offset {
     /// Specify that the trigger will fire at least after
     /// the provided duration.
@@ -740,6 +736,12 @@ impl PartialEq<Self> for Offset {
 }
 
 impl Eq for Offset {}
+
+impl Hash for Offset {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.to_duration().hash(state);
+    }
+}
 
 /// Cleans up a tag
 /// TODO get rid of this!

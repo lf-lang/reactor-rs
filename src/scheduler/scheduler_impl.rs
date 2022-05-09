@@ -41,6 +41,7 @@ use crate::*;
 /// LFC uses target properties to set them. With the "cli"
 /// feature, generated programs also feature CLI options to
 /// override the defaults at runtime.
+#[derive(Default)]
 pub struct SchedulerOptions {
     /// If true, we won't shut down the scheduler as soon as
     /// the event queue is empty, provided there are still
@@ -61,17 +62,6 @@ pub struct SchedulerOptions {
     /// If true, dump the dependency graph to a file before
     /// starting execution.
     pub dump_graph: bool,
-}
-
-impl Default for SchedulerOptions {
-    fn default() -> Self {
-        Self {
-            keep_alive: false,
-            timeout: None,
-            threads: 0,
-            dump_graph: false,
-        }
-    }
 }
 
 // Macros are placed a bit out of order to avoid exporting them
@@ -508,8 +498,8 @@ mod parallel_rt_impl {
 
                     CloneableCtx(ctx)
                 })
-                .fold(|| RContextForwardableStuff::default(), |cx1, cx2| cx1.merge(cx2.0.insides))
-                .reduce(|| Default::default(), RContextForwardableStuff::merge),
+                .fold(RContextForwardableStuff::default, |cx1, cx2| cx1.merge(cx2.0.insides))
+                .reduce(Default::default, RContextForwardableStuff::merge),
         );
     }
 

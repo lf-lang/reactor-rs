@@ -297,7 +297,7 @@ where
             Some(i) => my_debug.derive_bank_item::<Sub>(inst_name, i),
         };
 
-        let subctx = AssemblyCtx::new(&mut self.globals, debug_info);
+        let subctx = AssemblyCtx::new(self.globals, debug_info);
         let subinst = Sub::assemble(args, subctx)?.finish();
         self.children_ids.push(subinst.id());
         Ok(subinst)
