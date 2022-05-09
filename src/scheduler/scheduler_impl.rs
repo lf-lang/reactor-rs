@@ -498,8 +498,8 @@ mod parallel_rt_impl {
 
                     CloneableCtx(ctx)
                 })
-                .fold(|| RContextForwardableStuff::default(), |cx1, cx2| cx1.merge(cx2.0.insides))
-                .reduce(|| Default::default(), RContextForwardableStuff::merge),
+                .fold(RContextForwardableStuff::default, |cx1, cx2| cx1.merge(cx2.0.insides))
+                .reduce(Default::default, RContextForwardableStuff::merge),
         );
     }
 

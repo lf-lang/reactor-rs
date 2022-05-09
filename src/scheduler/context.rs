@@ -5,8 +5,6 @@ use std::sync::Arc;
 
 use crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
-#[cfg(feature = "parallel-runtime")]
-use rayon;
 use smallvec::SmallVec;
 
 use super::*;

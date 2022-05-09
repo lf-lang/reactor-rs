@@ -380,11 +380,11 @@ impl<T: Sync> Port<T> {
             .borrow_mut()
             .insert(downstream.id, Rc::clone(&downstream.upstream_binding));
 
-        let new_binding = Rc::clone(my_class);
+        let new_binding = Rc::clone(&my_class);
 
         mut_downstream_cell.check_cycle(&self.id, &downstream.id)?;
 
-        mut_downstream_cell.set_upstream(my_class);
+        mut_downstream_cell.set_upstream(&my_class);
         *mut_downstream_cell.deref_mut() = new_binding;
         Ok(())
     }
@@ -451,7 +451,7 @@ impl<T: Sync> PortCell<T> {
 
     /// This updates all downstreams to point to the given equiv class instead of `self`
     fn set_upstream(&self, new_binding: &Rc<PortCell<T>>) {
-        for (_, cell_rc) in &*self.downstreams.borrow() {
+        for cell_rc in (*self.downstreams.borrow()).values() {
             cfg_if! {
                 if #[cfg(feature = "no-unsafe")] {
                     let mut ref_mut = cell_rc.borrow_mut();
