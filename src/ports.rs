@@ -410,6 +410,11 @@ enum BindStatus {
     Bound,
 }
 
+#[cfg(feature = "no-unsafe")]
+type DownstreamsSafe<T> = AtomicRefCell<HashMap<PortId, Rc<AtomicRefCell<Rc<PortCell<T>>>>>>;
+#[cfg(not(feature = "no-unsafe"))]
+type DownstreamsUnsafe<T> = AtomicRefCell<HashMap<PortId, Rc<UnsafeCell<Rc<PortCell<T>>>>>>;
+
 /// This is the internal cell type that is shared by ports.
 struct PortCell<T: Sync> {
     /// Cell for the value.
@@ -435,9 +440,9 @@ struct PortCell<T: Sync> {
     /// - if you then try binding C -> A, then we can know
     /// that C is in the downstream of A, indicating that there is a cycle.
     #[cfg(feature = "no-unsafe")]
-    downstreams: AtomicRefCell<HashMap<PortId, Rc<AtomicRefCell<Rc<PortCell<T>>>>>>,
+    downstreams: DownstreamsSafe<T>,
     #[cfg(not(feature = "no-unsafe"))]
-    downstreams: AtomicRefCell<HashMap<PortId, Rc<UnsafeCell<Rc<PortCell<T>>>>>>,
+    downstreams: DownstreamsUnsafe<T>,
 }
 
 impl<T: Sync> PortCell<T> {
