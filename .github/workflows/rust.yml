@@ -43,17 +43,33 @@ jobs:
         publish_dir: target/doc
         github_token: ${{ secrets.GITHUB_TOKEN }}
 
-  format:
+  lints:
+    name: Lints
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
+    - name: Checkout sources
+      uses: actions/checkout@v2
+
+    - name: Install stable toolchain
+      uses: actions-rs/toolchain@v1
       with:
         profile: minimal
-        toolchain: nightly
-        components: rustfmt
-    - name: Check format
-      run: cargo +nightly fmt -- --check
+        toolchain: stable
+        override: true
+        components: rustfmt, clippy
+
+    - name: Run cargo fmt
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --all -- --check
+
+    - name: Run cargo clippy
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+        args: --all-features -- -D warnings
 
   fetch-lf:
     uses: lf-lang/lingua-franca/.github/workflows/extract-ref.yml@master
