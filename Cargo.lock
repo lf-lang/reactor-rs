@@ -135,7 +135,7 @@ dependencies = [
 [[package]]
 name = "crossbeam-channel"
 version = "0.5.1"
-source = "git+https://github.com/oowekyala/crossbeam.git?rev=9eed66904f969156dedad4eef61ce91d23b9cccb#9eed66904f969156dedad4eef61ce91d23b9cccb"
+source = "git+https://github.com/revol-xut/crossbeam.git?rev=ec3e41474109b61ff447fb3b456d9972ab10f513#ec3e41474109b61ff447fb3b456d9972ab10f513"
 dependencies = [
  "cfg-if",
  "crossbeam-utils 0.8.5",
@@ -179,7 +179,7 @@ dependencies = [
 [[package]]
 name = "crossbeam-utils"
 version = "0.8.5"
-source = "git+https://github.com/oowekyala/crossbeam.git?rev=9eed66904f969156dedad4eef61ce91d23b9cccb#9eed66904f969156dedad4eef61ce91d23b9cccb"
+source = "git+https://github.com/revol-xut/crossbeam.git?rev=ec3e41474109b61ff447fb3b456d9972ab10f513#ec3e41474109b61ff447fb3b456d9972ab10f513"
 dependencies = [
  "cfg-if",
  "lazy_static",

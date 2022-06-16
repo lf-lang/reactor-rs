@@ -16,7 +16,9 @@ petgraph = "0.6"
 array-macro = "2.1"
 atomic_refcell = "0.1"
 crossbeam-utils = "0.8"
-crossbeam-channel = { git = "https://github.com/oowekyala/crossbeam.git", rev = "9eed66904f969156dedad4eef61ce91d23b9cccb" }
+
+#crossbeam-channel = "0.5"
+crossbeam-channel = { git = "https://github.com/revol-xut/crossbeam.git", rev = "ec3e41474109b61ff447fb3b456d9972ab10f513" }
 static_assertions = "1.1.0"
 rayon = { version = "1.5", optional = true }
 cfg-if = "1.0.0"
