@@ -352,7 +352,7 @@ impl<T: Sync> Port<T> {
         let mut mut_downstream_cell = {
             cfg_if! {
                 if #[cfg(feature = "no-unsafe")] {
-                    (&downstream.upstream_binding).borrow_mut()
+                    (downstream.upstream_binding).borrow_mut()
                 } else {
                     unsafe { (&downstream.upstream_binding).get().as_mut().unwrap() }
                 }
@@ -447,7 +447,7 @@ struct PortCell<T: Sync> {
 
 impl<T: Sync> PortCell<T> {
     fn check_cycle(&self, upstream_id: &PortId, downstream_id: &PortId) -> Result<(), AssemblyError> {
-        if (&*self.downstreams.borrow()).contains_key(upstream_id) {
+        if (*self.downstreams.borrow()).contains_key(upstream_id) {
             Err(AssemblyError(CyclicDependency(*upstream_id, *downstream_id)))
         } else {
             Ok(())

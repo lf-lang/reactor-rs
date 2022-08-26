@@ -537,7 +537,7 @@ impl<'a> IntoIterator for &'a Level {
     type IntoIter = <&'a LevelImpl as IntoIterator>::IntoIter;
 
     fn into_iter(self) -> Self::IntoIter {
-        (&self.0).iter()
+        (self.0).iter()
     }
 }
 
