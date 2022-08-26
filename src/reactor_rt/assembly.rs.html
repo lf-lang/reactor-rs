@@ -1,11 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/assembly.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>assembly.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
-    <noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
-        </a><h2 class="location"></h2>
-    </nav>
-    <nav class="sidebar"><a class="sidebar-logo" href="../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
-        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../reactor_rt/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><div id="settings-menu" tabindex="-1">
-                                <a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div>
-                        </div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/assembly.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>assembly.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../reactor_rt/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -87,88 +80,87 @@
 <span id="80">80</span>
 <span id="81">81</span>
 <span id="82">82</span>
-</pre><pre class="rust"><code><span class="doccomment">//! Module containing the API to initialize a reactor program.</span>
+</pre><pre class="rust"><code><span class="doccomment">//! Module containing the API to initialize a reactor program.
 
-<span class="kw">use</span> <span class="ident">AssemblyErrorImpl</span>::<span class="kw-2">*</span>;
+</span><span class="kw">use </span>AssemblyErrorImpl::<span class="kw-2">*</span>;
 
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::ids::GlobalReactionId</span>;
-<span class="comment">// this is where most of the stuff is implemented</span>
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::assembly_impl</span>::<span class="kw-2">*</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::triggers</span>::{<span class="ident">TriggerId</span>, <span class="ident">TriggerLike</span>};
-<span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">DebugInfoRegistry</span>, <span class="ident">LocalReactionId</span>, <span class="ident">ReactorBehavior</span>};
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type</span> <span class="ident">PortId</span> <span class="op">=</span> <span class="ident">TriggerId</span>;
+<span class="kw">pub use </span><span class="kw">crate</span>::ids::GlobalReactionId;
+<span class="comment">// this is where most of the stuff is implemented
+</span><span class="kw">pub use </span><span class="kw">crate</span>::scheduler::assembly_impl::<span class="kw-2">*</span>;
+<span class="kw">pub use </span><span class="kw">crate</span>::triggers::{TriggerId, TriggerLike};
+<span class="kw">use crate</span>::{DebugInfoRegistry, LocalReactionId, ReactorBehavior};
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">type </span>PortId = TriggerId;
 
-<span class="doccomment">/// Wrapper around the user struct for safe dispatch.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// Fields are</span>
-<span class="doccomment">/// 1. the user struct,</span>
-<span class="doccomment">/// 2. ctor parameters of the reactor, and</span>
-<span class="doccomment">/// 3. every logical action and port declared by the reactor.</span>
-<span class="doccomment">///</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ReactorInitializer</span>: <span class="ident">ReactorBehavior</span> {
-    <span class="doccomment">/// Type of the user struct, which contains state variables of the reactor.</span>
-    <span class="doccomment">/// Used by the runtime to produce debug information.</span>
-    <span class="kw">type</span> <span class="ident">Wrapped</span>;
-    <span class="doccomment">/// Type of the construction parameters.</span>
-    <span class="kw">type</span> <span class="ident">Params</span>;
-    <span class="doccomment">/// Exclusive maximum value of the `local_rid` parameter of [ReactorBehavior.react].</span>
-    <span class="kw">const</span> <span class="ident">MAX_REACTION_ID</span>: <span class="ident">LocalReactionId</span>;
+<span class="doccomment">/// Wrapper around the user struct for safe dispatch.
+///
+/// Fields are
+/// 1. the user struct,
+/// 2. ctor parameters of the reactor, and
+/// 3. every logical action and port declared by the reactor.
+///
+</span><span class="kw">pub trait </span>ReactorInitializer: ReactorBehavior {
+    <span class="doccomment">/// Type of the user struct, which contains state variables of the reactor.
+    /// Used by the runtime to produce debug information.
+    </span><span class="kw">type </span>Wrapped;
+    <span class="doccomment">/// Type of the construction parameters.
+    </span><span class="kw">type </span>Params;
+    <span class="doccomment">/// Exclusive maximum value of the `local_rid` parameter of [ReactorBehavior.react].
+    </span><span class="kw">const </span>MAX_REACTION_ID: LocalReactionId;
 
-    <span class="doccomment">/// Assemble this reactor. This initializes state variables,</span>
-    <span class="doccomment">/// produces internal components, assembles children reactor</span>
-    <span class="doccomment">/// instances, and declares dependencies between them.</span>
-    <span class="kw">fn</span> <span class="ident">assemble</span>(<span class="ident">args</span>: <span class="ident"><span class="self">Self</span>::Params</span>, <span class="ident">assembler</span>: <span class="ident">AssemblyCtx</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>) -&gt; <span class="ident">AssemblyResult</span><span class="op">&lt;</span><span class="ident">FinishedReactor</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="self">Self</span>: <span class="ident">Sized</span>;
+    <span class="doccomment">/// Assemble this reactor. This initializes state variables,
+    /// produces internal components, assembles children reactor
+    /// instances, and declares dependencies between them.
+    </span><span class="kw">fn </span>assemble(args: <span class="self">Self</span>::Params, assembler: AssemblyCtx&lt;<span class="self">Self</span>&gt;) -&gt; AssemblyResult&lt;FinishedReactor&lt;<span class="self">Self</span>&gt;&gt;
+    <span class="kw">where
+        </span><span class="self">Self</span>: Sized;
 }
 
-<span class="kw">pub</span> <span class="kw">type</span> <span class="ident">AssemblyResult</span><span class="op">&lt;</span><span class="ident">T</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">AssemblyError</span><span class="op">&gt;</span>;
+<span class="kw">pub type </span>AssemblyResult&lt;T = ()&gt; = <span class="prelude-ty">Result</span>&lt;T, AssemblyError&gt;;
 
-<span class="doccomment">/// An error occurring during initialization of the reactor program.</span>
-<span class="doccomment">/// Should never occur unless the graph is built by hand, and not</span>
-<span class="doccomment">/// by a Lingua Franca compiler.</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">AssemblyError</span>(<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="ident">AssemblyErrorImpl</span>);
+<span class="doccomment">/// An error occurring during initialization of the reactor program.
+/// Should never occur unless the graph is built by hand, and not
+/// by a Lingua Franca compiler.
+</span><span class="kw">pub struct </span>AssemblyError(<span class="kw">pub</span>(<span class="kw">crate</span>) AssemblyErrorImpl);
 
-<span class="kw">impl</span> <span class="ident">AssemblyError</span> {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">lift</span>(<span class="self">self</span>, <span class="ident">debug</span>: <span class="kw-2">&amp;</span><span class="ident">DebugInfoRegistry</span>) -&gt; <span class="ident">String</span> {
-        <span class="self">self</span>.<span class="ident">display</span>(<span class="ident">debug</span>)
+<span class="kw">impl </span>AssemblyError {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>lift(<span class="self">self</span>, debug: <span class="kw-2">&amp;</span>DebugInfoRegistry) -&gt; String {
+        <span class="self">self</span>.display(debug)
     }
 }
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum</span> <span class="ident">AssemblyErrorImpl</span> {
-    <span class="ident">CyclicDependency</span>(<span class="ident">PortId</span>, <span class="ident">PortId</span>),
-    <span class="ident">CyclicDependencyGraph</span>,
-    <span class="ident">CannotBind</span>(<span class="ident">PortId</span>, <span class="ident">PortId</span>),
-    <span class="ident">IdOverflow</span>,
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>AssemblyErrorImpl {
+    CyclicDependency(PortId, PortId),
+    CyclicDependencyGraph,
+    CannotBind(PortId, PortId),
+    IdOverflow,
 }
 
-<span class="kw">impl</span> <span class="ident">AssemblyError</span> {
-    <span class="kw">fn</span> <span class="ident">display</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">debug</span>: <span class="kw-2">&amp;</span><span class="ident">DebugInfoRegistry</span>) -&gt; <span class="ident">String</span> {
-        <span class="kw">match</span> <span class="self">self</span>.<span class="number">0</span> {
-            <span class="ident">CyclicDependency</span>(<span class="ident">upstream</span>, <span class="ident">downstream</span>) =&gt; <span class="macro">format!</span>(
+<span class="kw">impl </span>AssemblyError {
+    <span class="kw">fn </span>display(<span class="kw-2">&amp;</span><span class="self">self</span>, debug: <span class="kw-2">&amp;</span>DebugInfoRegistry) -&gt; String {
+        <span class="kw">match </span><span class="self">self</span>.<span class="number">0 </span>{
+            CyclicDependency(upstream, downstream) =&gt; <span class="macro">format!</span>(
                 <span class="string">&quot;Port {} is already in the downstream of port {}&quot;</span>,
-                <span class="ident">debug</span>.<span class="ident">fmt_component</span>(<span class="ident">upstream</span>),
-                <span class="ident">debug</span>.<span class="ident">fmt_component</span>(<span class="ident">downstream</span>)
+                debug.fmt_component(upstream),
+                debug.fmt_component(downstream)
             ),
-            <span class="ident">CyclicDependencyGraph</span> =&gt; <span class="string">&quot;Cyclic dependency graph&quot;</span>.<span class="ident">to_string</span>(),
-            <span class="ident">CannotBind</span>(<span class="ident">upstream</span>, <span class="ident">downstream</span>) =&gt; <span class="macro">format!</span>(
+            CyclicDependencyGraph =&gt; <span class="string">&quot;Cyclic dependency graph&quot;</span>.to_string(),
+            CannotBind(upstream, downstream) =&gt; <span class="macro">format!</span>(
                 <span class="string">&quot;Cannot bind {} to {}, downstream is already bound&quot;</span>,
-                <span class="ident">debug</span>.<span class="ident">fmt_component</span>(<span class="ident">upstream</span>),
-                <span class="ident">debug</span>.<span class="ident">fmt_component</span>(<span class="ident">downstream</span>)
+                debug.fmt_component(upstream),
+                debug.fmt_component(downstream)
             ),
-            <span class="ident">IdOverflow</span> =&gt; <span class="string">&quot;Overflow when allocating component ID&quot;</span>.<span class="ident">to_string</span>(),
+            IdOverflow =&gt; <span class="string">&quot;Overflow when allocating component ID&quot;</span>.to_string(),
         }
     }
 }
 
-<span class="doccomment">/// Kind of a port.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Hash</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">PortKind</span> {
-    <span class="ident">Input</span>,
-    <span class="ident">Output</span>,
-    <span class="ident">ChildInputReference</span>,
-    <span class="ident">ChildOutputReference</span>,
+<span class="doccomment">/// Kind of a port.
+</span><span class="attribute">#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+</span><span class="kw">pub enum </span>PortKind {
+    Input,
+    Output,
+    ChildInputReference,
+    ChildOutputReference,
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (42e1761c7 2022-05-15)" ></div>
-</body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (748038961 2022-08-25)" ></div></body></html>

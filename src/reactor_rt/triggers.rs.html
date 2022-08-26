@@ -1,11 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/triggers.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>triggers.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script src="../../crates.js"></script><script defer src="../../main.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script>
-    <noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
-        </a><h2 class="location"></h2>
-    </nav>
-    <nav class="sidebar"><a class="sidebar-logo" href="../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div>
-        </a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../reactor_rt/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><button type="button" id="help-button" title="help">?</button><div id="settings-menu" tabindex="-1">
-                                <a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div>
-                        </div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/triggers.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>triggers.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../reactor_rt/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -174,131 +167,130 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */</span>
+ */
 
-<span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="ident">Debug</span>, <span class="ident">Formatter</span>};
-<span class="kw">use</span> <span class="ident">std::hash::Hash</span>;
-<span class="kw">use</span> <span class="ident">std::ops::Range</span>;
-<span class="kw">use</span> <span class="ident">std::time::Instant</span>;
+</span><span class="kw">use </span>std::fmt::{Debug, Formatter};
+<span class="kw">use </span>std::hash::Hash;
+<span class="kw">use </span>std::ops::Range;
+<span class="kw">use </span>std::time::Instant;
 
-<span class="kw">use</span> <span class="ident">index_vec::Idx</span>;
+<span class="kw">use </span>index_vec::Idx;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::impl_types::TriggerIdImpl</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::EventTag</span>;
+<span class="kw">use </span><span class="kw">crate</span>::impl_types::TriggerIdImpl;
+<span class="kw">use </span><span class="kw">crate</span>::EventTag;
 
-<span class="doccomment">/// Common trait for actions, ports, and timer objects handed</span>
-<span class="doccomment">/// to reaction functions. This is meant to be used through the</span>
-<span class="doccomment">/// API of [ReactionCtx](crate::ReactionCtx) instead of directly.</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ReactionTrigger</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// Returns whether the trigger is present, given that</span>
-    <span class="doccomment">/// the current logical time is the parameter.</span>
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">fn</span> <span class="ident">is_present</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">now</span>: <span class="kw-2">&amp;</span><span class="ident">EventTag</span>, <span class="ident">start</span>: <span class="kw-2">&amp;</span><span class="ident">Instant</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="ident">use_value_ref</span>(<span class="ident">now</span>, <span class="ident">start</span>, <span class="op">|</span><span class="ident">opt</span><span class="op">|</span> <span class="ident">opt</span>.<span class="ident">is_some</span>())
+<span class="doccomment">/// Common trait for actions, ports, and timer objects handed
+/// to reaction functions. This is meant to be used through the
+/// API of [ReactionCtx](crate::ReactionCtx) instead of directly.
+</span><span class="kw">pub trait </span>ReactionTrigger&lt;T&gt; {
+    <span class="doccomment">/// Returns whether the trigger is present, given that
+    /// the current logical time is the parameter.
+    </span><span class="attribute">#[inline]
+    </span><span class="kw">fn </span>is_present(<span class="kw-2">&amp;</span><span class="self">self</span>, now: <span class="kw-2">&amp;</span>EventTag, start: <span class="kw-2">&amp;</span>Instant) -&gt; bool {
+        <span class="self">self</span>.use_value_ref(now, start, |opt| opt.is_some())
     }
 
-    <span class="doccomment">/// Copies the value out, if it is present. Whether a *value*</span>
-    <span class="doccomment">/// is present is not in general the same thing as whether *this trigger*</span>
-    <span class="doccomment">/// [Self::is_present]. See [crate::ReactionCtx::get].</span>
-    <span class="kw">fn</span> <span class="ident">get_value</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">now</span>: <span class="kw-2">&amp;</span><span class="ident">EventTag</span>, <span class="ident">start</span>: <span class="kw-2">&amp;</span><span class="ident">Instant</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
-    <span class="kw">where</span>
-        <span class="ident">T</span>: <span class="ident">Copy</span>;
+    <span class="doccomment">/// Copies the value out, if it is present. Whether a *value*
+    /// is present is not in general the same thing as whether *this trigger*
+    /// [Self::is_present]. See [crate::ReactionCtx::get].
+    </span><span class="kw">fn </span>get_value(<span class="kw-2">&amp;</span><span class="self">self</span>, now: <span class="kw-2">&amp;</span>EventTag, start: <span class="kw-2">&amp;</span>Instant) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt;
+    <span class="kw">where
+        </span>T: Copy;
 
-    <span class="doccomment">/// Execute an action using the current value of this trigger.</span>
-    <span class="doccomment">/// The closure is called even if the value is absent (with a [None]</span>
-    <span class="doccomment">/// argument).</span>
-    <span class="kw">fn</span> <span class="ident">use_value_ref</span><span class="op">&lt;</span><span class="ident">O</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">now</span>: <span class="kw-2">&amp;</span><span class="ident">EventTag</span>, <span class="ident">start</span>: <span class="kw-2">&amp;</span><span class="ident">Instant</span>, <span class="ident">action</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">T</span><span class="op">&gt;</span>) -&gt; <span class="ident">O</span>) -&gt; <span class="ident">O</span>;
+    <span class="doccomment">/// Execute an action using the current value of this trigger.
+    /// The closure is called even if the value is absent (with a [None]
+    /// argument).
+    </span><span class="kw">fn </span>use_value_ref&lt;O&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, now: <span class="kw-2">&amp;</span>EventTag, start: <span class="kw-2">&amp;</span>Instant, action: <span class="kw">impl </span>FnOnce(<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>T&gt;) -&gt; O) -&gt; O;
 }
 
-<span class="doccomment">/// Something on which we can declare a trigger dependency</span>
-<span class="doccomment">/// in the dependency graph.</span>
-<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
-<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">TriggerLike</span> {
-    <span class="kw">fn</span> <span class="ident">get_id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">TriggerId</span>;
+<span class="doccomment">/// Something on which we can declare a trigger dependency
+/// in the dependency graph.
+</span><span class="attribute">#[doc(hidden)]
+</span><span class="kw">pub trait </span>TriggerLike {
+    <span class="kw">fn </span>get_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TriggerId;
 }
 
-<span class="doccomment">/// The ID of a trigger component.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Hash</span>, <span class="ident">Ord</span>, <span class="ident">PartialOrd</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">TriggerId</span>(<span class="ident">TriggerIdImpl</span>);
+<span class="doccomment">/// The ID of a trigger component.
+</span><span class="attribute">#[derive(Eq, PartialEq, Copy, Clone, Hash, Ord, PartialOrd)]
+</span><span class="kw">pub struct </span>TriggerId(TriggerIdImpl);
 
-<span class="comment">// Historical note: in the past, TriggerId was a newtype over a GlobalId.</span>
-<span class="comment">// The structure of GlobalId was nice, as it allows us to print nice debug</span>
-<span class="comment">// info. But it also forces us to use inefficient data structures to get a Map&lt;TriggerId, ...&gt;,</span>
-<span class="comment">// because ids were not allocated consecutively. We were previously using</span>
-<span class="comment">// hashmaps, now we use IndexVec.</span>
-<span class="comment">// Also the structure of GlobalId used to set relatively low</span>
-<span class="comment">// ceilings on the number of components and reactions of each</span>
-<span class="comment">// reactor. Previously, we could have max 2^16 (reactions+components)</span>
-<span class="comment">// per reactor. Now we can have 2^16 reactions per reactor,</span>
-<span class="comment">// and range(usize) total components.</span>
+<span class="comment">// Historical note: in the past, TriggerId was a newtype over a GlobalId.
+// The structure of GlobalId was nice, as it allows us to print nice debug
+// info. But it also forces us to use inefficient data structures to get a Map&lt;TriggerId, ...&gt;,
+// because ids were not allocated consecutively. We were previously using
+// hashmaps, now we use IndexVec.
+// Also the structure of GlobalId used to set relatively low
+// ceilings on the number of components and reactions of each
+// reactor. Previously, we could have max 2^16 (reactions+components)
+// per reactor. Now we can have 2^16 reactions per reactor,
+// and range(usize) total components.
 
-<span class="kw">impl</span> <span class="ident">TriggerId</span> {
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">STARTUP</span>: <span class="ident">TriggerId</span> <span class="op">=</span> <span class="ident">TriggerId</span>(<span class="number">0</span>);
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">SHUTDOWN</span>: <span class="ident">TriggerId</span> <span class="op">=</span> <span class="ident">TriggerId</span>(<span class="number">1</span>);
+</span><span class="kw">impl </span>TriggerId {
+    <span class="kw">pub const </span>STARTUP: TriggerId = TriggerId(<span class="number">0</span>);
+    <span class="kw">pub const </span>SHUTDOWN: TriggerId = TriggerId(<span class="number">1</span>);
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const</span> <span class="ident">FIRST_REGULAR</span>: <span class="ident">TriggerId</span> <span class="op">=</span> <span class="ident">TriggerId</span>(<span class="number">2</span>);
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">const </span>FIRST_REGULAR: TriggerId = TriggerId(<span class="number">2</span>);
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused</span>)]</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">id</span>: <span class="ident">TriggerIdImpl</span>) -&gt; <span class="self">Self</span> {
-        <span class="macro">assert!</span>(<span class="ident">id</span> <span class="op">&gt;</span> <span class="number">1</span>, <span class="string">&quot;0-1 are reserved for startup &amp; shutdown!&quot;</span>);
-        <span class="ident">TriggerId</span>(<span class="ident">id</span>)
+    <span class="attribute">#[allow(unused)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(id: TriggerIdImpl) -&gt; <span class="self">Self </span>{
+        <span class="macro">assert!</span>(id &gt; <span class="number">1</span>, <span class="string">&quot;0-1 are reserved for startup &amp; shutdown!&quot;</span>);
+        TriggerId(id)
     }
 
-    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused</span>)]</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">get_and_incr</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, ()<span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="kw-2">*</span><span class="self">self</span>;
-        <span class="kw-2">*</span><span class="self">self</span> <span class="op">=</span> <span class="ident">id</span>.<span class="ident">next</span>()<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(<span class="ident">id</span>)
+    <span class="attribute">#[allow(unused)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_and_incr(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, ()&gt; {
+        <span class="kw">let </span>id = <span class="kw-2">*</span><span class="self">self</span>;
+        <span class="kw-2">*</span><span class="self">self </span>= id.next()<span class="question-mark">?</span>;
+        <span class="prelude-val">Ok</span>(id)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">next</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, ()<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">checked_add</span>(<span class="number">1</span>).<span class="ident">map</span>(<span class="ident">TriggerId</span>).<span class="ident">ok_or</span>(())
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>next(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, ()&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.checked_add(<span class="number">1</span>).map(TriggerId).ok_or(())
     }
 
-    <span class="doccomment">/// Returns an iterator that iterates over the range `(self+1)..(self+1+len)`.</span>
-    <span class="doccomment">/// Returns `Err` on overflow.</span>
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">iter_next_range</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">len</span>: <span class="ident">usize</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="self">Self</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">upper</span>) <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">checked_add</span>(<span class="number">1</span> <span class="op">+</span> (<span class="ident">len</span> <span class="kw">as</span> <span class="ident">TriggerIdImpl</span>)) {
-            <span class="prelude-val">Ok</span>(((<span class="self">self</span>.<span class="number">0</span> <span class="op">+</span> <span class="number">1</span>)..<span class="ident">upper</span>).<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="ident">TriggerId</span>))
-        } <span class="kw">else</span> {
+    <span class="doccomment">/// Returns an iterator that iterates over the range `(self+1)..(self+1+len)`.
+    /// Returns `Err` on overflow.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>iter_next_range(<span class="kw-2">&amp;</span><span class="self">self</span>, len: usize) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">impl </span>Iterator&lt;Item = <span class="self">Self</span>&gt;, ()&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(upper) = <span class="self">self</span>.<span class="number">0</span>.checked_add(<span class="number">1 </span>+ (len <span class="kw">as </span>TriggerIdImpl)) {
+            <span class="prelude-val">Ok</span>(((<span class="self">self</span>.<span class="number">0 </span>+ <span class="number">1</span>)..upper).into_iter().map(TriggerId))
+        } <span class="kw">else </span>{
             <span class="prelude-val">Err</span>(())
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">next_range</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">len</span>: <span class="ident">usize</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Range</span><span class="op">&lt;</span><span class="self">Self</span><span class="op">&gt;</span>, ()<span class="op">&gt;</span> {
-        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">upper</span>) <span class="op">=</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">checked_add</span>(<span class="number">1</span> <span class="op">+</span> (<span class="ident">len</span> <span class="kw">as</span> <span class="ident">TriggerIdImpl</span>)) {
-            <span class="prelude-val">Ok</span>(<span class="ident">Range</span> { <span class="ident">start</span>: <span class="self">self</span>.<span class="ident">next</span>()<span class="question-mark">?</span>, <span class="ident">end</span>: <span class="ident"><span class="self">Self</span>::new</span>(<span class="ident">upper</span>) })
-        } <span class="kw">else</span> {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>next_range(<span class="kw-2">&amp;</span><span class="self">self</span>, len: usize) -&gt; <span class="prelude-ty">Result</span>&lt;Range&lt;<span class="self">Self</span>&gt;, ()&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(upper) = <span class="self">self</span>.<span class="number">0</span>.checked_add(<span class="number">1 </span>+ (len <span class="kw">as </span>TriggerIdImpl)) {
+            <span class="prelude-val">Ok</span>(Range { start: <span class="self">self</span>.next()<span class="question-mark">?</span>, end: <span class="self">Self</span>::new(upper) })
+        } <span class="kw">else </span>{
             <span class="prelude-val">Err</span>(())
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn</span> <span class="ident">iter_range</span>(<span class="ident">range</span>: <span class="kw-2">&amp;</span><span class="ident">Range</span><span class="op">&lt;</span><span class="ident">TriggerId</span><span class="op">&gt;</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">TriggerId</span><span class="op">&gt;</span> {
-        (<span class="ident">range</span>.<span class="ident">start</span>.<span class="number">0</span>..<span class="ident">range</span>.<span class="ident">end</span>.<span class="number">0</span>).<span class="ident">into_iter</span>().<span class="ident">map</span>(<span class="ident">TriggerId</span>)
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>iter_range(range: <span class="kw-2">&amp;</span>Range&lt;TriggerId&gt;) -&gt; <span class="kw">impl </span>Iterator&lt;Item = TriggerId&gt; {
+        (range.start.<span class="number">0</span>..range.end.<span class="number">0</span>).into_iter().map(TriggerId)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Idx</span> <span class="kw">for</span> <span class="ident">TriggerId</span> {
-    <span class="kw">fn</span> <span class="ident">from_usize</span>(<span class="ident">idx</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
-        <span class="comment">// note that this is basically an unchecked call to the ctor</span>
-        <span class="comment">// when Self::new checks</span>
-        <span class="ident">TriggerId</span>(<span class="ident">idx</span> <span class="kw">as</span> <span class="ident">TriggerIdImpl</span>)
+<span class="kw">impl </span>Idx <span class="kw">for </span>TriggerId {
+    <span class="kw">fn </span>from_usize(idx: usize) -&gt; <span class="self">Self </span>{
+        <span class="comment">// note that this is basically an unchecked call to the ctor
+        // when Self::new checks
+        </span>TriggerId(idx <span class="kw">as </span>TriggerIdImpl)
     }
 
-    <span class="kw">fn</span> <span class="ident">index</span>(<span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="number">0</span> <span class="kw">as</span> <span class="ident">usize</span>
+    <span class="kw">fn </span>index(<span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.<span class="number">0 </span><span class="kw">as </span>usize
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">TriggerId</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">std::fmt::Result</span> {
-        <span class="kw">match</span> <span class="kw-2">*</span><span class="self">self</span> {
-            <span class="ident">TriggerId::STARTUP</span> =&gt; <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;startup&quot;</span>),
-            <span class="ident">TriggerId::SHUTDOWN</span> =&gt; <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;shutdown&quot;</span>),
-            <span class="ident">TriggerId</span>(<span class="ident">id</span>) =&gt; <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">id</span>),
+<span class="kw">impl </span>Debug <span class="kw">for </span>TriggerId {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">match </span><span class="kw-2">*</span><span class="self">self </span>{
+            TriggerId::STARTUP =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;startup&quot;</span>),
+            TriggerId::SHUTDOWN =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;shutdown&quot;</span>),
+            TriggerId(id) =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, id),
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.63.0-nightly (42e1761c7 2022-05-15)" ></div>
-</body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (748038961 2022-08-25)" ></div></body></html>
