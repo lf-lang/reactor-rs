@@ -632,17 +632,21 @@ impl<'x> ExecutableReactions<'x> {
         let src = &src.levels;
         let dst = &mut self.levels;
 
+        // Find the next mapping >= to the min level.
+        // We don't care about the mappings that come before.
+        // If there is none we won't loop at all.
         let mut next_src = src.find_random_mapping_after(min_level_inclusive);
-        let mut dst_keyref: Option<KeyRef<LevelIx>> = None;
+        let mut dst_position_hint: Option<KeyRef<LevelIx>> = None;
 
         while let Some((src_ix, src_level)) = next_src {
-            // find destination entry
-            let dst_entry = match dst_keyref {
-                Some(kr) => dst.entry_from_ref(kr), // linear probing from where we left off
-                None => dst.entry(*src_ix.key),     // first iteration, binary search
+            // Find destination entry.
+            let dst_entry = match dst_position_hint {
+                Some(kr) => dst.entry_from_ref(kr, *src_ix.key), // linear probing from where we left off
+                None => dst.entry(*src_ix.key),                  // first iteration, binary search
             };
-            // save this for next iteration
-            dst_keyref = Some(dst_entry.keyref().cloned());
+            // Save this for next iteration. Used as a hint to find
+            // the next entry more efficiently.
+            dst_position_hint = Some(dst_entry.keyref().cloned());
 
             match dst_entry {
                 VEntry::Vacant(e) => {
