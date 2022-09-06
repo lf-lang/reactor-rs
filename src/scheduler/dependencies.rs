@@ -485,7 +485,7 @@ cfg_if! {
 /// A set of global reaction IDS.
 /// The implementation can be changed with the vec-id-sets feature,
 /// which is more performant when relatively few
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default, Debug, Eq, PartialEq)]
 #[repr(transparent)]
 pub struct Level(LevelImpl);
 
@@ -558,9 +558,6 @@ pub struct LevelIx(u32);
 #[allow(unused)] // some usages are in tests
 impl LevelIx {
     pub const ZERO: LevelIx = LevelIx(0);
-    pub const fn from(i: u32) -> Self {
-        Self(i)
-    }
     pub fn next(self) -> Self {
         LevelIx(self.0 + 1)
     }
@@ -569,6 +566,12 @@ impl LevelIx {
 impl Display for LevelIx {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl From<u32> for LevelIx {
+    fn from(i: u32) -> Self {
+        Self(i)
     }
 }
 
@@ -723,6 +726,7 @@ impl Display for ExecutableReactions<'_> {
 #[cfg(test)]
 pub mod test {
     use super::*;
+    use crate::impl_types::{ReactionIdImpl, ReactorIdImpl};
 
     struct TestGraphFixture {
         graph: DepGraph,
@@ -791,6 +795,48 @@ pub mod test {
         fn drop(&mut self) {
             let range = self.first_trigger_id..self.fixture.next_trigger_id;
             self.fixture.debug_info.set_id_range(self.reactor_id, range)
+        }
+    }
+
+    fn new_reaction(a: ReactorIdImpl, b: ReactionIdImpl) -> GlobalReactionId {
+        GlobalReactionId::new(ReactorId::new(a), LocalReactionId::new(b))
+    }
+
+    #[test]
+    fn test_plan_merging_simple() {
+        let level1 = LevelIx::from(1);
+        let level2 = LevelIx::from(2);
+
+        let mut p1 = ExecutableReactions::new();
+        p1.insert(new_reaction(0, 2), level1);
+        let mut p2 = ExecutableReactions::new();
+        p2.insert(new_reaction(0, 3), level2);
+
+        {
+            let mut p = p1.clone();
+            p.absorb_after(&p2, level1);
+            assert_eq!(p.levels.get(&level1), p1.levels.get(&level1));
+            assert_eq!(p.levels.get(&level2), p2.levels.get(&level2));
+        }
+    }
+
+    #[test]
+    fn test_plan_merging_overlap() {
+        // bug #14
+        let level1 = LevelIx::from(1);
+        let level2 = LevelIx::from(2);
+
+        let mut p1 = ExecutableReactions::new();
+        p1.insert(new_reaction(0, 2), level1);
+        let mut p2 = ExecutableReactions::new();
+        p2.insert(new_reaction(0, 2), level1); // this line is same as for p1
+        p2.insert(new_reaction(0, 3), level2);
+
+        {
+            let mut p = p1.clone();
+            p.absorb_after(&p2, level1);
+            assert_eq!(p.levels.get(&level1), p1.levels.get(&level1));
+            assert_eq!(p.levels.get(&level2), p2.levels.get(&level2));
         }
     }
 
