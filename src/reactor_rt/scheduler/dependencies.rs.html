@@ -1006,7 +1006,6 @@
 <span id="1006">1006</span>
 <span id="1007">1007</span>
 <span id="1008">1008</span>
-<span id="1009">1009</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -1040,18 +1039,17 @@
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>index_vec::{Idx, IndexVec};
-<span class="kw">use </span>petgraph::Direction::{Incoming, Outgoing};
 <span class="kw">use </span>petgraph::graph::{DiGraph, NodeIndex};
 <span class="kw">use </span>petgraph::visit::EdgeRef;
+<span class="kw">use </span>petgraph::Direction::{Incoming, Outgoing};
 
-<span class="kw">use crate</span>::<span class="kw-2">*</span>;
+<span class="kw">use </span><span class="kw">super</span>::ReactionPlan;
 <span class="kw">use </span><span class="kw">crate</span>::assembly::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::impl_types::GlobalIdImpl;
 <span class="kw">use </span><span class="kw">crate</span>::scheduler::dependencies::NodeKind::MultiportUpstream;
 <span class="kw">use </span><span class="kw">crate</span>::util::vecmap::{Entry <span class="kw">as </span>VEntry, VecMap};
 <span class="kw">use </span><span class="kw">crate</span>::vecmap::KeyRef;
-
-<span class="kw">use </span><span class="kw">super</span>::ReactionPlan;
+<span class="kw">use crate</span>::<span class="kw-2">*</span>;
 
 <span class="kw">type </span>GraphIx = NodeIndex&lt;GlobalIdImpl&gt;;
 
@@ -1581,7 +1579,7 @@
 
 <span class="kw">impl </span>From&lt;u32&gt; <span class="kw">for </span>LevelIx {
     <span class="kw">fn </span>from(i: u32) -&gt; <span class="self">Self </span>{
-       <span class="self">Self</span>(i)
+        <span class="self">Self</span>(i)
     }
 }
 
@@ -1735,8 +1733,8 @@
 
 <span class="attribute">#[cfg(test)]
 </span><span class="kw">pub mod </span>test {
-    <span class="kw">use </span><span class="kw">crate</span>::impl_types::{ReactionIdImpl, ReactorIdImpl};
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::impl_types::{ReactionIdImpl, ReactorIdImpl};
 
     <span class="kw">struct </span>TestGraphFixture {
         graph: DepGraph,
