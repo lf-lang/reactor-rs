@@ -1604,7 +1604,7 @@
             <span class="comment">// Find destination entry.
             </span><span class="kw">let </span>dst_entry = <span class="kw">match </span>dst_position_hint {
                 <span class="prelude-val">Some</span>(kr) =&gt; dst.entry_from_ref(kr, <span class="kw-2">*</span>src_ix.key), <span class="comment">// linear probing from where we left off
-                </span><span class="prelude-val">None </span>=&gt; dst.entry(<span class="kw-2">*</span>src_ix.key),     <span class="comment">// first iteration, binary search
+                </span><span class="prelude-val">None </span>=&gt; dst.entry(<span class="kw-2">*</span>src_ix.key),                  <span class="comment">// first iteration, binary search
             </span>};
             <span class="comment">// Save this for next iteration. Used as a hint to find
             // the next entry more efficiently.
