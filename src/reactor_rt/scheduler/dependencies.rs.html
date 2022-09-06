@@ -958,6 +958,8 @@
 <span id="958">958</span>
 <span id="959">959</span>
 <span id="960">960</span>
+<span id="961">961</span>
+<span id="962">962</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -1591,20 +1593,22 @@
     </span><span class="kw">pub fn </span>absorb_after(<span class="kw-2">&amp;mut </span><span class="self">self</span>, src: <span class="kw-2">&amp;</span>ExecutableReactions&lt;<span class="lifetime">&#39;x</span>&gt;, min_level_inclusive: LevelIx) {
         <span class="kw">let </span>src = <span class="kw-2">&amp;</span>src.levels;
         <span class="kw">let </span>dst = <span class="kw-2">&amp;mut </span><span class="self">self</span>.levels;
-    
-        <span class="kw">let </span><span class="kw-2">mut </span>next_src = src.find_random_mapping_after(min_level_inclusive);
-        <span class="kw">let </span><span class="kw-2">mut </span>dst_keyref: <span class="prelude-ty">Option</span>&lt;KeyRef&lt;LevelIx&gt;&gt; = <span class="prelude-val">None</span>;
+
+        <span class="comment">// Find the next mapping &gt;= to the min level.
+        // We don&#39;t care about the mappings that come before.
+        // If there is none we won&#39;t loop at all.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>next_src = src.find_random_mapping_after(min_level_inclusive);
+        <span class="kw">let </span><span class="kw-2">mut </span>dst_position_hint: <span class="prelude-ty">Option</span>&lt;KeyRef&lt;LevelIx&gt;&gt; = <span class="prelude-val">None</span>;
 
         <span class="kw">while let </span><span class="prelude-val">Some</span>((src_ix, src_level)) = next_src {
             <span class="comment">// Find destination entry.
-            // At this point of the iteration, the dst_keyref points to the entry of the previous iteration.
-            // We use that as a hint to find the next entry more efficiently.
-            </span><span class="kw">let </span>dst_entry = <span class="kw">match </span>dst_keyref {
+            </span><span class="kw">let </span>dst_entry = <span class="kw">match </span>dst_position_hint {
                 <span class="prelude-val">Some</span>(kr) =&gt; dst.entry_from_ref(kr, <span class="kw-2">*</span>src_ix.key), <span class="comment">// linear probing from where we left off
                 </span><span class="prelude-val">None </span>=&gt; dst.entry(<span class="kw-2">*</span>src_ix.key),     <span class="comment">// first iteration, binary search
             </span>};
-            <span class="comment">// save this for next iteration
-            </span>dst_keyref = <span class="prelude-val">Some</span>(dst_entry.keyref().cloned());
+            <span class="comment">// Save this for next iteration. Used as a hint to find
+            // the next entry more efficiently.
+            </span>dst_position_hint = <span class="prelude-val">Some</span>(dst_entry.keyref().cloned());
 
             <span class="kw">match </span>dst_entry {
                 VEntry::Vacant(e) =&gt; {
