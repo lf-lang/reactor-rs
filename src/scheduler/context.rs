@@ -371,7 +371,7 @@ where
     #[inline]
     pub(crate) fn enqueue_now(&mut self, downstream: Cow<'x, ExecutableReactions<'x>>) {
         match &mut self.insides.todo_now {
-            Some(ref mut do_next) => do_next.to_mut().absorb_after(downstream.as_ref(), self.cur_level.next()),
+            Some(ref mut do_next) => do_next.to_mut().absorb_after(downstream.as_ref(), self.cur_level),
             None => self.insides.todo_now = Some(downstream),
         }
     }
@@ -570,13 +570,13 @@ pub(super) struct RContextForwardableStuff<'x> {
 
 #[cfg(feature = "parallel-runtime")]
 impl RContextForwardableStuff<'_> {
-    pub(super) fn merge(mut self, other: Self) -> Self {
-        self.absorb(other);
+    pub(super) fn merge(mut self, other: Self, cur_level: LevelIx) -> Self {
+        self.absorb(other, cur_level);
         self
     }
 
-    pub(super) fn absorb(&mut self, mut other: Self) {
-        self.todo_now = ExecutableReactions::merge_cows(self.todo_now.take(), other.todo_now);
+    pub(super) fn absorb(&mut self, mut other: Self, cur_level: LevelIx) {
+        self.todo_now = ExecutableReactions::merge_plans_after(self.todo_now.take(), other.todo_now, cur_level);
         self.future_events.append(&mut other.future_events);
     }
 }

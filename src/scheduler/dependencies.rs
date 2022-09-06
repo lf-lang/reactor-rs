@@ -697,17 +697,28 @@ impl<'x> ExecutableReactions<'x> {
         match (x, y) {
             (x, None) | (None, x) => x,
             (Some(x), y) | (y, Some(x)) if x.max_level() < min_level => y,
-            (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
-                x.absorb_after(&y, min_level);
-                Some(Cow::Owned(x))
-            }
+            // (Some(Cow::Owned(mut x)), Some(y)) | (Some(y), Some(Cow::Owned(mut x))) => {
+            //     x.absorb_after(&y, min_level);
+            //     Some(Cow::Owned(x))
+            // }
             (Some(mut x), Some(mut y)) => {
-                if x.max_level() > y.max_level() {
-                    std::mem::swap(&mut x, &mut y);
+                if x.as_ref() as *const _ == y.as_ref() as *const _ {
+                    // pointing to identical reference, return any of them
+                    Some(x)
+                } else {
+                    if x.max_level() > y.max_level() {
+                        std::mem::swap(&mut x, &mut y);
+                    }
+                    // x is the largest one here
+
+                    if y.max_level() < min_level {
+                        // then there is nothing to do
+                        return Some(x);
+                    }
+
+                    x.to_mut().absorb_after(&y, min_level);
+                    Some(x)
                 }
-                // x is the largest one here
-                x.to_mut().absorb_after(&y, min_level);
-                Some(x)
             }
         }
     }

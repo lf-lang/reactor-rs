@@ -479,28 +479,31 @@ mod parallel_rt_impl {
 
     pub(super) fn process_batch(ctx: &mut ReactionCtx<'_, '_, '_>, reactors: &mut ReactorVec<'_>, batch: &Level) {
         let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
+        let cur_level = ctx.cur_level;
 
-        ctx.insides.absorb(
-            batch
-                .iter()
-                .par_bridge()
-                .fold_with(CloneableCtx(ctx.fork()), |CloneableCtx(mut ctx), reaction_id| {
-                    // capture the newtype instead of capturing its field, which is not Send
-                    let reactors_mut = &reactors_mut;
-                    let reactor = unsafe {
-                        // safety:
-                        // - no two reactions in the batch belong to the same reactor
-                        // - the vec does not change size so there is no reallocation
-                        &mut *reactors_mut.0.add(reaction_id.0.container().index())
-                    };
+        let merged_ctx = batch
+            .iter()
+            .par_bridge()
+            .fold_with(CloneableCtx(ctx.fork()), |CloneableCtx(mut ctx), reaction_id| {
+                // capture the newtype instead of capturing its field, which is not Send
+                let reactors_mut = &reactors_mut;
+                let reactor = unsafe {
+                    // safety:
+                    // - no two reactions in the batch belong to the same reactor
+                    // - the vec does not change size so there is no reallocation
+                    &mut *reactors_mut.0.add(reaction_id.0.container().index())
+                };
 
-                    ctx.execute(reactor, reaction_id);
+                ctx.execute(reactor, reaction_id);
 
-                    CloneableCtx(ctx)
-                })
-                .fold(RContextForwardableStuff::default, |cx1, cx2| cx1.merge(cx2.0.insides))
-                .reduce(Default::default, RContextForwardableStuff::merge),
-        );
+                CloneableCtx(ctx)
+            })
+            .fold(RContextForwardableStuff::default, |cx1, cx2| {
+                cx1.merge(cx2.0.insides, cur_level)
+            })
+            .reduce(Default::default, |a, b| a.merge(b, cur_level));
+
+        ctx.insides.absorb(merged_ctx, cur_level);
     }
 
     #[derive(Copy, Clone)]
