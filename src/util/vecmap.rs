@@ -53,9 +53,9 @@ where
         }
     }
 
-    pub fn entry_from_ref(&mut self, key: KeyRef<K>) -> Entry<K, V> {
-        debug_assert!(self.is_valid_keyref(&key.as_ref()));
-        let KeyRef { min_idx, key } = key;
+    pub fn entry_from_ref(&mut self, key_hint: KeyRef<K>, key: K) -> Entry<K, V> {
+        debug_assert!(self.is_valid_keyref(&key_hint.as_ref()));
+        let KeyRef { min_idx, .. } = key_hint;
         for i in min_idx..self.v.len() {
             match self.v[i].0.cmp(&key) {
                 Ordering::Equal => return Entry::Occupied(OccupiedEntry { map: self, index: i, key }),
