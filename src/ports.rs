@@ -27,6 +27,7 @@ use std::borrow::Borrow;
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::mem::transmute;
 #[cfg(feature = "no-unsafe")]
 use std::ops::Deref;
 use std::ops::{DerefMut, Index, IndexMut};
@@ -39,18 +40,12 @@ use AssemblyErrorImpl::{CannotBind, CyclicDependency};
 use crate::assembly::{AssemblyError, AssemblyErrorImpl, PortId, PortKind, TriggerId, TriggerLike};
 use crate::{EventTag, ReactionTrigger};
 
-/// A read-only reference to a port.
+/// A read-only view on a port.
+/// Only manipulated through references.
 #[repr(transparent)]
-pub struct ReadablePort<'a, T: Sync>(&'a Port<T>);
+pub struct ReadablePort<T: Sync>(Port<T>);
 
-impl<'a, T: Sync> ReadablePort<'a, T> {
-    #[inline(always)]
-    pub fn new(port: &'a Port<T>) -> Self {
-        Self(port)
-    }
-}
-
-impl<T: Sync> ReactionTrigger<T> for ReadablePort<'_, T> {
+impl<T: Sync> ReactionTrigger<T> for ReadablePort<T> {
     #[inline]
     fn get_value(&self, _now: &EventTag, _start: &Instant) -> Option<T>
     where
@@ -65,16 +60,12 @@ impl<T: Sync> ReactionTrigger<T> for ReadablePort<'_, T> {
     }
 }
 
-/// A write-only reference to a port.
-pub struct WritablePort<'a, T: Sync>(&'a mut Port<T>);
+/// A write-only view on a port.
+/// Only manipulated through references.
+#[repr(transparent)]
+pub struct WritablePort<T: Sync>(Port<T>);
 
-impl<'a, T: Sync> WritablePort<'a, T> {
-    #[inline(always)]
-    #[doc(hidden)]
-    pub fn new(port: &'a mut Port<T>) -> Self {
-        Self(port)
-    }
-
+impl<T: Sync> WritablePort<T> {
     /// Set the value, see [super::ReactionCtx::set]
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
@@ -98,20 +89,44 @@ pub struct PortBank<T: Sync> {
 }
 
 impl<T: Sync> PortBank<T> {
+    /// Create a bank from the given vector of ports.
+    #[inline(always)]
     pub(crate) fn new(ports: Vec<Port<T>>, id: TriggerId) -> Self {
         Self { ports, id }
     }
 
+    /// Iterate over the bank and return mutable references to individual ports.
+    #[inline(always)]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Port<T>> {
         self.ports.iter_mut()
     }
 
+    /// Return the length of the bank.
+    #[inline(always)]
     pub fn len(&self) -> usize {
         self.ports.len()
     }
 
+    /// Whether this bank has no ports.
+    #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.ports.is_empty()
+    }
+
+    #[inline(always)]
+    #[doc(hidden)]
+    pub fn as_writable(&mut self) -> &mut WritablePortBank<T> {
+        // Safety: both references have safe lifetime.
+        // We must have exclusive access because of &mut.
+        unsafe { transmute(self) }
+    }
+
+    #[inline(always)]
+    #[doc(hidden)]
+    pub fn as_readable(&self) -> &ReadablePortBank<T> {
+        // Safety: both references have safe lifetime.
+        // The port must be read-only because of the &.
+        unsafe { transmute(self) }
     }
 }
 
@@ -154,15 +169,10 @@ impl<T: Sync> IndexMut<usize> for PortBank<T> {
 }
 
 /// A read-only reference to a port bank.
-pub struct ReadablePortBank<'a, T: Sync>(&'a PortBank<T>);
+#[repr(transparent)]
+pub struct ReadablePortBank<T: Sync>(PortBank<T>);
 
-impl<'a, T: Sync> ReadablePortBank<'a, T> {
-    #[inline(always)]
-    #[doc(hidden)]
-    pub fn new(port: &'a PortBank<T>) -> Self {
-        Self(port)
-    }
-
+impl<T: Sync> ReadablePortBank<T> {
     /// Returns the length of the bank
     #[inline(always)]
     pub fn len(&self) -> usize {
@@ -177,42 +187,31 @@ impl<'a, T: Sync> ReadablePortBank<'a, T> {
 
     /// Returns the ith component
     #[inline(always)]
-    pub fn get(&self, i: usize) -> ReadablePort<T> {
-        ReadablePort(&self.0.ports[i])
+    pub fn get(&self, i: usize) -> &ReadablePort<T> {
+        self.0.ports[i].as_readable()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=ReadablePort<'_, T>> {
+    /// Iterate over the ports of this bank. Returns read-only
+    /// references to individual ports.
+    #[inline(always)]
+    pub fn iter(&self) -> impl Iterator<Item = &ReadablePort<T>> {
         self.into_iter()
     }
 }
 
-impl<'a, T: Sync> IntoIterator for ReadablePortBank<'a, T> {
-    type Item = ReadablePort<'a, T>;
-    type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> ReadablePort<'a, T>>;
+impl<'a, T: Sync> IntoIterator for &'a ReadablePortBank<T> {
+    type Item = &'a ReadablePort<T>;
+    type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.ports.iter().map(ReadablePort)
+        (&self.0).into_iter().map(Port::as_readable)
     }
 }
 
-impl<'a, T: Sync> IntoIterator for &'a ReadablePortBank<'_, T> {
-    type Item = ReadablePort<'a, T>;
-    type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> ReadablePort<'a, T>>;
+#[repr(transparent)]
+pub struct WritablePortBank<T: Sync>(PortBank<T>);
 
-    fn into_iter(self) -> Self::IntoIter {
-        (&self.0).into_iter().map(ReadablePort)
-    }
-}
-
-pub struct WritablePortBank<'a, T: Sync>(&'a mut PortBank<T>);
-
-impl<'a, T: Sync> WritablePortBank<'a, T> {
-    #[doc(hidden)]
-    #[inline(always)]
-    pub fn new(port: &'a mut PortBank<T>) -> Self {
-        Self(port)
-    }
-
+impl<T: Sync> WritablePortBank<T> {
     /// Returns the length of the bank
     #[inline(always)]
     pub fn len(&self) -> usize {
@@ -227,17 +226,24 @@ impl<'a, T: Sync> WritablePortBank<'a, T> {
 
     /// Returns the ith component
     #[inline(always)]
-    pub fn get(&mut self, i: usize) -> WritablePort<T> {
-        WritablePort(&mut self.0.ports[i])
+    pub fn get(&mut self, i: usize) -> &mut WritablePort<T> {
+        self.0.ports[i].as_writable()
+    }
+
+    /// Iterate over the ports of this bank. Returns write-only
+    /// references to individual ports.
+    #[inline(always)]
+    pub fn iter(&mut self) -> impl Iterator<Item = &mut WritablePort<T>> {
+        self.into_iter()
     }
 }
 
-impl<'a, T: Sync> IntoIterator for WritablePortBank<'a, T> {
-    type Item = WritablePort<'a, T>;
-    type IntoIter = std::iter::Map<std::slice::IterMut<'a, Port<T>>, fn(&'a mut Port<T>) -> WritablePort<'a, T>>;
+impl<'a, T: Sync> IntoIterator for &'a mut WritablePortBank<T> {
+    type Item = &'a mut WritablePort<T>;
+    type IntoIter = std::iter::Map<std::slice::IterMut<'a, Port<T>>, fn(&'a mut Port<T>) -> Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.0.ports.iter_mut().map(WritablePort)
+        self.0.ports.iter_mut().map(Port::as_writable)
     }
 }
 
@@ -368,6 +374,22 @@ impl<T: Sync> Port<T> {
         if self.bind_status != BindStatus::Bound {
             self.set_impl(None)
         }
+    }
+
+    #[inline(always)]
+    #[doc(hidden)]
+    pub fn as_writable(&mut self) -> &mut WritablePort<T> {
+        // Safety: both references have safe lifetime.
+        // We must have exclusive access because of &mut.
+        unsafe { transmute(self) }
+    }
+
+    #[inline(always)]
+    #[doc(hidden)]
+    pub fn as_readable(&self) -> &ReadablePort<T> {
+        // Safety: both references have safe lifetime.
+        // The port must be read-only because of the &.
+        unsafe { transmute(self) }
     }
 
     pub(crate) fn forward_to(&mut self, downstream: &mut Port<T>) -> Result<(), AssemblyError> {

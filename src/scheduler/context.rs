@@ -217,10 +217,10 @@ where
     /// schedule more reactions that should execute at the
     /// same logical time.
     #[inline]
-    pub fn set<'b, T, W>(&mut self, mut port: W, value: T)
+    pub fn set<T, W>(&mut self, mut port: W, value: T)
     where
-        T: Sync + 'b,
-        W: BorrowMut<WritablePort<'b, T>>,
+        T: Sync,
+        W: BorrowMut<WritablePort<T>>,
     {
         let port = port.borrow_mut();
 
@@ -283,10 +283,10 @@ where
     /// ```
     ///
     #[inline]
-    pub fn set_opt<'b, T, W>(&mut self, port: W, value: Option<T>)
+    pub fn set_opt<T, W>(&mut self, port: W, value: Option<T>)
     where
-        T: Sync + 'b,
-        W: BorrowMut<WritablePort<'b, T>>,
+        T: Sync,
+        W: BorrowMut<WritablePort<T>>,
     {
         if let Some(v) = value {
             self.set(port, v)

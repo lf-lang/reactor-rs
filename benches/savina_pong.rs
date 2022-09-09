@@ -217,8 +217,8 @@ mod reactors {
                 match rid.raw() {
                     0 => self.__impl.react_0(
                         ctx,
-                        &::reactor_rt::ReadablePort::new(&self.__receive),
-                        ::reactor_rt::WritablePort::new(&mut self.__send),
+                        &::reactor_rt::ReadablePort::wrap(&self.__receive),
+                        ::reactor_rt::WritablePort::wrap(&mut self.__send),
                     ),
                     1 => self.__impl.react_1(ctx),
 
@@ -380,10 +380,10 @@ mod reactors {
                 match rid.raw() {
                     0 => self
                         .__impl
-                        .react_0(ctx, &self.__serve, ::reactor_rt::WritablePort::new(&mut self.__send)),
+                        .react_0(ctx, &self.__serve, ::reactor_rt::WritablePort::wrap(&mut self.__send)),
                     1 => self
                         .__impl
-                        .react_1(ctx, &::reactor_rt::ReadablePort::new(&self.__receive), &mut self.__serve),
+                        .react_1(ctx, &::reactor_rt::ReadablePort::wrap(&self.__receive), &mut self.__serve),
 
                     _ => panic!(
                         "Invalid reaction ID: {} should be < {}",
