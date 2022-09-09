@@ -130,6 +130,15 @@ impl<'a, T: Sync> IntoIterator for &'a mut PortBank<T> {
     }
 }
 
+impl<'a, T: Sync> IntoIterator for &'a PortBank<T> {
+    type Item = &'a Port<T>;
+    type IntoIter = std::slice::Iter<'a, Port<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.ports.iter()
+    }
+}
+
 impl<T: Sync> Index<usize> for PortBank<T> {
     type Output = Port<T>;
 
@@ -171,6 +180,10 @@ impl<'a, T: Sync> ReadablePortBank<'a, T> {
     pub fn get(&self, i: usize) -> ReadablePort<T> {
         ReadablePort(&self.0.ports[i])
     }
+
+    pub fn iter(&self) -> impl Iterator<Item=ReadablePort<'_, T>> {
+        self.into_iter()
+    }
 }
 
 impl<'a, T: Sync> IntoIterator for ReadablePortBank<'a, T> {
@@ -179,6 +192,15 @@ impl<'a, T: Sync> IntoIterator for ReadablePortBank<'a, T> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.ports.iter().map(ReadablePort)
+    }
+}
+
+impl<'a, T: Sync> IntoIterator for &'a ReadablePortBank<'_, T> {
+    type Item = ReadablePort<'a, T>;
+    type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> ReadablePort<'a, T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.0).into_iter().map(ReadablePort)
     }
 }
 
