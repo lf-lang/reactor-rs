@@ -59,6 +59,10 @@ fn port_get(ctx: &mut ReactionCtx, port: &ReadablePort<u32>) {
     assert!(ctx.get(port).is_some());
 }
 
+fn port_is_present(ctx: &mut ReactionCtx, port: &ReadablePort<u32>) {
+    assert!(ctx.is_present(port));
+}
+
 fn port_set(ctx: &mut ReactionCtx, port: &mut WritablePort<u32>) {
     assert_eq!(ctx.set(port, 3), ());
 }

@@ -47,6 +47,11 @@ pub struct ReadablePort<T: Sync>(Port<T>);
 
 impl<T: Sync> ReactionTrigger<T> for ReadablePort<T> {
     #[inline]
+    fn is_present(&self, _now: &EventTag, _start: &Instant) -> bool {
+        self.0.is_present_now()
+    }
+
+    #[inline]
     fn get_value(&self, _now: &EventTag, _start: &Instant) -> Option<T>
     where
         T: Copy,
@@ -197,6 +202,12 @@ impl<T: Sync> ReadablePortBank<T> {
     pub fn iter(&self) -> impl Iterator<Item = &ReadablePort<T>> {
         self.into_iter()
     }
+
+    /// Iterate over only those ports in the bank that are set.
+    /// Returns a tuple with their index in the bank (not necessarily contiguous).
+    pub fn enumerate_set(&self) -> impl Iterator<Item = (usize, &ReadablePort<T>)> {
+        self.iter().enumerate().filter(|&(_, p)| p.0.is_present_now())
+    }
 }
 
 impl<'a, T: Sync> IntoIterator for &'a ReadablePortBank<T> {
@@ -233,7 +244,7 @@ impl<T: Sync> WritablePortBank<T> {
     /// Iterate over the ports of this bank. Returns write-only
     /// references to individual ports.
     #[inline(always)]
-    pub fn iter(&mut self) -> impl Iterator<Item = &mut WritablePort<T>> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut WritablePort<T>> {
         self.into_iter()
     }
 }
@@ -304,6 +315,10 @@ impl<T: Sync> Port<T> {
             #[cfg(not(feature = "no-unsafe"))]
             upstream_binding: Rc::new(UnsafeCell::new(Default::default())),
         }
+    }
+
+    pub(crate) fn is_present_now(&self) -> bool {
+        self.use_ref(|opt| opt.is_some())
     }
 
     #[inline]

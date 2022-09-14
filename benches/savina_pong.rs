@@ -215,11 +215,9 @@ mod reactors {
 
             fn react(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
                 match rid.raw() {
-                    0 => self.__impl.react_0(
-                        ctx,
-                        self.__receive.as_readable(),
-                        self.__send.as_writable(),
-                    ),
+                    0 => self
+                        .__impl
+                        .react_0(ctx, self.__receive.as_readable(), self.__send.as_writable()),
                     1 => self.__impl.react_1(ctx),
 
                     _ => panic!(
@@ -378,12 +376,8 @@ mod reactors {
 
             fn react(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
                 match rid.raw() {
-                    0 => self
-                        .__impl
-                        .react_0(ctx, &self.__serve, self.__send.as_writable()),
-                    1 => self
-                        .__impl
-                        .react_1(ctx, self.__receive.as_readable(), &mut self.__serve),
+                    0 => self.__impl.react_0(ctx, &self.__serve, self.__send.as_writable()),
+                    1 => self.__impl.react_1(ctx, self.__receive.as_readable(), &mut self.__serve),
 
                     _ => panic!(
                         "Invalid reaction ID: {} should be < {}",
