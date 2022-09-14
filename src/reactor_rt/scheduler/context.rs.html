@@ -934,7 +934,7 @@
     /// ```no_run
     /// # use reactor_rt::{ReactionCtx, ReadablePort};
     /// # let ctx: &amp;mut ReactionCtx = panic!();
-    /// # let port: &amp;ReadablePort&lt;&#39;_, u32&gt; = panic!();
+    /// # let port: &amp;ReadablePort&lt;u32&gt; = panic!();
     /// if let Some(value) = ctx.get(port) {
     ///     // branch is taken if the port is set -- note, this moves `port`!
     /// }
@@ -992,10 +992,10 @@
     /// schedule more reactions that should execute at the
     /// same logical time.
     </span><span class="attribute">#[inline]
-    </span><span class="kw">pub fn </span>set&lt;<span class="lifetime">&#39;b</span>, T, W&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>port: W, value: T)
+    </span><span class="kw">pub fn </span>set&lt;T, W&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>port: W, value: T)
     <span class="kw">where
-        </span>T: Sync + <span class="lifetime">&#39;b</span>,
-        W: BorrowMut&lt;WritablePort&lt;<span class="lifetime">&#39;b</span>, T&gt;&gt;,
+        </span>T: Sync,
+        W: BorrowMut&lt;WritablePort&lt;T&gt;&gt;,
     {
         <span class="kw">let </span>port = port.borrow_mut();
 
@@ -1058,10 +1058,10 @@
     /// ```
     ///
     </span><span class="attribute">#[inline]
-    </span><span class="kw">pub fn </span>set_opt&lt;<span class="lifetime">&#39;b</span>, T, W&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, port: W, value: <span class="prelude-ty">Option</span>&lt;T&gt;)
+    </span><span class="kw">pub fn </span>set_opt&lt;T, W&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, port: W, value: <span class="prelude-ty">Option</span>&lt;T&gt;)
     <span class="kw">where
-        </span>T: Sync + <span class="lifetime">&#39;b</span>,
-        W: BorrowMut&lt;WritablePort&lt;<span class="lifetime">&#39;b</span>, T&gt;&gt;,
+        </span>T: Sync,
+        W: BorrowMut&lt;WritablePort&lt;T&gt;&gt;,
     {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(v) = value {
             <span class="self">self</span>.set(port, v)
@@ -1549,4 +1549,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (b44197abb 2022-09-05)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>

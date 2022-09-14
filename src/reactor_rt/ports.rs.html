@@ -479,6 +479,65 @@
 <span id="479">479</span>
 <span id="480">480</span>
 <span id="481">481</span>
+<span id="482">482</span>
+<span id="483">483</span>
+<span id="484">484</span>
+<span id="485">485</span>
+<span id="486">486</span>
+<span id="487">487</span>
+<span id="488">488</span>
+<span id="489">489</span>
+<span id="490">490</span>
+<span id="491">491</span>
+<span id="492">492</span>
+<span id="493">493</span>
+<span id="494">494</span>
+<span id="495">495</span>
+<span id="496">496</span>
+<span id="497">497</span>
+<span id="498">498</span>
+<span id="499">499</span>
+<span id="500">500</span>
+<span id="501">501</span>
+<span id="502">502</span>
+<span id="503">503</span>
+<span id="504">504</span>
+<span id="505">505</span>
+<span id="506">506</span>
+<span id="507">507</span>
+<span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
+<span id="523">523</span>
+<span id="524">524</span>
+<span id="525">525</span>
+<span id="526">526</span>
+<span id="527">527</span>
+<span id="528">528</span>
+<span id="529">529</span>
+<span id="530">530</span>
+<span id="531">531</span>
+<span id="532">532</span>
+<span id="533">533</span>
+<span id="534">534</span>
+<span id="535">535</span>
+<span id="536">536</span>
+<span id="537">537</span>
+<span id="538">538</span>
+<span id="539">539</span>
+<span id="540">540</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -508,6 +567,7 @@
 </span><span class="kw">use </span>std::cell::UnsafeCell;
 <span class="kw">use </span>std::collections::HashMap;
 <span class="kw">use </span>std::fmt::Debug;
+<span class="kw">use </span>std::mem::transmute;
 <span class="attribute">#[cfg(feature = <span class="string">&quot;no-unsafe&quot;</span>)]
 </span><span class="kw">use </span>std::ops::Deref;
 <span class="kw">use </span>std::ops::{DerefMut, Index, IndexMut};
@@ -520,18 +580,17 @@
 <span class="kw">use </span><span class="kw">crate</span>::assembly::{AssemblyError, AssemblyErrorImpl, PortId, PortKind, TriggerId, TriggerLike};
 <span class="kw">use crate</span>::{EventTag, ReactionTrigger};
 
-<span class="doccomment">/// A read-only reference to a port.
+<span class="doccomment">/// A read-only view on a port.
+/// Only manipulated through references.
 </span><span class="attribute">#[repr(transparent)]
-</span><span class="kw">pub struct </span>ReadablePort&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Port&lt;T&gt;);
+</span><span class="kw">pub struct </span>ReadablePort&lt;T: Sync&gt;(Port&lt;T&gt;);
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; ReadablePort&lt;<span class="lifetime">&#39;a</span>, T&gt; {
-    <span class="attribute">#[inline(always)]
-    </span><span class="kw">pub fn </span>new(port: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Port&lt;T&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>(port)
+<span class="kw">impl</span>&lt;T: Sync&gt; ReactionTrigger&lt;T&gt; <span class="kw">for </span>ReadablePort&lt;T&gt; {
+    <span class="attribute">#[inline]
+    </span><span class="kw">fn </span>is_present(<span class="kw-2">&amp;</span><span class="self">self</span>, _now: <span class="kw-2">&amp;</span>EventTag, _start: <span class="kw-2">&amp;</span>Instant) -&gt; bool {
+        <span class="self">self</span>.<span class="number">0</span>.is_present_now()
     }
-}
 
-<span class="kw">impl</span>&lt;T: Sync&gt; ReactionTrigger&lt;T&gt; <span class="kw">for </span>ReadablePort&lt;<span class="lifetime">&#39;_</span>, T&gt; {
     <span class="attribute">#[inline]
     </span><span class="kw">fn </span>get_value(<span class="kw-2">&amp;</span><span class="self">self</span>, _now: <span class="kw-2">&amp;</span>EventTag, _start: <span class="kw-2">&amp;</span>Instant) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt;
     <span class="kw">where
@@ -546,16 +605,12 @@
     }
 }
 
-<span class="doccomment">/// A write-only reference to a port.
-</span><span class="kw">pub struct </span>WritablePort&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>Port&lt;T&gt;);
+<span class="doccomment">/// A write-only view on a port.
+/// Only manipulated through references.
+</span><span class="attribute">#[repr(transparent)]
+</span><span class="kw">pub struct </span>WritablePort&lt;T: Sync&gt;(Port&lt;T&gt;);
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; WritablePort&lt;<span class="lifetime">&#39;a</span>, T&gt; {
-    <span class="attribute">#[inline(always)]
-    #[doc(hidden)]
-    </span><span class="kw">pub fn </span>new(port: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>Port&lt;T&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>(port)
-    }
-
+<span class="kw">impl</span>&lt;T: Sync&gt; WritablePort&lt;T&gt; {
     <span class="doccomment">/// Set the value, see [super::ReactionCtx::set]
     /// Note: we use a closure to process the dependencies to
     /// avoid having to clone the dependency list just to return it.
@@ -579,20 +634,44 @@
 }
 
 <span class="kw">impl</span>&lt;T: Sync&gt; PortBank&lt;T&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(ports: Vec&lt;Port&lt;T&gt;&gt;, id: TriggerId) -&gt; <span class="self">Self </span>{
+    <span class="doccomment">/// Create a bank from the given vector of ports.
+    </span><span class="attribute">#[inline(always)]
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(ports: Vec&lt;Port&lt;T&gt;&gt;, id: TriggerId) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ ports, id }
     }
 
-    <span class="kw">pub fn </span>iter_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;mut </span>Port&lt;T&gt;&gt; {
+    <span class="doccomment">/// Iterate over the bank and return mutable references to individual ports.
+    </span><span class="attribute">#[inline(always)]
+    </span><span class="kw">pub fn </span>iter_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;mut </span>Port&lt;T&gt;&gt; {
         <span class="self">self</span>.ports.iter_mut()
     }
 
-    <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+    <span class="doccomment">/// Return the length of the bank.
+    </span><span class="attribute">#[inline(always)]
+    </span><span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.ports.len()
     }
 
-    <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+    <span class="doccomment">/// Whether this bank has no ports.
+    </span><span class="attribute">#[inline(always)]
+    </span><span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.ports.is_empty()
+    }
+
+    <span class="attribute">#[inline(always)]
+    #[doc(hidden)]
+    </span><span class="kw">pub fn </span>as_writable(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>WritablePortBank&lt;T&gt; {
+        <span class="comment">// Safety: both references have safe lifetime.
+        // We must have exclusive access because of &amp;mut.
+        </span><span class="kw">unsafe </span>{ transmute(<span class="self">self</span>) }
+    }
+
+    <span class="attribute">#[inline(always)]
+    #[doc(hidden)]
+    </span><span class="kw">pub fn </span>as_readable(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ReadablePortBank&lt;T&gt; {
+        <span class="comment">// Safety: both references have safe lifetime.
+        // The port must be read-only because of the &amp;.
+        </span><span class="kw">unsafe </span>{ transmute(<span class="self">self</span>) }
     }
 }
 
@@ -611,6 +690,15 @@
     }
 }
 
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PortBank&lt;T&gt; {
+    <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Port&lt;T&gt;;
+    <span class="kw">type </span>IntoIter = std::slice::Iter&lt;<span class="lifetime">&#39;a</span>, Port&lt;T&gt;&gt;;
+
+    <span class="kw">fn </span>into_iter(<span class="self">self</span>) -&gt; <span class="self">Self</span>::IntoIter {
+        <span class="self">self</span>.ports.iter()
+    }
+}
+
 <span class="kw">impl</span>&lt;T: Sync&gt; Index&lt;usize&gt; <span class="kw">for </span>PortBank&lt;T&gt; {
     <span class="kw">type </span>Output = Port&lt;T&gt;;
 
@@ -626,15 +714,10 @@
 }
 
 <span class="doccomment">/// A read-only reference to a port bank.
-</span><span class="kw">pub struct </span>ReadablePortBank&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PortBank&lt;T&gt;);
+</span><span class="attribute">#[repr(transparent)]
+</span><span class="kw">pub struct </span>ReadablePortBank&lt;T: Sync&gt;(PortBank&lt;T&gt;);
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; ReadablePortBank&lt;<span class="lifetime">&#39;a</span>, T&gt; {
-    <span class="attribute">#[inline(always)]
-    #[doc(hidden)]
-    </span><span class="kw">pub fn </span>new(port: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PortBank&lt;T&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>(port)
-    }
-
+<span class="kw">impl</span>&lt;T: Sync&gt; ReadablePortBank&lt;T&gt; {
     <span class="doccomment">/// Returns the length of the bank
     </span><span class="attribute">#[inline(always)]
     </span><span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
@@ -649,29 +732,37 @@
 
     <span class="doccomment">/// Returns the ith component
     </span><span class="attribute">#[inline(always)]
-    </span><span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, i: usize) -&gt; ReadablePort&lt;T&gt; {
-        ReadablePort(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>.ports[i])
+    </span><span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, i: usize) -&gt; <span class="kw-2">&amp;</span>ReadablePort&lt;T&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.ports[i].as_readable()
+    }
+
+    <span class="doccomment">/// Iterate over the ports of this bank. Returns read-only
+    /// references to individual ports.
+    </span><span class="attribute">#[inline(always)]
+    </span><span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>ReadablePort&lt;T&gt;&gt; {
+        <span class="self">self</span>.into_iter()
+    }
+
+    <span class="doccomment">/// Iterate over only those ports in the bank that are set.
+    /// Returns a tuple with their index in the bank (not necessarily contiguous).
+    </span><span class="kw">pub fn </span>enumerate_set(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (usize, <span class="kw-2">&amp;</span>ReadablePort&lt;T&gt;)&gt; {
+        <span class="self">self</span>.iter().enumerate().filter(|<span class="kw-2">&amp;</span>(<span class="kw">_</span>, p)| p.<span class="number">0</span>.is_present_now())
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; IntoIterator <span class="kw">for </span>ReadablePortBank&lt;<span class="lifetime">&#39;a</span>, T&gt; {
-    <span class="kw">type </span>Item = ReadablePort&lt;<span class="lifetime">&#39;a</span>, T&gt;;
-    <span class="kw">type </span>IntoIter = std::iter::Map&lt;std::slice::Iter&lt;<span class="lifetime">&#39;a</span>, Port&lt;T&gt;&gt;, <span class="kw">fn</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Port&lt;T&gt;) -&gt; ReadablePort&lt;<span class="lifetime">&#39;a</span>, T&gt;&gt;;
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>ReadablePortBank&lt;T&gt; {
+    <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>ReadablePort&lt;T&gt;;
+    <span class="kw">type </span>IntoIter = std::iter::Map&lt;std::slice::Iter&lt;<span class="lifetime">&#39;a</span>, Port&lt;T&gt;&gt;, <span class="kw">fn</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Port&lt;T&gt;) -&gt; <span class="self">Self</span>::Item&gt;;
 
     <span class="kw">fn </span>into_iter(<span class="self">self</span>) -&gt; <span class="self">Self</span>::IntoIter {
-        <span class="self">self</span>.<span class="number">0</span>.ports.iter().map(ReadablePort)
+        (<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="number">0</span>).into_iter().map(Port::as_readable)
     }
 }
 
-<span class="kw">pub struct </span>WritablePortBank&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>PortBank&lt;T&gt;);
+<span class="attribute">#[repr(transparent)]
+</span><span class="kw">pub struct </span>WritablePortBank&lt;T: Sync&gt;(PortBank&lt;T&gt;);
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; WritablePortBank&lt;<span class="lifetime">&#39;a</span>, T&gt; {
-    <span class="attribute">#[doc(hidden)]
-    #[inline(always)]
-    </span><span class="kw">pub fn </span>new(port: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>PortBank&lt;T&gt;) -&gt; <span class="self">Self </span>{
-        <span class="self">Self</span>(port)
-    }
-
+<span class="kw">impl</span>&lt;T: Sync&gt; WritablePortBank&lt;T&gt; {
     <span class="doccomment">/// Returns the length of the bank
     </span><span class="attribute">#[inline(always)]
     </span><span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
@@ -686,17 +777,24 @@
 
     <span class="doccomment">/// Returns the ith component
     </span><span class="attribute">#[inline(always)]
-    </span><span class="kw">pub fn </span>get(<span class="kw-2">&amp;mut </span><span class="self">self</span>, i: usize) -&gt; WritablePort&lt;T&gt; {
-        WritablePort(<span class="kw-2">&amp;mut </span><span class="self">self</span>.<span class="number">0</span>.ports[i])
+    </span><span class="kw">pub fn </span>get(<span class="kw-2">&amp;mut </span><span class="self">self</span>, i: usize) -&gt; <span class="kw-2">&amp;mut </span>WritablePort&lt;T&gt; {
+        <span class="self">self</span>.<span class="number">0</span>.ports[i].as_writable()
+    }
+
+    <span class="doccomment">/// Iterate over the ports of this bank. Returns write-only
+    /// references to individual ports.
+    </span><span class="attribute">#[inline(always)]
+    </span><span class="kw">pub fn </span>iter_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;mut </span>WritablePort&lt;T&gt;&gt; {
+        <span class="self">self</span>.into_iter()
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; IntoIterator <span class="kw">for </span>WritablePortBank&lt;<span class="lifetime">&#39;a</span>, T&gt; {
-    <span class="kw">type </span>Item = WritablePort&lt;<span class="lifetime">&#39;a</span>, T&gt;;
-    <span class="kw">type </span>IntoIter = std::iter::Map&lt;std::slice::IterMut&lt;<span class="lifetime">&#39;a</span>, Port&lt;T&gt;&gt;, <span class="kw">fn</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>Port&lt;T&gt;) -&gt; WritablePort&lt;<span class="lifetime">&#39;a</span>, T&gt;&gt;;
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>WritablePortBank&lt;T&gt; {
+    <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>WritablePort&lt;T&gt;;
+    <span class="kw">type </span>IntoIter = std::iter::Map&lt;std::slice::IterMut&lt;<span class="lifetime">&#39;a</span>, Port&lt;T&gt;&gt;, <span class="kw">fn</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>Port&lt;T&gt;) -&gt; <span class="self">Self</span>::Item&gt;;
 
     <span class="kw">fn </span>into_iter(<span class="self">self</span>) -&gt; <span class="self">Self</span>::IntoIter {
-        <span class="self">self</span>.<span class="number">0</span>.ports.iter_mut().map(WritablePort)
+        <span class="self">self</span>.<span class="number">0</span>.ports.iter_mut().map(Port::as_writable)
     }
 }
 
@@ -757,6 +855,10 @@
             <span class="attribute">#[cfg(not(feature = <span class="string">&quot;no-unsafe&quot;</span>))]
             </span>upstream_binding: Rc::new(UnsafeCell::new(Default::default())),
         }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_present_now(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.use_ref(|opt| opt.is_some())
     }
 
     <span class="attribute">#[inline]
@@ -827,6 +929,22 @@
         </span><span class="kw">if </span><span class="self">self</span>.bind_status != BindStatus::Bound {
             <span class="self">self</span>.set_impl(<span class="prelude-val">None</span>)
         }
+    }
+
+    <span class="attribute">#[inline(always)]
+    #[doc(hidden)]
+    </span><span class="kw">pub fn </span>as_writable(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>WritablePort&lt;T&gt; {
+        <span class="comment">// Safety: both references have safe lifetime.
+        // We must have exclusive access because of &amp;mut.
+        </span><span class="kw">unsafe </span>{ transmute(<span class="self">self</span>) }
+    }
+
+    <span class="attribute">#[inline(always)]
+    #[doc(hidden)]
+    </span><span class="kw">pub fn </span>as_readable(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>ReadablePort&lt;T&gt; {
+        <span class="comment">// Safety: both references have safe lifetime.
+        // The port must be read-only because of the &amp;.
+        </span><span class="kw">unsafe </span>{ transmute(<span class="self">self</span>) }
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>forward_to(<span class="kw-2">&amp;mut </span><span class="self">self</span>, downstream: <span class="kw-2">&amp;mut </span>Port&lt;T&gt;) -&gt; <span class="prelude-ty">Result</span>&lt;(), AssemblyError&gt; {
@@ -961,4 +1079,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (b44197abb 2022-09-05)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (17cbdfd07 2022-09-13)" ></div></body></html>
