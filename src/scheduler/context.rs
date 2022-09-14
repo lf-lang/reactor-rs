@@ -159,7 +159,7 @@ where
     /// ```no_run
     /// # use reactor_rt::{ReactionCtx, ReadablePort};
     /// # let ctx: &mut ReactionCtx = panic!();
-    /// # let port: &ReadablePort<'_, u32> = panic!();
+    /// # let port: &ReadablePort<u32> = panic!();
     /// if let Some(value) = ctx.get(port) {
     ///     // branch is taken if the port is set -- note, this moves `port`!
     /// }
