@@ -105,7 +105,7 @@ mod reactors {
                 &mut self,
                 #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                 receive: &::reactor_rt::ReadablePort<u32>,
-                #[allow(unused_mut)] mut send: ::reactor_rt::WritablePort<u32>,
+                send: &mut ::reactor_rt::WritablePort<u32>,
             ) {
                 self.count += 1;
                 ctx.set(send, ctx.get(receive).unwrap());
@@ -217,8 +217,8 @@ mod reactors {
                 match rid.raw() {
                     0 => self.__impl.react_0(
                         ctx,
-                        &::reactor_rt::ReadablePort::wrap(&self.__receive),
-                        ::reactor_rt::WritablePort::wrap(&mut self.__send),
+                        self.__receive.as_readable(),
+                        self.__send.as_writable(),
                     ),
                     1 => self.__impl.react_1(ctx),
 
@@ -261,7 +261,7 @@ mod reactors {
                 &mut self,
                 #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                 #[allow(unused)] serve: &::reactor_rt::LogicalAction<()>,
-                #[allow(unused_mut)] mut send: ::reactor_rt::WritablePort<u32>,
+                send: &mut ::reactor_rt::WritablePort<u32>,
             ) {
                 ctx.set(send, self.pingsLeft);
                 self.pingsLeft -= 1;
@@ -272,7 +272,7 @@ mod reactors {
                 &mut self,
                 #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                 _receive: &::reactor_rt::ReadablePort<u32>,
-                #[allow(unused_mut)] mut serve: &mut ::reactor_rt::LogicalAction<()>,
+                serve: &mut ::reactor_rt::LogicalAction<()>,
             ) {
                 if self.pingsLeft > 0 {
                     ctx.schedule(serve, Asap);
@@ -380,10 +380,10 @@ mod reactors {
                 match rid.raw() {
                     0 => self
                         .__impl
-                        .react_0(ctx, &self.__serve, ::reactor_rt::WritablePort::wrap(&mut self.__send)),
+                        .react_0(ctx, &self.__serve, self.__send.as_writable()),
                     1 => self
                         .__impl
-                        .react_1(ctx, &::reactor_rt::ReadablePort::wrap(&self.__receive), &mut self.__serve),
+                        .react_1(ctx, self.__receive.as_readable(), &mut self.__serve),
 
                     _ => panic!(
                         "Invalid reaction ID: {} should be < {}",
