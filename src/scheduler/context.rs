@@ -304,7 +304,9 @@ where
 
     /// Schedule an action to trigger at some point in the future.
     /// The action will trigger after its own implicit time delay,
-    /// plus an optional additional time delay (see [Offset]).
+    /// plus an optional additional time delay (see [Offset]). This
+    /// delay is added to the current logical (resp. physical) time
+    /// for logical (resp. physical) actions.
     ///
     /// This is like [Self::schedule_with_v], where the value is [None].
     ///
@@ -320,7 +322,7 @@ where
     /// ctx.schedule(action, After(Duration::from_millis(2))); // equivalent to the previous
     /// ```
     #[inline]
-    pub fn schedule<T: Sync>(&mut self, action: &mut LogicalAction<T>, offset: Offset) {
+    pub fn schedule<T: Sync>(&mut self, action: &mut impl SchedulableAsAction<T>, offset: Offset) {
         self.schedule_with_v(action, None, offset)
     }
 
@@ -334,7 +336,9 @@ where
     /// (see [Self::is_present]).
     ///
     /// The action will trigger after its own implicit time delay,
-    /// plus an optional additional time delay (see [Offset]).
+    /// plus an optional additional time delay (see [Offset]). This
+    /// delay is added to the current logical (resp. physical) time
+    /// for logical (resp. physical) actions.
     ///
     /// ### Examples
     ///
@@ -350,11 +354,8 @@ where
     /// ctx.schedule(action, Asap);
     /// ```
     #[inline]
-    pub fn schedule_with_v<T: Sync>(&mut self, action: &mut LogicalAction<T>, value: Option<T>, offset: Offset) {
-        let eta = self.make_successor_tag(action.0.min_delay + offset.to_duration());
-        action.0.schedule_future_value(eta, value);
-        let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
-        self.enqueue_later(downstream, eta);
+    pub fn schedule_with_v<T: Sync>(&mut self, action: &mut impl SchedulableAsAction<T>, value: Option<T>, offset: Offset) {
+        action.schedule_with_v(self, value, offset)
     }
 
     /// Add new reactions to execute later (at least 1 microstep later).
@@ -682,6 +683,34 @@ impl AsyncCtx<'_, '_, '_> {
                 })
             })
             .unwrap_or_else(|value| Err(SendError(value)))
+    }
+}
+
+/// Implemented by LogicalAction and PhysicalAction references
+/// to give access to [ReactionCtx::schedule] and variants.
+pub trait SchedulableAsAction<T: Sync> {
+    #[doc(hidden)]
+    fn schedule_with_v(&mut self, ctx: &mut ReactionCtx, value: Option<T>, offset: Offset);
+}
+
+impl<T: Sync> SchedulableAsAction<T> for LogicalAction<T> {
+    fn schedule_with_v(&mut self, ctx: &mut ReactionCtx, value: Option<T>, offset: Offset) {
+        let eta = ctx.make_successor_tag(self.0.min_delay + offset.to_duration());
+        self.0.schedule_future_value(eta, value);
+        let downstream = ctx.dataflow.reactions_triggered_by(&self.get_id());
+        ctx.enqueue_later(downstream, eta);
+    }
+}
+
+impl<T: Sync> SchedulableAsAction<T> for PhysicalActionRef<T> {
+    fn schedule_with_v(&mut self, ctx: &mut ReactionCtx, value: Option<T>, offset: Offset) {
+        self.use_mut_p(value, |action, value| {
+            let tag = EventTag::absolute(ctx.initial_time, Instant::now() + offset.to_duration());
+            action.0.schedule_future_value(tag, value);
+            let downstream = ctx.dataflow.reactions_triggered_by(&action.get_id());
+            ctx.enqueue_later(downstream, tag);
+        })
+        .ok();
     }
 }
 

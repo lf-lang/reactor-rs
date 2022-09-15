@@ -22,6 +22,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 use std::cmp::Reverse;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
@@ -155,7 +156,6 @@ impl<T: Sync> TriggerLike for LogicalAction<T> {
         self.0.id
     }
 }
-
 /*#[cfg(test)] //fixme
 mod test {
     use ActionPresence::{NotPresent, Present};
