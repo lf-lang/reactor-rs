@@ -24,7 +24,7 @@
 
 use std::borrow::Cow;
 use std::collections::hash_map::Entry as HEntry;
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::default::Default;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Range;
@@ -45,7 +45,7 @@ use crate::*;
 
 type GraphIx = NodeIndex<GlobalIdImpl>;
 
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Hash)]
 enum NodeKind {
     /// startup/shutdown
     Special,
@@ -57,7 +57,6 @@ enum NodeKind {
 }
 
 /// Weight of graph nodes.
-#[derive(Clone)]
 struct GraphNode {
     kind: NodeKind,
     id: GraphId,
@@ -97,7 +96,7 @@ type DepGraphImpl = DiGraph<GraphNode, EdgeWeight, GlobalIdImpl>;
 /// Initialization completes when that instance is turned into
 /// a [DataflowInfo], which is the data structure used at runtime.
 ///
-pub struct DepGraph {
+pub(super) struct DepGraph {
     /// Instantaneous data flow. Must be acyclic. Edges from
     /// reactions to actions are not represented, as they are
     /// not actually a data dependency that could cause a
@@ -150,7 +149,7 @@ impl DepGraph {
     /// Produce a dot representation of the graph.
     #[cold]
     #[inline(never)]
-    pub(crate) fn format_dot(&self, id_registry: &DebugInfoRegistry) -> String {
+    pub fn format_dot(&self, id_registry: &DebugInfoRegistry) -> String {
         use petgraph::dot::{Config, Dot};
 
         // Map the node weights to nice strings.
@@ -169,7 +168,7 @@ impl DepGraph {
         format!("{}", Dot::with_config(&labeled, &[Config::EdgeNoLabel]))
     }
 
-    pub fn record_port(&mut self, id: TriggerId) {
+    pub(super) fn record_port(&mut self, id: TriggerId) {
         self.record_port_impl(id);
     }
 
@@ -225,7 +224,7 @@ impl DepGraph {
         self.record(GraphId::Trigger(id), NodeKind::Timer);
     }
 
-    pub fn record_reaction(&mut self, id: GlobalReactionId) {
+    pub(super) fn record_reaction(&mut self, id: GlobalReactionId) {
         self.record(GraphId::Reaction(id), NodeKind::Reaction);
     }
 
@@ -300,7 +299,7 @@ impl DepGraph {
 }
 
 impl DepGraph {
-    pub fn number_reactions_by_level(&self) -> AssemblyResult<HashMap<GlobalReactionId, LevelIx>> {
+    pub(self) fn number_reactions_by_level(&self) -> AssemblyResult<HashMap<GlobalReactionId, LevelIx>> {
         let toposorted = petgraph::algo::toposort(&self.dataflow, None)
             .map_err(|_| AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph))?;
 
@@ -330,77 +329,6 @@ impl DepGraph {
         Ok(reaction_levels)
     }
 
-    pub fn number_reactions_by_level_cpp(&self) -> AssemblyResult<HashMap<GlobalReactionId, LevelIx>> {
-        let mut graph = self.dataflow.clone();
-        let mut cur_level = LevelIx::ZERO;
-        let mut level_numbers = HashMap::<GlobalReactionId, LevelIx>::new();
-        let mut roots = Vec::<GraphIx>::new();
-
-        while graph.node_count() != 0 {
-            for ix in graph.node_indices() {
-                let node = self.dataflow.node_weight(ix).unwrap();
-
-                if graph.edges_directed(ix, Incoming).next().is_some() {
-                    // not a root of the graph
-                    continue
-                }
-
-                if let GraphId::Reaction(id) = node.id {
-                    level_numbers.insert(id, cur_level);
-                }
-                roots.push(ix);
-            }
-
-            for root in roots.drain(..) {
-                graph.remove_node(root);
-            }
-
-            cur_level = cur_level.next();
-        }
-
-        Ok(level_numbers)
-    }
-
-
-    pub fn number_reactions_by_level_old(&self) -> AssemblyResult<HashMap<GlobalReactionId, LevelIx>> {
-        if petgraph::algo::is_cyclic_directed(&self.dataflow) {
-            return Err(AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph))
-        }
-        // note: this will infinitely recurse with a cyclic graph
-        let mut level_numbers = HashMap::<GlobalReactionId, LevelIx>::new();
-        let mut todo = self.get_roots();
-        let mut todo_next = Vec::new();
-        // Todo this implementation explores all paths of the graph.
-        //  Even small programs may have prohibitively many paths.
-        //  Real world example: RadixSort has a chain of 60 reactors,
-        //  each reactor is connected to the next and its internal dep graph is a diamond.
-        //  So you have 0<>1<>2<>...<>60, so there is 2^60 paths in the graph.
-        //  This example is fixed for now, as the diamonds are only of depth 1, and we now dedup the todo queue.
-        //  But diamonds of size > 1 will reproduce the problem.
-
-        // There is an easy algorithm that is linear, but destructive.
-        // If we use that we have to copy the graph. Is this needed?
-        let mut cur_level: LevelIx = LevelIx::ZERO;
-        while !todo.is_empty() {
-            for ix in todo.drain(..) {
-                let node = self.dataflow.node_weight(ix).unwrap();
-
-                if let GraphId::Reaction(id) = node.id {
-                    let current = level_numbers.entry(id).or_insert(cur_level);
-                    *current = cur_level.max(*current);
-                }
-
-                let successors = self.dataflow.edges_directed(ix, Outgoing).map(|e| e.target());
-                todo_next.extend(successors);
-            }
-            cur_level = cur_level.next();
-            std::mem::swap(&mut todo, &mut todo_next);
-            todo.sort();
-            todo.dedup();
-        }
-        Ok(level_numbers)
-    }
-
     /// Returns the roots of the graph
     pub(self) fn get_roots(&self) -> Vec<GraphIx> {
         self.dataflow
@@ -410,7 +338,7 @@ impl DepGraph {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq)]
 enum EdgeWeight {
     /// Default semantics for this edge (determined by the
     /// kind of source and target vertex). This only makes a
