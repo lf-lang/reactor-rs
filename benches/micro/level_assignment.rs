@@ -44,6 +44,12 @@ mod benchutils {
                 .map_err(|e| e.lift(&self.debug_info))
                 .unwrap()
         }
+        pub fn number_reactions_by_level_cpp(&self) -> HashMap<GlobalReactionId, LevelIx> {
+            self.graph
+                .number_reactions_by_level_cpp()
+                .map_err(|e| e.lift(&self.debug_info))
+                .unwrap()
+        }
         pub fn number_reactions_by_level_old(&self) -> HashMap<GlobalReactionId, LevelIx> {
             self.graph
                 .number_reactions_by_level_old()
@@ -135,6 +141,9 @@ fn bench_gid(c: &mut Criterion) {
         });
         group.bench_with_input(BenchmarkId::new("new", size), &test, |b, i| {
             b.iter(|| i.number_reactions_by_level())
+        });
+        group.bench_with_input(BenchmarkId::new("cpp", size), &test, |b, i| {
+            b.iter(|| i.number_reactions_by_level_cpp())
         });
     }
     group.finish();
