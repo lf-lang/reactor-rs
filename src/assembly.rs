@@ -41,7 +41,7 @@ pub type AssemblyResult<T = ()> = Result<T, AssemblyError>;
 pub struct AssemblyError(pub(crate) AssemblyErrorImpl);
 
 impl AssemblyError {
-    pub(crate) fn lift(self, debug: &DebugInfoRegistry) -> String {
+    pub fn lift(self, debug: &DebugInfoRegistry) -> String {
         self.display(debug)
     }
 }

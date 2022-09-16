@@ -58,6 +58,12 @@ required-features = ["public-internals"]
 harness = false
 
 [[bench]]
+name = "level_assignment"
+path = "benches/micro/level_assignment.rs"
+required-features = ["public-internals"]
+harness = false
+
+[[bench]]
 name = "exec_reactions"
 path = "benches/micro/exec_reactions.rs"
 required-features = ["public-internals"]

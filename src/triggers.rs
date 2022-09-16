@@ -82,7 +82,7 @@ impl TriggerId {
     pub const STARTUP: TriggerId = TriggerId(0);
     pub const SHUTDOWN: TriggerId = TriggerId(1);
 
-    pub(crate) const FIRST_REGULAR: TriggerId = TriggerId(2);
+    pub const FIRST_REGULAR: TriggerId = TriggerId(2);
 
     #[allow(unused)]
     pub(crate) fn new(id: TriggerIdImpl) -> Self {
@@ -91,7 +91,7 @@ impl TriggerId {
     }
 
     #[allow(unused)]
-    pub(crate) fn get_and_incr(&mut self) -> Result<Self, ()> {
+    pub fn get_and_incr(&mut self) -> Result<Self, ()> {
         let id = *self;
         *self = id.next()?;
         Ok(id)
