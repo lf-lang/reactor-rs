@@ -57,7 +57,7 @@ impl $id {
     }
 
     #[allow(unused)]
-    pub(crate) fn get_and_incr(&mut self) -> Self {
+    pub fn get_and_incr(&mut self) -> Self {
         let id = *self;
         *self = Self(self.0 + 1);
         id

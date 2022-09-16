@@ -39,7 +39,7 @@ use crate::{GlobalReactionId, ReactorId};
 /// At runtime, this is only used to format debug messages and
 /// perform debug assertions, so compactness is more important
 /// than speed of the methods.
-pub(crate) struct DebugInfoRegistry {
+pub struct DebugInfoRegistry {
     /// Maps reactor ids to their debug info.
     reactor_infos: IndexVec<ReactorId, ReactorDebugInfo>,
 
@@ -191,7 +191,7 @@ impl DebugInfoRegistry {
             .unwrap_or(TriggerId::FIRST_REGULAR)
     }
 
-    pub(crate) fn record_trigger(&mut self, id: TriggerId, name: Cow<'static, str>) {
+    pub fn record_trigger(&mut self, id: TriggerId, name: Cow<'static, str>) {
         let ix = self.trigger_infos.push(name);
         debug_assert_eq!(ix, id);
     }
@@ -201,7 +201,7 @@ impl DebugInfoRegistry {
         debug_assert!(existing.is_none())
     }
 
-    pub(crate) fn record_reactor(&mut self, id: ReactorId, debug: ReactorDebugInfo) {
+    pub fn record_reactor(&mut self, id: ReactorId, debug: ReactorDebugInfo) {
         let ix = self.reactor_infos.push(debug);
         debug_assert_eq!(ix, id);
     }
@@ -216,7 +216,7 @@ impl DebugInfoRegistry {
         debug_assert!(ix.is_none(), "overwrote reactor");
     }
 
-    pub(crate) fn set_id_range(&mut self, id: ReactorId, range: Range<TriggerId>) {
+    pub fn set_id_range(&mut self, id: ReactorId, range: Range<TriggerId>) {
         assert!(range.start <= range.end, "Malformed range {:?}", range);
         assert!(range.start >= TriggerId::FIRST_REGULAR, "Trigger IDs 0-1 are reserved");
 
@@ -226,7 +226,7 @@ impl DebugInfoRegistry {
 }
 
 /// Debug information for a single reactor.
-pub(crate) struct ReactorDebugInfo {
+pub struct ReactorDebugInfo {
     /// Type name
     #[allow(unused)]
     pub type_name: &'static str,
@@ -243,8 +243,7 @@ impl ReactorDebugInfo {
         Self::root::<()>()
     }
 
-    #[cfg(test)]
-    pub(crate) fn test_named(inst_path: impl Into<String>) -> Self {
+    pub fn test_named(inst_path: impl Into<String>) -> Self {
         let mut inst_path = inst_path.into();
         inst_path.push('/');
         Self {
