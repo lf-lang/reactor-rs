@@ -304,24 +304,16 @@ impl DepGraph {
         let mut level_numbers = HashMap::<GlobalReactionId, LevelIx>::new();
         let mut todo = self.get_roots();
         let mut todo_next = Vec::new();
-        // Todo this implementation explores all paths of the graph.
-        //  Even small programs may have prohibitively many paths.
-        //  Real world example: RadixSort has a chain of 60 reactors,
-        //  each reactor is connected to the next and its internal dep graph is a diamond.
-        //  So you have 0<>1<>2<>...<>60, so there is 2^60 paths in the graph.
-        //  This example is fixed for now, as the diamonds are only of depth 1, and we now dedup the todo queue.
-        //  But diamonds of size > 1 will reproduce the problem.
-
-        // There is an easy algorithm that is linear, but destructive.
-        // If we use that we have to copy the graph. Is this needed?
         let mut cur_level: LevelIx = LevelIx::ZERO;
         while !todo.is_empty() {
             for ix in todo.drain(..) {
                 let node = self.dataflow.node_weight(ix).unwrap();
 
                 if let GraphId::Reaction(id) = node.id {
-                    let current = level_numbers.entry(id).or_insert(cur_level);
-                    *current = cur_level.max(*current);
+                    // This might replace a previous value. It is safe
+                    // as the cur_level increases monotonically and we want
+                    // the max value.
+                    level_numbers.insert(id, cur_level);
                 }
 
                 let successors = self.dataflow.edges_directed(ix, Outgoing).map(|e| e.target());
