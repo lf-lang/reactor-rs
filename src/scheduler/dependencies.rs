@@ -45,7 +45,7 @@ use crate::*;
 
 type GraphIx = NodeIndex<GlobalIdImpl>;
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 enum NodeKind {
     /// startup/shutdown
     Special,
@@ -57,6 +57,7 @@ enum NodeKind {
 }
 
 /// Weight of graph nodes.
+#[derive(Clone)]
 struct GraphNode {
     kind: NodeKind,
     id: GraphId,
@@ -329,6 +330,38 @@ impl DepGraph {
         Ok(reaction_levels)
     }
 
+    pub fn number_reactions_by_level_cpp(&self) -> AssemblyResult<HashMap<GlobalReactionId, LevelIx>> {
+        let mut graph = self.dataflow.clone();
+        let mut cur_level = LevelIx::ZERO;
+        let mut level_numbers = HashMap::<GlobalReactionId, LevelIx>::new();
+        let mut roots = Vec::<GraphIx>::new();
+
+        while graph.node_count() != 0 {
+            for ix in graph.node_indices() {
+                let node = self.dataflow.node_weight(ix).unwrap();
+
+                if graph.edges_directed(ix, Incoming).next().is_some() {
+                    // not a root of the graph
+                    continue
+                }
+
+                if let GraphId::Reaction(id) = node.id {
+                    level_numbers.insert(id, cur_level);
+                }
+                roots.push(ix);
+            }
+
+            for root in roots.drain(..) {
+                graph.remove_node(root);
+            }
+
+            cur_level = cur_level.next();
+        }
+
+        Ok(level_numbers)
+    }
+
+
     pub fn number_reactions_by_level_old(&self) -> AssemblyResult<HashMap<GlobalReactionId, LevelIx>> {
         if petgraph::algo::is_cyclic_directed(&self.dataflow) {
             return Err(AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph))
@@ -377,7 +410,7 @@ impl DepGraph {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 enum EdgeWeight {
     /// Default semantics for this edge (determined by the
     /// kind of source and target vertex). This only makes a
