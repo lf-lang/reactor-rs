@@ -835,7 +835,7 @@
                 <span class="kw">if </span><span class="attribute">#[cfg(feature = <span class="string">&quot;no-unsafe&quot;</span>)] </span>{
                     (downstream.upstream_binding).borrow_mut()
                 } <span class="kw">else </span>{
-                    <span class="kw">unsafe </span>{ (<span class="kw-2">&amp;</span>downstream.upstream_binding).get().as_mut().unwrap() }
+                    <span class="kw">unsafe </span>{ downstream.upstream_binding.get().as_mut().unwrap() }
                 }
             }
         };
