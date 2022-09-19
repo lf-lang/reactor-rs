@@ -354,7 +354,7 @@ impl<T: Sync> Port<T> {
                 if #[cfg(feature = "no-unsafe")] {
                     (downstream.upstream_binding).borrow_mut()
                 } else {
-                    unsafe { (&downstream.upstream_binding).get().as_mut().unwrap() }
+                    unsafe { downstream.upstream_binding.get().as_mut().unwrap() }
                 }
             }
         };

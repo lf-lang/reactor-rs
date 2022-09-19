@@ -33,7 +33,7 @@ use std::sync::Arc;
 use index_vec::{Idx, IndexVec};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
-use petgraph::Direction::{Incoming, Outgoing};
+use petgraph::Direction::Outgoing;
 
 use super::ReactionPlan;
 use crate::assembly::*;
@@ -69,6 +69,7 @@ enum GraphId {
 }
 
 #[cfg(test)]
+#[allow(unused)]
 impl GraphId {
     const STARTUP: GraphId = GraphId::Trigger(TriggerId::STARTUP);
     const SHUTDOWN: GraphId = GraphId::Trigger(TriggerId::SHUTDOWN);
@@ -327,14 +328,6 @@ impl DepGraph {
         }
 
         Ok(reaction_levels)
-    }
-
-    /// Returns the roots of the graph
-    pub(self) fn get_roots(&self) -> Vec<GraphIx> {
-        self.dataflow
-            .node_indices()
-            .filter(|node| self.dataflow.edges_directed(*node, Incoming).next().is_none())
-            .collect()
     }
 }
 
@@ -835,28 +828,6 @@ pub mod test {
             assert_eq!(p.levels.get(&level1), p1.levels.get(&level1));
             assert_eq!(p.levels.get(&level2), p2.levels.get(&level2));
         }
-    }
-
-    #[test]
-    fn test_roots() {
-        let mut test = TestGraphFixture::new();
-        let mut builder = test.new_reactor("main");
-        let [n1, n2] = builder.new_reactions();
-        let [p0] = builder.new_ports(["p0"]);
-        drop(builder);
-
-        test.graph.reaction_effects(n1, p0);
-        test.graph.triggers_reaction(p0, n2);
-
-        let roots = test.graph.get_roots();
-        assert_eq!(
-            roots,
-            vec![
-                test.graph.get_ix(GraphId::STARTUP),
-                test.graph.get_ix(GraphId::SHUTDOWN),
-                test.graph.get_ix(n1.into()),
-            ]
-        );
     }
 
     #[test]
