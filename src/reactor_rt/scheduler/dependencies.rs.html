@@ -1003,6 +1003,9 @@
 <span id="1003">1003</span>
 <span id="1004">1004</span>
 <span id="1005">1005</span>
+<span id="1006">1006</span>
+<span id="1007">1007</span>
+<span id="1008">1008</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -1304,34 +1307,40 @@
 }
 
 <span class="kw">impl </span>DepGraph {
-    <span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">fn </span>number_reactions_by_level(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; AssemblyResult&lt;HashMap&lt;GlobalReactionId, LevelIx&gt;&gt; {
-        <span class="kw">let </span>toposorted = petgraph::algo::toposort(<span class="kw-2">&amp;</span><span class="self">self</span>.dataflow, <span class="prelude-val">None</span>)
-            .map_err(|<span class="kw">_</span>| AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph))<span class="question-mark">?</span>;
+    <span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">fn </span>number_reactions_by_level(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashMap&lt;GlobalReactionId, LevelIx&gt; {
+        <span class="comment">// note: this will infinitely recurse with a cyclic graph
+        </span><span class="kw">let </span><span class="kw-2">mut </span>level_numbers = HashMap::&lt;GlobalReactionId, LevelIx&gt;::new();
+        <span class="kw">let </span><span class="kw-2">mut </span>todo = <span class="self">self</span>.get_roots();
+        <span class="kw">let </span><span class="kw-2">mut </span>todo_next = Vec::new();
+        <span class="comment">// Todo this implementation explores all paths of the graph.
+        //  Even small programs may have prohibitively many paths.
+        //  Real world example: RadixSort has a chain of 60 reactors,
+        //  each reactor is connected to the next and its internal dep graph is a diamond.
+        //  So you have 0&lt;&gt;1&lt;&gt;2&lt;&gt;...&lt;&gt;60, so there is 2^60 paths in the graph.
+        //  This example is fixed for now, as the diamonds are only of depth 1, and we now dedup the todo queue.
+        //  But diamonds of size &gt; 1 will reproduce the problem.
 
-        <span class="kw">let </span><span class="kw-2">mut </span>levels = HashMap::&lt;GraphIx, LevelIx&gt;::with_capacity(<span class="self">self</span>.dataflow.node_count());
+        // There is an easy algorithm that is linear, but destructive.
+        // If we use that we have to copy the graph. Is this needed?
+        </span><span class="kw">let </span><span class="kw-2">mut </span>cur_level: LevelIx = LevelIx::ZERO;
+        <span class="kw">while </span>!todo.is_empty() {
+            <span class="kw">for </span>ix <span class="kw">in </span>todo.drain(..) {
+                <span class="kw">let </span>node = <span class="self">self</span>.dataflow.node_weight(ix).unwrap();
 
-        <span class="kw">for </span>ix <span class="kw">in </span><span class="kw-2">&amp;</span>toposorted {
-            <span class="kw">let </span>cur_level = <span class="kw-2">*</span>levels.entry(<span class="kw-2">*</span>ix).or_insert(LevelIx::ZERO);
+                <span class="kw">if let </span>GraphId::Reaction(id) = node.id {
+                    <span class="kw">let </span>current = level_numbers.entry(id).or_insert(cur_level);
+                    <span class="kw-2">*</span>current = cur_level.max(<span class="kw-2">*</span>current);
+                }
 
-            <span class="kw">let </span>successors = <span class="self">self</span>.dataflow.edges_directed(<span class="kw-2">*</span>ix, Outgoing).map(|e| e.target());
-
-            <span class="kw">for </span>succ_ix <span class="kw">in </span>successors {
-                <span class="kw">let </span>succ_level = levels.entry(succ_ix).or_insert(LevelIx::ZERO);
-                <span class="kw-2">*</span>succ_level = cur_level.next().max(<span class="kw-2">*</span>succ_level);
+                <span class="kw">let </span>successors = <span class="self">self</span>.dataflow.edges_directed(ix, Outgoing).map(|e| e.target());
+                todo_next.extend(successors);
             }
+            cur_level = cur_level.next();
+            std::mem::swap(<span class="kw-2">&amp;mut </span>todo, <span class="kw-2">&amp;mut </span>todo_next);
+            todo.sort();
+            todo.dedup();
         }
-
-        <span class="kw">let </span><span class="kw-2">mut </span>reaction_levels = HashMap::&lt;GlobalReactionId, LevelIx&gt;::new();
-
-        <span class="kw">for </span>ix <span class="kw">in </span>toposorted {
-            <span class="kw">let </span>node = <span class="self">self</span>.dataflow.node_weight(ix).unwrap();
-
-            <span class="kw">if let </span>GraphId::Reaction(id) = node.id {
-                reaction_levels.insert(id, levels.get(<span class="kw-2">&amp;</span>ix).cloned().unwrap());
-            }
-        }
-
-        <span class="prelude-val">Ok</span>(reaction_levels)
+        level_numbers
     }
 
     <span class="doccomment">/// Returns the roots of the graph
@@ -1390,7 +1399,11 @@
 
 <span class="kw">impl </span>DataflowInfo {
     <span class="kw">pub fn </span>new(<span class="kw-2">mut </span>graph: DepGraph) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, AssemblyError&gt; {
-        <span class="kw">let </span>level_info = ReactionLevelInfo::new(graph.number_reactions_by_level()<span class="question-mark">?</span>);
+        <span class="kw">if </span>petgraph::algo::is_cyclic_directed(<span class="kw-2">&amp;</span>graph.dataflow) {
+            <span class="kw">return </span><span class="prelude-val">Err</span>(AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph));
+        }
+
+        <span class="kw">let </span>level_info = ReactionLevelInfo::new(graph.number_reactions_by_level());
         <span class="kw">let </span>trigger_to_plan = <span class="self">Self</span>::collect_trigger_to_plan(<span class="kw-2">&amp;mut </span>graph, <span class="kw-2">&amp;</span>level_info);
 
         <span class="prelude-val">Ok</span>(DataflowInfo { trigger_to_plan })
@@ -1750,13 +1763,6 @@
             }
         }
 
-        <span class="kw">fn </span>number_reactions_by_level(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashMap&lt;GlobalReactionId, LevelIx&gt; {
-            <span class="self">self</span>.graph
-                .number_reactions_by_level()
-                .map_err(|e| e.lift(<span class="kw-2">&amp;</span><span class="self">self</span>.debug_info))
-                .unwrap()
-        }
-
         <span class="attribute">#[allow(unused)]
         </span><span class="kw">fn </span>eprintln_graph(<span class="kw-2">&amp;</span><span class="self">self</span>) {
             <span class="macro">eprintln!</span>(<span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.graph.format_dot(<span class="kw-2">&amp;</span><span class="self">self</span>.debug_info));
@@ -1876,7 +1882,7 @@
         test.graph.reaction_effects(n1, p0);
         test.graph.triggers_reaction(p0, n2);
 
-        <span class="kw">let </span>levels = test.number_reactions_by_level();
+        <span class="kw">let </span>levels = test.graph.number_reactions_by_level();
         <span class="macro">assert!</span>(levels[<span class="kw-2">&amp;</span>n1] &lt; levels[<span class="kw-2">&amp;</span>n2]);
     }
 
@@ -1894,7 +1900,7 @@
         test.graph.triggers_reaction(p0, n2);
         test.graph.triggers_reaction(p1, n2);
 
-        <span class="kw">let </span>levels = test.number_reactions_by_level();
+        <span class="kw">let </span>levels = test.graph.number_reactions_by_level();
         <span class="macro">assert!</span>(levels[<span class="kw-2">&amp;</span>n1] &lt; levels[<span class="kw-2">&amp;</span>n2]);
     }
 
@@ -1930,7 +1936,7 @@
 
         <span class="comment">// to debug this lower the graph size
         // test.eprintln_graph();
-        </span><span class="kw">let </span>levels = test.number_reactions_by_level();
+        </span><span class="kw">let </span>levels = test.graph.number_reactions_by_level();
 
         <span class="macro">assert_eq!</span>(levels.len(), <span class="number">120</span>);
     }
@@ -1970,7 +1976,7 @@
 
         <span class="comment">// to debug this lower the graph size
         // test.eprintln_graph();
-        </span><span class="kw">let </span>levels = test.number_reactions_by_level();
+        </span><span class="kw">let </span>levels = test.graph.number_reactions_by_level();
 
         <span class="macro">assert_eq!</span>(levels.len(), <span class="number">120</span>);
     }
@@ -2009,4 +2015,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.65.0-nightly (cf9ed0dd5 2022-09-15)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a37499ae6 2022-09-18)" ></div></body></html>
