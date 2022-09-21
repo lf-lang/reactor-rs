@@ -38,6 +38,13 @@ fn actions_get(ctx: &mut ReactionCtx, act_mut: &mut LogicalAction<u32>, act: &Lo
     assert!(ctx.get(act).is_some());
 }
 
+fn actions_schedule(ctx: &mut ReactionCtx, logical: &mut LogicalAction<u32>, physical: &mut PhysicalActionRef<u32>) {
+    ctx.schedule_with_v(physical, Some(2), Asap);
+    ctx.schedule(physical, Asap);
+    ctx.schedule_with_v(logical, Some(2), Asap);
+    ctx.schedule(logical, Asap);
+}
+
 fn actions_use_ref_mut(ctx: &mut ReactionCtx, act: &mut LogicalAction<u32>) {
     // the duplication is useful here, we're testing that `act` is
     // not moved in the first statement, which would make the

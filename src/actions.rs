@@ -155,7 +155,6 @@ impl<T: Sync> TriggerLike for LogicalAction<T> {
         self.0.id
     }
 }
-
 /*#[cfg(test)] //fixme
 mod test {
     use ActionPresence::{NotPresent, Present};

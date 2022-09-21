@@ -33,7 +33,7 @@ use std::sync::Arc;
 use index_vec::{Idx, IndexVec};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
-use petgraph::Direction::{Incoming, Outgoing};
+use petgraph::Direction::Outgoing;
 
 use super::ReactionPlan;
 use crate::assembly::*;
@@ -69,6 +69,7 @@ enum GraphId {
 }
 
 #[cfg(test)]
+#[allow(unused)]
 impl GraphId {
     const STARTUP: GraphId = GraphId::Trigger(TriggerId::STARTUP);
     const SHUTDOWN: GraphId = GraphId::Trigger(TriggerId::SHUTDOWN);
@@ -299,48 +300,34 @@ impl DepGraph {
 }
 
 impl DepGraph {
-    pub(self) fn number_reactions_by_level(&self) -> HashMap<GlobalReactionId, LevelIx> {
-        // note: this will infinitely recurse with a cyclic graph
-        let mut level_numbers = HashMap::<GlobalReactionId, LevelIx>::new();
-        let mut todo = self.get_roots();
-        let mut todo_next = Vec::new();
-        // Todo this implementation explores all paths of the graph.
-        //  Even small programs may have prohibitively many paths.
-        //  Real world example: RadixSort has a chain of 60 reactors,
-        //  each reactor is connected to the next and its internal dep graph is a diamond.
-        //  So you have 0<>1<>2<>...<>60, so there is 2^60 paths in the graph.
-        //  This example is fixed for now, as the diamonds are only of depth 1, and we now dedup the todo queue.
-        //  But diamonds of size > 1 will reproduce the problem.
+    pub(self) fn number_reactions_by_level(&self) -> AssemblyResult<HashMap<GlobalReactionId, LevelIx>> {
+        let toposorted = petgraph::algo::toposort(&self.dataflow, None)
+            .map_err(|_| AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph))?;
 
-        // There is an easy algorithm that is linear, but destructive.
-        // If we use that we have to copy the graph. Is this needed?
-        let mut cur_level: LevelIx = LevelIx::ZERO;
-        while !todo.is_empty() {
-            for ix in todo.drain(..) {
-                let node = self.dataflow.node_weight(ix).unwrap();
+        let mut levels = HashMap::<GraphIx, LevelIx>::with_capacity(self.dataflow.node_count());
 
-                if let GraphId::Reaction(id) = node.id {
-                    let current = level_numbers.entry(id).or_insert(cur_level);
-                    *current = cur_level.max(*current);
-                }
+        for ix in &toposorted {
+            let cur_level = *levels.entry(*ix).or_insert(LevelIx::ZERO);
 
-                let successors = self.dataflow.edges_directed(ix, Outgoing).map(|e| e.target());
-                todo_next.extend(successors);
+            let successors = self.dataflow.edges_directed(*ix, Outgoing).map(|e| e.target());
+
+            for succ_ix in successors {
+                let succ_level = levels.entry(succ_ix).or_insert(LevelIx::ZERO);
+                *succ_level = cur_level.next().max(*succ_level);
             }
-            cur_level = cur_level.next();
-            std::mem::swap(&mut todo, &mut todo_next);
-            todo.sort();
-            todo.dedup();
         }
-        level_numbers
-    }
 
-    /// Returns the roots of the graph
-    pub(self) fn get_roots(&self) -> Vec<GraphIx> {
-        self.dataflow
-            .node_indices()
-            .filter(|node| self.dataflow.edges_directed(*node, Incoming).next().is_none())
-            .collect()
+        let mut reaction_levels = HashMap::<GlobalReactionId, LevelIx>::new();
+
+        for ix in toposorted {
+            let node = self.dataflow.node_weight(ix).unwrap();
+
+            if let GraphId::Reaction(id) = node.id {
+                reaction_levels.insert(id, levels.get(&ix).cloned().unwrap());
+            }
+        }
+
+        Ok(reaction_levels)
     }
 }
 
@@ -391,11 +378,7 @@ pub(super) struct DataflowInfo {
 
 impl DataflowInfo {
     pub fn new(mut graph: DepGraph) -> Result<Self, AssemblyError> {
-        if petgraph::algo::is_cyclic_directed(&graph.dataflow) {
-            return Err(AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph));
-        }
-
-        let level_info = ReactionLevelInfo::new(graph.number_reactions_by_level());
+        let level_info = ReactionLevelInfo::new(graph.number_reactions_by_level()?);
         let trigger_to_plan = Self::collect_trigger_to_plan(&mut graph, &level_info);
 
         Ok(DataflowInfo { trigger_to_plan })
@@ -755,6 +738,13 @@ pub mod test {
             }
         }
 
+        fn number_reactions_by_level(&self) -> HashMap<GlobalReactionId, LevelIx> {
+            self.graph
+                .number_reactions_by_level()
+                .map_err(|e| e.lift(&self.debug_info))
+                .unwrap()
+        }
+
         #[allow(unused)]
         fn eprintln_graph(&self) {
             eprintln!("{}", self.graph.format_dot(&self.debug_info));
@@ -841,28 +831,6 @@ pub mod test {
     }
 
     #[test]
-    fn test_roots() {
-        let mut test = TestGraphFixture::new();
-        let mut builder = test.new_reactor("main");
-        let [n1, n2] = builder.new_reactions();
-        let [p0] = builder.new_ports(["p0"]);
-        drop(builder);
-
-        test.graph.reaction_effects(n1, p0);
-        test.graph.triggers_reaction(p0, n2);
-
-        let roots = test.graph.get_roots();
-        assert_eq!(
-            roots,
-            vec![
-                test.graph.get_ix(GraphId::STARTUP),
-                test.graph.get_ix(GraphId::SHUTDOWN),
-                test.graph.get_ix(n1.into()),
-            ]
-        );
-    }
-
-    #[test]
     fn test_level_assignment_simple() {
         let mut test = TestGraphFixture::new();
 
@@ -874,7 +842,7 @@ pub mod test {
         test.graph.reaction_effects(n1, p0);
         test.graph.triggers_reaction(p0, n2);
 
-        let levels = test.graph.number_reactions_by_level();
+        let levels = test.number_reactions_by_level();
         assert!(levels[&n1] < levels[&n2]);
     }
 
@@ -892,7 +860,7 @@ pub mod test {
         test.graph.triggers_reaction(p0, n2);
         test.graph.triggers_reaction(p1, n2);
 
-        let levels = test.graph.number_reactions_by_level();
+        let levels = test.number_reactions_by_level();
         assert!(levels[&n1] < levels[&n2]);
     }
 
@@ -928,7 +896,7 @@ pub mod test {
 
         // to debug this lower the graph size
         // test.eprintln_graph();
-        let levels = test.graph.number_reactions_by_level();
+        let levels = test.number_reactions_by_level();
 
         assert_eq!(levels.len(), 120);
     }
@@ -968,7 +936,7 @@ pub mod test {
 
         // to debug this lower the graph size
         // test.eprintln_graph();
-        let levels = test.graph.number_reactions_by_level();
+        let levels = test.number_reactions_by_level();
 
         assert_eq!(levels.len(), 120);
     }
