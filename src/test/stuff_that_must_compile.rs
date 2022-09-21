@@ -28,8 +28,8 @@
 #![allow(unused)]
 
 use crate::assembly::{AssemblyCtx, ReactorInitializer};
-use crate::{CleanupCtx, Port};
 use crate::prelude::*;
+use crate::{CleanupCtx, Port};
 
 fn actions_get(ctx: &mut ReactionCtx, act_mut: &mut LogicalAction<u32>, act: &LogicalAction<u32>) {
     assert!(ctx.get(act_mut).is_some());
