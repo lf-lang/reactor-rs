@@ -38,7 +38,7 @@ use atomic_refcell::AtomicRefCell;
 use AssemblyErrorImpl::{CannotBind, CyclicDependency};
 
 use crate::assembly::{AssemblyError, AssemblyErrorImpl, PortId, PortKind, TriggerId, TriggerLike};
-use crate::{EventTag, ReactionTrigger};
+use crate::{EventTag, ReactionCtx, ReactionTrigger};
 
 /// A read-only view on a port.
 /// Only manipulated through references.
@@ -207,6 +207,16 @@ impl<T: Sync> ReadablePortBank<T> {
     /// Returns a tuple with their index in the bank (not necessarily contiguous).
     pub fn enumerate_set(&self) -> impl Iterator<Item = (usize, &ReadablePort<T>)> {
         self.iter().enumerate().filter(|&(_, p)| p.0.is_present_now())
+    }
+
+    /// Iterate over only those ports in the bank that are set,
+    /// yielding a tuple with their index in the bank and a copy of the value.
+    pub fn enumerate_values(&self, _ctx: &ReactionCtx) -> impl Iterator<Item = (usize, T)> + '_
+    where
+        T: Copy,
+    {
+        // note: the impl doesn't need the context, it's still there for forward compatibility
+        self.enumerate_set().map(|(i, p)| p.0.use_ref(|value| (i, value.unwrap())))
     }
 }
 
