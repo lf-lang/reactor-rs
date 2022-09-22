@@ -83,6 +83,10 @@ fn readable_port_bank_iter(ctx: &mut ReactionCtx, bank: &ReadablePortBank<u32>) 
     for (i, pi) in bank.iter().enumerate() {}
 }
 
+fn writable_port_bank_index(ctx: &mut ReactionCtx, bank: &ReadablePortBank<u32>) {
+    let x: &ReadablePort<u32> = &bank[1];
+}
+
 fn physical_spawn_elided(ctx: &mut ReactionCtx, mut action: PhysicalActionRef<u32>) {
     use std::thread;
 

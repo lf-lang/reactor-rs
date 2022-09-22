@@ -220,6 +220,27 @@ impl<T: Sync> ReadablePortBank<T> {
     }
 }
 
+impl<T:Sync> Index<usize> for ReadablePortBank<T> {
+    type Output = ReadablePort<T>;
+
+    /// Allows using square brackets to access individual ports.
+    ///
+    /// ```no_run
+    /// # use reactor_rt::prelude::*;
+    /// let bank: &ReadablePortBank<u32> = unimplemented!();
+    /// let port0: &ReadablePort<u32> = &bank[0];
+    /// ```
+    ///
+    /// ```no_run
+    /// # use reactor_rt::prelude::*;
+    /// let bank: &mut WritablePortBank<u32> = unimplemented!();
+    /// let port0: &mut WritablePort<u32> = &mut bank[0];
+    /// ```
+    fn index(&self, index: usize) -> &Self::Output {
+        self.0.ports[index].as_readable()
+    }
+}
+
 impl<'a, T: Sync> IntoIterator for &'a ReadablePortBank<T> {
     type Item = &'a ReadablePort<T>;
     type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> Self::Item>;
