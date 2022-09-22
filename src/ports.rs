@@ -27,7 +27,6 @@ use std::borrow::Borrow;
 use std::cell::UnsafeCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::mem::transmute;
 #[cfg(feature = "no-unsafe")]
 use std::ops::Deref;
 use std::ops::{DerefMut, Index, IndexMut};
@@ -40,15 +39,10 @@ use AssemblyErrorImpl::{CannotBind, CyclicDependency};
 use crate::assembly::{AssemblyError, AssemblyErrorImpl, PortId, PortKind, TriggerId, TriggerLike};
 use crate::{EventTag, ReactionCtx, ReactionTrigger};
 
-/// A read-only view on a port.
-/// Only manipulated through references.
-#[repr(transparent)]
-pub struct ReadablePort<T: Sync>(Port<T>);
-
-impl<T: Sync> ReactionTrigger<T> for ReadablePort<T> {
+impl<T: Sync> ReactionTrigger<T> for Port<T> {
     #[inline]
     fn is_present(&self, _now: &EventTag, _start: &Instant) -> bool {
-        self.0.is_present_now()
+        self.is_present_now()
     }
 
     #[inline]
@@ -56,34 +50,12 @@ impl<T: Sync> ReactionTrigger<T> for ReadablePort<T> {
     where
         T: Copy,
     {
-        self.0.get()
+        self.get()
     }
 
     #[inline]
     fn use_value_ref<O>(&self, _now: &EventTag, _start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
-        self.0.use_ref(|opt| action(opt.as_ref()))
-    }
-}
-
-/// A write-only view on a port.
-/// Only manipulated through references.
-#[repr(transparent)]
-pub struct WritablePort<T: Sync>(Port<T>);
-
-impl<T: Sync> WritablePort<T> {
-    /// Set the value, see [super::ReactionCtx::set]
-    /// Note: we use a closure to process the dependencies to
-    /// avoid having to clone the dependency list just to return it.
-    pub(crate) fn set_impl(&mut self, v: T) {
-        self.0.set_impl(Some(v))
-    }
-
-    pub(crate) fn get_id(&self) -> TriggerId {
-        self.0.get_id()
-    }
-
-    pub(crate) fn kind(&self) -> PortKind {
-        self.0.kind
+        self.use_ref(|opt| action(opt.as_ref()))
     }
 }
 
@@ -94,6 +66,30 @@ pub struct PortBank<T: Sync> {
 }
 
 impl<T: Sync> PortBank<T> {
+    /// Returns the length of the bank
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.ports.len()
+    }
+
+    /// Returns true if the bank is empty.
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.ports.is_empty()
+    }
+
+    /// Returns the ith component
+    #[inline(always)]
+    pub fn get(&self, i: usize) -> &Port<T> {
+        &self.ports[i]
+    }
+
+    /// Returns the ith component
+    #[inline(always)]
+    pub fn get_mut(&mut self, i: usize) -> &mut Port<T> {
+        &mut self.ports[i]
+    }
+
     /// Create a bank from the given vector of ports.
     #[inline(always)]
     pub(crate) fn new(ports: Vec<Port<T>>, id: TriggerId) -> Self {
@@ -106,32 +102,27 @@ impl<T: Sync> PortBank<T> {
         self.ports.iter_mut()
     }
 
-    /// Return the length of the bank.
+    /// Iterate over the ports of this bank. Returns read-only
+    /// references to individual ports.
     #[inline(always)]
-    pub fn len(&self) -> usize {
-        self.ports.len()
+    pub fn iter(&self) -> impl Iterator<Item = &Port<T>> {
+        self.into_iter()
     }
 
-    /// Whether this bank has no ports.
-    #[inline(always)]
-    pub fn is_empty(&self) -> bool {
-        self.ports.is_empty()
+    /// Iterate over only those ports in the bank that are set.
+    /// Returns a tuple with their index in the bank (not necessarily contiguous).
+    pub fn enumerate_set(&self) -> impl Iterator<Item = (usize, &Port<T>)> {
+        self.iter().enumerate().filter(|&(_, p)| p.is_present_now())
     }
 
-    #[inline(always)]
-    #[doc(hidden)]
-    pub fn as_writable(&mut self) -> &mut WritablePortBank<T> {
-        // Safety: both references have safe lifetime.
-        // We must have exclusive access because of &mut.
-        unsafe { transmute(self) }
-    }
-
-    #[inline(always)]
-    #[doc(hidden)]
-    pub fn as_readable(&self) -> &ReadablePortBank<T> {
-        // Safety: both references have safe lifetime.
-        // The port must be read-only because of the &.
-        unsafe { transmute(self) }
+    /// Iterate over only those ports in the bank that are set,
+    /// yielding a tuple with their index in the bank and a copy of the value.
+    pub fn enumerate_values(&self, _ctx: &ReactionCtx) -> impl Iterator<Item = (usize, T)> + '_
+    where
+        T: Copy,
+    {
+        // note: the impl doesn't need the context, it's still there for forward compatibility
+        self.enumerate_set().map(|(i, p)| p.use_ref(|value| (i, value.unwrap())))
     }
 }
 
@@ -173,122 +164,6 @@ impl<T: Sync> IndexMut<usize> for PortBank<T> {
     }
 }
 
-/// A read-only reference to a port bank.
-#[repr(transparent)]
-pub struct ReadablePortBank<T: Sync>(PortBank<T>);
-
-impl<T: Sync> ReadablePortBank<T> {
-    /// Returns the length of the bank
-    #[inline(always)]
-    pub fn len(&self) -> usize {
-        self.0.ports.len()
-    }
-
-    /// Returns true if the bank is empty.
-    #[inline(always)]
-    pub fn is_empty(&self) -> bool {
-        self.0.ports.is_empty()
-    }
-
-    /// Returns the ith component
-    #[inline(always)]
-    pub fn get(&self, i: usize) -> &ReadablePort<T> {
-        self.0.ports[i].as_readable()
-    }
-
-    /// Iterate over the ports of this bank. Returns read-only
-    /// references to individual ports.
-    #[inline(always)]
-    pub fn iter(&self) -> impl Iterator<Item = &ReadablePort<T>> {
-        self.into_iter()
-    }
-
-    /// Iterate over only those ports in the bank that are set.
-    /// Returns a tuple with their index in the bank (not necessarily contiguous).
-    pub fn enumerate_set(&self) -> impl Iterator<Item = (usize, &ReadablePort<T>)> {
-        self.iter().enumerate().filter(|&(_, p)| p.0.is_present_now())
-    }
-
-    /// Iterate over only those ports in the bank that are set,
-    /// yielding a tuple with their index in the bank and a copy of the value.
-    pub fn enumerate_values(&self, _ctx: &ReactionCtx) -> impl Iterator<Item = (usize, T)> + '_
-    where
-        T: Copy,
-    {
-        // note: the impl doesn't need the context, it's still there for forward compatibility
-        self.enumerate_set().map(|(i, p)| p.0.use_ref(|value| (i, value.unwrap())))
-    }
-}
-
-impl<T:Sync> Index<usize> for ReadablePortBank<T> {
-    type Output = ReadablePort<T>;
-
-    /// Allows using square brackets to access individual ports.
-    ///
-    /// ```no_run
-    /// # use reactor_rt::prelude::*;
-    /// let bank: &ReadablePortBank<u32> = unimplemented!();
-    /// let port0: &ReadablePort<u32> = &bank[0];
-    /// ```
-    ///
-    /// ```no_run
-    /// # use reactor_rt::prelude::*;
-    /// let bank: &mut WritablePortBank<u32> = unimplemented!();
-    /// let port0: &mut WritablePort<u32> = &mut bank[0];
-    /// ```
-    fn index(&self, index: usize) -> &Self::Output {
-        self.0.ports[index].as_readable()
-    }
-}
-
-impl<'a, T: Sync> IntoIterator for &'a ReadablePortBank<T> {
-    type Item = &'a ReadablePort<T>;
-    type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        (&self.0).into_iter().map(Port::as_readable)
-    }
-}
-
-#[repr(transparent)]
-pub struct WritablePortBank<T: Sync>(PortBank<T>);
-
-impl<T: Sync> WritablePortBank<T> {
-    /// Returns the length of the bank
-    #[inline(always)]
-    pub fn len(&self) -> usize {
-        self.0.ports.len()
-    }
-
-    /// Returns true if the bank is empty.
-    #[inline(always)]
-    pub fn is_empty(&self) -> bool {
-        self.0.ports.is_empty()
-    }
-
-    /// Returns the ith component
-    #[inline(always)]
-    pub fn get(&mut self, i: usize) -> &mut WritablePort<T> {
-        self.0.ports[i].as_writable()
-    }
-
-    /// Iterate over the ports of this bank. Returns write-only
-    /// references to individual ports.
-    #[inline(always)]
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut WritablePort<T>> {
-        self.into_iter()
-    }
-}
-
-impl<'a, T: Sync> IntoIterator for &'a mut WritablePortBank<T> {
-    type Item = &'a mut WritablePort<T>;
-    type IntoIter = std::iter::Map<std::slice::IterMut<'a, Port<T>>, fn(&'a mut Port<T>) -> Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.ports.iter_mut().map(Port::as_writable)
-    }
-}
-
 /// Represents a port, which carries values of type `T`.
 /// Ports reify the data inputs and outputs of a reactor.
 ///
@@ -306,16 +181,12 @@ impl<'a, T: Sync> IntoIterator for &'a mut WritablePortBank<T> {
 /// able to add conditional compilation flags that enable
 /// runtime checks.
 ///
-///
 pub struct Port<T: Sync> {
     id: TriggerId,
     kind: PortKind,
     bind_status: BindStatus,
-    #[cfg(feature = "no-unsafe")]
-    upstream_binding: Rc<AtomicRefCell<Rc<PortCell<T>>>>,
-    #[cfg(not(feature = "no-unsafe"))]
-    upstream_binding: Rc<UnsafeCell<Rc<PortCell<T>>>>,
-    //                              ^^
+    upstream_binding: Rc<UncheckedCell<Rc<PortCell<T>>>>,
+    //                                 ^^
     // Note that manipulating this Rc is really unsafe and
     // requires care to avoid UB.
     // - Cloning the Rc from different threads concurrently is UB.
@@ -352,6 +223,9 @@ impl<T: Sync> Port<T> {
         self.use_ref(|opt| opt.is_some())
     }
 
+    pub(crate) fn get_kind(&self) -> PortKind {
+        self.kind
+    }
     #[inline]
     pub(crate) fn get(&self) -> Option<T>
     where
@@ -422,22 +296,6 @@ impl<T: Sync> Port<T> {
         }
     }
 
-    #[inline(always)]
-    #[doc(hidden)]
-    pub fn as_writable(&mut self) -> &mut WritablePort<T> {
-        // Safety: both references have safe lifetime.
-        // We must have exclusive access because of &mut.
-        unsafe { transmute(self) }
-    }
-
-    #[inline(always)]
-    #[doc(hidden)]
-    pub fn as_readable(&self) -> &ReadablePort<T> {
-        // Safety: both references have safe lifetime.
-        // The port must be read-only because of the &.
-        unsafe { transmute(self) }
-    }
-
     pub(crate) fn forward_to(&mut self, downstream: &mut Port<T>) -> Result<(), AssemblyError> {
         let mut mut_downstream_cell = {
             cfg_if! {
@@ -500,18 +358,20 @@ enum BindStatus {
     Bound,
 }
 
-#[cfg(feature = "no-unsafe")]
-type DownstreamsSafe<T> = AtomicRefCell<HashMap<PortId, Rc<AtomicRefCell<Rc<PortCell<T>>>>>>;
-#[cfg(not(feature = "no-unsafe"))]
-type DownstreamsUnsafe<T> = AtomicRefCell<HashMap<PortId, Rc<UnsafeCell<Rc<PortCell<T>>>>>>;
+cfg_if! {
+    if #[cfg(feature = "no-unsafe")] {
+        type Downstreams<T> = AtomicRefCell<HashMap<PortId, Rc<AtomicRefCell<Rc<PortCell<T>>>>>>;
+        type UncheckedCell<T> = AtomicRefCell<T>;
+    } else {
+        type Downstreams<T> = AtomicRefCell<HashMap<PortId, Rc<UnsafeCell<Rc<PortCell<T>>>>>>;
+        type UncheckedCell<T> = UnsafeCell<T>;
+    }
+}
 
 /// This is the internal cell type that is shared by ports.
 struct PortCell<T: Sync> {
     /// Cell for the value.
-    #[cfg(feature = "no-unsafe")]
-    value: AtomicRefCell<Option<T>>,
-    #[cfg(not(feature = "no-unsafe"))]
-    value: UnsafeCell<Option<T>>,
+    value: UncheckedCell<Option<T>>,
 
     /// This is the set of ports that are "forwarded to".
     /// When you bind 2 ports A -> B, then the binding of B
@@ -529,10 +389,7 @@ struct PortCell<T: Sync> {
     /// - so all three refer to the equiv class of A, whose downstream is now {B, C}
     /// - if you then try binding C -> A, then we can know
     /// that C is in the downstream of A, indicating that there is a cycle.
-    #[cfg(feature = "no-unsafe")]
-    downstreams: DownstreamsSafe<T>,
-    #[cfg(not(feature = "no-unsafe"))]
-    downstreams: DownstreamsUnsafe<T>,
+    downstreams: Downstreams<T>,
 }
 
 impl<T: Sync> PortCell<T> {

@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -157,9 +157,9 @@ where
     /// ### Examples
     ///
     /// ```no_run
-    /// # use reactor_rt::{ReactionCtx, ReadablePort};
+    /// # use reactor_rt::{ReactionCtx, Port};
     /// # let ctx: &mut ReactionCtx = panic!();
-    /// # let port: &ReadablePort<u32> = panic!();
+    /// # let port: &Port<u32> = panic!();
     /// if let Some(value) = ctx.get(port) {
     ///     // branch is taken if the port is set -- note, this moves `port`!
     /// }
@@ -176,17 +176,17 @@ where
     /// ### Examples
     ///
     /// ```no_run
-    /// # use reactor_rt::{ReactionCtx, ReadablePort};
+    /// # use reactor_rt::{ReactionCtx, Port};
     /// # let ctx: &mut ReactionCtx = panic!();
-    /// # let port: &ReadablePort<String> = panic!();
+    /// # let port: &Port<String> = panic!();
     /// let len = ctx.use_ref(port, |str| str.map(String::len).unwrap_or(0));
     /// // equivalent to
     /// let len = ctx.use_ref_opt(port, String::len).unwrap_or(0);
     /// ```
     /// ```no_run
-    /// # use reactor_rt::{ReactionCtx, ReadablePort};
+    /// # use reactor_rt::{ReactionCtx, Port};
     /// # let ctx: &mut ReactionCtx = unimplemented!();
-    /// # let port: &ReadablePort<String> = unimplemented!();
+    /// # let port: &Port<String> = unimplemented!();
     ///
     /// if let Some(str) = ctx.use_ref_opt(port, Clone::clone) {
     ///     // only entered if the port value is present, so no need to check is_present
@@ -217,25 +217,22 @@ where
     /// schedule more reactions that should execute at the
     /// same logical time.
     #[inline]
-    pub fn set<T, W>(&mut self, mut port: W, value: T)
+    pub fn set<T>(&mut self, port: &mut Port<T>, value: T)
     where
         T: Sync,
-        W: BorrowMut<WritablePort<T>>,
     {
-        let port = port.borrow_mut();
-
         if cfg!(debug_assertions) {
             self.check_set_port_is_legal(port)
         }
-        port.set_impl(value);
+        port.set_impl(Some(value));
         self.enqueue_now(Cow::Borrowed(self.reactions_triggered_by(port.get_id())));
     }
 
-    fn check_set_port_is_legal<T: Sync>(&self, port: &mut WritablePort<T>) {
+    fn check_set_port_is_legal<T: Sync>(&self, port: &mut Port<T>) {
         let port_id = port.get_id();
         let port_container = self.debug_info.id_registry.get_trigger_container(port_id).unwrap();
         let reaction_container = self.current_reaction.unwrap().0.container();
-        match port.kind() {
+        match port.get_kind() {
             PortKind::Input => {
                 let port_grandpa = self.debug_info.id_registry.get_container(port_container);
                 assert_eq!(
@@ -270,10 +267,10 @@ where
     /// same logical time.
     ///
     /// ```no_run
-    /// # use reactor_rt::{ReactionCtx, ReadablePort, WritablePort};
+    /// # use reactor_rt::{ReactionCtx, Port};
     /// # let ctx: &mut ReactionCtx = unimplemented!();
-    /// # let source: &ReadablePort<u32> = unimplemented!();
-    /// # let sink: &mut WritablePort<u32> = unimplemented!();
+    /// # let source: &Port<u32> = unimplemented!();
+    /// # let sink: &mut Port<u32> = unimplemented!();
     ///
     /// ctx.set_opt(sink, ctx.get(source));
     /// // equivalent to
@@ -283,10 +280,9 @@ where
     /// ```
     ///
     #[inline]
-    pub fn set_opt<T, W>(&mut self, port: W, value: Option<T>)
+    pub fn set_opt<T>(&mut self, port: &mut Port<T>, value: Option<T>)
     where
         T: Sync,
-        W: BorrowMut<WritablePort<T>>,
     {
         if let Some(v) = value {
             self.set(port, v)

@@ -59,19 +59,19 @@ fn actions_use_ref(ctx: &mut ReactionCtx, act: &LogicalAction<u32>) {
     assert!(ctx.use_ref(act, |v| v.is_some()));
 }
 
-fn port_get(ctx: &mut ReactionCtx, port: &ReadablePort<u32>) {
+fn port_get(ctx: &mut ReactionCtx, port: &Port<u32>) {
     assert!(ctx.get(port).is_some());
 }
 
-fn port_is_present(ctx: &mut ReactionCtx, port: &ReadablePort<u32>) {
+fn port_is_present(ctx: &mut ReactionCtx, port: &Port<u32>) {
     assert!(ctx.is_present(port));
 }
 
-fn port_set(ctx: &mut ReactionCtx, port: &mut WritablePort<u32>) {
+fn port_set(ctx: &mut ReactionCtx, port: &mut Port<u32>) {
     assert_eq!(ctx.set(port, 3), ());
 }
 
-fn readable_port_bank_iter(ctx: &mut ReactionCtx, bank: &ReadablePortBank<u32>) {
+fn readable_port_bank_iter(ctx: &mut ReactionCtx, bank: &PortBank<u32>) {
     for p in bank {
         assert!(ctx.get(p).is_some());
     }
@@ -83,8 +83,8 @@ fn readable_port_bank_iter(ctx: &mut ReactionCtx, bank: &ReadablePortBank<u32>) 
     for (i, pi) in bank.iter().enumerate() {}
 }
 
-fn writable_port_bank_index(ctx: &mut ReactionCtx, bank: &ReadablePortBank<u32>) {
-    let x: &ReadablePort<u32> = &bank[1];
+fn writable_port_bank_index(ctx: &mut ReactionCtx, bank: &PortBank<u32>) {
+    let x: &Port<u32> = &bank[1];
 }
 
 fn physical_spawn_elided(ctx: &mut ReactionCtx, mut action: PhysicalActionRef<u32>) {

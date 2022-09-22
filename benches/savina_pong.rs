@@ -104,8 +104,8 @@ mod reactors {
             fn react_0(
                 &mut self,
                 #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
-                receive: &::reactor_rt::ReadablePort<u32>,
-                send: &mut ::reactor_rt::WritablePort<u32>,
+                receive: &::reactor_rt::Port<u32>,
+                send: &mut ::reactor_rt::Port<u32>,
             ) {
                 self.count += 1;
                 ctx.set(send, ctx.get(receive).unwrap());
@@ -215,9 +215,7 @@ mod reactors {
 
             fn react(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
                 match rid.raw() {
-                    0 => self
-                        .__impl
-                        .react_0(ctx, self.__receive.as_readable(), self.__send.as_writable()),
+                    0 => self.__impl.react_0(ctx, &self.__receive, &mut self.__send),
                     1 => self.__impl.react_1(ctx),
 
                     _ => panic!(
@@ -259,7 +257,7 @@ mod reactors {
                 &mut self,
                 #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                 #[allow(unused)] serve: &::reactor_rt::LogicalAction<()>,
-                send: &mut ::reactor_rt::WritablePort<u32>,
+                send: &mut ::reactor_rt::Port<u32>,
             ) {
                 ctx.set(send, self.pingsLeft);
                 self.pingsLeft -= 1;
@@ -269,7 +267,7 @@ mod reactors {
             fn react_1(
                 &mut self,
                 #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
-                _receive: &::reactor_rt::ReadablePort<u32>,
+                _receive: &::reactor_rt::Port<u32>,
                 serve: &mut ::reactor_rt::LogicalAction<()>,
             ) {
                 if self.pingsLeft > 0 {
@@ -376,8 +374,8 @@ mod reactors {
 
             fn react(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
                 match rid.raw() {
-                    0 => self.__impl.react_0(ctx, &self.__serve, self.__send.as_writable()),
-                    1 => self.__impl.react_1(ctx, self.__receive.as_readable(), &mut self.__serve),
+                    0 => self.__impl.react_0(ctx, &self.__serve, &mut self.__send),
+                    1 => self.__impl.react_1(ctx, &self.__receive, &mut self.__serve),
 
                     _ => panic!(
                         "Invalid reaction ID: {} should be < {}",
