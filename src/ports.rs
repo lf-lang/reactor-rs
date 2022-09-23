@@ -39,131 +39,6 @@ use AssemblyErrorImpl::{CannotBind, CyclicDependency};
 use crate::assembly::{AssemblyError, AssemblyErrorImpl, PortId, PortKind, TriggerId, TriggerLike};
 use crate::{EventTag, ReactionCtx, ReactionTrigger};
 
-impl<T: Sync> ReactionTrigger<T> for Port<T> {
-    #[inline]
-    fn is_present(&self, _now: &EventTag, _start: &Instant) -> bool {
-        self.is_present_now()
-    }
-
-    #[inline]
-    fn get_value(&self, _now: &EventTag, _start: &Instant) -> Option<T>
-    where
-        T: Copy,
-    {
-        self.get()
-    }
-
-    #[inline]
-    fn use_value_ref<O>(&self, _now: &EventTag, _start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
-        self.use_ref(|opt| action(opt.as_ref()))
-    }
-}
-
-/// Internal type, not communicated to reactions.
-pub struct PortBank<T: Sync> {
-    ports: Vec<Port<T>>,
-    id: TriggerId,
-}
-
-impl<T: Sync> PortBank<T> {
-    /// Returns the length of the bank
-    #[inline(always)]
-    pub fn len(&self) -> usize {
-        self.ports.len()
-    }
-
-    /// Returns true if the bank is empty.
-    #[inline(always)]
-    pub fn is_empty(&self) -> bool {
-        self.ports.is_empty()
-    }
-
-    /// Returns the ith component
-    #[inline(always)]
-    pub fn get(&self, i: usize) -> &Port<T> {
-        &self.ports[i]
-    }
-
-    /// Returns the ith component
-    #[inline(always)]
-    pub fn get_mut(&mut self, i: usize) -> &mut Port<T> {
-        &mut self.ports[i]
-    }
-
-    /// Create a bank from the given vector of ports.
-    #[inline(always)]
-    pub(crate) fn new(ports: Vec<Port<T>>, id: TriggerId) -> Self {
-        Self { ports, id }
-    }
-
-    /// Iterate over the bank and return mutable references to individual ports.
-    #[inline(always)]
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Port<T>> {
-        self.ports.iter_mut()
-    }
-
-    /// Iterate over the ports of this bank. Returns read-only
-    /// references to individual ports.
-    #[inline(always)]
-    pub fn iter(&self) -> impl Iterator<Item = &Port<T>> {
-        self.into_iter()
-    }
-
-    /// Iterate over only those ports in the bank that are set.
-    /// Returns a tuple with their index in the bank (not necessarily contiguous).
-    pub fn enumerate_set(&self) -> impl Iterator<Item = (usize, &Port<T>)> {
-        self.iter().enumerate().filter(|&(_, p)| p.is_present_now())
-    }
-
-    /// Iterate over only those ports in the bank that are set,
-    /// yielding a tuple with their index in the bank and a copy of the value.
-    pub fn enumerate_values(&self, _ctx: &ReactionCtx) -> impl Iterator<Item = (usize, T)> + '_
-    where
-        T: Copy,
-    {
-        // note: the impl doesn't need the context, it's still there for forward compatibility
-        self.enumerate_set().map(|(i, p)| p.use_ref(|value| (i, value.unwrap())))
-    }
-}
-
-impl<T: Sync> TriggerLike for PortBank<T> {
-    fn get_id(&self) -> TriggerId {
-        self.id
-    }
-}
-
-impl<'a, T: Sync> IntoIterator for &'a mut PortBank<T> {
-    type Item = &'a mut Port<T>;
-    type IntoIter = std::slice::IterMut<'a, Port<T>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.ports.iter_mut()
-    }
-}
-
-impl<'a, T: Sync> IntoIterator for &'a PortBank<T> {
-    type Item = &'a Port<T>;
-    type IntoIter = std::slice::Iter<'a, Port<T>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.ports.iter()
-    }
-}
-
-impl<T: Sync> Index<usize> for PortBank<T> {
-    type Output = Port<T>;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.ports[index]
-    }
-}
-
-impl<T: Sync> IndexMut<usize> for PortBank<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.ports[index]
-    }
-}
-
 /// Represents a port, which carries values of type `T`.
 /// Ports reify the data inputs and outputs of a reactor.
 ///
@@ -338,6 +213,27 @@ impl<T: Sync> Port<T> {
     }
 }
 
+impl<T: Sync> ReactionTrigger<T> for Port<T> {
+    #[inline]
+    fn is_present(&self, _now: &EventTag, _start: &Instant) -> bool {
+        self.is_present_now()
+    }
+
+    #[inline]
+    fn get_value(&self, _now: &EventTag, _start: &Instant) -> Option<T>
+        where
+            T: Copy,
+    {
+        self.get()
+    }
+
+    #[inline]
+    fn use_value_ref<O>(&self, _now: &EventTag, _start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
+        self.use_ref(|opt| action(opt.as_ref()))
+    }
+}
+
+
 impl<T: Sync> TriggerLike for Port<T> {
     fn get_id(&self) -> TriggerId {
         self.id
@@ -424,5 +320,101 @@ impl<T: Sync> Default for PortCell<T> {
             value: Default::default(),
             downstreams: Default::default(),
         }
+    }
+}
+
+
+/// A port bank is a vector of independent ports (its _channels_)
+/// Port banks have special Lingua Franca syntax.
+pub struct PortBank<T: Sync> {
+    ports: Vec<Port<T>>,
+    id: TriggerId,
+}
+
+impl<T: Sync> PortBank<T> {
+
+    /// Create a bank from the given vector of ports.
+    #[inline(always)]
+    pub(crate) fn new(ports: Vec<Port<T>>, id: TriggerId) -> Self {
+        Self { ports, id }
+    }
+
+    /// Returns the length of the bank
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.ports.len()
+    }
+
+    /// Returns true if the bank is empty.
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.ports.is_empty()
+    }
+
+    /// Iterate over the bank and return mutable references to individual ports.
+    #[inline(always)]
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Port<T>> {
+        self.ports.iter_mut()
+    }
+
+    /// Iterate over the ports of this bank. Returns read-only
+    /// references to individual ports.
+    #[inline(always)]
+    pub fn iter(&self) -> impl Iterator<Item = &Port<T>> {
+        self.into_iter()
+    }
+
+    /// Iterate over only those ports in the bank that are set.
+    /// Returns a tuple with their index in the bank (not necessarily contiguous).
+    pub fn enumerate_set(&self) -> impl Iterator<Item = (usize, &Port<T>)> {
+        self.iter().enumerate().filter(|&(_, p)| p.is_present_now())
+    }
+
+    /// Iterate over only those ports in the bank that are set,
+    /// yielding a tuple with their index in the bank and a copy of the value.
+    pub fn enumerate_values(&self, _ctx: &ReactionCtx) -> impl Iterator<Item = (usize, T)> + '_
+        where
+            T: Copy,
+    {
+        // note: the impl doesn't need the context, it's still there for forward compatibility
+        self.enumerate_set().map(|(i, p)| p.use_ref(|value| (i, value.unwrap())))
+    }
+}
+
+impl<T: Sync> TriggerLike for PortBank<T> {
+    fn get_id(&self) -> TriggerId {
+        self.id
+    }
+}
+
+impl<'a, T: Sync> IntoIterator for &'a mut PortBank<T> {
+    type Item = &'a mut Port<T>;
+    type IntoIter = std::slice::IterMut<'a, Port<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.ports.iter_mut()
+    }
+}
+
+impl<'a, T: Sync> IntoIterator for &'a PortBank<T> {
+    type Item = &'a Port<T>;
+    type IntoIter = std::slice::Iter<'a, Port<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.ports.iter()
+    }
+}
+
+impl<T: Sync> Index<usize> for PortBank<T> {
+    type Output = Port<T>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.ports[index]
+    }
+}
+
+impl<T: Sync> IndexMut<usize> for PortBank<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.ports[index]
     }
 }
