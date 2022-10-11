@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/scheduler/dependencies.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>dependencies.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../../reactor_rt/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/scheduler/dependencies.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>dependencies.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><a class="sidebar-logo" href="../../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../../reactor_rt/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -996,943 +996,943 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */</span>
+ */
 
-<span class="kw">use</span> <span class="ident">std::borrow::Cow</span>;
-<span class="kw">use</span> <span class="ident">std::collections::hash_map::Entry</span> <span class="kw">as</span> <span class="ident">HEntry</span>;
-<span class="kw">use</span> <span class="ident">std::collections::HashMap</span>;
-<span class="kw">use</span> <span class="ident">std::default::Default</span>;
-<span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">Formatter</span>};
-<span class="kw">use</span> <span class="ident">std::ops::Range</span>;
-<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
+</span><span class="kw">use </span>std::borrow::Cow;
+<span class="kw">use </span>std::collections::hash_map::Entry <span class="kw">as </span>HEntry;
+<span class="kw">use </span>std::collections::HashMap;
+<span class="kw">use </span>std::default::Default;
+<span class="kw">use </span>std::fmt::{Debug, Display, Formatter};
+<span class="kw">use </span>std::ops::Range;
+<span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use</span> <span class="ident">index_vec</span>::{<span class="ident">Idx</span>, <span class="ident">IndexVec</span>};
-<span class="kw">use</span> <span class="ident">petgraph::graph</span>::{<span class="ident">DiGraph</span>, <span class="ident">NodeIndex</span>};
-<span class="kw">use</span> <span class="ident">petgraph::visit::EdgeRef</span>;
-<span class="kw">use</span> <span class="ident">petgraph::Direction::Outgoing</span>;
+<span class="kw">use </span>index_vec::{Idx, IndexVec};
+<span class="kw">use </span>petgraph::graph::{DiGraph, NodeIndex};
+<span class="kw">use </span>petgraph::visit::EdgeRef;
+<span class="kw">use </span>petgraph::Direction::Outgoing;
 
-<span class="kw">use</span> <span class="ident"><span class="kw">super</span>::ReactionPlan</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::assembly</span>::<span class="kw-2">*</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::impl_types::GlobalIdImpl</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::dependencies::NodeKind::MultiportUpstream</span>;
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::util::vecmap</span>::{<span class="ident">Entry</span> <span class="kw">as</span> <span class="ident">VEntry</span>, <span class="ident">VecMap</span>};
-<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::vecmap::KeyRef</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
+<span class="kw">use </span><span class="kw">super</span>::ReactionPlan;
+<span class="kw">use </span><span class="kw">crate</span>::assembly::<span class="kw-2">*</span>;
+<span class="kw">use </span><span class="kw">crate</span>::impl_types::GlobalIdImpl;
+<span class="kw">use </span><span class="kw">crate</span>::scheduler::dependencies::NodeKind::MultiportUpstream;
+<span class="kw">use </span><span class="kw">crate</span>::util::vecmap::{Entry <span class="kw">as </span>VEntry, VecMap};
+<span class="kw">use </span><span class="kw">crate</span>::vecmap::KeyRef;
+<span class="kw">use crate</span>::<span class="kw-2">*</span>;
 
-<span class="kw">type</span> <span class="ident">GraphIx</span> <span class="op">=</span> <span class="ident">NodeIndex</span><span class="op">&lt;</span><span class="ident">GlobalIdImpl</span><span class="op">&gt;</span>;
+<span class="kw">type </span>GraphIx = NodeIndex&lt;GlobalIdImpl&gt;;
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Hash</span>)]</span>
-<span class="kw">enum</span> <span class="ident">NodeKind</span> {
-    <span class="doccomment">/// startup/shutdown</span>
-    <span class="ident">Special</span>,
-    <span class="ident">MultiportUpstream</span>,
-    <span class="ident">Port</span>,
-    <span class="ident">Action</span>,
-    <span class="ident">Timer</span>,
-    <span class="ident">Reaction</span>,
+<span class="attribute">#[derive(Debug, Eq, PartialEq, Hash)]
+</span><span class="kw">enum </span>NodeKind {
+    <span class="doccomment">/// startup/shutdown
+    </span>Special,
+    MultiportUpstream,
+    Port,
+    Action,
+    Timer,
+    Reaction,
 }
 
-<span class="doccomment">/// Weight of graph nodes.</span>
-<span class="kw">struct</span> <span class="ident">GraphNode</span> {
-    <span class="ident">kind</span>: <span class="ident">NodeKind</span>,
-    <span class="ident">id</span>: <span class="ident">GraphId</span>,
+<span class="doccomment">/// Weight of graph nodes.
+</span><span class="kw">struct </span>GraphNode {
+    kind: NodeKind,
+    id: GraphId,
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Hash</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Copy</span>, <span class="ident">Clone</span>)]</span>
-<span class="kw">enum</span> <span class="ident">GraphId</span> {
-    <span class="ident">Trigger</span>(<span class="ident">TriggerId</span>),
-    <span class="ident">Reaction</span>(<span class="ident">GlobalReactionId</span>),
+<span class="attribute">#[derive(Debug, Hash, Eq, PartialEq, Copy, Clone)]
+</span><span class="kw">enum </span>GraphId {
+    Trigger(TriggerId),
+    Reaction(GlobalReactionId),
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused</span>)]</span>
-<span class="kw">impl</span> <span class="ident">GraphId</span> {
-    <span class="kw">const</span> <span class="ident">STARTUP</span>: <span class="ident">GraphId</span> <span class="op">=</span> <span class="ident">GraphId::Trigger</span>(<span class="ident">TriggerId::STARTUP</span>);
-    <span class="kw">const</span> <span class="ident">SHUTDOWN</span>: <span class="ident">GraphId</span> <span class="op">=</span> <span class="ident">GraphId::Trigger</span>(<span class="ident">TriggerId::SHUTDOWN</span>);
+<span class="attribute">#[cfg(test)]
+#[allow(unused)]
+</span><span class="kw">impl </span>GraphId {
+    <span class="kw">const </span>STARTUP: GraphId = GraphId::Trigger(TriggerId::STARTUP);
+    <span class="kw">const </span>SHUTDOWN: GraphId = GraphId::Trigger(TriggerId::SHUTDOWN);
 }
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">TriggerId</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GraphId</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">id</span>: <span class="ident">TriggerId</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">GraphId::Trigger</span>(<span class="ident">id</span>)
+<span class="kw">impl </span>From&lt;TriggerId&gt; <span class="kw">for </span>GraphId {
+    <span class="kw">fn </span>from(id: TriggerId) -&gt; <span class="self">Self </span>{
+        GraphId::Trigger(id)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">GlobalReactionId</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">GraphId</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">id</span>: <span class="ident">GlobalReactionId</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">GraphId::Reaction</span>(<span class="ident">id</span>)
+<span class="kw">impl </span>From&lt;GlobalReactionId&gt; <span class="kw">for </span>GraphId {
+    <span class="kw">fn </span>from(id: GlobalReactionId) -&gt; <span class="self">Self </span>{
+        GraphId::Reaction(id)
     }
 }
 
-<span class="kw">type</span> <span class="ident">DepGraphImpl</span> <span class="op">=</span> <span class="ident">DiGraph</span><span class="op">&lt;</span><span class="ident">GraphNode</span>, <span class="ident">EdgeWeight</span>, <span class="ident">GlobalIdImpl</span><span class="op">&gt;</span>;
+<span class="kw">type </span>DepGraphImpl = DiGraph&lt;GraphNode, EdgeWeight, GlobalIdImpl&gt;;
 
-<span class="doccomment">/// Dependency graph representing &quot;instantaneous&quot; dependencies,</span>
-<span class="doccomment">/// ie read- and write-dependencies of reactions to ports, and</span>
-<span class="doccomment">/// their trigger dependencies. This must be a DAG.</span>
-<span class="doccomment">///</span>
-<span class="doccomment">/// One global instance is built during the assembly process (see [RootAssembler]).</span>
-<span class="doccomment">/// Initialization completes when that instance is turned into</span>
-<span class="doccomment">/// a [DataflowInfo], which is the data structure used at runtime.</span>
-<span class="doccomment">///</span>
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct</span> <span class="ident">DepGraph</span> {
-    <span class="doccomment">/// Instantaneous data flow. Must be acyclic. Edges from</span>
-    <span class="doccomment">/// reactions to actions are not represented, as they are</span>
-    <span class="doccomment">/// not actually a data dependency that could cause a</span>
-    <span class="doccomment">/// scheduling conflict. Conveniently those edges are the</span>
-    <span class="doccomment">/// only way control flow may be cyclic in the reactor model,</span>
-    <span class="doccomment">/// so a stock check for cycles can be used.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// There are several kind of edges:</span>
-    <span class="doccomment">/// - reaction -&gt; port: the reaction effects the port/action</span>
-    <span class="doccomment">/// - port/action -&gt; reaction: the port/action triggers the reaction</span>
-    <span class="doccomment">/// - port -&gt; port: a binding of a port to another</span>
-    <span class="doccomment">/// - reaction n -&gt; reaction m: means n has higher priority</span>
-    <span class="doccomment">/// than m, only filled in for reactions of the same reactor.</span>
-    <span class="ident">dataflow</span>: <span class="ident">DepGraphImpl</span>,
+<span class="doccomment">/// Dependency graph representing &quot;instantaneous&quot; dependencies,
+/// ie read- and write-dependencies of reactions to ports, and
+/// their trigger dependencies. This must be a DAG.
+///
+/// One global instance is built during the assembly process (see [RootAssembler]).
+/// Initialization completes when that instance is turned into
+/// a [DataflowInfo], which is the data structure used at runtime.
+///
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>DepGraph {
+    <span class="doccomment">/// Instantaneous data flow. Must be acyclic. Edges from
+    /// reactions to actions are not represented, as they are
+    /// not actually a data dependency that could cause a
+    /// scheduling conflict. Conveniently those edges are the
+    /// only way control flow may be cyclic in the reactor model,
+    /// so a stock check for cycles can be used.
+    ///
+    /// There are several kind of edges:
+    /// - reaction -&gt; port: the reaction effects the port/action
+    /// - port/action -&gt; reaction: the port/action triggers the reaction
+    /// - port -&gt; port: a binding of a port to another
+    /// - reaction n -&gt; reaction m: means n has higher priority
+    /// than m, only filled in for reactions of the same reactor.
+    </span>dataflow: DepGraphImpl,
 
-    <span class="doccomment">/// Maps global IDs back to graph indices.</span>
-    <span class="ident">ix_by_id</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">GraphId</span>, <span class="ident">GraphIx</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Maps global IDs back to graph indices.
+    </span>ix_by_id: HashMap&lt;GraphId, GraphIx&gt;,
 
-    <span class="doccomment">/// Map of multiport component ID -&gt; multiport ID.</span>
-    <span class="doccomment">/// todo data structure is bad.</span>
-    <span class="ident">multiport_containment</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">GraphId</span>, <span class="ident">TriggerId</span><span class="op">&gt;</span>,
-    <span class="doccomment">/// Map of multiport ID -&gt; range of IDs for its channels</span>
-    <span class="ident">multiport_ranges</span>: <span class="ident">VecMap</span><span class="op">&lt;</span><span class="ident">TriggerId</span>, <span class="ident">Range</span><span class="op">&lt;</span><span class="ident">TriggerId</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+    <span class="doccomment">/// Map of multiport component ID -&gt; multiport ID.
+    /// todo data structure is bad.
+    </span>multiport_containment: HashMap&lt;GraphId, TriggerId&gt;,
+    <span class="doccomment">/// Map of multiport ID -&gt; range of IDs for its channels
+    </span>multiport_ranges: VecMap&lt;TriggerId, Range&lt;TriggerId&gt;&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">GraphNode</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">std::fmt::Result</span> {
-        <span class="kw">match</span> <span class="self">self</span> {
-            <span class="ident">GraphNode</span> { <span class="ident">id</span>: <span class="ident">GraphId::Reaction</span>(<span class="ident">id</span>), .. } =&gt; <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;Reaction({:?})&quot;</span>, <span class="ident">id</span>),
-            <span class="ident">GraphNode</span> { <span class="ident">id</span>: <span class="ident">GraphId::Trigger</span>(<span class="ident">TriggerId::STARTUP</span>), .. } =&gt; <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;startup&quot;</span>),
-            <span class="ident">GraphNode</span> { <span class="ident">id</span>: <span class="ident">GraphId::Trigger</span>(<span class="ident">TriggerId::SHUTDOWN</span>), .. } =&gt; <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;shutdown&quot;</span>),
-            <span class="ident">GraphNode</span> { <span class="ident">id</span>: <span class="ident">GraphId::Trigger</span>(<span class="ident">id</span>), <span class="ident">kind</span> } =&gt; <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{:?}({:?})&quot;</span>, <span class="ident">kind</span>, <span class="ident">id</span>.<span class="ident">index</span>()),
+<span class="kw">impl </span>Debug <span class="kw">for </span>GraphNode {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="kw">match </span><span class="self">self </span>{
+            GraphNode { id: GraphId::Reaction(id), .. } =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;Reaction({:?})&quot;</span>, id),
+            GraphNode { id: GraphId::Trigger(TriggerId::STARTUP), .. } =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;startup&quot;</span>),
+            GraphNode { id: GraphId::Trigger(TriggerId::SHUTDOWN), .. } =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;shutdown&quot;</span>),
+            GraphNode { id: GraphId::Trigger(id), kind } =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{:?}({:?})&quot;</span>, kind, id.index()),
         }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">DepGraph</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="self">Self</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ich</span> <span class="op">=</span> <span class="self">Self</span> {
-            <span class="ident">dataflow</span>: <span class="ident">Default::default</span>(),
-            <span class="ident">ix_by_id</span>: <span class="ident">Default::default</span>(),
-            <span class="ident">multiport_containment</span>: <span class="ident">Default::default</span>(),
-            <span class="ident">multiport_ranges</span>: <span class="ident">Default::default</span>(),
+<span class="kw">impl </span>DepGraph {
+    <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span><span class="kw-2">mut </span>ich = <span class="self">Self </span>{
+            dataflow: Default::default(),
+            ix_by_id: Default::default(),
+            multiport_containment: Default::default(),
+            multiport_ranges: Default::default(),
         };
-        <span class="ident">ich</span>.<span class="ident">record_special</span>(<span class="ident">TriggerId::STARTUP</span>);
-        <span class="ident">ich</span>.<span class="ident">record_special</span>(<span class="ident">TriggerId::SHUTDOWN</span>);
-        <span class="ident">ich</span>
+        ich.record_special(TriggerId::STARTUP);
+        ich.record_special(TriggerId::SHUTDOWN);
+        ich
     }
 
-    <span class="doccomment">/// Produce a dot representation of the graph.</span>
-    <span class="attribute">#[<span class="ident">cold</span>]</span>
-    <span class="attribute">#[<span class="ident">inline</span>(<span class="ident">never</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">format_dot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id_registry</span>: <span class="kw-2">&amp;</span><span class="ident">DebugInfoRegistry</span>) -&gt; <span class="ident">String</span> {
-        <span class="kw">use</span> <span class="ident">petgraph::dot</span>::{<span class="ident">Config</span>, <span class="ident">Dot</span>};
+    <span class="doccomment">/// Produce a dot representation of the graph.
+    </span><span class="attribute">#[cold]
+    #[inline(never)]
+    </span><span class="kw">pub fn </span>format_dot(<span class="kw-2">&amp;</span><span class="self">self</span>, id_registry: <span class="kw-2">&amp;</span>DebugInfoRegistry) -&gt; String {
+        <span class="kw">use </span>petgraph::dot::{Config, Dot};
 
-        <span class="comment">// Map the node weights to nice strings.</span>
-        <span class="comment">// petgraph doesn&#39;t support custom node formatters</span>
-        <span class="comment">// https://github.com/petgraph/petgraph/issues/194</span>
-        <span class="kw">let</span> <span class="ident">labeled</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">map</span>(
-            <span class="op">|</span><span class="kw">_</span>, <span class="ident">n</span><span class="op">|</span> <span class="kw">match</span> <span class="ident">n</span>.<span class="ident">id</span> {
-                <span class="ident">GraphId::Reaction</span>(<span class="ident">id</span>) =&gt; <span class="macro">format!</span>(<span class="string">&quot;Reaction({})&quot;</span>, <span class="ident">id_registry</span>.<span class="ident">fmt_reaction</span>(<span class="ident">id</span>)),
-                <span class="ident">GraphId::Trigger</span>(<span class="ident">TriggerId::STARTUP</span>) =&gt; <span class="string">&quot;startup&quot;</span>.<span class="ident">to_string</span>(),
-                <span class="ident">GraphId::Trigger</span>(<span class="ident">TriggerId::SHUTDOWN</span>) =&gt; <span class="string">&quot;shutdown&quot;</span>.<span class="ident">to_string</span>(),
-                <span class="ident">GraphId::Trigger</span>(<span class="ident">id</span>) =&gt; <span class="macro">format!</span>(<span class="string">&quot;{:?}({})&quot;</span>, <span class="ident">n</span>.<span class="ident">kind</span>, <span class="ident">id_registry</span>.<span class="ident">fmt_component</span>(<span class="ident">id</span>)),
+        <span class="comment">// Map the node weights to nice strings.
+        // petgraph doesn&#39;t support custom node formatters
+        // https://github.com/petgraph/petgraph/issues/194
+        </span><span class="kw">let </span>labeled = <span class="self">self</span>.dataflow.map(
+            |<span class="kw">_</span>, n| <span class="kw">match </span>n.id {
+                GraphId::Reaction(id) =&gt; <span class="macro">format!</span>(<span class="string">&quot;Reaction({})&quot;</span>, id_registry.fmt_reaction(id)),
+                GraphId::Trigger(TriggerId::STARTUP) =&gt; <span class="string">&quot;startup&quot;</span>.to_string(),
+                GraphId::Trigger(TriggerId::SHUTDOWN) =&gt; <span class="string">&quot;shutdown&quot;</span>.to_string(),
+                GraphId::Trigger(id) =&gt; <span class="macro">format!</span>(<span class="string">&quot;{:?}({})&quot;</span>, n.kind, id_registry.fmt_component(id)),
             },
-            <span class="op">|</span><span class="kw">_</span>, <span class="kw">_</span><span class="op">|</span> <span class="string">&quot;&quot;</span>,
+            |<span class="kw">_</span>, <span class="kw">_</span>| <span class="string">&quot;&quot;</span>,
         );
 
-        <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">Dot::with_config</span>(<span class="kw-2">&amp;</span><span class="ident">labeled</span>, <span class="kw-2">&amp;</span>[<span class="ident">Config::EdgeNoLabel</span>]))
+        <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, Dot::with_config(<span class="kw-2">&amp;</span>labeled, <span class="kw-2">&amp;</span>[Config::EdgeNoLabel]))
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">record_port</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">TriggerId</span>) {
-        <span class="self">self</span>.<span class="ident">record_port_impl</span>(<span class="ident">id</span>);
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>record_port(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TriggerId) {
+        <span class="self">self</span>.record_port_impl(id);
     }
 
-    <span class="kw">fn</span> <span class="ident">record_port_impl</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">TriggerId</span>) -&gt; <span class="ident">GraphIx</span> {
-        <span class="self">self</span>.<span class="ident">record</span>(<span class="ident">GraphId::Trigger</span>(<span class="ident">id</span>), <span class="ident">NodeKind::Port</span>)
+    <span class="kw">fn </span>record_port_impl(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TriggerId) -&gt; GraphIx {
+        <span class="self">self</span>.record(GraphId::Trigger(id), NodeKind::Port)
     }
 
-    <span class="doccomment">/// Port banks have an ID which is a fake node, which effects all individual channels.</span>
-    <span class="doccomment">/// It looks like a kind of tree:</span>
-    <span class="doccomment">/// ```no_compile</span>
-    <span class="doccomment">///        BANK</span>
-    <span class="doccomment">///       / | \ \</span>
-    <span class="doccomment">///    b[0] ...  b[n]</span>
-    <span class="doccomment">/// ```</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// That way when someone declares a trigger on the bank,</span>
-    <span class="doccomment">/// it&#39;s forwarded to individual channels in the graph.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// When X declares a trigger/uses on the entire</span>
-    <span class="doccomment">/// bank, an edge is added from every channel to X.</span>
-    <span class="doccomment">///</span>
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">record_port_bank</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">TriggerId</span>, <span class="ident">len</span>: <span class="ident">usize</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
-        <span class="macro">assert!</span>(<span class="ident">len</span> <span class="op">&gt;</span> <span class="number">0</span>, <span class="string">&quot;empty port bank&quot;</span>);
-        <span class="self">self</span>.<span class="ident">record</span>(<span class="ident">GraphId::Trigger</span>(<span class="ident">id</span>), <span class="ident">NodeKind::MultiportUpstream</span>);
+    <span class="doccomment">/// Port banks have an ID which is a fake node, which effects all individual channels.
+    /// It looks like a kind of tree:
+    /// ```no_compile
+    ///        BANK
+    ///       / | \ \
+    ///    b[0] ...  b[n]
+    /// ```
+    ///
+    /// That way when someone declares a trigger on the bank,
+    /// it&#39;s forwarded to individual channels in the graph.
+    ///
+    /// When X declares a trigger/uses on the entire
+    /// bank, an edge is added from every channel to X.
+    ///
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>record_port_bank(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TriggerId, len: usize) -&gt; <span class="prelude-ty">Result</span>&lt;(), AssemblyError&gt; {
+        <span class="macro">assert!</span>(len &gt; <span class="number">0</span>, <span class="string">&quot;empty port bank&quot;</span>);
+        <span class="self">self</span>.record(GraphId::Trigger(id), NodeKind::MultiportUpstream);
 
-        <span class="kw">for</span> <span class="ident">channel_id</span> <span class="kw">in</span> <span class="ident">id</span>
-            .<span class="ident">iter_next_range</span>(<span class="ident">len</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">AssemblyError</span>(<span class="ident">AssemblyErrorImpl::IdOverflow</span>))<span class="question-mark">?</span>
-        {
-            <span class="self">self</span>.<span class="ident">multiport_containment</span>.<span class="ident">insert</span>(<span class="ident">GraphId::Trigger</span>(<span class="ident">channel_id</span>), <span class="ident">id</span>);
+        <span class="kw">for </span>channel_id <span class="kw">in </span>id
+            .iter_next_range(len)
+            .map_err(|<span class="kw">_</span>| AssemblyError(AssemblyErrorImpl::IdOverflow))<span class="question-mark">?
+        </span>{
+            <span class="self">self</span>.multiport_containment.insert(GraphId::Trigger(channel_id), id);
 
-            <span class="comment">// self.dataflow.add_edge(upstream_ix, channel_ix, EdgeWeight::Default);</span>
-        }
-        <span class="self">self</span>.<span class="ident">multiport_ranges</span>.<span class="ident">insert</span>(<span class="ident">id</span>, <span class="ident">id</span>.<span class="ident">next_range</span>(<span class="ident">len</span>).<span class="ident">unwrap</span>());
+            <span class="comment">// self.dataflow.add_edge(upstream_ix, channel_ix, EdgeWeight::Default);
+        </span>}
+        <span class="self">self</span>.multiport_ranges.insert(id, id.next_range(len).unwrap());
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">record_port_bank_component</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">bank_id</span>: <span class="ident">TriggerId</span>, <span class="ident">channel_id</span>: <span class="ident">TriggerId</span>) {
-        <span class="kw">let</span> <span class="ident">channel_ix</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">record_port_impl</span>(<span class="ident">channel_id</span>);
-        <span class="self">self</span>.<span class="ident">dataflow</span>
-            .<span class="ident">add_edge</span>(<span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">bank_id</span>.<span class="ident">into</span>()), <span class="ident">channel_ix</span>, <span class="ident">EdgeWeight::Default</span>);
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>record_port_bank_component(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bank_id: TriggerId, channel_id: TriggerId) {
+        <span class="kw">let </span>channel_ix = <span class="self">self</span>.record_port_impl(channel_id);
+        <span class="self">self</span>.dataflow
+            .add_edge(<span class="self">self</span>.get_ix(bank_id.into()), channel_ix, EdgeWeight::Default);
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">record_laction</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">TriggerId</span>) {
-        <span class="self">self</span>.<span class="ident">record</span>(<span class="ident">GraphId::Trigger</span>(<span class="ident">id</span>), <span class="ident">NodeKind::Action</span>);
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>record_laction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TriggerId) {
+        <span class="self">self</span>.record(GraphId::Trigger(id), NodeKind::Action);
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">record_paction</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">TriggerId</span>) {
-        <span class="self">self</span>.<span class="ident">record</span>(<span class="ident">GraphId::Trigger</span>(<span class="ident">id</span>), <span class="ident">NodeKind::Action</span>);
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>record_paction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TriggerId) {
+        <span class="self">self</span>.record(GraphId::Trigger(id), NodeKind::Action);
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">record_timer</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">TriggerId</span>) {
-        <span class="self">self</span>.<span class="ident">record</span>(<span class="ident">GraphId::Trigger</span>(<span class="ident">id</span>), <span class="ident">NodeKind::Timer</span>);
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>record_timer(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TriggerId) {
+        <span class="self">self</span>.record(GraphId::Trigger(id), NodeKind::Timer);
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">record_reaction</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">GlobalReactionId</span>) {
-        <span class="self">self</span>.<span class="ident">record</span>(<span class="ident">GraphId::Reaction</span>(<span class="ident">id</span>), <span class="ident">NodeKind::Reaction</span>);
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>record_reaction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: GlobalReactionId) {
+        <span class="self">self</span>.record(GraphId::Reaction(id), NodeKind::Reaction);
     }
 
-    <span class="doccomment">/// Records that n &gt; m, ie it will execute always before m.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reaction_priority</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">n</span>: <span class="ident">GlobalReactionId</span>, <span class="ident">m</span>: <span class="ident">GlobalReactionId</span>) {
-        <span class="self">self</span>.<span class="ident">dataflow</span>
-            .<span class="ident">add_edge</span>(<span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">n</span>.<span class="ident">into</span>()), <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">m</span>.<span class="ident">into</span>()), <span class="ident">EdgeWeight::Default</span>);
+    <span class="doccomment">/// Records that n &gt; m, ie it will execute always before m.
+    </span><span class="kw">pub fn </span>reaction_priority(<span class="kw-2">&amp;mut </span><span class="self">self</span>, n: GlobalReactionId, m: GlobalReactionId) {
+        <span class="self">self</span>.dataflow
+            .add_edge(<span class="self">self</span>.get_ix(n.into()), <span class="self">self</span>.get_ix(m.into()), EdgeWeight::Default);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">port_bind</span><span class="op">&lt;</span><span class="ident">T</span>: <span class="ident">Sync</span><span class="op">&gt;</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">p1</span>: <span class="kw-2">&amp;</span><span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>, <span class="ident">p2</span>: <span class="kw-2">&amp;</span><span class="ident">Port</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>) {
-        <span class="comment">// upstream (settable) -&gt; downstream (bound)</span>
-        <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">add_edge</span>(
-            <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">p1</span>.<span class="ident">get_id</span>().<span class="ident">into</span>()),
-            <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">p2</span>.<span class="ident">get_id</span>().<span class="ident">into</span>()),
-            <span class="ident">EdgeWeight::Default</span>,
+    <span class="kw">pub fn </span>port_bind&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, p1: <span class="kw-2">&amp;</span>Port&lt;T&gt;, p2: <span class="kw-2">&amp;</span>Port&lt;T&gt;) {
+        <span class="comment">// upstream (settable) -&gt; downstream (bound)
+        </span><span class="self">self</span>.dataflow.add_edge(
+            <span class="self">self</span>.get_ix(p1.get_id().into()),
+            <span class="self">self</span>.get_ix(p2.get_id().into()),
+            EdgeWeight::Default,
         );
     }
 
-    <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">port_bind_untyped</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">p1</span>: <span class="ident">TriggerId</span>, <span class="ident">p2</span>: <span class="ident">TriggerId</span>) {
-        <span class="comment">// upstream (settable) -&gt; downstream (bound)</span>
-        <span class="self">self</span>.<span class="ident">dataflow</span>
-            .<span class="ident">add_edge</span>(<span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">p1</span>.<span class="ident">into</span>()), <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">p2</span>.<span class="ident">into</span>()), <span class="ident">EdgeWeight::Default</span>);
+    <span class="attribute">#[cfg(test)]
+    </span><span class="kw">pub fn </span>port_bind_untyped(<span class="kw-2">&amp;mut </span><span class="self">self</span>, p1: TriggerId, p2: TriggerId) {
+        <span class="comment">// upstream (settable) -&gt; downstream (bound)
+        </span><span class="self">self</span>.dataflow
+            .add_edge(<span class="self">self</span>.get_ix(p1.into()), <span class="self">self</span>.get_ix(p2.into()), EdgeWeight::Default);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">triggers_reaction</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">trigger</span>: <span class="ident">TriggerId</span>, <span class="ident">reaction</span>: <span class="ident">GlobalReactionId</span>) {
-        <span class="kw">let</span> <span class="ident">trigger_ix</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">trigger</span>.<span class="ident">into</span>());
-        <span class="kw">if</span> <span class="self">self</span>.<span class="ident">dataflow</span>[<span class="ident">trigger_ix</span>].<span class="ident">kind</span> <span class="op">==</span> <span class="ident">MultiportUpstream</span> {
-            <span class="kw">for</span> <span class="ident">channel_id</span> <span class="kw">in</span> <span class="ident">TriggerId::iter_range</span>(<span class="self">self</span>.<span class="ident">multiport_ranges</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">trigger</span>).<span class="ident">unwrap</span>()) {
-                <span class="self">self</span>.<span class="ident">triggers_reaction</span>(<span class="ident">channel_id</span>, <span class="ident">reaction</span>);
+    <span class="kw">pub fn </span>triggers_reaction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trigger: TriggerId, reaction: GlobalReactionId) {
+        <span class="kw">let </span>trigger_ix = <span class="self">self</span>.get_ix(trigger.into());
+        <span class="kw">if </span><span class="self">self</span>.dataflow[trigger_ix].kind == MultiportUpstream {
+            <span class="kw">for </span>channel_id <span class="kw">in </span>TriggerId::iter_range(<span class="self">self</span>.multiport_ranges.get(<span class="kw-2">&amp;</span>trigger).unwrap()) {
+                <span class="self">self</span>.triggers_reaction(channel_id, reaction);
             }
             <span class="kw">return</span>;
         }
 
-        <span class="comment">// trigger -&gt; reaction</span>
-        <span class="self">self</span>.<span class="ident">dataflow</span>
-            .<span class="ident">add_edge</span>(<span class="ident">trigger_ix</span>, <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">reaction</span>.<span class="ident">into</span>()), <span class="ident">EdgeWeight::Default</span>);
+        <span class="comment">// trigger -&gt; reaction
+        </span><span class="self">self</span>.dataflow
+            .add_edge(trigger_ix, <span class="self">self</span>.get_ix(reaction.into()), EdgeWeight::Default);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reaction_effects</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">reaction</span>: <span class="ident">GlobalReactionId</span>, <span class="ident">trigger</span>: <span class="ident">TriggerId</span>) {
-        <span class="comment">// reaction -&gt; trigger</span>
-        <span class="self">self</span>.<span class="ident">dataflow</span>
-            .<span class="ident">add_edge</span>(<span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">reaction</span>.<span class="ident">into</span>()), <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">trigger</span>.<span class="ident">into</span>()), <span class="ident">EdgeWeight::Default</span>);
+    <span class="kw">pub fn </span>reaction_effects(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reaction: GlobalReactionId, trigger: TriggerId) {
+        <span class="comment">// reaction -&gt; trigger
+        </span><span class="self">self</span>.dataflow
+            .add_edge(<span class="self">self</span>.get_ix(reaction.into()), <span class="self">self</span>.get_ix(trigger.into()), EdgeWeight::Default);
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reaction_uses</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">reaction</span>: <span class="ident">GlobalReactionId</span>, <span class="ident">trigger</span>: <span class="ident">TriggerId</span>) {
-        <span class="comment">// trigger -&gt; reaction</span>
-        <span class="self">self</span>.<span class="ident">dataflow</span>
-            .<span class="ident">add_edge</span>(<span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">trigger</span>.<span class="ident">into</span>()), <span class="self">self</span>.<span class="ident">get_ix</span>(<span class="ident">reaction</span>.<span class="ident">into</span>()), <span class="ident">EdgeWeight::Use</span>);
+    <span class="kw">pub fn </span>reaction_uses(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reaction: GlobalReactionId, trigger: TriggerId) {
+        <span class="comment">// trigger -&gt; reaction
+        </span><span class="self">self</span>.dataflow
+            .add_edge(<span class="self">self</span>.get_ix(trigger.into()), <span class="self">self</span>.get_ix(reaction.into()), EdgeWeight::Use);
     }
 
-    <span class="kw">fn</span> <span class="ident">get_ix</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">id</span>: <span class="ident">GraphId</span>) -&gt; <span class="ident">GraphIx</span> {
-        <span class="self">self</span>.<span class="ident">ix_by_id</span>[<span class="kw-2">&amp;</span><span class="ident">id</span>]
+    <span class="kw">fn </span>get_ix(<span class="kw-2">&amp;</span><span class="self">self</span>, id: GraphId) -&gt; GraphIx {
+        <span class="self">self</span>.ix_by_id[<span class="kw-2">&amp;</span>id]
     }
 
-    <span class="kw">fn</span> <span class="ident">record</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">GraphId</span>, <span class="ident">kind</span>: <span class="ident">NodeKind</span>) -&gt; <span class="ident">GraphIx</span> {
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">ix_by_id</span>.<span class="ident">entry</span>(<span class="ident">id</span>) {
-            <span class="ident">HEntry::Occupied</span>(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Duplicate id {:?}&quot;</span>, <span class="ident">id</span>),
-            <span class="ident">HEntry::Vacant</span>(<span class="ident">v</span>) =&gt; {
-                <span class="kw">let</span> <span class="ident">ix</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">add_node</span>(<span class="ident">GraphNode</span> { <span class="ident">kind</span>, <span class="ident">id</span> });
-                <span class="ident">v</span>.<span class="ident">insert</span>(<span class="ident">ix</span>);
-                <span class="ident">ix</span>
+    <span class="kw">fn </span>record(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: GraphId, kind: NodeKind) -&gt; GraphIx {
+        <span class="kw">match </span><span class="self">self</span>.ix_by_id.entry(id) {
+            HEntry::Occupied(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Duplicate id {:?}&quot;</span>, id),
+            HEntry::Vacant(v) =&gt; {
+                <span class="kw">let </span>ix = <span class="self">self</span>.dataflow.add_node(GraphNode { kind, id });
+                v.insert(ix);
+                ix
             }
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">record_special</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">trigger</span>: <span class="ident">TriggerId</span>) {
-        <span class="kw">let</span> <span class="ident">id</span> <span class="op">=</span> <span class="ident">GraphId::Trigger</span>(<span class="ident">trigger</span>);
-        <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="ident">GraphNode</span> { <span class="ident">kind</span>: <span class="ident">NodeKind::Special</span>, <span class="ident">id</span> };
-        <span class="self">self</span>.<span class="ident">ix_by_id</span>.<span class="ident">insert</span>(<span class="ident">id</span>, <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">add_node</span>(<span class="ident">node</span>));
+    <span class="kw">fn </span>record_special(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trigger: TriggerId) {
+        <span class="kw">let </span>id = GraphId::Trigger(trigger);
+        <span class="kw">let </span>node = GraphNode { kind: NodeKind::Special, id };
+        <span class="self">self</span>.ix_by_id.insert(id, <span class="self">self</span>.dataflow.add_node(node));
     }
 }
 
-<span class="kw">impl</span> <span class="ident">DepGraph</span> {
-    <span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">fn</span> <span class="ident">number_reactions_by_level</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">AssemblyResult</span><span class="op">&lt;</span><span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">GlobalReactionId</span>, <span class="ident">LevelIx</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">toposorted</span> <span class="op">=</span> <span class="ident">petgraph::algo::toposort</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">dataflow</span>, <span class="prelude-val">None</span>)
-            .<span class="ident">map_err</span>(<span class="op">|</span><span class="kw">_</span><span class="op">|</span> <span class="ident">AssemblyError</span>(<span class="ident">AssemblyErrorImpl::CyclicDependencyGraph</span>))<span class="question-mark">?</span>;
+<span class="kw">impl </span>DepGraph {
+    <span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">fn </span>number_reactions_by_level(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; AssemblyResult&lt;HashMap&lt;GlobalReactionId, LevelIx&gt;&gt; {
+        <span class="kw">let </span>toposorted = petgraph::algo::toposort(<span class="kw-2">&amp;</span><span class="self">self</span>.dataflow, <span class="prelude-val">None</span>)
+            .map_err(|<span class="kw">_</span>| AssemblyError(AssemblyErrorImpl::CyclicDependencyGraph))<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">levels</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="op">&lt;</span><span class="ident">GraphIx</span>, <span class="ident">LevelIx</span><span class="op">&gt;</span><span class="ident">::with_capacity</span>(<span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">node_count</span>());
+        <span class="kw">let </span><span class="kw-2">mut </span>levels = HashMap::&lt;GraphIx, LevelIx&gt;::with_capacity(<span class="self">self</span>.dataflow.node_count());
 
-        <span class="kw">for</span> <span class="ident">ix</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">toposorted</span> {
-            <span class="kw">let</span> <span class="ident">cur_level</span> <span class="op">=</span> <span class="kw-2">*</span><span class="ident">levels</span>.<span class="ident">entry</span>(<span class="kw-2">*</span><span class="ident">ix</span>).<span class="ident">or_insert</span>(<span class="ident">LevelIx::ZERO</span>);
+        <span class="kw">for </span>ix <span class="kw">in </span><span class="kw-2">&amp;</span>toposorted {
+            <span class="kw">let </span>cur_level = <span class="kw-2">*</span>levels.entry(<span class="kw-2">*</span>ix).or_insert(LevelIx::ZERO);
 
-            <span class="kw">let</span> <span class="ident">successors</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">edges_directed</span>(<span class="kw-2">*</span><span class="ident">ix</span>, <span class="ident">Outgoing</span>).<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">target</span>());
+            <span class="kw">let </span>successors = <span class="self">self</span>.dataflow.edges_directed(<span class="kw-2">*</span>ix, Outgoing).map(|e| e.target());
 
-            <span class="kw">for</span> <span class="ident">succ_ix</span> <span class="kw">in</span> <span class="ident">successors</span> {
-                <span class="kw">let</span> <span class="ident">succ_level</span> <span class="op">=</span> <span class="ident">levels</span>.<span class="ident">entry</span>(<span class="ident">succ_ix</span>).<span class="ident">or_insert</span>(<span class="ident">LevelIx::ZERO</span>);
-                <span class="kw-2">*</span><span class="ident">succ_level</span> <span class="op">=</span> <span class="ident">cur_level</span>.<span class="ident">next</span>().<span class="ident">max</span>(<span class="kw-2">*</span><span class="ident">succ_level</span>);
+            <span class="kw">for </span>succ_ix <span class="kw">in </span>successors {
+                <span class="kw">let </span>succ_level = levels.entry(succ_ix).or_insert(LevelIx::ZERO);
+                <span class="kw-2">*</span>succ_level = cur_level.next().max(<span class="kw-2">*</span>succ_level);
             }
         }
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">reaction_levels</span> <span class="op">=</span> <span class="ident">HashMap</span>::<span class="op">&lt;</span><span class="ident">GlobalReactionId</span>, <span class="ident">LevelIx</span><span class="op">&gt;</span><span class="ident">::new</span>();
+        <span class="kw">let </span><span class="kw-2">mut </span>reaction_levels = HashMap::&lt;GlobalReactionId, LevelIx&gt;::new();
 
-        <span class="kw">for</span> <span class="ident">ix</span> <span class="kw">in</span> <span class="ident">toposorted</span> {
-            <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">node_weight</span>(<span class="ident">ix</span>).<span class="ident">unwrap</span>();
+        <span class="kw">for </span>ix <span class="kw">in </span>toposorted {
+            <span class="kw">let </span>node = <span class="self">self</span>.dataflow.node_weight(ix).unwrap();
 
-            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">GraphId::Reaction</span>(<span class="ident">id</span>) <span class="op">=</span> <span class="ident">node</span>.<span class="ident">id</span> {
-                <span class="ident">reaction_levels</span>.<span class="ident">insert</span>(<span class="ident">id</span>, <span class="ident">levels</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">ix</span>).<span class="ident">cloned</span>().<span class="ident">unwrap</span>());
+            <span class="kw">if let </span>GraphId::Reaction(id) = node.id {
+                reaction_levels.insert(id, levels.get(<span class="kw-2">&amp;</span>ix).cloned().unwrap());
             }
         }
 
-        <span class="prelude-val">Ok</span>(<span class="ident">reaction_levels</span>)
+        <span class="prelude-val">Ok</span>(reaction_levels)
     }
 }
 
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="kw">enum</span> <span class="ident">EdgeWeight</span> {
-    <span class="doccomment">/// Default semantics for this edge (determined by the</span>
-    <span class="doccomment">/// kind of source and target vertex). This only makes a</span>
-    <span class="doccomment">/// difference for edges from a port/action to a reaction:</span>
-    <span class="doccomment">/// if they&#39;re labeled `Default`, they&#39;re trigger dependencies,</span>
-    <span class="doccomment">/// otherwise use dependencies.</span>
-    <span class="ident">Default</span>,
-    <span class="doccomment">///</span>
-    <span class="ident">Use</span>,
+<span class="attribute">#[derive(Debug, Eq, PartialEq)]
+</span><span class="kw">enum </span>EdgeWeight {
+    <span class="doccomment">/// Default semantics for this edge (determined by the
+    /// kind of source and target vertex). This only makes a
+    /// difference for edges from a port/action to a reaction:
+    /// if they&#39;re labeled `Default`, they&#39;re trigger dependencies,
+    /// otherwise use dependencies.
+    </span>Default,
+    <span class="doccomment">///
+    </span>Use,
 }
 
-<span class="doccomment">/// Stores the level of each reaction. This is transient info</span>
-<span class="doccomment">/// that is used to build a [DataflowInfo] and discarded.</span>
-<span class="doccomment">///</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ReactionLevelInfo</span> {
-    <span class="doccomment">/// The level of each reaction.</span>
-    <span class="ident">level_numbers</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">GlobalReactionId</span>, <span class="ident">LevelIx</span><span class="op">&gt;</span>,
+<span class="doccomment">/// Stores the level of each reaction. This is transient info
+/// that is used to build a [DataflowInfo] and discarded.
+///
+</span><span class="kw">pub struct </span>ReactionLevelInfo {
+    <span class="doccomment">/// The level of each reaction.
+    </span>level_numbers: HashMap&lt;GlobalReactionId, LevelIx&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">ReactionLevelInfo</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="ident">level_numbers</span>: <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">GlobalReactionId</span>, <span class="ident">LevelIx</span><span class="op">&gt;</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> { <span class="ident">level_numbers</span> }
+<span class="kw">impl </span>ReactionLevelInfo {
+    <span class="kw">pub fn </span>new(level_numbers: HashMap&lt;GlobalReactionId, LevelIx&gt;) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ level_numbers }
     }
 
-    <span class="doccomment">/// Append a reaction to the given reaction collection</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">augment</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">collection</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ExecutableReactions</span>, <span class="ident">reaction</span>: <span class="ident">GlobalReactionId</span>) {
-        <span class="kw">let</span> <span class="ident">ix</span> <span class="op">=</span> <span class="self">self</span>
-            .<span class="ident">level_numbers</span>
-            .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">reaction</span>)
-            .<span class="ident">copied</span>()
-            .<span class="ident">expect</span>(<span class="string">&quot;reaction was not recorded in the graph&quot;</span>);
-        <span class="ident">collection</span>.<span class="ident">insert</span>(<span class="ident">reaction</span>, <span class="ident">ix</span>);
+    <span class="doccomment">/// Append a reaction to the given reaction collection
+    </span><span class="kw">pub fn </span>augment(<span class="kw-2">&amp;</span><span class="self">self</span>, collection: <span class="kw-2">&amp;mut </span>ExecutableReactions, reaction: GlobalReactionId) {
+        <span class="kw">let </span>ix = <span class="self">self
+            </span>.level_numbers
+            .get(<span class="kw-2">&amp;</span>reaction)
+            .copied()
+            .expect(<span class="string">&quot;reaction was not recorded in the graph&quot;</span>);
+        collection.insert(reaction, ix);
     }
 }
 
-<span class="doccomment">/// Pre-calculated dependency information,</span>
-<span class="doccomment">/// using the dependency graph</span>
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct</span> <span class="ident">DataflowInfo</span> {
-    <span class="doccomment">/// Maps each trigger to the set of reactions that need</span>
-    <span class="doccomment">/// to be scheduled when it is triggered.</span>
-    <span class="doccomment">/// Todo: many of those are never asked for, eg those of bound ports</span>
-    <span class="ident">trigger_to_plan</span>: <span class="ident">IndexVec</span><span class="op">&lt;</span><span class="ident">TriggerId</span>, <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ExecutableReactions</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="doccomment">/// Pre-calculated dependency information,
+/// using the dependency graph
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>DataflowInfo {
+    <span class="doccomment">/// Maps each trigger to the set of reactions that need
+    /// to be scheduled when it is triggered.
+    /// Todo: many of those are never asked for, eg those of bound ports
+    </span>trigger_to_plan: IndexVec&lt;TriggerId, Arc&lt;ExecutableReactions&lt;<span class="lifetime">&#39;static</span>&gt;&gt;&gt;,
 }
 
-<span class="kw">impl</span> <span class="ident">DataflowInfo</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>(<span class="kw-2">mut</span> <span class="ident">graph</span>: <span class="ident">DepGraph</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="self">Self</span>, <span class="ident">AssemblyError</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="ident">level_info</span> <span class="op">=</span> <span class="ident">ReactionLevelInfo::new</span>(<span class="ident">graph</span>.<span class="ident">number_reactions_by_level</span>()<span class="question-mark">?</span>);
-        <span class="kw">let</span> <span class="ident">trigger_to_plan</span> <span class="op">=</span> <span class="ident"><span class="self">Self</span>::collect_trigger_to_plan</span>(<span class="kw-2">&amp;mut</span> <span class="ident">graph</span>, <span class="kw-2">&amp;</span><span class="ident">level_info</span>);
+<span class="kw">impl </span>DataflowInfo {
+    <span class="kw">pub fn </span>new(<span class="kw-2">mut </span>graph: DepGraph) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="self">Self</span>, AssemblyError&gt; {
+        <span class="kw">let </span>level_info = ReactionLevelInfo::new(graph.number_reactions_by_level()<span class="question-mark">?</span>);
+        <span class="kw">let </span>trigger_to_plan = <span class="self">Self</span>::collect_trigger_to_plan(<span class="kw-2">&amp;mut </span>graph, <span class="kw-2">&amp;</span>level_info);
 
-        <span class="prelude-val">Ok</span>(<span class="ident">DataflowInfo</span> { <span class="ident">trigger_to_plan</span> })
+        <span class="prelude-val">Ok</span>(DataflowInfo { trigger_to_plan })
     }
 
-    <span class="kw">fn</span> <span class="ident">collect_trigger_to_plan</span>(
-        <span class="ident">DepGraph</span> { <span class="ident">dataflow</span>, .. }: <span class="kw-2">&amp;mut</span> <span class="ident">DepGraph</span>,
-        <span class="ident">level_info</span>: <span class="kw-2">&amp;</span><span class="ident">ReactionLevelInfo</span>,
-    ) -&gt; <span class="ident">IndexVec</span><span class="op">&lt;</span><span class="ident">TriggerId</span>, <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">ExecutableReactions</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">IndexVec::with_capacity</span>(<span class="ident">dataflow</span>.<span class="ident">node_count</span>() <span class="op">/</span> <span class="number">2</span>);
+    <span class="kw">fn </span>collect_trigger_to_plan(
+        DepGraph { dataflow, .. }: <span class="kw-2">&amp;mut </span>DepGraph,
+        level_info: <span class="kw-2">&amp;</span>ReactionLevelInfo,
+    ) -&gt; IndexVec&lt;TriggerId, Arc&lt;ExecutableReactions&lt;<span class="lifetime">&#39;static</span>&gt;&gt;&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = IndexVec::with_capacity(dataflow.node_count() / <span class="number">2</span>);
 
-        <span class="kw">for</span> <span class="ident">trigger</span> <span class="kw">in</span> <span class="ident">dataflow</span>.<span class="ident">node_indices</span>() {
-            <span class="kw">if</span> <span class="kw">let</span> <span class="ident">GraphId::Trigger</span>(<span class="ident">trigger_id</span>) <span class="op">=</span> <span class="ident">dataflow</span>[<span class="ident">trigger</span>].<span class="ident">id</span> {
-                <span class="comment">// if let Some(_multiport_id) = multiport_containment.get(&amp;dataflow[trigger].id) {</span>
-                <span class="comment">//     assert_eq!(dataflow[trigger].kind, NodeKind::Port);</span>
-                <span class="comment">//     todo!(&quot;multiports&quot;)</span>
-                <span class="comment">// todo this is a multiport channel:</span>
-                <span class="comment">//  1. if someone has declared a dependency on this individual channel, collect dependencies into DEPS</span>
-                <span class="comment">//  2. else add trigger to DELAY goto 4</span>
-                <span class="comment">//  3. merge DEPS into dependencies ALL for the whole multiport</span>
-                <span class="comment">//  4. goto next iteration while some channels of the multiport remain to be processed</span>
-                <span class="comment">//  5. assign all triggers in DELAY the dependencies ALL</span>
-                <span class="comment">//</span>
-                <span class="comment">//  This requires all components of a given multiport to be processed consecutively.</span>
-                <span class="comment">// }</span>
+        <span class="kw">for </span>trigger <span class="kw">in </span>dataflow.node_indices() {
+            <span class="kw">if let </span>GraphId::Trigger(trigger_id) = dataflow[trigger].id {
+                <span class="comment">// if let Some(_multiport_id) = multiport_containment.get(&amp;dataflow[trigger].id) {
+                //     assert_eq!(dataflow[trigger].kind, NodeKind::Port);
+                //     todo!(&quot;multiports&quot;)
+                // todo this is a multiport channel:
+                //  1. if someone has declared a dependency on this individual channel, collect dependencies into DEPS
+                //  2. else add trigger to DELAY goto 4
+                //  3. merge DEPS into dependencies ALL for the whole multiport
+                //  4. goto next iteration while some channels of the multiport remain to be processed
+                //  5. assign all triggers in DELAY the dependencies ALL
+                //
+                //  This requires all components of a given multiport to be processed consecutively.
+                // }
 
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">reactions</span> <span class="op">=</span> <span class="ident">ExecutableReactions::new</span>();
-                <span class="ident"><span class="self">Self</span>::collect_reactions_rec</span>(<span class="ident">dataflow</span>, <span class="ident">trigger</span>, <span class="ident">level_info</span>, <span class="kw-2">&amp;mut</span> <span class="ident">reactions</span>);
-                <span class="ident">result</span>.<span class="ident">insert</span>(<span class="ident">trigger_id</span>, <span class="ident">Arc::new</span>(<span class="ident">reactions</span>));
+                </span><span class="kw">let </span><span class="kw-2">mut </span>reactions = ExecutableReactions::new();
+                <span class="self">Self</span>::collect_reactions_rec(dataflow, trigger, level_info, <span class="kw-2">&amp;mut </span>reactions);
+                result.insert(trigger_id, Arc::new(reactions));
             }
         }
 
-        <span class="ident">result</span>
+        result
     }
 
-    <span class="kw">fn</span> <span class="ident">collect_reactions_rec</span>(
-        <span class="ident">dataflow</span>: <span class="kw-2">&amp;</span><span class="ident">DepGraphImpl</span>,
-        <span class="ident">trigger</span>: <span class="ident">GraphIx</span>,
-        <span class="ident">level_info</span>: <span class="kw-2">&amp;</span><span class="ident">ReactionLevelInfo</span>,
-        <span class="ident">reactions</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ExecutableReactions</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span><span class="op">&gt;</span>,
+    <span class="kw">fn </span>collect_reactions_rec(
+        dataflow: <span class="kw-2">&amp;</span>DepGraphImpl,
+        trigger: GraphIx,
+        level_info: <span class="kw-2">&amp;</span>ReactionLevelInfo,
+        reactions: <span class="kw-2">&amp;mut </span>ExecutableReactions&lt;<span class="lifetime">&#39;static</span>&gt;,
     ) {
-        <span class="kw">for</span> <span class="ident">downstream</span> <span class="kw">in</span> <span class="ident">dataflow</span>.<span class="ident">edges_directed</span>(<span class="ident">trigger</span>, <span class="ident">Outgoing</span>) {
-            <span class="kw">let</span> <span class="ident">node</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">dataflow</span>[<span class="ident">downstream</span>.<span class="ident">target</span>()];
-            <span class="kw">match</span> <span class="ident">node</span>.<span class="ident">kind</span> {
-                <span class="ident">NodeKind::Port</span> =&gt; {
-                    <span class="comment">// this is necessarily a port-&gt;port binding</span>
-                    <span class="ident"><span class="self">Self</span>::collect_reactions_rec</span>(<span class="ident">dataflow</span>, <span class="ident">downstream</span>.<span class="ident">target</span>(), <span class="ident">level_info</span>, <span class="ident">reactions</span>)
+        <span class="kw">for </span>downstream <span class="kw">in </span>dataflow.edges_directed(trigger, Outgoing) {
+            <span class="kw">let </span>node = <span class="kw-2">&amp;</span>dataflow[downstream.target()];
+            <span class="kw">match </span>node.kind {
+                NodeKind::Port =&gt; {
+                    <span class="comment">// this is necessarily a port-&gt;port binding
+                    </span><span class="self">Self</span>::collect_reactions_rec(dataflow, downstream.target(), level_info, reactions)
                 }
-                <span class="ident">NodeKind::Reaction</span> =&gt; {
-                    <span class="kw">let</span> <span class="ident">rid</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">node</span>.<span class="ident">id</span> {
-                        <span class="ident">GraphId::Reaction</span>(<span class="ident">rid</span>) =&gt; <span class="ident">rid</span>,
-                        <span class="kw">_</span> =&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;this is a reaction&quot;</span>),
+                NodeKind::Reaction =&gt; {
+                    <span class="kw">let </span>rid = <span class="kw">match </span>node.id {
+                        GraphId::Reaction(rid) =&gt; rid,
+                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;this is a reaction&quot;</span>),
                     };
-                    <span class="comment">// trigger-&gt;reaction</span>
-                    <span class="kw">if</span> <span class="ident">downstream</span>.<span class="ident">weight</span>() <span class="op">!</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">EdgeWeight::Use</span> {
-                        <span class="comment">// so it&#39;s a trigger dependency</span>
-                        <span class="ident">level_info</span>.<span class="ident">augment</span>(<span class="ident">reactions</span>, <span class="ident">rid</span>)
+                    <span class="comment">// trigger-&gt;reaction
+                    </span><span class="kw">if </span>downstream.weight() != <span class="kw-2">&amp;</span>EdgeWeight::Use {
+                        <span class="comment">// so it&#39;s a trigger dependency
+                        </span>level_info.augment(reactions, rid)
                     }
                 }
-                <span class="kw">_</span> =&gt; {
-                    <span class="comment">// trigger-&gt;action? this is malformed</span>
-                    <span class="macro">panic!</span>(<span class="string">&quot;malformed dependency graph&quot;</span>)
+                <span class="kw">_ </span>=&gt; {
+                    <span class="comment">// trigger-&gt;action? this is malformed
+                    </span><span class="macro">panic!</span>(<span class="string">&quot;malformed dependency graph&quot;</span>)
                 }
             }
         }
     }
 
-    <span class="doccomment">/// Returns the set of reactions that needs to be scheduled</span>
-    <span class="doccomment">/// when the given trigger is triggered.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// # Panics</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// If the trigger id is not registered</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">trigger</span>: <span class="kw-2">&amp;</span><span class="ident">TriggerId</span>) -&gt; <span class="kw-2">&amp;</span><span class="ident">ExecutableReactions</span><span class="op">&lt;</span><span class="lifetime">&#39;static</span><span class="op">&gt;</span> {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">trigger_to_plan</span>[<span class="kw-2">*</span><span class="ident">trigger</span>]
+    <span class="doccomment">/// Returns the set of reactions that needs to be scheduled
+    /// when the given trigger is triggered.
+    ///
+    /// # Panics
+    ///
+    /// If the trigger id is not registered
+    </span><span class="kw">pub fn </span>reactions_triggered_by(<span class="kw-2">&amp;</span><span class="self">self</span>, trigger: <span class="kw-2">&amp;</span>TriggerId) -&gt; <span class="kw-2">&amp;</span>ExecutableReactions&lt;<span class="lifetime">&#39;static</span>&gt; {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.trigger_to_plan[<span class="kw-2">*</span>trigger]
     }
 }
 
-<span class="macro">cfg_if!</span> {
-    <span class="kw">if</span> <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;vec-id-sets&quot;</span>)]</span> {
-        <span class="kw">type</span> <span class="ident">LevelImpl</span> <span class="op">=</span> <span class="ident">Vec</span><span class="op">&lt;</span><span class="ident">GlobalReactionId</span><span class="op">&gt;</span>;
-    } <span class="kw">else</span> {
-        <span class="kw">type</span> <span class="ident">LevelImpl</span> <span class="op">=</span> <span class="ident">std::collections::HashSet</span><span class="op">&lt;</span><span class="ident">GlobalReactionId</span><span class="op">&gt;</span>;
+<span class="macro">cfg_if! </span>{
+    <span class="kw">if </span><span class="attribute">#[cfg(feature = <span class="string">&quot;vec-id-sets&quot;</span>)] </span>{
+        <span class="kw">type </span>LevelImpl = Vec&lt;GlobalReactionId&gt;;
+    } <span class="kw">else </span>{
+        <span class="kw">type </span>LevelImpl = std::collections::HashSet&lt;GlobalReactionId&gt;;
     }
 }
 
-<span class="doccomment">/// A set of global reaction IDS.</span>
-<span class="doccomment">/// The implementation can be changed with the vec-id-sets feature,</span>
-<span class="doccomment">/// which is more performant when relatively few</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Default</span>, <span class="ident">Debug</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>)]</span>
-<span class="attribute">#[<span class="ident">repr</span>(<span class="ident">transparent</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">Level</span>(<span class="ident">LevelImpl</span>);
+<span class="doccomment">/// A set of global reaction IDS.
+/// The implementation can be changed with the vec-id-sets feature,
+/// which is more performant when relatively few
+</span><span class="attribute">#[derive(Clone, Default, Debug, Eq, PartialEq)]
+#[repr(transparent)]
+</span><span class="kw">pub struct </span>Level(LevelImpl);
 
-<span class="kw">impl</span> <span class="ident">Level</span> {
-    <span class="kw">fn</span> <span class="ident">with_capacity</span>(<span class="ident">cap</span>: <span class="ident">usize</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span>(<span class="ident">LevelImpl::with_capacity</span>(<span class="ident">cap</span>))
+<span class="kw">impl </span>Level {
+    <span class="kw">fn </span>with_capacity(cap: usize) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>(LevelImpl::with_capacity(cap))
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">len</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">usize</span> {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">len</span>()
+    <span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
+        <span class="self">self</span>.<span class="number">0</span>.len()
     }
 
-    <span class="kw">fn</span> <span class="ident">insert</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">id</span>: <span class="ident">GlobalReactionId</span>) {
-        <span class="macro">cfg_if!</span> {
-            <span class="kw">if</span> <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;vec-id-sets&quot;</span>)]</span> {
-                 <span class="kw">match</span> <span class="self">self</span>.<span class="number">0</span>.<span class="ident">binary_search</span>(<span class="kw-2">&amp;</span><span class="ident">id</span>) {
+    <span class="kw">fn </span>insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: GlobalReactionId) {
+        <span class="macro">cfg_if! </span>{
+            <span class="kw">if </span><span class="attribute">#[cfg(feature = <span class="string">&quot;vec-id-sets&quot;</span>)] </span>{
+                 <span class="kw">match </span><span class="self">self</span>.<span class="number">0</span>.binary_search(<span class="kw-2">&amp;</span>id) {
                     <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {}
-                    <span class="prelude-val">Err</span>(<span class="ident">ix</span>) =&gt; {
-                        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">insert</span>(<span class="ident">ix</span>, <span class="ident">id</span>);
+                    <span class="prelude-val">Err</span>(ix) =&gt; {
+                        <span class="self">self</span>.<span class="number">0</span>.insert(ix, id);
                     }
                 }
-            } <span class="kw">else</span> {
-                <span class="self">self</span>.<span class="number">0</span>.<span class="ident">insert</span>(<span class="ident">id</span>);
+            } <span class="kw">else </span>{
+                <span class="self">self</span>.<span class="number">0</span>.insert(id);
             }
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">is_empty</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">bool</span> {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">is_empty</span>()
+    <span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="self">self</span>.<span class="number">0</span>.is_empty()
     }
 
-    <span class="kw">fn</span> <span class="ident">extend</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">iter</span>: <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">GlobalReactionId</span><span class="op">&gt;</span>) {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">extend</span>(<span class="ident">iter</span>);
-        <span class="macro">cfg_if!</span> {
-            <span class="kw">if</span> <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;vec-id-sets&quot;</span>)]</span> {
-                <span class="self">self</span>.<span class="number">0</span>.<span class="ident">sort</span>();
-                <span class="self">self</span>.<span class="number">0</span>.<span class="ident">dedup</span>();
+    <span class="kw">fn </span>extend(<span class="kw-2">&amp;mut </span><span class="self">self</span>, iter: <span class="kw">impl </span>Iterator&lt;Item = GlobalReactionId&gt;) {
+        <span class="self">self</span>.<span class="number">0</span>.extend(iter);
+        <span class="macro">cfg_if! </span>{
+            <span class="kw">if </span><span class="attribute">#[cfg(feature = <span class="string">&quot;vec-id-sets&quot;</span>)] </span>{
+                <span class="self">self</span>.<span class="number">0</span>.sort();
+                <span class="self">self</span>.<span class="number">0</span>.dedup();
             }
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iter</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="ident">GlobalReactionId</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">iter</span>().<span class="ident">cloned</span>()
+    <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = GlobalReactionId&gt; + <span class="lifetime">&#39;_ </span>{
+        <span class="self">self</span>.<span class="number">0</span>.iter().cloned()
     }
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">IntoIterator</span> <span class="kw">for</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Level</span> {
-    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">GlobalReactionId</span>;
-    <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">LevelImpl</span> <span class="kw">as</span> <span class="ident">IntoIterator</span><span class="op">&gt;</span><span class="ident">::IntoIter</span>;
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Level {
+    <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>GlobalReactionId;
+    <span class="kw">type </span>IntoIter = &lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>LevelImpl <span class="kw">as </span>IntoIterator&gt;::IntoIter;
 
-    <span class="kw">fn</span> <span class="ident">into_iter</span>(<span class="self">self</span>) -&gt; <span class="ident"><span class="self">Self</span>::IntoIter</span> {
-        (<span class="self">self</span>.<span class="number">0</span>).<span class="ident">iter</span>()
+    <span class="kw">fn </span>into_iter(<span class="self">self</span>) -&gt; <span class="self">Self</span>::IntoIter {
+        (<span class="self">self</span>.<span class="number">0</span>).iter()
     }
 }
 
-<span class="kw">impl</span> <span class="ident">IntoIterator</span> <span class="kw">for</span> <span class="ident">Level</span> {
-    <span class="kw">type</span> <span class="ident">Item</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">LevelImpl</span> <span class="kw">as</span> <span class="ident">IntoIterator</span><span class="op">&gt;</span><span class="ident">::Item</span>;
-    <span class="kw">type</span> <span class="ident">IntoIter</span> <span class="op">=</span> <span class="op">&lt;</span><span class="ident">LevelImpl</span> <span class="kw">as</span> <span class="ident">IntoIterator</span><span class="op">&gt;</span><span class="ident">::IntoIter</span>;
+<span class="kw">impl </span>IntoIterator <span class="kw">for </span>Level {
+    <span class="kw">type </span>Item = &lt;LevelImpl <span class="kw">as </span>IntoIterator&gt;::Item;
+    <span class="kw">type </span>IntoIter = &lt;LevelImpl <span class="kw">as </span>IntoIterator&gt;::IntoIter;
 
-    <span class="kw">fn</span> <span class="ident">into_iter</span>(<span class="self">self</span>) -&gt; <span class="ident"><span class="self">Self</span>::IntoIter</span> {
-        <span class="self">self</span>.<span class="number">0</span>.<span class="ident">into_iter</span>()
+    <span class="kw">fn </span>into_iter(<span class="self">self</span>) -&gt; <span class="self">Self</span>::IntoIter {
+        <span class="self">self</span>.<span class="number">0</span>.into_iter()
     }
 }
 
-<span class="doccomment">/// Type of the label of a level. The max value is the maximum</span>
-<span class="doccomment">/// depth of the dependency graph.</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>, <span class="ident">Ord</span>, <span class="ident">PartialOrd</span>, <span class="ident">Eq</span>, <span class="ident">PartialEq</span>, <span class="ident">Debug</span>, <span class="ident">Default</span>, <span class="ident">Hash</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">LevelIx</span>(<span class="ident">u32</span>);
+<span class="doccomment">/// Type of the label of a level. The max value is the maximum
+/// depth of the dependency graph.
+</span><span class="attribute">#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug, Default, Hash)]
+</span><span class="kw">pub struct </span>LevelIx(u32);
 
-<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused</span>)]</span> <span class="comment">// some usages are in tests</span>
-<span class="kw">impl</span> <span class="ident">LevelIx</span> {
-    <span class="kw">pub</span> <span class="kw">const</span> <span class="ident">ZERO</span>: <span class="ident">LevelIx</span> <span class="op">=</span> <span class="ident">LevelIx</span>(<span class="number">0</span>);
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next</span>(<span class="self">self</span>) -&gt; <span class="self">Self</span> {
-        <span class="ident">LevelIx</span>(<span class="self">self</span>.<span class="number">0</span> <span class="op">+</span> <span class="number">1</span>)
+<span class="attribute">#[allow(unused)] </span><span class="comment">// some usages are in tests
+</span><span class="kw">impl </span>LevelIx {
+    <span class="kw">pub const </span>ZERO: LevelIx = LevelIx(<span class="number">0</span>);
+    <span class="kw">pub fn </span>next(<span class="self">self</span>) -&gt; <span class="self">Self </span>{
+        LevelIx(<span class="self">self</span>.<span class="number">0 </span>+ <span class="number">1</span>)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">LevelIx</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">std::fmt::Result</span> {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="number">0</span>)
+<span class="kw">impl </span>Display <span class="kw">for </span>LevelIx {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="number">0</span>)
     }
 }
 
-<span class="kw">impl</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">u32</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">LevelIx</span> {
-    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">i</span>: <span class="ident">u32</span>) -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span>(<span class="ident">i</span>)
+<span class="kw">impl </span>From&lt;u32&gt; <span class="kw">for </span>LevelIx {
+    <span class="kw">fn </span>from(i: u32) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>(i)
     }
 }
 
-<span class="doccomment">/// A set of reactions ordered by relative dependency.</span>
-<span class="doccomment">/// The key characteristic of instances is</span>
-<span class="doccomment">/// 1. they may be merged together (by a [DataflowInfo]).</span>
-<span class="doccomment">/// 2. merging two plans eliminates duplicates</span>
-<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Clone</span>, <span class="ident">Debug</span>, <span class="ident">Default</span>)]</span>
-<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">ExecutableReactions</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> {
-    <span class="doccomment">/// An ordered list of levels to execute.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// It must by construction be the case that a reaction</span>
-    <span class="doccomment">/// in level `i` has no dependency(1) on reactions in levels `j &gt;= i`.</span>
-    <span class="doccomment">/// This way, the execution of reactions in the same level</span>
-    <span class="doccomment">/// may be parallelized.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// (1) a reaction n has a dependency on another m if m</span>
-    <span class="doccomment">/// is in the predecessors of n in the dependency graph</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Note that by construction, no two reactions in the same</span>
-    <span class="doccomment">/// level may belong to the same reactor, as all of them</span>
-    <span class="doccomment">/// are ordered by priority edges.</span>
-    <span class="doccomment">///</span>
-    <span class="doccomment">/// Note also that the last level in the list must be</span>
-    <span class="doccomment">/// non-empty by construction.</span>
-    <span class="ident">levels</span>: <span class="ident">VecMap</span><span class="op">&lt;</span><span class="ident">LevelIx</span>, <span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span>, <span class="ident">Level</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+<span class="doccomment">/// A set of reactions ordered by relative dependency.
+/// The key characteristic of instances is
+/// 1. they may be merged together (by a [DataflowInfo]).
+/// 2. merging two plans eliminates duplicates
+</span><span class="attribute">#[derive(Clone, Debug, Default)]
+</span><span class="kw">pub struct </span>ExecutableReactions&lt;<span class="lifetime">&#39;x</span>&gt; {
+    <span class="doccomment">/// An ordered list of levels to execute.
+    ///
+    /// It must by construction be the case that a reaction
+    /// in level `i` has no dependency(1) on reactions in levels `j &gt;= i`.
+    /// This way, the execution of reactions in the same level
+    /// may be parallelized.
+    ///
+    /// (1) a reaction n has a dependency on another m if m
+    /// is in the predecessors of n in the dependency graph
+    ///
+    /// Note that by construction, no two reactions in the same
+    /// level may belong to the same reactor, as all of them
+    /// are ordered by priority edges.
+    ///
+    /// Note also that the last level in the list must be
+    /// non-empty by construction.
+    </span>levels: VecMap&lt;LevelIx, Cow&lt;<span class="lifetime">&#39;x</span>, Level&gt;&gt;,
 }
 
-<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> <span class="ident">ExecutableReactions</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> {
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="self">Self</span> {
-        <span class="self">Self</span> { <span class="ident">levels</span>: <span class="ident">VecMap::new</span>() }
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;x</span>&gt; ExecutableReactions&lt;<span class="lifetime">&#39;x</span>&gt; {
+    <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ levels: VecMap::new() }
     }
 
-    <span class="doccomment">/// Returns an iterator which associates batches of reactions</span>
-    <span class="doccomment">/// with their level. Note that this does not mutate this collection</span>
-    <span class="doccomment">/// (eg drain it), because that way we can use borrowed Cows</span>
-    <span class="doccomment">/// and avoid more allocation.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">batches</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span>(<span class="ident">LevelIx</span>, <span class="ident">Cow</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span>, <span class="ident">Level</span><span class="op">&gt;</span>)<span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
-        <span class="self">self</span>.<span class="ident">levels</span>.<span class="ident">iter</span>()
+    <span class="doccomment">/// Returns an iterator which associates batches of reactions
+    /// with their level. Note that this does not mutate this collection
+    /// (eg drain it), because that way we can use borrowed Cows
+    /// and avoid more allocation.
+    </span><span class="kw">pub fn </span>batches(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>(LevelIx, Cow&lt;<span class="lifetime">&#39;x</span>, Level&gt;)&gt; + <span class="lifetime">&#39;_ </span>{
+        <span class="self">self</span>.levels.iter()
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">first_batch</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">KeyRef</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">LevelIx</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="ident">Level</span>)<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">levels</span>.<span class="ident">min_entry</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">ix</span>, <span class="ident">cow</span>)<span class="op">|</span> (<span class="ident">ix</span>, <span class="ident">cow</span>.<span class="ident">as_ref</span>()))
+    <span class="kw">pub fn </span>first_batch(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(KeyRef&lt;<span class="kw-2">&amp;</span>LevelIx&gt;, <span class="kw-2">&amp;</span>Level)&gt; {
+        <span class="self">self</span>.levels.min_entry().map(|(ix, cow)| (ix, cow.as_ref()))
     }
 
-    <span class="attribute">#[<span class="ident">inline</span>]</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next_batch</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="self">self</span>, <span class="ident">min_level_exclusive</span>: <span class="ident">KeyRef</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">LevelIx</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">KeyRef</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">LevelIx</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="ident">Level</span>)<span class="op">&gt;</span> {
-        <span class="self">self</span>.<span class="ident">levels</span>
-            .<span class="ident">next_mapping</span>(<span class="ident">min_level_exclusive</span>)
-            .<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">ix</span>, <span class="ident">cow</span>)<span class="op">|</span> (<span class="ident">ix</span>, <span class="ident">cow</span>.<span class="ident">as_ref</span>()))
+    <span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>next_batch&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>, min_level_exclusive: KeyRef&lt;<span class="kw-2">&amp;</span>LevelIx&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;(KeyRef&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>LevelIx&gt;, <span class="kw-2">&amp;</span>Level)&gt; {
+        <span class="self">self</span>.levels
+            .next_mapping(min_level_exclusive)
+            .map(|(ix, cow)| (ix, cow.as_ref()))
     }
 
-    <span class="doccomment">/// The greatest level with non-empty value.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_level</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">LevelIx</span> {
-        <span class="self">self</span>.<span class="ident">levels</span>.<span class="ident">max_key</span>().<span class="ident">cloned</span>().<span class="ident">unwrap_or_default</span>()
+    <span class="doccomment">/// The greatest level with non-empty value.
+    </span><span class="kw">pub fn </span>max_level(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; LevelIx {
+        <span class="self">self</span>.levels.max_key().cloned().unwrap_or_default()
     }
 
-    <span class="doccomment">/// Merge the given set of reactions into this one.</span>
-    <span class="doccomment">/// Ignore levels that come strictly before `min_level_inclusive`, may even clear them.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">absorb_after</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">src</span>: <span class="kw-2">&amp;</span><span class="ident">ExecutableReactions</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>, <span class="ident">min_level_inclusive</span>: <span class="ident">LevelIx</span>) {
-        <span class="kw">let</span> <span class="ident">src</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">src</span>.<span class="ident">levels</span>;
-        <span class="kw">let</span> <span class="ident">dst</span> <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">levels</span>;
+    <span class="doccomment">/// Merge the given set of reactions into this one.
+    /// Ignore levels that come strictly before `min_level_inclusive`, may even clear them.
+    </span><span class="kw">pub fn </span>absorb_after(<span class="kw-2">&amp;mut </span><span class="self">self</span>, src: <span class="kw-2">&amp;</span>ExecutableReactions&lt;<span class="lifetime">&#39;x</span>&gt;, min_level_inclusive: LevelIx) {
+        <span class="kw">let </span>src = <span class="kw-2">&amp;</span>src.levels;
+        <span class="kw">let </span>dst = <span class="kw-2">&amp;mut </span><span class="self">self</span>.levels;
 
-        <span class="comment">// Find the next mapping &gt;= to the min level.</span>
-        <span class="comment">// We don&#39;t care about the mappings that come before.</span>
-        <span class="comment">// If there is none we won&#39;t loop at all.</span>
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">next_src</span> <span class="op">=</span> <span class="ident">src</span>.<span class="ident">find_random_mapping_after</span>(<span class="ident">min_level_inclusive</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">dst_position_hint</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">KeyRef</span><span class="op">&lt;</span><span class="ident">LevelIx</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">None</span>;
+        <span class="comment">// Find the next mapping &gt;= to the min level.
+        // We don&#39;t care about the mappings that come before.
+        // If there is none we won&#39;t loop at all.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>next_src = src.find_random_mapping_after(min_level_inclusive);
+        <span class="kw">let </span><span class="kw-2">mut </span>dst_position_hint: <span class="prelude-ty">Option</span>&lt;KeyRef&lt;LevelIx&gt;&gt; = <span class="prelude-val">None</span>;
 
-        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">src_ix</span>, <span class="ident">src_level</span>)) <span class="op">=</span> <span class="ident">next_src</span> {
-            <span class="comment">// Find destination entry.</span>
-            <span class="kw">let</span> <span class="ident">dst_entry</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">dst_position_hint</span> {
-                <span class="prelude-val">Some</span>(<span class="ident">kr</span>) =&gt; <span class="ident">dst</span>.<span class="ident">entry_from_ref</span>(<span class="ident">kr</span>, <span class="kw-2">*</span><span class="ident">src_ix</span>.<span class="ident">key</span>), <span class="comment">// linear probing from where we left off</span>
-                <span class="prelude-val">None</span> =&gt; <span class="ident">dst</span>.<span class="ident">entry</span>(<span class="kw-2">*</span><span class="ident">src_ix</span>.<span class="ident">key</span>),                  <span class="comment">// first iteration, binary search</span>
-            };
-            <span class="comment">// Save this for next iteration. Used as a hint to find</span>
-            <span class="comment">// the next entry more efficiently.</span>
-            <span class="ident">dst_position_hint</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">dst_entry</span>.<span class="ident">keyref</span>().<span class="ident">cloned</span>());
+        <span class="kw">while let </span><span class="prelude-val">Some</span>((src_ix, src_level)) = next_src {
+            <span class="comment">// Find destination entry.
+            </span><span class="kw">let </span>dst_entry = <span class="kw">match </span>dst_position_hint {
+                <span class="prelude-val">Some</span>(kr) =&gt; dst.entry_from_ref(kr, <span class="kw-2">*</span>src_ix.key), <span class="comment">// linear probing from where we left off
+                </span><span class="prelude-val">None </span>=&gt; dst.entry(<span class="kw-2">*</span>src_ix.key),                  <span class="comment">// first iteration, binary search
+            </span>};
+            <span class="comment">// Save this for next iteration. Used as a hint to find
+            // the next entry more efficiently.
+            </span>dst_position_hint = <span class="prelude-val">Some</span>(dst_entry.keyref().cloned());
 
-            <span class="kw">match</span> <span class="ident">dst_entry</span> {
-                <span class="ident">VEntry::Vacant</span>(<span class="ident">e</span>) =&gt; {
-                    <span class="ident">e</span>.<span class="ident">insert</span>(<span class="ident">src_level</span>.<span class="ident">clone</span>());
+            <span class="kw">match </span>dst_entry {
+                VEntry::Vacant(e) =&gt; {
+                    e.insert(src_level.clone());
                 }
-                <span class="ident">VEntry::Occupied</span>(<span class="kw-2">mut</span> <span class="ident">e</span>) =&gt; {
-                    <span class="kw">if</span> <span class="ident">e</span>.<span class="ident">get_mut</span>().<span class="ident">is_empty</span>() {
-                        <span class="ident">e</span>.<span class="ident">replace</span>(<span class="ident">src_level</span>.<span class="ident">clone</span>());
-                    } <span class="kw">else</span> {
-                        <span class="comment">// todo maybe set is not modified by the union</span>
-                        <span class="ident">e</span>.<span class="ident">get_mut</span>().<span class="ident">to_mut</span>().<span class="ident">extend</span>(<span class="ident">src_level</span>.<span class="ident">iter</span>());
+                VEntry::Occupied(<span class="kw-2">mut </span>e) =&gt; {
+                    <span class="kw">if </span>e.get_mut().is_empty() {
+                        e.replace(src_level.clone());
+                    } <span class="kw">else </span>{
+                        <span class="comment">// todo maybe set is not modified by the union
+                        </span>e.get_mut().to_mut().extend(src_level.iter());
                     }
                 }
             }
 
-            <span class="ident">next_src</span> <span class="op">=</span> <span class="ident">src</span>.<span class="ident">next_mapping</span>(<span class="ident">src_ix</span>);
+            next_src = src.next_mapping(src_ix);
         }
     }
 
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">insert</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">reaction</span>: <span class="ident">GlobalReactionId</span>, <span class="ident">level_ix</span>: <span class="ident">LevelIx</span>) {
-        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">levels</span>.<span class="ident">entry</span>(<span class="ident">level_ix</span>) {
-            <span class="ident">VEntry::Vacant</span>(<span class="ident">e</span>) =&gt; {
-                <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">new_level</span> <span class="op">=</span> <span class="ident">Level::with_capacity</span>(<span class="number">1</span>);
-                <span class="ident">new_level</span>.<span class="ident">insert</span>(<span class="ident">reaction</span>);
-                <span class="ident">e</span>.<span class="ident">insert</span>(<span class="ident">Cow::Owned</span>(<span class="ident">new_level</span>));
+    <span class="kw">pub fn </span>insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reaction: GlobalReactionId, level_ix: LevelIx) {
+        <span class="kw">match </span><span class="self">self</span>.levels.entry(level_ix) {
+            VEntry::Vacant(e) =&gt; {
+                <span class="kw">let </span><span class="kw-2">mut </span>new_level = Level::with_capacity(<span class="number">1</span>);
+                new_level.insert(reaction);
+                e.insert(Cow::Owned(new_level));
             }
-            <span class="ident">VEntry::Occupied</span>(<span class="kw-2">mut</span> <span class="ident">e</span>) =&gt; {
-                <span class="ident">e</span>.<span class="ident">get_mut</span>().<span class="ident">to_mut</span>().<span class="ident">insert</span>(<span class="ident">reaction</span>);
+            VEntry::Occupied(<span class="kw-2">mut </span>e) =&gt; {
+                e.get_mut().to_mut().insert(reaction);
             }
         }
     }
 
-    <span class="doccomment">/// Fully merge plans of `x` and `y`.</span>
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">merge_cows</span>(<span class="ident">x</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>, <span class="ident">y</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>) -&gt; <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> {
-        <span class="ident"><span class="self">Self</span>::merge_plans_after</span>(<span class="ident">x</span>, <span class="ident">y</span>, <span class="ident">LevelIx::ZERO</span>)
+    <span class="doccomment">/// Fully merge plans of `x` and `y`.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>merge_cows(x: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;, y: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;) -&gt; ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt; {
+        <span class="self">Self</span>::merge_plans_after(x, y, LevelIx::ZERO)
     }
 
-    <span class="comment">// todo would be nice to simplify this, it&#39;s hot</span>
-    <span class="doccomment">/// Produce the set union of two reaction plans.</span>
-    <span class="doccomment">/// Levels below the `min_level` are not merged, and the caller</span>
-    <span class="doccomment">/// shouldn&#39;t query them. For all levels &gt;= `min_level`,</span>
-    <span class="doccomment">/// the produced reaction plan has all the reactions of</span>
-    <span class="doccomment">/// `x` and `y` for that level.</span>
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">merge_plans_after</span>(<span class="ident">x</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>, <span class="ident">y</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>, <span class="ident">min_level</span>: <span class="ident">LevelIx</span>) -&gt; <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> {
-        <span class="kw">match</span> (<span class="ident">x</span>, <span class="ident">y</span>) {
-            (<span class="ident">x</span>, <span class="prelude-val">None</span>) <span class="op">|</span> (<span class="prelude-val">None</span>, <span class="ident">x</span>) =&gt; <span class="ident">x</span>,
-            (<span class="prelude-val">Some</span>(<span class="ident">x</span>), <span class="ident">y</span>) <span class="op">|</span> (<span class="ident">y</span>, <span class="prelude-val">Some</span>(<span class="ident">x</span>)) <span class="kw">if</span> <span class="ident">x</span>.<span class="ident">max_level</span>() <span class="op">&lt;</span> <span class="ident">min_level</span> =&gt; <span class="ident">y</span>,
-            (<span class="prelude-val">Some</span>(<span class="ident">Cow::Owned</span>(<span class="kw-2">mut</span> <span class="ident">x</span>)), <span class="prelude-val">Some</span>(<span class="ident">y</span>)) <span class="op">|</span> (<span class="prelude-val">Some</span>(<span class="ident">y</span>), <span class="prelude-val">Some</span>(<span class="ident">Cow::Owned</span>(<span class="kw-2">mut</span> <span class="ident">x</span>))) =&gt; {
-                <span class="ident">x</span>.<span class="ident">absorb_after</span>(<span class="kw-2">&amp;</span><span class="ident">y</span>, <span class="ident">min_level</span>);
-                <span class="prelude-val">Some</span>(<span class="ident">Cow::Owned</span>(<span class="ident">x</span>))
+    <span class="comment">// todo would be nice to simplify this, it&#39;s hot
+    </span><span class="doccomment">/// Produce the set union of two reaction plans.
+    /// Levels below the `min_level` are not merged, and the caller
+    /// shouldn&#39;t query them. For all levels &gt;= `min_level`,
+    /// the produced reaction plan has all the reactions of
+    /// `x` and `y` for that level.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>merge_plans_after(x: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;, y: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;, min_level: LevelIx) -&gt; ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt; {
+        <span class="kw">match </span>(x, y) {
+            (x, <span class="prelude-val">None</span>) | (<span class="prelude-val">None</span>, x) =&gt; x,
+            (<span class="prelude-val">Some</span>(x), y) | (y, <span class="prelude-val">Some</span>(x)) <span class="kw">if </span>x.max_level() &lt; min_level =&gt; y,
+            (<span class="prelude-val">Some</span>(Cow::Owned(<span class="kw-2">mut </span>x)), <span class="prelude-val">Some</span>(y)) | (<span class="prelude-val">Some</span>(y), <span class="prelude-val">Some</span>(Cow::Owned(<span class="kw-2">mut </span>x))) =&gt; {
+                x.absorb_after(<span class="kw-2">&amp;</span>y, min_level);
+                <span class="prelude-val">Some</span>(Cow::Owned(x))
             }
-            (<span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">x</span>), <span class="prelude-val">Some</span>(<span class="kw-2">mut</span> <span class="ident">y</span>)) =&gt; {
-                <span class="kw">if</span> <span class="ident">x</span>.<span class="ident">max_level</span>() <span class="op">&gt;</span> <span class="ident">y</span>.<span class="ident">max_level</span>() {
-                    <span class="ident">std::mem::swap</span>(<span class="kw-2">&amp;mut</span> <span class="ident">x</span>, <span class="kw-2">&amp;mut</span> <span class="ident">y</span>);
+            (<span class="prelude-val">Some</span>(<span class="kw-2">mut </span>x), <span class="prelude-val">Some</span>(<span class="kw-2">mut </span>y)) =&gt; {
+                <span class="kw">if </span>x.max_level() &gt; y.max_level() {
+                    std::mem::swap(<span class="kw-2">&amp;mut </span>x, <span class="kw-2">&amp;mut </span>y);
                 }
-                <span class="comment">// x is the largest one here</span>
-                <span class="ident">x</span>.<span class="ident">to_mut</span>().<span class="ident">absorb_after</span>(<span class="kw-2">&amp;</span><span class="ident">y</span>, <span class="ident">min_level</span>);
-                <span class="prelude-val">Some</span>(<span class="ident">x</span>)
+                <span class="comment">// x is the largest one here
+                </span>x.to_mut().absorb_after(<span class="kw-2">&amp;</span>y, min_level);
+                <span class="prelude-val">Some</span>(x)
             }
         }
     }
 }
 
-<span class="kw">impl</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">ExecutableReactions</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span> {
-    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">std::fmt::Result</span> {
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;[&quot;</span>)<span class="question-mark">?</span>;
-        <span class="kw">for</span> (<span class="kw">_</span>, <span class="ident">level</span>) <span class="kw">in</span> <span class="self">self</span>.<span class="ident">levels</span>.<span class="ident">iter</span>() {
-            <span class="macro">join_to!</span>(<span class="ident">f</span>, <span class="ident">level</span>.<span class="ident">iter</span>(), <span class="string">&quot;, &quot;</span>, <span class="string">&quot;{&quot;</span>, <span class="string">&quot;} ; &quot;</span>)<span class="question-mark">?</span>;
+<span class="kw">impl </span>Display <span class="kw">for </span>ExecutableReactions&lt;<span class="lifetime">&#39;_</span>&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="macro">write!</span>(f, <span class="string">&quot;[&quot;</span>)<span class="question-mark">?</span>;
+        <span class="kw">for </span>(<span class="kw">_</span>, level) <span class="kw">in </span><span class="self">self</span>.levels.iter() {
+            <span class="macro">join_to!</span>(f, level.iter(), <span class="string">&quot;, &quot;</span>, <span class="string">&quot;{&quot;</span>, <span class="string">&quot;} ; &quot;</span>)<span class="question-mark">?</span>;
         }
-        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;]&quot;</span>)
+        <span class="macro">write!</span>(f, <span class="string">&quot;]&quot;</span>)
     }
 }
 
-<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
-<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">test</span> {
-    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::impl_types</span>::{<span class="ident">ReactionIdImpl</span>, <span class="ident">ReactorIdImpl</span>};
+<span class="attribute">#[cfg(test)]
+</span><span class="kw">pub mod </span>test {
+    <span class="kw">use super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use </span><span class="kw">crate</span>::impl_types::{ReactionIdImpl, ReactorIdImpl};
 
-    <span class="kw">struct</span> <span class="ident">TestGraphFixture</span> {
-        <span class="ident">graph</span>: <span class="ident">DepGraph</span>,
-        <span class="ident">next_trigger_id</span>: <span class="ident">TriggerId</span>,
-        <span class="ident">next_reactor_id</span>: <span class="ident">ReactorId</span>,
-        <span class="ident">debug_info</span>: <span class="ident">DebugInfoRegistry</span>,
+    <span class="kw">struct </span>TestGraphFixture {
+        graph: DepGraph,
+        next_trigger_id: TriggerId,
+        next_reactor_id: ReactorId,
+        debug_info: DebugInfoRegistry,
     }
 
-    <span class="kw">impl</span> <span class="ident">TestGraphFixture</span> {
-        <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="self">Self</span> {
-            <span class="self">Self</span> {
-                <span class="ident">graph</span>: <span class="ident">DepGraph::new</span>(),
-                <span class="ident">next_trigger_id</span>: <span class="ident">TriggerId::FIRST_REGULAR</span>,
-                <span class="ident">debug_info</span>: <span class="ident">DebugInfoRegistry::new</span>(),
-                <span class="ident">next_reactor_id</span>: <span class="ident">ReactorId::new</span>(<span class="number">0</span>),
+    <span class="kw">impl </span>TestGraphFixture {
+        <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
+            <span class="self">Self </span>{
+                graph: DepGraph::new(),
+                next_trigger_id: TriggerId::FIRST_REGULAR,
+                debug_info: DebugInfoRegistry::new(),
+                next_reactor_id: ReactorId::new(<span class="number">0</span>),
             }
         }
 
-        <span class="kw">fn</span> <span class="ident">new_reactor</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">name</span>: <span class="kw">impl</span> <span class="ident">Into</span><span class="op">&lt;</span><span class="ident">String</span><span class="op">&gt;</span>) -&gt; <span class="ident">TestAssembler</span> {
-            <span class="kw">let</span> <span class="ident">reactor_id</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">next_reactor_id</span>.<span class="ident">get_and_incr</span>();
-            <span class="self">self</span>.<span class="ident">debug_info</span>.<span class="ident">record_reactor</span>(<span class="ident">reactor_id</span>, <span class="ident">ReactorDebugInfo::test_named</span>(<span class="ident">name</span>));
-            <span class="ident">TestAssembler</span> {
-                <span class="ident">reactor_id</span>,
-                <span class="ident">first_trigger_id</span>: <span class="self">self</span>.<span class="ident">next_trigger_id</span>,
-                <span class="ident">fixture</span>: <span class="self">self</span>,
+        <span class="kw">fn </span>new_reactor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, name: <span class="kw">impl </span>Into&lt;String&gt;) -&gt; TestAssembler {
+            <span class="kw">let </span>reactor_id = <span class="self">self</span>.next_reactor_id.get_and_incr();
+            <span class="self">self</span>.debug_info.record_reactor(reactor_id, ReactorDebugInfo::test_named(name));
+            TestAssembler {
+                reactor_id,
+                first_trigger_id: <span class="self">self</span>.next_trigger_id,
+                fixture: <span class="self">self</span>,
             }
         }
 
-        <span class="kw">fn</span> <span class="ident">number_reactions_by_level</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">HashMap</span><span class="op">&lt;</span><span class="ident">GlobalReactionId</span>, <span class="ident">LevelIx</span><span class="op">&gt;</span> {
-            <span class="self">self</span>.<span class="ident">graph</span>
-                .<span class="ident">number_reactions_by_level</span>()
-                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">lift</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">debug_info</span>))
-                .<span class="ident">unwrap</span>()
+        <span class="kw">fn </span>number_reactions_by_level(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashMap&lt;GlobalReactionId, LevelIx&gt; {
+            <span class="self">self</span>.graph
+                .number_reactions_by_level()
+                .map_err(|e| e.lift(<span class="kw-2">&amp;</span><span class="self">self</span>.debug_info))
+                .unwrap()
         }
 
-        <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused</span>)]</span>
-        <span class="kw">fn</span> <span class="ident">eprintln_graph</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-            <span class="macro">eprintln!</span>(<span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="ident">graph</span>.<span class="ident">format_dot</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">debug_info</span>));
+        <span class="attribute">#[allow(unused)]
+        </span><span class="kw">fn </span>eprintln_graph(<span class="kw-2">&amp;</span><span class="self">self</span>) {
+            <span class="macro">eprintln!</span>(<span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.graph.format_dot(<span class="kw-2">&amp;</span><span class="self">self</span>.debug_info));
         }
     }
 
-    <span class="kw">struct</span> <span class="ident">TestAssembler</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> {
-        <span class="ident">fixture</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">TestGraphFixture</span>,
-        <span class="ident">reactor_id</span>: <span class="ident">ReactorId</span>,
-        <span class="ident">first_trigger_id</span>: <span class="ident">TriggerId</span>,
+    <span class="kw">struct </span>TestAssembler&lt;<span class="lifetime">&#39;a</span>&gt; {
+        fixture: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>TestGraphFixture,
+        reactor_id: ReactorId,
+        first_trigger_id: TriggerId,
     }
 
-    <span class="kw">impl</span> <span class="ident">TestAssembler</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span> {
-        <span class="kw">fn</span> <span class="ident">new_reactions</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; [<span class="ident">GlobalReactionId</span>; <span class="ident">N</span>] {
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="macro">array!</span>[<span class="ident">i</span> =&gt; <span class="ident">GlobalReactionId::new</span>(<span class="self">self</span>.<span class="ident">reactor_id</span>, <span class="ident">LocalReactionId::from_usize</span>(<span class="ident">i</span>)); <span class="ident">N</span>];
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">last</span> <span class="op">=</span> <span class="prelude-val">None</span>;
-            <span class="kw">for</span> <span class="ident">n</span> <span class="kw">in</span> <span class="kw-2">&amp;</span><span class="ident">result</span> {
-                <span class="self">self</span>.<span class="ident">fixture</span>.<span class="ident">graph</span>.<span class="ident">record_reaction</span>(<span class="kw-2">*</span><span class="ident">n</span>);
-                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">last</span>) <span class="op">=</span> <span class="ident">last</span> {
-                    <span class="self">self</span>.<span class="ident">fixture</span>.<span class="ident">graph</span>.<span class="ident">reaction_priority</span>(<span class="ident">last</span>, <span class="kw-2">*</span><span class="ident">n</span>);
+    <span class="kw">impl </span>TestAssembler&lt;<span class="lifetime">&#39;_</span>&gt; {
+        <span class="kw">fn </span>new_reactions&lt;<span class="kw">const </span>N: usize&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; [GlobalReactionId; N] {
+            <span class="kw">let </span>result = <span class="macro">array!</span>[i =&gt; GlobalReactionId::new(<span class="self">self</span>.reactor_id, LocalReactionId::from_usize(i)); N];
+            <span class="kw">let </span><span class="kw-2">mut </span>last = <span class="prelude-val">None</span>;
+            <span class="kw">for </span>n <span class="kw">in </span><span class="kw-2">&amp;</span>result {
+                <span class="self">self</span>.fixture.graph.record_reaction(<span class="kw-2">*</span>n);
+                <span class="kw">if let </span><span class="prelude-val">Some</span>(last) = last {
+                    <span class="self">self</span>.fixture.graph.reaction_priority(last, <span class="kw-2">*</span>n);
                 }
-                <span class="ident">last</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="kw-2">*</span><span class="ident">n</span>);
+                last = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>n);
             }
-            <span class="ident">result</span>
+            result
         }
 
-        <span class="kw">fn</span> <span class="ident">new_ports</span><span class="op">&lt;</span><span class="kw">const</span> <span class="ident">N</span>: <span class="ident">usize</span><span class="op">&gt;</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">names</span>: [<span class="kw-2">&amp;</span><span class="lifetime">&#39;static</span> <span class="ident">str</span>; <span class="ident">N</span>]) -&gt; [<span class="ident">TriggerId</span>; <span class="ident">N</span>] {
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="macro">array!</span>[<span class="kw">_</span> =&gt; <span class="self">self</span>.<span class="ident">fixture</span>.<span class="ident">next_trigger_id</span>.<span class="ident">get_and_incr</span>().<span class="ident">unwrap</span>(); <span class="ident">N</span>];
-            <span class="kw">for</span> (<span class="ident">i</span>, <span class="ident">p</span>) <span class="kw">in</span> (<span class="kw-2">&amp;</span><span class="ident">result</span>).<span class="ident">iter</span>().<span class="ident">enumerate</span>() {
-                <span class="self">self</span>.<span class="ident">fixture</span>.<span class="ident">graph</span>.<span class="ident">record_port</span>(<span class="kw-2">*</span><span class="ident">p</span>);
-                <span class="self">self</span>.<span class="ident">fixture</span>.<span class="ident">debug_info</span>.<span class="ident">record_trigger</span>(<span class="kw-2">*</span><span class="ident">p</span>, <span class="ident">Cow::Borrowed</span>(<span class="ident">names</span>[<span class="ident">i</span>]));
+        <span class="kw">fn </span>new_ports&lt;<span class="kw">const </span>N: usize&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, names: [<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str; N]) -&gt; [TriggerId; N] {
+            <span class="kw">let </span>result = <span class="macro">array!</span>[<span class="kw">_ </span>=&gt; <span class="self">self</span>.fixture.next_trigger_id.get_and_incr().unwrap(); N];
+            <span class="kw">for </span>(i, p) <span class="kw">in </span>(<span class="kw-2">&amp;</span>result).iter().enumerate() {
+                <span class="self">self</span>.fixture.graph.record_port(<span class="kw-2">*</span>p);
+                <span class="self">self</span>.fixture.debug_info.record_trigger(<span class="kw-2">*</span>p, Cow::Borrowed(names[i]));
             }
-            <span class="ident">result</span>
+            result
         }
     }
 
-    <span class="kw">impl</span> <span class="ident">Drop</span> <span class="kw">for</span> <span class="ident">TestAssembler</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span> {
-        <span class="kw">fn</span> <span class="ident">drop</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
-            <span class="kw">let</span> <span class="ident">range</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">first_trigger_id</span>..<span class="self">self</span>.<span class="ident">fixture</span>.<span class="ident">next_trigger_id</span>;
-            <span class="self">self</span>.<span class="ident">fixture</span>.<span class="ident">debug_info</span>.<span class="ident">set_id_range</span>(<span class="self">self</span>.<span class="ident">reactor_id</span>, <span class="ident">range</span>)
+    <span class="kw">impl </span>Drop <span class="kw">for </span>TestAssembler&lt;<span class="lifetime">&#39;_</span>&gt; {
+        <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+            <span class="kw">let </span>range = <span class="self">self</span>.first_trigger_id..<span class="self">self</span>.fixture.next_trigger_id;
+            <span class="self">self</span>.fixture.debug_info.set_id_range(<span class="self">self</span>.reactor_id, range)
         }
     }
 
-    <span class="kw">fn</span> <span class="ident">new_reaction</span>(<span class="ident">a</span>: <span class="ident">ReactorIdImpl</span>, <span class="ident">b</span>: <span class="ident">ReactionIdImpl</span>) -&gt; <span class="ident">GlobalReactionId</span> {
-        <span class="ident">GlobalReactionId::new</span>(<span class="ident">ReactorId::new</span>(<span class="ident">a</span>), <span class="ident">LocalReactionId::new</span>(<span class="ident">b</span>))
+    <span class="kw">fn </span>new_reaction(a: ReactorIdImpl, b: ReactionIdImpl) -&gt; GlobalReactionId {
+        GlobalReactionId::new(ReactorId::new(a), LocalReactionId::new(b))
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_plan_merging_simple</span>() {
-        <span class="kw">let</span> <span class="ident">level1</span> <span class="op">=</span> <span class="ident">LevelIx::from</span>(<span class="number">1</span>);
-        <span class="kw">let</span> <span class="ident">level2</span> <span class="op">=</span> <span class="ident">LevelIx::from</span>(<span class="number">2</span>);
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_plan_merging_simple() {
+        <span class="kw">let </span>level1 = LevelIx::from(<span class="number">1</span>);
+        <span class="kw">let </span>level2 = LevelIx::from(<span class="number">2</span>);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">p1</span> <span class="op">=</span> <span class="ident">ExecutableReactions::new</span>();
-        <span class="ident">p1</span>.<span class="ident">insert</span>(<span class="ident">new_reaction</span>(<span class="number">0</span>, <span class="number">2</span>), <span class="ident">level1</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">p2</span> <span class="op">=</span> <span class="ident">ExecutableReactions::new</span>();
-        <span class="ident">p2</span>.<span class="ident">insert</span>(<span class="ident">new_reaction</span>(<span class="number">0</span>, <span class="number">3</span>), <span class="ident">level2</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>p1 = ExecutableReactions::new();
+        p1.insert(new_reaction(<span class="number">0</span>, <span class="number">2</span>), level1);
+        <span class="kw">let </span><span class="kw-2">mut </span>p2 = ExecutableReactions::new();
+        p2.insert(new_reaction(<span class="number">0</span>, <span class="number">3</span>), level2);
 
         {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">p1</span>.<span class="ident">clone</span>();
-            <span class="ident">p</span>.<span class="ident">absorb_after</span>(<span class="kw-2">&amp;</span><span class="ident">p2</span>, <span class="ident">level1</span>);
-            <span class="macro">assert_eq!</span>(<span class="ident">p</span>.<span class="ident">levels</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">level1</span>), <span class="ident">p1</span>.<span class="ident">levels</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">level1</span>));
-            <span class="macro">assert_eq!</span>(<span class="ident">p</span>.<span class="ident">levels</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">level2</span>), <span class="ident">p2</span>.<span class="ident">levels</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">level2</span>));
+            <span class="kw">let </span><span class="kw-2">mut </span>p = p1.clone();
+            p.absorb_after(<span class="kw-2">&amp;</span>p2, level1);
+            <span class="macro">assert_eq!</span>(p.levels.get(<span class="kw-2">&amp;</span>level1), p1.levels.get(<span class="kw-2">&amp;</span>level1));
+            <span class="macro">assert_eq!</span>(p.levels.get(<span class="kw-2">&amp;</span>level2), p2.levels.get(<span class="kw-2">&amp;</span>level2));
         }
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_plan_merging_overlap</span>() {
-        <span class="comment">// bug #14</span>
-        <span class="kw">let</span> <span class="ident">level1</span> <span class="op">=</span> <span class="ident">LevelIx::from</span>(<span class="number">1</span>);
-        <span class="kw">let</span> <span class="ident">level2</span> <span class="op">=</span> <span class="ident">LevelIx::from</span>(<span class="number">2</span>);
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_plan_merging_overlap() {
+        <span class="comment">// bug #14
+        </span><span class="kw">let </span>level1 = LevelIx::from(<span class="number">1</span>);
+        <span class="kw">let </span>level2 = LevelIx::from(<span class="number">2</span>);
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">p1</span> <span class="op">=</span> <span class="ident">ExecutableReactions::new</span>();
-        <span class="ident">p1</span>.<span class="ident">insert</span>(<span class="ident">new_reaction</span>(<span class="number">0</span>, <span class="number">2</span>), <span class="ident">level1</span>);
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">p2</span> <span class="op">=</span> <span class="ident">ExecutableReactions::new</span>();
-        <span class="ident">p2</span>.<span class="ident">insert</span>(<span class="ident">new_reaction</span>(<span class="number">0</span>, <span class="number">2</span>), <span class="ident">level1</span>); <span class="comment">// this line is same as for p1</span>
-        <span class="ident">p2</span>.<span class="ident">insert</span>(<span class="ident">new_reaction</span>(<span class="number">0</span>, <span class="number">3</span>), <span class="ident">level2</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>p1 = ExecutableReactions::new();
+        p1.insert(new_reaction(<span class="number">0</span>, <span class="number">2</span>), level1);
+        <span class="kw">let </span><span class="kw-2">mut </span>p2 = ExecutableReactions::new();
+        p2.insert(new_reaction(<span class="number">0</span>, <span class="number">2</span>), level1); <span class="comment">// this line is same as for p1
+        </span>p2.insert(new_reaction(<span class="number">0</span>, <span class="number">3</span>), level2);
 
         {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">p</span> <span class="op">=</span> <span class="ident">p1</span>.<span class="ident">clone</span>();
-            <span class="ident">p</span>.<span class="ident">absorb_after</span>(<span class="kw-2">&amp;</span><span class="ident">p2</span>, <span class="ident">level1</span>);
-            <span class="macro">assert_eq!</span>(<span class="ident">p</span>.<span class="ident">levels</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">level1</span>), <span class="ident">p1</span>.<span class="ident">levels</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">level1</span>));
-            <span class="macro">assert_eq!</span>(<span class="ident">p</span>.<span class="ident">levels</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">level2</span>), <span class="ident">p2</span>.<span class="ident">levels</span>.<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="ident">level2</span>));
+            <span class="kw">let </span><span class="kw-2">mut </span>p = p1.clone();
+            p.absorb_after(<span class="kw-2">&amp;</span>p2, level1);
+            <span class="macro">assert_eq!</span>(p.levels.get(<span class="kw-2">&amp;</span>level1), p1.levels.get(<span class="kw-2">&amp;</span>level1));
+            <span class="macro">assert_eq!</span>(p.levels.get(<span class="kw-2">&amp;</span>level2), p2.levels.get(<span class="kw-2">&amp;</span>level2));
         }
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_level_assignment_simple</span>() {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">test</span> <span class="op">=</span> <span class="ident">TestGraphFixture::new</span>();
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_level_assignment_simple() {
+        <span class="kw">let </span><span class="kw-2">mut </span>test = TestGraphFixture::new();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">new_reactor</span>(<span class="string">&quot;main&quot;</span>);
-        <span class="kw">let</span> [<span class="ident">n1</span>, <span class="ident">n2</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_reactions</span>();
-        <span class="kw">let</span> [<span class="ident">p0</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_ports</span>([<span class="string">&quot;p0&quot;</span>]);
-        <span class="ident">drop</span>(<span class="ident">builder</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">&quot;main&quot;</span>);
+        <span class="kw">let </span>[n1, n2] = builder.new_reactions();
+        <span class="kw">let </span>[p0] = builder.new_ports([<span class="string">&quot;p0&quot;</span>]);
+        drop(builder);
 
-        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">p0</span>);
-        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">p0</span>, <span class="ident">n2</span>);
+        test.graph.reaction_effects(n1, p0);
+        test.graph.triggers_reaction(p0, n2);
 
-        <span class="kw">let</span> <span class="ident">levels</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">number_reactions_by_level</span>();
-        <span class="macro">assert!</span>(<span class="ident">levels</span>[<span class="kw-2">&amp;</span><span class="ident">n1</span>] <span class="op">&lt;</span> <span class="ident">levels</span>[<span class="kw-2">&amp;</span><span class="ident">n2</span>]);
+        <span class="kw">let </span>levels = test.number_reactions_by_level();
+        <span class="macro">assert!</span>(levels[<span class="kw-2">&amp;</span>n1] &lt; levels[<span class="kw-2">&amp;</span>n2]);
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_level_assignment_diamond_1</span>() {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">test</span> <span class="op">=</span> <span class="ident">TestGraphFixture::new</span>();
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_level_assignment_diamond_1() {
+        <span class="kw">let </span><span class="kw-2">mut </span>test = TestGraphFixture::new();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">new_reactor</span>(<span class="string">&quot;main&quot;</span>);
-        <span class="kw">let</span> [<span class="ident">n1</span>, <span class="ident">n2</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_reactions</span>();
-        <span class="kw">let</span> [<span class="ident">p0</span>, <span class="ident">p1</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_ports</span>([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p1&quot;</span>]);
-        <span class="ident">drop</span>(<span class="ident">builder</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">&quot;main&quot;</span>);
+        <span class="kw">let </span>[n1, n2] = builder.new_reactions();
+        <span class="kw">let </span>[p0, p1] = builder.new_ports([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p1&quot;</span>]);
+        drop(builder);
 
-        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">p0</span>);
-        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">p1</span>);
-        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">p0</span>, <span class="ident">n2</span>);
-        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">p1</span>, <span class="ident">n2</span>);
+        test.graph.reaction_effects(n1, p0);
+        test.graph.reaction_effects(n1, p1);
+        test.graph.triggers_reaction(p0, n2);
+        test.graph.triggers_reaction(p1, n2);
 
-        <span class="kw">let</span> <span class="ident">levels</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">number_reactions_by_level</span>();
-        <span class="macro">assert!</span>(<span class="ident">levels</span>[<span class="kw-2">&amp;</span><span class="ident">n1</span>] <span class="op">&lt;</span> <span class="ident">levels</span>[<span class="kw-2">&amp;</span><span class="ident">n2</span>]);
+        <span class="kw">let </span>levels = test.number_reactions_by_level();
+        <span class="macro">assert!</span>(levels[<span class="kw-2">&amp;</span>n1] &lt; levels[<span class="kw-2">&amp;</span>n2]);
     }
 
-    <span class="comment">// this is a stress test that ensures our level assignment algo is not exponential</span>
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_level_assignment_diamond_1_exponential</span>() {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">test</span> <span class="op">=</span> <span class="ident">TestGraphFixture::new</span>();
+    <span class="comment">// this is a stress test that ensures our level assignment algo is not exponential
+    </span><span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_level_assignment_diamond_1_exponential() {
+        <span class="kw">let </span><span class="kw-2">mut </span>test = TestGraphFixture::new();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">new_reactor</span>(<span class="string">&quot;top&quot;</span>);
-        <span class="kw">let</span> [<span class="kw-2">mut</span> <span class="ident">prev_in</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_ports</span>([<span class="string">&quot;in&quot;</span>]);
-        <span class="ident">drop</span>(<span class="ident">builder</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">&quot;top&quot;</span>);
+        <span class="kw">let </span>[<span class="kw-2">mut </span>prev_in] = builder.new_ports([<span class="string">&quot;in&quot;</span>]);
+        drop(builder);
 
-        <span class="comment">// the number of paths in the graph is exponential</span>
-        <span class="comment">// in this upper bound, here 3^60.</span>
-        <span class="kw">for</span> <span class="ident">reactor_id</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">60</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">new_reactor</span>(<span class="macro">format!</span>(<span class="string">&quot;r[{}]&quot;</span>, <span class="ident">reactor_id</span>));
-            <span class="kw">let</span> [<span class="ident">n1</span>, <span class="ident">n2</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_reactions</span>();
-            <span class="kw">let</span> [<span class="ident">p0</span>, <span class="ident">p1</span>, <span class="ident">out</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_ports</span>([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p1&quot;</span>, <span class="string">&quot;out&quot;</span>]);
-            <span class="ident">drop</span>(<span class="ident">builder</span>);
+        <span class="comment">// the number of paths in the graph is exponential
+        // in this upper bound, here 3^60.
+        </span><span class="kw">for </span>reactor_id <span class="kw">in </span><span class="number">0</span>..<span class="number">60 </span>{
+            <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="macro">format!</span>(<span class="string">&quot;r[{}]&quot;</span>, reactor_id));
+            <span class="kw">let </span>[n1, n2] = builder.new_reactions();
+            <span class="kw">let </span>[p0, p1, out] = builder.new_ports([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p1&quot;</span>, <span class="string">&quot;out&quot;</span>]);
+            drop(builder);
 
-            <span class="comment">// make a diamond</span>
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">p0</span>);
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">p1</span>);
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">p0</span>, <span class="ident">n2</span>);
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">p1</span>, <span class="ident">n2</span>);
+            <span class="comment">// make a diamond
+            </span>test.graph.reaction_effects(n1, p0);
+            test.graph.reaction_effects(n1, p1);
+            test.graph.triggers_reaction(p0, n2);
+            test.graph.triggers_reaction(p1, n2);
 
-            <span class="comment">// connect to prev_in</span>
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">prev_in</span>, <span class="ident">n1</span>);
-            <span class="comment">// replace prev_in with out</span>
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n2</span>, <span class="ident">out</span>);
-            <span class="ident">prev_in</span> <span class="op">=</span> <span class="ident">out</span>;
+            <span class="comment">// connect to prev_in
+            </span>test.graph.triggers_reaction(prev_in, n1);
+            <span class="comment">// replace prev_in with out
+            </span>test.graph.reaction_effects(n2, out);
+            prev_in = out;
         }
 
-        <span class="comment">// to debug this lower the graph size</span>
-        <span class="comment">// test.eprintln_graph();</span>
-        <span class="kw">let</span> <span class="ident">levels</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">number_reactions_by_level</span>();
+        <span class="comment">// to debug this lower the graph size
+        // test.eprintln_graph();
+        </span><span class="kw">let </span>levels = test.number_reactions_by_level();
 
-        <span class="macro">assert_eq!</span>(<span class="ident">levels</span>.<span class="ident">len</span>(), <span class="number">120</span>);
+        <span class="macro">assert_eq!</span>(levels.len(), <span class="number">120</span>);
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_level_assignment_diamond_depth2_exponential</span>() {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">test</span> <span class="op">=</span> <span class="ident">TestGraphFixture::new</span>();
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_level_assignment_diamond_depth2_exponential() {
+        <span class="kw">let </span><span class="kw-2">mut </span>test = TestGraphFixture::new();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">new_reactor</span>(<span class="string">&quot;top&quot;</span>);
-        <span class="kw">let</span> [<span class="kw-2">mut</span> <span class="ident">prev_in</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_ports</span>([<span class="string">&quot;in&quot;</span>]);
-        <span class="ident">drop</span>(<span class="ident">builder</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">&quot;top&quot;</span>);
+        <span class="kw">let </span>[<span class="kw-2">mut </span>prev_in] = builder.new_ports([<span class="string">&quot;in&quot;</span>]);
+        drop(builder);
 
-        <span class="comment">// the number of paths in the graph is exponential</span>
-        <span class="comment">// in this upper bound, here 3^60.</span>
-        <span class="kw">for</span> <span class="ident">reactor_id</span> <span class="kw">in</span> <span class="number">0</span>..<span class="number">60</span> {
-            <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">new_reactor</span>(<span class="macro">format!</span>(<span class="string">&quot;r[{}]&quot;</span>, <span class="ident">reactor_id</span>));
-            <span class="kw">let</span> [<span class="ident">n1</span>, <span class="ident">n2</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_reactions</span>();
-            <span class="kw">let</span> [<span class="ident">p0</span>, <span class="ident">p01</span>, <span class="ident">p1</span>, <span class="ident">p11</span>, <span class="ident">out</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_ports</span>([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p01&quot;</span>, <span class="string">&quot;p1&quot;</span>, <span class="string">&quot;p11&quot;</span>, <span class="string">&quot;out&quot;</span>]);
-            <span class="ident">drop</span>(<span class="ident">builder</span>);
+        <span class="comment">// the number of paths in the graph is exponential
+        // in this upper bound, here 3^60.
+        </span><span class="kw">for </span>reactor_id <span class="kw">in </span><span class="number">0</span>..<span class="number">60 </span>{
+            <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="macro">format!</span>(<span class="string">&quot;r[{}]&quot;</span>, reactor_id));
+            <span class="kw">let </span>[n1, n2] = builder.new_reactions();
+            <span class="kw">let </span>[p0, p01, p1, p11, out] = builder.new_ports([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p01&quot;</span>, <span class="string">&quot;p1&quot;</span>, <span class="string">&quot;p11&quot;</span>, <span class="string">&quot;out&quot;</span>]);
+            drop(builder);
 
-            <span class="comment">// make a diamond OF DEPTH &gt; 1</span>
+            <span class="comment">// make a diamond OF DEPTH &gt; 1
 
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">port_bind_untyped</span>(<span class="ident">p0</span>, <span class="ident">p01</span>);
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">port_bind_untyped</span>(<span class="ident">p1</span>, <span class="ident">p11</span>);
+            </span>test.graph.port_bind_untyped(p0, p01);
+            test.graph.port_bind_untyped(p1, p11);
 
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">p0</span>);
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">p1</span>);
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">p01</span>, <span class="ident">n2</span>);
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">p11</span>, <span class="ident">n2</span>);
+            test.graph.reaction_effects(n1, p0);
+            test.graph.reaction_effects(n1, p1);
+            test.graph.triggers_reaction(p01, n2);
+            test.graph.triggers_reaction(p11, n2);
 
-            <span class="comment">// connect to prev_in</span>
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">prev_in</span>, <span class="ident">n1</span>);
-            <span class="comment">// replace prev_in with out</span>
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n2</span>, <span class="ident">out</span>);
-            <span class="ident">prev_in</span> <span class="op">=</span> <span class="ident">out</span>;
+            <span class="comment">// connect to prev_in
+            </span>test.graph.triggers_reaction(prev_in, n1);
+            <span class="comment">// replace prev_in with out
+            </span>test.graph.reaction_effects(n2, out);
+            prev_in = out;
         }
 
-        <span class="comment">// to debug this lower the graph size</span>
-        <span class="comment">// test.eprintln_graph();</span>
-        <span class="kw">let</span> <span class="ident">levels</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">number_reactions_by_level</span>();
+        <span class="comment">// to debug this lower the graph size
+        // test.eprintln_graph();
+        </span><span class="kw">let </span>levels = test.number_reactions_by_level();
 
-        <span class="macro">assert_eq!</span>(<span class="ident">levels</span>.<span class="ident">len</span>(), <span class="number">120</span>);
+        <span class="macro">assert_eq!</span>(levels.len(), <span class="number">120</span>);
     }
 
-    <span class="attribute">#[<span class="ident">test</span>]</span>
-    <span class="kw">fn</span> <span class="ident">test_graph_dump</span>() {
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">test</span> <span class="op">=</span> <span class="ident">TestGraphFixture::new</span>();
+    <span class="attribute">#[test]
+    </span><span class="kw">fn </span>test_graph_dump() {
+        <span class="kw">let </span><span class="kw-2">mut </span>test = TestGraphFixture::new();
 
-        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">builder</span> <span class="op">=</span> <span class="ident">test</span>.<span class="ident">new_reactor</span>(<span class="string">&quot;main&quot;</span>);
-        <span class="kw">let</span> [<span class="ident">n1</span>, <span class="ident">n2</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_reactions</span>();
-        <span class="kw">let</span> [<span class="ident">p0</span>, <span class="ident">p1</span>] <span class="op">=</span> <span class="ident">builder</span>.<span class="ident">new_ports</span>([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p1&quot;</span>]);
-        <span class="ident">drop</span>(<span class="ident">builder</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">&quot;main&quot;</span>);
+        <span class="kw">let </span>[n1, n2] = builder.new_reactions();
+        <span class="kw">let </span>[p0, p1] = builder.new_ports([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p1&quot;</span>]);
+        drop(builder);
 
-        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">p0</span>);
-        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">reaction_effects</span>(<span class="ident">n1</span>, <span class="ident">p1</span>);
-        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">p0</span>, <span class="ident">n2</span>);
-        <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">triggers_reaction</span>(<span class="ident">p1</span>, <span class="ident">n2</span>);
+        test.graph.reaction_effects(n1, p0);
+        test.graph.reaction_effects(n1, p1);
+        test.graph.triggers_reaction(p0, n2);
+        test.graph.triggers_reaction(p1, n2);
 
         <span class="macro">assert_eq!</span>(
-            <span class="ident">test</span>.<span class="ident">graph</span>.<span class="ident">format_dot</span>(<span class="kw-2">&amp;</span><span class="ident">test</span>.<span class="ident">debug_info</span>),
+            test.graph.format_dot(<span class="kw-2">&amp;</span>test.debug_info),
             <span class="string">r#&quot;digraph {
     0 [ label = &quot;startup&quot; ]
     1 [ label = &quot;shutdown&quot; ]
@@ -1946,9 +1946,9 @@
     4 -&gt; 3 [ ]
     5 -&gt; 3 [ ]
 }
-&quot;#</span>
-        );
+&quot;#
+        </span>);
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (a6b7274a4 2022-10-10)" ></div></body></html>
