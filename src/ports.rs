@@ -221,8 +221,8 @@ impl<T: Sync> ReactionTrigger<T> for Port<T> {
 
     #[inline]
     fn get_value(&self, _now: &EventTag, _start: &Instant) -> Option<T>
-        where
-            T: Copy,
+    where
+        T: Copy,
     {
         self.get()
     }
@@ -232,7 +232,6 @@ impl<T: Sync> ReactionTrigger<T> for Port<T> {
         self.use_ref(|opt| action(opt.as_ref()))
     }
 }
-
 
 impl<T: Sync> TriggerLike for Port<T> {
     fn get_id(&self) -> TriggerId {
@@ -323,7 +322,6 @@ impl<T: Sync> Default for PortCell<T> {
     }
 }
 
-
 /// A port bank is a vector of independent ports (its _channels_)
 /// Port banks have special Lingua Franca syntax.
 pub struct PortBank<T: Sync> {
@@ -332,7 +330,6 @@ pub struct PortBank<T: Sync> {
 }
 
 impl<T: Sync> PortBank<T> {
-
     /// Create a bank from the given vector of ports.
     #[inline(always)]
     pub(crate) fn new(ports: Vec<Port<T>>, id: TriggerId) -> Self {
@@ -373,8 +370,8 @@ impl<T: Sync> PortBank<T> {
     /// Iterate over only those ports in the bank that are set,
     /// yielding a tuple with their index in the bank and a copy of the value.
     pub fn enumerate_values(&self, _ctx: &ReactionCtx) -> impl Iterator<Item = (usize, T)> + '_
-        where
-            T: Copy,
+    where
+        T: Copy,
     {
         // note: the impl doesn't need the context, it's still there for forward compatibility
         self.enumerate_set().map(|(i, p)| p.use_ref(|value| (i, value.unwrap())))
