@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/scheduler/scheduler_impl.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>scheduler_impl.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><a class="sidebar-logo" href="../../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../../reactor_rt/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/scheduler/scheduler_impl.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>scheduler_impl.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../../reactor_rt/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -542,505 +542,505 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ */</span>
 
-</span><span class="doccomment">//! Home of the scheduler component.
+<span class="doccomment">//! Home of the scheduler component.</span>
 
-</span><span class="kw">use </span>std::sync::atomic::{AtomicBool, Ordering};
-<span class="kw">use </span>std::sync::Arc;
+<span class="kw">use</span> <span class="ident">std::sync::atomic</span>::{<span class="ident">AtomicBool</span>, <span class="ident">Ordering</span>};
+<span class="kw">use</span> <span class="ident">std::sync::Arc</span>;
 
-<span class="kw">use </span>crossbeam_channel::reconnectable::<span class="kw-2">*</span>;
-<span class="kw">use </span>crossbeam_utils::thread::{scope, Scope};
+<span class="kw">use</span> <span class="ident">crossbeam_channel::reconnectable</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">crossbeam_utils::thread</span>::{<span class="ident">scope</span>, <span class="ident">Scope</span>};
 
-<span class="kw">use </span><span class="kw">super</span>::assembly_impl::RootAssembler;
-<span class="kw">use super</span>::<span class="kw-2">*</span>;
-<span class="kw">use </span><span class="kw">crate</span>::assembly::<span class="kw-2">*</span>;
-<span class="kw">use </span><span class="kw">crate</span>::scheduler::dependencies::DataflowInfo;
-<span class="kw">use crate</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">super</span>::assembly_impl::RootAssembler</span>;
+<span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::assembly</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::dependencies::DataflowInfo</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
-<span class="doccomment">/// Construction parameters for the scheduler.
-///
-/// LFC uses target properties to set them. With the &quot;cli&quot;
-/// feature, generated programs also feature CLI options to
-/// override the defaults at runtime.
-</span><span class="attribute">#[derive(Default)]
-</span><span class="kw">pub struct </span>SchedulerOptions {
-    <span class="doccomment">/// If true, we won&#39;t shut down the scheduler as soon as
-    /// the event queue is empty, provided there are still
-    /// live threads that can send messages to the scheduler
-    /// asynchronously.
-    </span><span class="kw">pub </span>keep_alive: bool,
+<span class="doccomment">/// Construction parameters for the scheduler.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// LFC uses target properties to set them. With the &quot;cli&quot;</span>
+<span class="doccomment">/// feature, generated programs also feature CLI options to</span>
+<span class="doccomment">/// override the defaults at runtime.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Default</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SchedulerOptions</span> {
+    <span class="doccomment">/// If true, we won&#39;t shut down the scheduler as soon as</span>
+    <span class="doccomment">/// the event queue is empty, provided there are still</span>
+    <span class="doccomment">/// live threads that can send messages to the scheduler</span>
+    <span class="doccomment">/// asynchronously.</span>
+    <span class="kw">pub</span> <span class="ident">keep_alive</span>: <span class="ident">bool</span>,
 
-    <span class="doccomment">/// Timeout of reactor execution. If provided, the reactor
-    /// program will be shut down *at the latest* at `T0 + timeout`.
-    /// Calls to `request_stop` may make the program terminate earlier.
-    </span><span class="kw">pub </span>timeout: <span class="prelude-ty">Option</span>&lt;Duration&gt;,
+    <span class="doccomment">/// Timeout of reactor execution. If provided, the reactor</span>
+    <span class="doccomment">/// program will be shut down *at the latest* at `T0 + timeout`.</span>
+    <span class="doccomment">/// Calls to `request_stop` may make the program terminate earlier.</span>
+    <span class="kw">pub</span> <span class="ident">timeout</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Duration</span><span class="op">&gt;</span>,
 
-    <span class="doccomment">/// Max number of threads to use in the thread pool.
-    /// If zero, uses one thread per core. Ignored unless
-    /// building with feature `parallel-runtime`.
-    </span><span class="kw">pub </span>threads: usize,
+    <span class="doccomment">/// Max number of threads to use in the thread pool.</span>
+    <span class="doccomment">/// If zero, uses one thread per core. Ignored unless</span>
+    <span class="doccomment">/// building with feature `parallel-runtime`.</span>
+    <span class="kw">pub</span> <span class="ident">threads</span>: <span class="ident">usize</span>,
 
-    <span class="doccomment">/// If true, dump the dependency graph to a file before
-    /// starting execution.
-    </span><span class="kw">pub </span>dump_graph: bool,
+    <span class="doccomment">/// If true, dump the dependency graph to a file before</span>
+    <span class="doccomment">/// starting execution.</span>
+    <span class="kw">pub</span> <span class="ident">dump_graph</span>: <span class="ident">bool</span>,
 }
 
-<span class="comment">// Macros are placed a bit out of order to avoid exporting them
-// (they&#39;re only visible in code placed AFTER them).
-// We use macros instead of private methods as the borrow checker
-// needs to know we&#39;re borrowing disjoint parts of self at any time.
+<span class="comment">// Macros are placed a bit out of order to avoid exporting them</span>
+<span class="comment">// (they&#39;re only visible in code placed AFTER them).</span>
+<span class="comment">// We use macros instead of private methods as the borrow checker</span>
+<span class="comment">// needs to know we&#39;re borrowing disjoint parts of self at any time.</span>
 
-</span><span class="macro">macro_rules! </span>debug_info {
-    (<span class="macro-nonterminal">$e</span>:expr) =&gt; {
-        DebugInfoProvider { id_registry: <span class="kw-2">&amp;</span><span class="macro-nonterminal">$e</span>.id_registry }
+<span class="macro">macro_rules!</span> <span class="ident">debug_info</span> {
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>:<span class="ident">expr</span>) =&gt; {
+        <span class="ident">DebugInfoProvider</span> { <span class="ident">id_registry</span>: <span class="kw-2">&amp;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">e</span>.<span class="ident">id_registry</span> }
     };
 }
 
-<span class="macro">macro_rules! </span>push_event {
-    (<span class="macro-nonterminal">$scheduler</span>:expr, <span class="macro-nonterminal">$evt</span>:expr) =&gt; {{
-        <span class="macro">trace!</span>(<span class="string">&quot;Pushing {}&quot;</span>, <span class="macro">debug_info!</span>(<span class="macro-nonterminal">$scheduler</span>).display_event(<span class="kw-2">&amp;</span><span class="macro-nonterminal">$evt</span>));
-        <span class="macro-nonterminal">$scheduler</span>.event_queue.push(<span class="macro-nonterminal">$evt</span>);
+<span class="macro">macro_rules!</span> <span class="ident">push_event</span> {
+    (<span class="macro-nonterminal">$</span><span class="macro-nonterminal">scheduler</span>:<span class="ident">expr</span>, <span class="macro-nonterminal">$</span><span class="macro-nonterminal">evt</span>:<span class="ident">expr</span>) =&gt; {{
+        <span class="macro">trace!</span>(<span class="string">&quot;Pushing {}&quot;</span>, <span class="macro">debug_info!</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">scheduler</span>).<span class="ident">display_event</span>(<span class="kw-2">&amp;</span><span class="macro-nonterminal">$</span><span class="macro-nonterminal">evt</span>));
+        <span class="macro-nonterminal">$</span><span class="macro-nonterminal">scheduler</span>.<span class="ident">event_queue</span>.<span class="ident">push</span>(<span class="macro-nonterminal">$</span><span class="macro-nonterminal">evt</span>);
     }};
 }
 
-<span class="doccomment">/// The runtime scheduler.
-///
-/// Lifetime parameters: &#39;x and &#39;t are carried around everywhere,
-/// &#39;x allows us to take references into the dataflow graph, and
-/// &#39;t to spawn new scoped threads for physical actions. &#39;a is more
-/// useless but is needed to compile.
-</span><span class="kw">pub struct </span>SyncScheduler&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt;
-<span class="kw">where
-    </span><span class="lifetime">&#39;x</span>: <span class="lifetime">&#39;t</span>,
+<span class="doccomment">/// The runtime scheduler.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Lifetime parameters: &#39;x and &#39;t are carried around everywhere,</span>
+<span class="doccomment">/// &#39;x allows us to take references into the dataflow graph, and</span>
+<span class="doccomment">/// &#39;t to spawn new scoped threads for physical actions. &#39;a is more</span>
+<span class="doccomment">/// useless but is needed to compile.</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">SyncScheduler</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="lifetime">&#39;x</span>: <span class="lifetime">&#39;t</span>,
 {
-    <span class="doccomment">/// The latest processed logical time (necessarily behind physical time).
-    </span>latest_processed_tag: <span class="prelude-ty">Option</span>&lt;EventTag&gt;,
+    <span class="doccomment">/// The latest processed logical time (necessarily behind physical time).</span>
+    <span class="ident">latest_processed_tag</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">EventTag</span><span class="op">&gt;</span>,
 
-    <span class="doccomment">/// Reference to the data flow graph, which allows us to
-    /// order reactions properly for each tag.
-    </span>dataflow: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span>DataflowInfo,
+    <span class="doccomment">/// Reference to the data flow graph, which allows us to</span>
+    <span class="doccomment">/// order reactions properly for each tag.</span>
+    <span class="ident">dataflow</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x</span> <span class="ident">DataflowInfo</span>,
 
-    <span class="doccomment">/// Can spawn scoped threads, which are used for threads
-    /// producing physical actions.
-    </span>thread_spawner: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Scope&lt;<span class="lifetime">&#39;t</span>&gt;,
+    <span class="doccomment">/// Can spawn scoped threads, which are used for threads</span>
+    <span class="doccomment">/// producing physical actions.</span>
+    <span class="ident">thread_spawner</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Scope</span><span class="op">&lt;</span><span class="lifetime">&#39;t</span><span class="op">&gt;</span>,
 
-    <span class="doccomment">/// All reactors.
-    </span>reactors: ReactorVec&lt;<span class="lifetime">&#39;x</span>&gt;,
+    <span class="doccomment">/// All reactors.</span>
+    <span class="ident">reactors</span>: <span class="ident">ReactorVec</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>,
 
-    <span class="doccomment">/// Pending events/ tags to process.
-    </span>event_queue: EventQueue&lt;<span class="lifetime">&#39;x</span>&gt;,
+    <span class="doccomment">/// Pending events/ tags to process.</span>
+    <span class="ident">event_queue</span>: <span class="ident">EventQueue</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>,
 
-    <span class="doccomment">/// Receiver through which asynchronous events are
-    /// communicated to the scheduler. We only block when
-    /// no events are ready to be processed.
-    </span>rx: Receiver&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt;,
+    <span class="doccomment">/// Receiver through which asynchronous events are</span>
+    <span class="doccomment">/// communicated to the scheduler. We only block when</span>
+    <span class="doccomment">/// no events are ready to be processed.</span>
+    <span class="ident">rx</span>: <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,
 
-    <span class="doccomment">/// Initial time of the logical system.
-    </span><span class="attribute">#[allow(unused)] </span><span class="comment">// might be useful someday
-    </span>initial_time: Instant,
+    <span class="doccomment">/// Initial time of the logical system.</span>
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused</span>)]</span> <span class="comment">// might be useful someday</span>
+    <span class="ident">initial_time</span>: <span class="ident">Instant</span>,
 
-    <span class="doccomment">/// Scheduled shutdown time. If Some, shutdown will be
-    /// initiated at that logical time.
-    ///
-    /// This is set when an event sent by a [ReactionCtx::request_stop]
-    /// is *processed* (so, at its given tag), and upon
-    /// initialization if a timeout was specified.
-    </span>shutdown_time: <span class="prelude-ty">Option</span>&lt;EventTag&gt;,
+    <span class="doccomment">/// Scheduled shutdown time. If Some, shutdown will be</span>
+    <span class="doccomment">/// initiated at that logical time.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// This is set when an event sent by a [ReactionCtx::request_stop]</span>
+    <span class="doccomment">/// is *processed* (so, at its given tag), and upon</span>
+    <span class="doccomment">/// initialization if a timeout was specified.</span>
+    <span class="ident">shutdown_time</span>: <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">EventTag</span><span class="op">&gt;</span>,
 
-    <span class="doccomment">/// Whether the app has been terminated. Only used for
-    /// communication with asynchronous threads. Set by the
-    /// scheduler only.
-    </span>was_terminated: Arc&lt;AtomicBool&gt;,
+    <span class="doccomment">/// Whether the app has been terminated. Only used for</span>
+    <span class="doccomment">/// communication with asynchronous threads. Set by the</span>
+    <span class="doccomment">/// scheduler only.</span>
+    <span class="ident">was_terminated</span>: <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicBool</span><span class="op">&gt;</span>,
 
-    <span class="doccomment">/// Debug information.
-    </span>id_registry: DebugInfoRegistry,
+    <span class="doccomment">/// Debug information.</span>
+    <span class="ident">id_registry</span>: <span class="ident">DebugInfoRegistry</span>,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt; SyncScheduler&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt;
-<span class="kw">where
-    </span><span class="lifetime">&#39;x</span>: <span class="lifetime">&#39;t</span>,
+<span class="kw">impl</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span> <span class="ident">SyncScheduler</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="lifetime">&#39;x</span>: <span class="lifetime">&#39;t</span>,
 {
-    <span class="kw">pub fn </span>run_main&lt;R: ReactorInitializer + <span class="lifetime">&#39;static</span>&gt;(options: SchedulerOptions, args: R::Params) {
-        <span class="kw">let </span>start = Instant::now();
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">run_main</span><span class="op">&lt;</span><span class="ident">R</span>: <span class="ident">ReactorInitializer</span> <span class="op">+</span> <span class="lifetime">&#39;static</span><span class="op">&gt;</span>(<span class="ident">options</span>: <span class="ident">SchedulerOptions</span>, <span class="ident">args</span>: <span class="ident">R::Params</span>) {
+        <span class="kw">let</span> <span class="ident">start</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
         <span class="macro">info!</span>(<span class="string">&quot;Starting assembly...&quot;</span>);
-        <span class="kw">let </span>(reactors, graph, id_registry) = RootAssembler::assemble_tree::&lt;R&gt;(args);
-        <span class="kw">let </span>time = Instant::now() - start;
-        <span class="macro">info!</span>(<span class="string">&quot;Assembly done in {} µs...&quot;</span>, time.as_micros());
+        <span class="kw">let</span> (<span class="ident">reactors</span>, <span class="ident">graph</span>, <span class="ident">id_registry</span>) <span class="op">=</span> <span class="ident">RootAssembler::assemble_tree</span>::<span class="op">&lt;</span><span class="ident">R</span><span class="op">&gt;</span>(<span class="ident">args</span>);
+        <span class="kw">let</span> <span class="ident">time</span> <span class="op">=</span> <span class="ident">Instant::now</span>() <span class="op">-</span> <span class="ident">start</span>;
+        <span class="macro">info!</span>(<span class="string">&quot;Assembly done in {} µs...&quot;</span>, <span class="ident">time</span>.<span class="ident">as_micros</span>());
 
-        <span class="kw">if </span>options.dump_graph {
-            <span class="kw">use </span>std::fs::File;
-            <span class="kw">use </span>std::io::Write;
+        <span class="kw">if</span> <span class="ident">options</span>.<span class="ident">dump_graph</span> {
+            <span class="kw">use</span> <span class="ident">std::fs::File</span>;
+            <span class="kw">use</span> <span class="ident">std::io::Write</span>;
 
-            <span class="kw">let </span>path = std::env::temp_dir().join(<span class="string">&quot;reactors.dot&quot;</span>);
+            <span class="kw">let</span> <span class="ident">path</span> <span class="op">=</span> <span class="ident">std::env::temp_dir</span>().<span class="ident">join</span>(<span class="string">&quot;reactors.dot&quot;</span>);
 
-            File::create(path.clone())
-                .and_then(|<span class="kw-2">mut </span>dot_file| <span class="macro">writeln!</span>(dot_file, <span class="string">&quot;{}&quot;</span>, graph.format_dot(<span class="kw-2">&amp;</span>id_registry)))
-                .expect(<span class="string">&quot;Error while writing DOT file&quot;</span>);
-            <span class="macro">eprintln!</span>(<span class="string">&quot;Wrote dot file to {}&quot;</span>, path.to_string_lossy());
+            <span class="ident">File::create</span>(<span class="ident">path</span>.<span class="ident">clone</span>())
+                .<span class="ident">and_then</span>(<span class="op">|</span><span class="kw-2">mut</span> <span class="ident">dot_file</span><span class="op">|</span> <span class="macro">writeln!</span>(<span class="ident">dot_file</span>, <span class="string">&quot;{}&quot;</span>, <span class="ident">graph</span>.<span class="ident">format_dot</span>(<span class="kw-2">&amp;</span><span class="ident">id_registry</span>)))
+                .<span class="ident">expect</span>(<span class="string">&quot;Error while writing DOT file&quot;</span>);
+            <span class="macro">eprintln!</span>(<span class="string">&quot;Wrote dot file to {}&quot;</span>, <span class="ident">path</span>.<span class="ident">to_string_lossy</span>());
         }
 
-        <span class="comment">// collect dependency information
-        </span><span class="kw">let </span>dataflow_info = DataflowInfo::new(graph).map_err(|e| e.lift(<span class="kw-2">&amp;</span>id_registry)).unwrap();
+        <span class="comment">// collect dependency information</span>
+        <span class="kw">let</span> <span class="ident">dataflow_info</span> <span class="op">=</span> <span class="ident">DataflowInfo::new</span>(<span class="ident">graph</span>).<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">e</span>.<span class="ident">lift</span>(<span class="kw-2">&amp;</span><span class="ident">id_registry</span>)).<span class="ident">unwrap</span>();
 
-        <span class="comment">// Using thread::scope here introduces an unnamed lifetime for
-        // the scope, which is captured as &#39;t by the SyncScheduler.
-        // This is useful because it captures the constraint that the
-        // dataflow_info outlives &#39;t, so that physical contexts
-        // can be spawned in threads that capture references
-        // to &#39;x.
-        </span>scope(|scope| {
-            <span class="kw">let </span>initial_time = Instant::now();
-            <span class="attribute">#[cfg(feature = <span class="string">&quot;parallel-runtime&quot;</span>)]
-            </span><span class="kw">let </span>rayon_thread_pool = rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap();
+        <span class="comment">// Using thread::scope here introduces an unnamed lifetime for</span>
+        <span class="comment">// the scope, which is captured as &#39;t by the SyncScheduler.</span>
+        <span class="comment">// This is useful because it captures the constraint that the</span>
+        <span class="comment">// dataflow_info outlives &#39;t, so that physical contexts</span>
+        <span class="comment">// can be spawned in threads that capture references</span>
+        <span class="comment">// to &#39;x.</span>
+        <span class="ident">scope</span>(<span class="op">|</span><span class="ident">scope</span><span class="op">|</span> {
+            <span class="kw">let</span> <span class="ident">initial_time</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
+            <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;parallel-runtime&quot;</span>)]</span>
+            <span class="kw">let</span> <span class="ident">rayon_thread_pool</span> <span class="op">=</span> <span class="ident">rayon::ThreadPoolBuilder::new</span>().<span class="ident">num_threads</span>(<span class="ident">options</span>.<span class="ident">threads</span>).<span class="ident">build</span>().<span class="ident">unwrap</span>();
 
-            <span class="kw">let </span>scheduler = SyncScheduler::new(options, id_registry, <span class="kw-2">&amp;</span>dataflow_info, scope, reactors, initial_time);
+            <span class="kw">let</span> <span class="ident">scheduler</span> <span class="op">=</span> <span class="ident">SyncScheduler::new</span>(<span class="ident">options</span>, <span class="ident">id_registry</span>, <span class="kw-2">&amp;</span><span class="ident">dataflow_info</span>, <span class="ident">scope</span>, <span class="ident">reactors</span>, <span class="ident">initial_time</span>);
 
-            <span class="macro">cfg_if::cfg_if! </span>{
-                <span class="kw">if </span><span class="attribute">#[cfg(feature = <span class="string">&quot;parallel-runtime&quot;</span>)] </span>{
-                    <span class="doccomment">/// The unsafe impl is safe if scheduler instances
-                    /// are only sent between threads like this (their Rc
-                    /// internals are not copied).
-                    /// So long as the framework entirely controls the lifetime
-                    /// of SyncScheduler instances, this is enforceable.
-                    </span><span class="kw">unsafe impl </span>Send <span class="kw">for </span>SyncScheduler&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>&gt; {}
+            <span class="macro">cfg_if::cfg_if!</span> {
+                <span class="kw">if</span> <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;parallel-runtime&quot;</span>)]</span> {
+                    <span class="doccomment">/// The unsafe impl is safe if scheduler instances</span>
+                    <span class="doccomment">/// are only sent between threads like this (their Rc</span>
+                    <span class="doccomment">/// internals are not copied).</span>
+                    <span class="doccomment">/// So long as the framework entirely controls the lifetime</span>
+                    <span class="doccomment">/// of SyncScheduler instances, this is enforceable.</span>
+                    <span class="kw">unsafe</span> <span class="kw">impl</span> <span class="ident">Send</span> <span class="kw">for</span> <span class="ident">SyncScheduler</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span><span class="op">&gt;</span> {}
 
-                    <span class="comment">// install makes calls to parallel iterators use that thread pool
-                    </span>rayon_thread_pool.install(|| scheduler.launch_event_loop());
-                } <span class="kw">else </span>{
-                    scheduler.launch_event_loop();
+                    <span class="comment">// install makes calls to parallel iterators use that thread pool</span>
+                    <span class="ident">rayon_thread_pool</span>.<span class="ident">install</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">scheduler</span>.<span class="ident">launch_event_loop</span>());
+                } <span class="kw">else</span> {
+                    <span class="ident">scheduler</span>.<span class="ident">launch_event_loop</span>();
                 }
             }
         })
-        .unwrap();
+        .<span class="ident">unwrap</span>();
     }
 
-    <span class="doccomment">/// Launch the event loop in this thread.
-    </span><span class="kw">fn </span>launch_event_loop(<span class="kw-2">mut </span><span class="self">self</span>) {
+    <span class="doccomment">/// Launch the event loop in this thread.</span>
+    <span class="kw">fn</span> <span class="ident">launch_event_loop</span>(<span class="kw-2">mut</span> <span class="self">self</span>) {
         <span class="comment">/************************************************
          * This is the main event loop of the scheduler *
-         ************************************************/
+         ************************************************/</span>
 
-        </span><span class="self">self</span>.startup();
+        <span class="self">self</span>.<span class="ident">startup</span>();
 
-        <span class="kw">loop </span>{
-            <span class="comment">// flush pending events, this doesn&#39;t block
-            </span><span class="kw">for </span>evt <span class="kw">in </span><span class="self">self</span>.rx.try_iter() {
-                <span class="macro">push_event!</span>(<span class="self">self</span>, evt);
+        <span class="kw">loop</span> {
+            <span class="comment">// flush pending events, this doesn&#39;t block</span>
+            <span class="kw">for</span> <span class="ident">evt</span> <span class="kw">in</span> <span class="self">self</span>.<span class="ident">rx</span>.<span class="ident">try_iter</span>() {
+                <span class="macro">push_event!</span>(<span class="self">self</span>, <span class="ident">evt</span>);
             }
 
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(evt) = <span class="self">self</span>.event_queue.take_earliest() {
-                <span class="kw">if </span><span class="self">self</span>.is_after_shutdown(evt.tag) {
-                    <span class="macro">trace!</span>(<span class="string">&quot;Event is late, shutting down - event tag: {}&quot;</span>, evt.tag);
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">evt</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">event_queue</span>.<span class="ident">take_earliest</span>() {
+                <span class="kw">if</span> <span class="self">self</span>.<span class="ident">is_after_shutdown</span>(<span class="ident">evt</span>.<span class="ident">tag</span>) {
+                    <span class="macro">trace!</span>(<span class="string">&quot;Event is late, shutting down - event tag: {}&quot;</span>, <span class="ident">evt</span>.<span class="ident">tag</span>);
                     <span class="kw">break</span>;
                 }
-                <span class="macro">trace!</span>(<span class="string">&quot;Processing event {}&quot;</span>, <span class="self">self</span>.debug().display_event(<span class="kw-2">&amp;</span>evt));
-                <span class="kw">match </span><span class="self">self</span>.catch_up_physical_time(evt.tag.to_logical_time(<span class="self">self</span>.initial_time)) {
+                <span class="macro">trace!</span>(<span class="string">&quot;Processing event {}&quot;</span>, <span class="self">self</span>.<span class="ident">debug</span>().<span class="ident">display_event</span>(<span class="kw-2">&amp;</span><span class="ident">evt</span>));
+                <span class="kw">match</span> <span class="self">self</span>.<span class="ident">catch_up_physical_time</span>(<span class="ident">evt</span>.<span class="ident">tag</span>.<span class="ident">to_logical_time</span>(<span class="self">self</span>.<span class="ident">initial_time</span>)) {
                     <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {}
-                    <span class="prelude-val">Err</span>(async_event) =&gt; {
-                        <span class="comment">// an asynchronous event woke our sleep
-                        </span><span class="kw">if </span>async_event.tag &lt; evt.tag {
-                            <span class="comment">// reinsert both events to order them and try again.
-                            </span><span class="macro">push_event!</span>(<span class="self">self</span>, evt);
-                            <span class="macro">push_event!</span>(<span class="self">self</span>, async_event);
+                    <span class="prelude-val">Err</span>(<span class="ident">async_event</span>) =&gt; {
+                        <span class="comment">// an asynchronous event woke our sleep</span>
+                        <span class="kw">if</span> <span class="ident">async_event</span>.<span class="ident">tag</span> <span class="op">&lt;</span> <span class="ident">evt</span>.<span class="ident">tag</span> {
+                            <span class="comment">// reinsert both events to order them and try again.</span>
+                            <span class="macro">push_event!</span>(<span class="self">self</span>, <span class="ident">evt</span>);
+                            <span class="macro">push_event!</span>(<span class="self">self</span>, <span class="ident">async_event</span>);
                             <span class="kw">continue</span>;
-                        } <span class="kw">else </span>{
-                            <span class="comment">// we can process this event first and not care about the async event
-                            </span><span class="macro">push_event!</span>(<span class="self">self</span>, async_event);
+                        } <span class="kw">else</span> {
+                            <span class="comment">// we can process this event first and not care about the async event</span>
+                            <span class="macro">push_event!</span>(<span class="self">self</span>, <span class="ident">async_event</span>);
                         }
                     }
                 };
-                <span class="comment">// at this point we&#39;re at the correct time
+                <span class="comment">// at this point we&#39;re at the correct time</span>
 
-                </span><span class="kw">if </span>evt.terminate || <span class="self">self</span>.shutdown_time == <span class="prelude-val">Some</span>(evt.tag) {
-                    <span class="kw">return </span><span class="self">self</span>.shutdown(evt.tag, evt.reactions);
+                <span class="kw">if</span> <span class="ident">evt</span>.<span class="ident">terminate</span> <span class="op">|</span><span class="op">|</span> <span class="self">self</span>.<span class="ident">shutdown_time</span> <span class="op">==</span> <span class="prelude-val">Some</span>(<span class="ident">evt</span>.<span class="ident">tag</span>) {
+                    <span class="kw">return</span> <span class="self">self</span>.<span class="ident">shutdown</span>(<span class="ident">evt</span>.<span class="ident">tag</span>, <span class="ident">evt</span>.<span class="ident">reactions</span>);
                 }
 
-                <span class="self">self</span>.process_tag(<span class="bool-val">false</span>, evt.tag, evt.reactions);
-            } <span class="kw">else if let </span><span class="prelude-val">Some</span>(evt) = <span class="self">self</span>.receive_event() {
-                <span class="comment">// this may block
-                </span><span class="macro">push_event!</span>(<span class="self">self</span>, evt);
+                <span class="self">self</span>.<span class="ident">process_tag</span>(<span class="bool-val">false</span>, <span class="ident">evt</span>.<span class="ident">tag</span>, <span class="ident">evt</span>.<span class="ident">reactions</span>);
+            } <span class="kw">else</span> <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">evt</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">receive_event</span>() {
+                <span class="comment">// this may block</span>
+                <span class="macro">push_event!</span>(<span class="self">self</span>, <span class="ident">evt</span>);
                 <span class="kw">continue</span>;
-            } <span class="kw">else </span>{
-                <span class="comment">// all senders have hung up, or timeout
-                </span><span class="macro">info!</span>(<span class="string">&quot;Event queue is empty forever, shutting down.&quot;</span>);
+            } <span class="kw">else</span> {
+                <span class="comment">// all senders have hung up, or timeout</span>
+                <span class="macro">info!</span>(<span class="string">&quot;Event queue is empty forever, shutting down.&quot;</span>);
                 <span class="kw">break</span>;
             }
-        } <span class="comment">// end loop
+        } <span class="comment">// end loop</span>
 
-        </span><span class="kw">let </span>shutdown_tag = <span class="self">self</span>.shutdown_time.unwrap_or_else(|| EventTag::now(<span class="self">self</span>.initial_time));
-        <span class="self">self</span>.shutdown(shutdown_tag, <span class="prelude-val">None</span>);
+        <span class="kw">let</span> <span class="ident">shutdown_tag</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">shutdown_time</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="op">|</span> <span class="ident">EventTag::now</span>(<span class="self">self</span>.<span class="ident">initial_time</span>));
+        <span class="self">self</span>.<span class="ident">shutdown</span>(<span class="ident">shutdown_tag</span>, <span class="prelude-val">None</span>);
 
-        <span class="comment">// self destructor is called here
-    </span>}
+        <span class="comment">// self destructor is called here</span>
+    }
 
-    <span class="doccomment">/// Creates a new scheduler. An empty scheduler doesn&#39;t
-    /// do anything unless some events are pushed to the queue.
-    /// See [Self::launch_event_loop].
-    </span><span class="kw">fn </span>new(
-        options: SchedulerOptions,
-        id_registry: DebugInfoRegistry,
-        dependency_info: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span>DataflowInfo,
-        thread_spawner: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Scope&lt;<span class="lifetime">&#39;t</span>&gt;,
-        reactors: ReactorVec&lt;<span class="lifetime">&#39;x</span>&gt;,
-        initial_time: Instant,
-    ) -&gt; <span class="self">Self </span>{
-        <span class="kw">if </span>!<span class="macro">cfg!</span>(feature = <span class="string">&quot;parallel-runtime&quot;</span>) &amp;&amp; options.threads != <span class="number">0 </span>{
+    <span class="doccomment">/// Creates a new scheduler. An empty scheduler doesn&#39;t</span>
+    <span class="doccomment">/// do anything unless some events are pushed to the queue.</span>
+    <span class="doccomment">/// See [Self::launch_event_loop].</span>
+    <span class="kw">fn</span> <span class="ident">new</span>(
+        <span class="ident">options</span>: <span class="ident">SchedulerOptions</span>,
+        <span class="ident">id_registry</span>: <span class="ident">DebugInfoRegistry</span>,
+        <span class="ident">dependency_info</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x</span> <span class="ident">DataflowInfo</span>,
+        <span class="ident">thread_spawner</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Scope</span><span class="op">&lt;</span><span class="lifetime">&#39;t</span><span class="op">&gt;</span>,
+        <span class="ident">reactors</span>: <span class="ident">ReactorVec</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>,
+        <span class="ident">initial_time</span>: <span class="ident">Instant</span>,
+    ) -&gt; <span class="self">Self</span> {
+        <span class="kw">if</span> <span class="op">!</span><span class="macro">cfg!</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;parallel-runtime&quot;</span>) <span class="op">&amp;&amp;</span> <span class="ident">options</span>.<span class="ident">threads</span> <span class="op">!</span><span class="op">=</span> <span class="number">0</span> {
             <span class="macro">warn!</span>(<span class="string">&quot;&#39;workers&#39; runtime parameter has no effect unless feature &#39;parallel-runtime&#39; is enabled&quot;</span>)
         }
 
-        <span class="kw">if </span>options.keep_alive {
+        <span class="kw">if</span> <span class="ident">options</span>.<span class="ident">keep_alive</span> {
             <span class="macro">warn!</span>(<span class="string">&quot;&#39;keepalive&#39; runtime parameter has no effect in the Rust target&quot;</span>)
         }
 
-        <span class="kw">let </span>(<span class="kw">_</span>, rx) = unbounded::&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt;();
-        <span class="self">Self </span>{
-            rx,
+        <span class="kw">let</span> (<span class="kw">_</span>, <span class="ident">rx</span>) <span class="op">=</span> <span class="ident">unbounded</span>::<span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>();
+        <span class="self">Self</span> {
+            <span class="ident">rx</span>,
 
-            event_queue: Default::default(),
-            reactors,
+            <span class="ident">event_queue</span>: <span class="ident">Default::default</span>(),
+            <span class="ident">reactors</span>,
 
-            initial_time,
-            latest_processed_tag: <span class="prelude-val">None</span>,
-            shutdown_time: options.timeout.map(|timeout| {
-                <span class="kw">let </span>shutdown_tag = EventTag::ORIGIN.successor(timeout);
-                <span class="macro">trace!</span>(<span class="string">&quot;Timeout specified, will shut down at most at tag {}&quot;</span>, shutdown_tag);
-                shutdown_tag
+            <span class="ident">initial_time</span>,
+            <span class="ident">latest_processed_tag</span>: <span class="prelude-val">None</span>,
+            <span class="ident">shutdown_time</span>: <span class="ident">options</span>.<span class="ident">timeout</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">timeout</span><span class="op">|</span> {
+                <span class="kw">let</span> <span class="ident">shutdown_tag</span> <span class="op">=</span> <span class="ident">EventTag::ORIGIN</span>.<span class="ident">successor</span>(<span class="ident">timeout</span>);
+                <span class="macro">trace!</span>(<span class="string">&quot;Timeout specified, will shut down at most at tag {}&quot;</span>, <span class="ident">shutdown_tag</span>);
+                <span class="ident">shutdown_tag</span>
             }),
-            dataflow: dependency_info,
-            id_registry,
-            thread_spawner,
-            was_terminated: Default::default(),
+            <span class="ident">dataflow</span>: <span class="ident">dependency_info</span>,
+            <span class="ident">id_registry</span>,
+            <span class="ident">thread_spawner</span>,
+            <span class="ident">was_terminated</span>: <span class="ident">Default::default</span>(),
         }
     }
 
-    <span class="doccomment">/// Fix the origin of the logical timeline to the current
-    /// physical time, and runs the startup reactions
-    /// of all reactors.
-    </span><span class="kw">fn </span>startup(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="doccomment">/// Fix the origin of the logical timeline to the current</span>
+    <span class="doccomment">/// physical time, and runs the startup reactions</span>
+    <span class="doccomment">/// of all reactors.</span>
+    <span class="kw">fn</span> <span class="ident">startup</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) {
         <span class="macro">info!</span>(<span class="string">&quot;Triggering startup...&quot;</span>);
-        <span class="macro">debug_assert!</span>(!<span class="self">self</span>.reactors.is_empty(), <span class="string">&quot;No registered reactors&quot;</span>);
+        <span class="macro">debug_assert!</span>(<span class="op">!</span><span class="self">self</span>.<span class="ident">reactors</span>.<span class="ident">is_empty</span>(), <span class="string">&quot;No registered reactors&quot;</span>);
 
-        <span class="kw">let </span>startup_reactions = <span class="self">self</span>.dataflow.reactions_triggered_by(<span class="kw-2">&amp;</span>TriggerId::STARTUP);
-        <span class="self">self</span>.process_tag(<span class="bool-val">false</span>, EventTag::ORIGIN, <span class="prelude-val">Some</span>(Cow::Borrowed(startup_reactions)))
+        <span class="kw">let</span> <span class="ident">startup_reactions</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="ident">TriggerId::STARTUP</span>);
+        <span class="self">self</span>.<span class="ident">process_tag</span>(<span class="bool-val">false</span>, <span class="ident">EventTag::ORIGIN</span>, <span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="ident">startup_reactions</span>)))
     }
 
-    <span class="kw">fn </span>shutdown(<span class="kw-2">&amp;mut </span><span class="self">self</span>, shutdown_tag: EventTag, reactions: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;) {
-        <span class="macro">info!</span>(<span class="string">&quot;Scheduler is shutting down, at {}&quot;</span>, shutdown_tag);
-        <span class="self">self</span>.shutdown_time = <span class="prelude-val">Some</span>(shutdown_tag);
-        <span class="kw">let </span>default_plan: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt; = <span class="prelude-val">Some</span>(Cow::Borrowed(<span class="self">self</span>.dataflow.reactions_triggered_by(<span class="kw-2">&amp;</span>TriggerId::SHUTDOWN)));
-        <span class="kw">let </span>reactions = ExecutableReactions::merge_cows(reactions, default_plan);
+    <span class="kw">fn</span> <span class="ident">shutdown</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">shutdown_tag</span>: <span class="ident">EventTag</span>, <span class="ident">reactions</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>) {
+        <span class="macro">info!</span>(<span class="string">&quot;Scheduler is shutting down, at {}&quot;</span>, <span class="ident">shutdown_tag</span>);
+        <span class="self">self</span>.<span class="ident">shutdown_time</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">shutdown_tag</span>);
+        <span class="kw">let</span> <span class="ident">default_plan</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">Cow::Borrowed</span>(<span class="self">self</span>.<span class="ident">dataflow</span>.<span class="ident">reactions_triggered_by</span>(<span class="kw-2">&amp;</span><span class="ident">TriggerId::SHUTDOWN</span>)));
+        <span class="kw">let</span> <span class="ident">reactions</span> <span class="op">=</span> <span class="ident">ExecutableReactions::merge_cows</span>(<span class="ident">reactions</span>, <span class="ident">default_plan</span>);
 
-        <span class="self">self</span>.process_tag(<span class="bool-val">true</span>, shutdown_tag, reactions);
+        <span class="self">self</span>.<span class="ident">process_tag</span>(<span class="bool-val">true</span>, <span class="ident">shutdown_tag</span>, <span class="ident">reactions</span>);
 
-        <span class="comment">// notify concurrent threads.
-        </span><span class="self">self</span>.was_terminated.store(<span class="bool-val">true</span>, Ordering::SeqCst);
+        <span class="comment">// notify concurrent threads.</span>
+        <span class="self">self</span>.<span class="ident">was_terminated</span>.<span class="ident">store</span>(<span class="bool-val">true</span>, <span class="ident">Ordering::SeqCst</span>);
         <span class="macro">info!</span>(<span class="string">&quot;Scheduler has been shut down&quot;</span>)
     }
 
-    <span class="doccomment">/// Returns whether the given event should be ignored and
-    /// the event loop be terminated. This would be the case
-    /// if the tag of the event is later than the projected
-    /// shutdown time. Such &#39;late&#39; events may be emitted by
-    /// the shutdown wave.
-    </span><span class="kw">fn </span>is_after_shutdown(<span class="kw-2">&amp;</span><span class="self">self</span>, t: EventTag) -&gt; bool {
-        <span class="self">self</span>.shutdown_time.map(|shutdown_t| shutdown_t &lt; t).unwrap_or(<span class="bool-val">false</span>)
+    <span class="doccomment">/// Returns whether the given event should be ignored and</span>
+    <span class="doccomment">/// the event loop be terminated. This would be the case</span>
+    <span class="doccomment">/// if the tag of the event is later than the projected</span>
+    <span class="doccomment">/// shutdown time. Such &#39;late&#39; events may be emitted by</span>
+    <span class="doccomment">/// the shutdown wave.</span>
+    <span class="kw">fn</span> <span class="ident">is_after_shutdown</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">t</span>: <span class="ident">EventTag</span>) -&gt; <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">shutdown_time</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">shutdown_t</span><span class="op">|</span> <span class="ident">shutdown_t</span> <span class="op">&lt;</span> <span class="ident">t</span>).<span class="ident">unwrap_or</span>(<span class="bool-val">false</span>)
     }
 
-    <span class="doccomment">/// Wait for an asynchronous event for as long as we can
-    /// expect it.
-    </span><span class="kw">fn </span>receive_event(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(shutdown_t) = <span class="self">self</span>.shutdown_time {
-            <span class="kw">let </span>absolute = shutdown_t.to_logical_time(<span class="self">self</span>.initial_time);
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(timeout) = absolute.checked_duration_since(Instant::now()) {
-                <span class="macro">trace!</span>(<span class="string">&quot;Will wait for asynchronous event {} ns&quot;</span>, timeout.as_nanos());
-                <span class="self">self</span>.rx.recv_timeout(timeout).ok()
-            } <span class="kw">else </span>{
+    <span class="doccomment">/// Wait for an asynchronous event for as long as we can</span>
+    <span class="doccomment">/// expect it.</span>
+    <span class="kw">fn</span> <span class="ident">receive_event</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">shutdown_t</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">shutdown_time</span> {
+            <span class="kw">let</span> <span class="ident">absolute</span> <span class="op">=</span> <span class="ident">shutdown_t</span>.<span class="ident">to_logical_time</span>(<span class="self">self</span>.<span class="ident">initial_time</span>);
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">timeout</span>) <span class="op">=</span> <span class="ident">absolute</span>.<span class="ident">checked_duration_since</span>(<span class="ident">Instant::now</span>()) {
+                <span class="macro">trace!</span>(<span class="string">&quot;Will wait for asynchronous event {} ns&quot;</span>, <span class="ident">timeout</span>.<span class="ident">as_nanos</span>());
+                <span class="self">self</span>.<span class="ident">rx</span>.<span class="ident">recv_timeout</span>(<span class="ident">timeout</span>).<span class="ident">ok</span>()
+            } <span class="kw">else</span> {
                 <span class="macro">trace!</span>(<span class="string">&quot;Cannot wait, already past programmed shutdown time...&quot;</span>);
-                <span class="prelude-val">None
-            </span>}
-        } <span class="kw">else </span>{
+                <span class="prelude-val">None</span>
+            }
+        } <span class="kw">else</span> {
             <span class="macro">trace!</span>(<span class="string">&quot;Will wait for asynchronous event without timeout&quot;</span>);
-            <span class="self">self</span>.rx.recv().ok()
+            <span class="self">self</span>.<span class="ident">rx</span>.<span class="ident">recv</span>().<span class="ident">ok</span>()
         }
     }
 
-    <span class="doccomment">/// Sleep/wait until the given time OR an asynchronous
-    /// event is received first.
-    </span><span class="kw">fn </span>catch_up_physical_time(<span class="kw-2">&amp;mut </span><span class="self">self</span>, target: Instant) -&gt; <span class="prelude-ty">Result</span>&lt;(), Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt; {
-        <span class="kw">let </span>now = Instant::now();
+    <span class="doccomment">/// Sleep/wait until the given time OR an asynchronous</span>
+    <span class="doccomment">/// event is received first.</span>
+    <span class="kw">fn</span> <span class="ident">catch_up_physical_time</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">target</span>: <span class="ident">Instant</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span>(), <span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">now</span> <span class="op">=</span> <span class="ident">Instant::now</span>();
 
-        <span class="kw">if </span>now &lt; target {
-            <span class="kw">let </span>t = target - now;
-            <span class="macro">trace!</span>(<span class="string">&quot;  - Need to sleep {} ns&quot;</span>, t.as_nanos());
-            <span class="comment">// we use recv_timeout as a thread::sleep so that
-            // our sleep is interrupted properly when an async
-            // event arrives
-            </span><span class="kw">match </span><span class="self">self</span>.rx.recv_timeout(t) {
-                <span class="prelude-val">Ok</span>(async_evt) =&gt; {
+        <span class="kw">if</span> <span class="ident">now</span> <span class="op">&lt;</span> <span class="ident">target</span> {
+            <span class="kw">let</span> <span class="ident">t</span> <span class="op">=</span> <span class="ident">target</span> <span class="op">-</span> <span class="ident">now</span>;
+            <span class="macro">trace!</span>(<span class="string">&quot;  - Need to sleep {} ns&quot;</span>, <span class="ident">t</span>.<span class="ident">as_nanos</span>());
+            <span class="comment">// we use recv_timeout as a thread::sleep so that</span>
+            <span class="comment">// our sleep is interrupted properly when an async</span>
+            <span class="comment">// event arrives</span>
+            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">rx</span>.<span class="ident">recv_timeout</span>(<span class="ident">t</span>) {
+                <span class="prelude-val">Ok</span>(<span class="ident">async_evt</span>) =&gt; {
                     <span class="macro">trace!</span>(
                         <span class="string">&quot;  - Sleep interrupted by async event for tag {}, going back to queue&quot;</span>,
-                        async_evt.tag
+                        <span class="ident">async_evt</span>.<span class="ident">tag</span>
                     );
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(async_evt);
+                    <span class="kw">return</span> <span class="prelude-val">Err</span>(<span class="ident">async_evt</span>);
                 }
-                <span class="prelude-val">Err</span>(RecvTimeoutError::Timeout) =&gt; { <span class="comment">/*great*/ </span>}
-                <span class="prelude-val">Err</span>(RecvTimeoutError::Disconnected) =&gt; {
-                    <span class="comment">// ok, there are no physical actions in the program so it&#39;s useless to block on self.rx
-                    // we still need to wait though..
-                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(remaining) = target.checked_duration_since(Instant::now()) {
-                        std::thread::sleep(remaining);
+                <span class="prelude-val">Err</span>(<span class="ident">RecvTimeoutError::Timeout</span>) =&gt; { <span class="comment">/*great*/</span> }
+                <span class="prelude-val">Err</span>(<span class="ident">RecvTimeoutError::Disconnected</span>) =&gt; {
+                    <span class="comment">// ok, there are no physical actions in the program so it&#39;s useless to block on self.rx</span>
+                    <span class="comment">// we still need to wait though..</span>
+                    <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">remaining</span>) <span class="op">=</span> <span class="ident">target</span>.<span class="ident">checked_duration_since</span>(<span class="ident">Instant::now</span>()) {
+                        <span class="ident">std::thread::sleep</span>(<span class="ident">remaining</span>);
                     }
                 }
             }
         }
 
-        <span class="kw">if </span>now &gt; target {
-            <span class="kw">let </span>delay = now - target;
+        <span class="kw">if</span> <span class="ident">now</span> <span class="op">&gt;</span> <span class="ident">target</span> {
+            <span class="kw">let</span> <span class="ident">delay</span> <span class="op">=</span> <span class="ident">now</span> <span class="op">-</span> <span class="ident">target</span>;
             <span class="macro">trace!</span>(
                 <span class="string">&quot;  - Running late by {} ns = {} µs = {} ms&quot;</span>,
-                delay.as_nanos(),
-                delay.as_micros(),
-                delay.as_millis()
+                <span class="ident">delay</span>.<span class="ident">as_nanos</span>(),
+                <span class="ident">delay</span>.<span class="ident">as_micros</span>(),
+                <span class="ident">delay</span>.<span class="ident">as_millis</span>()
             )
         }
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="doccomment">/// Create a new reaction wave to process the given
-    /// reactions at some point in time.
-    </span><span class="kw">fn </span>new_reaction_ctx(
+    <span class="doccomment">/// Create a new reaction wave to process the given</span>
+    <span class="doccomment">/// reactions at some point in time.</span>
+    <span class="kw">fn</span> <span class="ident">new_reaction_ctx</span>(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        tag: EventTag,
-        todo: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;,
-        rx: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Receiver&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt;,
-        debug_info: DebugInfoProvider&lt;<span class="lifetime">&#39;a</span>&gt;,
-        was_terminated_atomic: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Arc&lt;AtomicBool&gt;,
-        was_terminated: bool,
-    ) -&gt; ReactionCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt; {
-        ReactionCtx::new(
-            rx,
-            tag,
-            <span class="self">self</span>.initial_time,
-            todo,
-            <span class="self">self</span>.dataflow,
-            <span class="self">self</span>.thread_spawner,
-            debug_info,
-            was_terminated_atomic,
-            was_terminated,
+        <span class="ident">tag</span>: <span class="ident">EventTag</span>,
+        <span class="ident">todo</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>,
+        <span class="ident">rx</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Receiver</span><span class="op">&lt;</span><span class="ident">Event</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span><span class="op">&gt;</span>,
+        <span class="ident">debug_info</span>: <span class="ident">DebugInfoProvider</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>,
+        <span class="ident">was_terminated_atomic</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">Arc</span><span class="op">&lt;</span><span class="ident">AtomicBool</span><span class="op">&gt;</span>,
+        <span class="ident">was_terminated</span>: <span class="ident">bool</span>,
+    ) -&gt; <span class="ident">ReactionCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span> {
+        <span class="ident">ReactionCtx::new</span>(
+            <span class="ident">rx</span>,
+            <span class="ident">tag</span>,
+            <span class="self">self</span>.<span class="ident">initial_time</span>,
+            <span class="ident">todo</span>,
+            <span class="self">self</span>.<span class="ident">dataflow</span>,
+            <span class="self">self</span>.<span class="ident">thread_spawner</span>,
+            <span class="ident">debug_info</span>,
+            <span class="ident">was_terminated_atomic</span>,
+            <span class="ident">was_terminated</span>,
         )
     }
 
-    <span class="attribute">#[inline]
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>debug(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; DebugInfoProvider {
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">debug</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">DebugInfoProvider</span> {
         <span class="macro">debug_info!</span>(<span class="self">self</span>)
     }
 
-    <span class="doccomment">/// Actually process a tag. The provided reactions are the
-    /// root reactions that startup the &quot;wave&quot;.
-    </span><span class="kw">fn </span>process_tag(<span class="kw-2">&amp;mut </span><span class="self">self</span>, is_shutdown: bool, tag: EventTag, <span class="kw-2">mut </span>reactions: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;) {
-        <span class="kw">if </span><span class="macro">cfg!</span>(debug_assertions) {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(latest) = <span class="self">self</span>.latest_processed_tag {
-                <span class="macro">debug_assert!</span>(tag &gt; latest, <span class="string">&quot;Tag ordering mismatch&quot;</span>)
+    <span class="doccomment">/// Actually process a tag. The provided reactions are the</span>
+    <span class="doccomment">/// root reactions that startup the &quot;wave&quot;.</span>
+    <span class="kw">fn</span> <span class="ident">process_tag</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">is_shutdown</span>: <span class="ident">bool</span>, <span class="ident">tag</span>: <span class="ident">EventTag</span>, <span class="kw-2">mut</span> <span class="ident">reactions</span>: <span class="ident">ReactionPlan</span><span class="op">&lt;</span><span class="lifetime">&#39;x</span><span class="op">&gt;</span>) {
+        <span class="kw">if</span> <span class="macro">cfg!</span>(<span class="ident">debug_assertions</span>) {
+            <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">latest</span>) <span class="op">=</span> <span class="self">self</span>.<span class="ident">latest_processed_tag</span> {
+                <span class="macro">debug_assert!</span>(<span class="ident">tag</span> <span class="op">&gt;</span> <span class="ident">latest</span>, <span class="string">&quot;Tag ordering mismatch&quot;</span>)
             }
         }
-        <span class="self">self</span>.latest_processed_tag = <span class="prelude-val">Some</span>(tag);
+        <span class="self">self</span>.<span class="ident">latest_processed_tag</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">tag</span>);
 
-        <span class="kw">let </span><span class="kw-2">mut </span>next_level = reactions.as_ref().and_then(|todo| todo.first_batch());
-        <span class="kw">if </span>next_level.is_none() {
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">next_level</span> <span class="op">=</span> <span class="ident">reactions</span>.<span class="ident">as_ref</span>().<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">todo</span><span class="op">|</span> <span class="ident">todo</span>.<span class="ident">first_batch</span>());
+        <span class="kw">if</span> <span class="ident">next_level</span>.<span class="ident">is_none</span>() {
             <span class="kw">return</span>;
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>ctx = <span class="self">self</span>.new_reaction_ctx(tag, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.rx, <span class="macro">debug_info!</span>(<span class="self">self</span>), <span class="kw-2">&amp;</span><span class="self">self</span>.was_terminated, is_shutdown);
+        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">ctx</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">new_reaction_ctx</span>(<span class="ident">tag</span>, <span class="prelude-val">None</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">rx</span>, <span class="macro">debug_info!</span>(<span class="self">self</span>), <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">was_terminated</span>, <span class="ident">is_shutdown</span>);
 
-        <span class="kw">while let </span><span class="prelude-val">Some</span>((level_no, batch)) = next_level {
-            <span class="kw">let </span>level_no = level_no.cloned();
-            <span class="macro">trace!</span>(<span class="string">&quot;  - Level {}&quot;</span>, level_no);
-            ctx.cur_level = level_no.key;
+        <span class="kw">while</span> <span class="kw">let</span> <span class="prelude-val">Some</span>((<span class="ident">level_no</span>, <span class="ident">batch</span>)) <span class="op">=</span> <span class="ident">next_level</span> {
+            <span class="kw">let</span> <span class="ident">level_no</span> <span class="op">=</span> <span class="ident">level_no</span>.<span class="ident">cloned</span>();
+            <span class="macro">trace!</span>(<span class="string">&quot;  - Level {}&quot;</span>, <span class="ident">level_no</span>);
+            <span class="ident">ctx</span>.<span class="ident">cur_level</span> <span class="op">=</span> <span class="ident">level_no</span>.<span class="ident">key</span>;
 
-            <span class="doccomment">/// Minimum number of reactions (inclusive) required
-            /// to parallelize reactions.
-            /// TODO experiment with tweaking this
-            </span><span class="kw">const </span>PARALLEL_THRESHOLD: usize = <span class="number">3</span>;
+            <span class="doccomment">/// Minimum number of reactions (inclusive) required</span>
+            <span class="doccomment">/// to parallelize reactions.</span>
+            <span class="doccomment">/// TODO experiment with tweaking this</span>
+            <span class="kw">const</span> <span class="ident">PARALLEL_THRESHOLD</span>: <span class="ident">usize</span> <span class="op">=</span> <span class="number">3</span>;
 
-            <span class="kw">if </span><span class="macro">cfg!</span>(feature = <span class="string">&quot;parallel-runtime&quot;</span>) &amp;&amp; batch.len() &gt;= PARALLEL_THRESHOLD {
-                <span class="attribute">#[cfg(feature = <span class="string">&quot;parallel-runtime&quot;</span>)]
-                </span>parallel_rt_impl::process_batch(<span class="kw-2">&amp;mut </span>ctx, <span class="kw-2">&amp;mut </span><span class="self">self</span>.reactors, batch);
-            } <span class="kw">else </span>{
-                <span class="comment">// the impl for non-parallel runtime
-                </span><span class="kw">for </span>reaction_id <span class="kw">in </span>batch {
-                    <span class="kw">let </span>reactor = <span class="kw-2">&amp;mut </span><span class="self">self</span>.reactors[reaction_id.<span class="number">0</span>.container()];
-                    ctx.execute(reactor, <span class="kw-2">*</span>reaction_id);
+            <span class="kw">if</span> <span class="macro">cfg!</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;parallel-runtime&quot;</span>) <span class="op">&amp;&amp;</span> <span class="ident">batch</span>.<span class="ident">len</span>() <span class="op">&gt;</span><span class="op">=</span> <span class="ident">PARALLEL_THRESHOLD</span> {
+                <span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;parallel-runtime&quot;</span>)]</span>
+                <span class="ident">parallel_rt_impl::process_batch</span>(<span class="kw-2">&amp;mut</span> <span class="ident">ctx</span>, <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">reactors</span>, <span class="ident">batch</span>);
+            } <span class="kw">else</span> {
+                <span class="comment">// the impl for non-parallel runtime</span>
+                <span class="kw">for</span> <span class="ident">reaction_id</span> <span class="kw">in</span> <span class="ident">batch</span> {
+                    <span class="kw">let</span> <span class="ident">reactor</span> <span class="op">=</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">reactors</span>[<span class="ident">reaction_id</span>.<span class="number">0</span>.<span class="ident">container</span>()];
+                    <span class="ident">ctx</span>.<span class="ident">execute</span>(<span class="ident">reactor</span>, <span class="kw-2">*</span><span class="ident">reaction_id</span>);
                 }
             }
 
-            reactions = ExecutableReactions::merge_plans_after(reactions, ctx.insides.todo_now.take(), level_no.key.next());
-            next_level = reactions.as_ref().and_then(|todo| todo.next_batch(level_no.as_ref()));
+            <span class="ident">reactions</span> <span class="op">=</span> <span class="ident">ExecutableReactions::merge_plans_after</span>(<span class="ident">reactions</span>, <span class="ident">ctx</span>.<span class="ident">insides</span>.<span class="ident">todo_now</span>.<span class="ident">take</span>(), <span class="ident">level_no</span>.<span class="ident">key</span>.<span class="ident">next</span>());
+            <span class="ident">next_level</span> <span class="op">=</span> <span class="ident">reactions</span>.<span class="ident">as_ref</span>().<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">todo</span><span class="op">|</span> <span class="ident">todo</span>.<span class="ident">next_batch</span>(<span class="ident">level_no</span>.<span class="ident">as_ref</span>()));
         }
 
-        <span class="kw">for </span>evt <span class="kw">in </span>ctx.insides.future_events.drain(..) {
-            <span class="macro">push_event!</span>(<span class="self">self</span>, evt)
+        <span class="kw">for</span> <span class="ident">evt</span> <span class="kw">in</span> <span class="ident">ctx</span>.<span class="ident">insides</span>.<span class="ident">future_events</span>.<span class="ident">drain</span>(..) {
+            <span class="macro">push_event!</span>(<span class="self">self</span>, <span class="ident">evt</span>)
         }
 
-        <span class="comment">// cleanup tag-specific resources, eg clear port values
-        </span><span class="kw">let </span>ctx = CleanupCtx { tag };
-        <span class="comment">// TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
-        //   see also efforts in the C runtime to  avoid this
-        </span><span class="kw">for </span>reactor <span class="kw">in </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.reactors {
-            reactor.cleanup_tag(<span class="kw-2">&amp;</span>ctx)
+        <span class="comment">// cleanup tag-specific resources, eg clear port values</span>
+        <span class="kw">let</span> <span class="ident">ctx</span> <span class="op">=</span> <span class="ident">CleanupCtx</span> { <span class="ident">tag</span> };
+        <span class="comment">// TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.</span>
+        <span class="comment">//   see also efforts in the C runtime to  avoid this</span>
+        <span class="kw">for</span> <span class="ident">reactor</span> <span class="kw">in</span> <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">reactors</span> {
+            <span class="ident">reactor</span>.<span class="ident">cleanup_tag</span>(<span class="kw-2">&amp;</span><span class="ident">ctx</span>)
         }
     }
 }
 
-<span class="attribute">#[cfg(feature = <span class="string">&quot;parallel-runtime&quot;</span>)]
-</span><span class="kw">mod </span>parallel_rt_impl {
-    <span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;parallel-runtime&quot;</span>)]</span>
+<span class="kw">mod</span> <span class="ident">parallel_rt_impl</span> {
+    <span class="kw">use</span> <span class="ident">rayon::prelude</span>::<span class="kw-2">*</span>;
 
-    <span class="kw">use super</span>::<span class="kw-2">*</span>;
-    <span class="kw">use </span><span class="kw">crate</span>::scheduler::dependencies::Level;
+    <span class="kw">use</span> <span class="kw">super</span>::<span class="kw-2">*</span>;
+    <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::dependencies::Level</span>;
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>process_batch(ctx: <span class="kw-2">&amp;mut </span>ReactionCtx&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>&gt;, reactors: <span class="kw-2">&amp;mut </span>ReactorVec&lt;<span class="lifetime">&#39;_</span>&gt;, batch: <span class="kw-2">&amp;</span>Level) {
-        <span class="kw">let </span>reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn</span> <span class="ident">process_batch</span>(<span class="ident">ctx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ReactionCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span><span class="op">&gt;</span>, <span class="ident">reactors</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ReactorVec</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>, <span class="ident">batch</span>: <span class="kw-2">&amp;</span><span class="ident">Level</span>) {
+        <span class="kw">let</span> <span class="ident">reactors_mut</span> <span class="op">=</span> <span class="ident">UnsafeSharedPointer</span>(<span class="ident">reactors</span>.<span class="ident">raw</span>.<span class="ident">as_mut_ptr</span>());
 
-        ctx.insides.absorb(
-            batch
-                .iter()
-                .par_bridge()
-                .fold_with(CloneableCtx(ctx.fork()), |CloneableCtx(<span class="kw-2">mut </span>ctx), reaction_id| {
-                    <span class="comment">// capture the newtype instead of capturing its field, which is not Send
-                    </span><span class="kw">let </span>reactors_mut = <span class="kw-2">&amp;</span>reactors_mut;
-                    <span class="kw">let </span>reactor = <span class="kw">unsafe </span>{
-                        <span class="comment">// safety:
-                        // - no two reactions in the batch belong to the same reactor
-                        // - the vec does not change size so there is no reallocation
-                        </span><span class="kw-2">&amp;mut *</span>reactors_mut.<span class="number">0</span>.add(reaction_id.<span class="number">0</span>.container().index())
+        <span class="ident">ctx</span>.<span class="ident">insides</span>.<span class="ident">absorb</span>(
+            <span class="ident">batch</span>
+                .<span class="ident">iter</span>()
+                .<span class="ident">par_bridge</span>()
+                .<span class="ident">fold_with</span>(<span class="ident">CloneableCtx</span>(<span class="ident">ctx</span>.<span class="ident">fork</span>()), <span class="op">|</span><span class="ident">CloneableCtx</span>(<span class="kw-2">mut</span> <span class="ident">ctx</span>), <span class="ident">reaction_id</span><span class="op">|</span> {
+                    <span class="comment">// capture the newtype instead of capturing its field, which is not Send</span>
+                    <span class="kw">let</span> <span class="ident">reactors_mut</span> <span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">reactors_mut</span>;
+                    <span class="kw">let</span> <span class="ident">reactor</span> <span class="op">=</span> <span class="kw">unsafe</span> {
+                        <span class="comment">// safety:</span>
+                        <span class="comment">// - no two reactions in the batch belong to the same reactor</span>
+                        <span class="comment">// - the vec does not change size so there is no reallocation</span>
+                        <span class="kw-2">&amp;mut</span> <span class="kw-2">*</span><span class="ident">reactors_mut</span>.<span class="number">0</span>.<span class="ident">add</span>(<span class="ident">reaction_id</span>.<span class="number">0</span>.<span class="ident">container</span>().<span class="ident">index</span>())
                     };
 
-                    ctx.execute(reactor, reaction_id);
+                    <span class="ident">ctx</span>.<span class="ident">execute</span>(<span class="ident">reactor</span>, <span class="ident">reaction_id</span>);
 
-                    CloneableCtx(ctx)
+                    <span class="ident">CloneableCtx</span>(<span class="ident">ctx</span>)
                 })
-                .fold(RContextForwardableStuff::default, |cx1, cx2| cx1.merge(cx2.<span class="number">0</span>.insides))
-                .reduce(Default::default, RContextForwardableStuff::merge),
+                .<span class="ident">fold</span>(<span class="ident">RContextForwardableStuff::default</span>, <span class="op">|</span><span class="ident">cx1</span>, <span class="ident">cx2</span><span class="op">|</span> <span class="ident">cx1</span>.<span class="ident">merge</span>(<span class="ident">cx2</span>.<span class="number">0</span>.<span class="ident">insides</span>))
+                .<span class="ident">reduce</span>(<span class="ident">Default::default</span>, <span class="ident">RContextForwardableStuff::merge</span>),
         );
     }
 
-    <span class="attribute">#[derive(Copy, Clone)]
-    </span><span class="kw">struct </span>UnsafeSharedPointer&lt;T&gt;(<span class="kw-2">*mut </span>T);
+    <span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>)]</span>
+    <span class="kw">struct</span> <span class="ident">UnsafeSharedPointer</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>(<span class="kw-2">*mut</span> <span class="ident">T</span>);
 
-    <span class="kw">unsafe impl</span>&lt;T&gt; Send <span class="kw">for </span>UnsafeSharedPointer&lt;T&gt; {}
+    <span class="kw">unsafe</span> <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Send</span> <span class="kw">for</span> <span class="ident">UnsafeSharedPointer</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {}
 
-    <span class="kw">unsafe impl</span>&lt;T&gt; Sync <span class="kw">for </span>UnsafeSharedPointer&lt;T&gt; {}
+    <span class="kw">unsafe</span> <span class="kw">impl</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="ident">Sync</span> <span class="kw">for</span> <span class="ident">UnsafeSharedPointer</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> {}
 
-    <span class="doccomment">/// We need a Clone bound to use fold_with, but this clone
-    /// implementation is not general purpose so I hide it.
-    </span><span class="kw">struct </span>CloneableCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt;(ReactionCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt;);
+    <span class="doccomment">/// We need a Clone bound to use fold_with, but this clone</span>
+    <span class="doccomment">/// implementation is not general purpose so I hide it.</span>
+    <span class="kw">struct</span> <span class="ident">CloneableCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span>(<span class="ident">ReactionCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span><span class="op">&gt;</span>);
 
-    <span class="kw">impl </span>Clone <span class="kw">for </span>CloneableCtx&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>&gt; {
-        <span class="kw">fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-            <span class="self">Self</span>(<span class="self">self</span>.<span class="number">0</span>.fork())
+    <span class="kw">impl</span> <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">CloneableCtx</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span><span class="op">&gt;</span> {
+        <span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span> {
+            <span class="self">Self</span>(<span class="self">self</span>.<span class="number">0</span>.<span class="ident">fork</span>())
         }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (4b8f43199 2022-10-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>

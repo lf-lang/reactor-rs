@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/util/vecmap.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>vecmap.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../../normalize.css"><link rel="stylesheet" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../../ayu.css" disabled><link rel="stylesheet" href="../../../dark.css" disabled><link rel="stylesheet" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><a class="sidebar-logo" href="../../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../../reactor_rt/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/util/vecmap.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>vecmap.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../../normalize.css"><link rel="stylesheet" type="text/css" href="../../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../../storage.js"></script><script defer src="../../../source-script.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../main.js"></script><noscript><link rel="stylesheet" href="../../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../../reactor_rt/index.html"><img class="rust-logo" src="../../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -307,270 +307,270 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ */</span>
 
-</span><span class="kw">use </span>std::cmp::Ordering;
-<span class="kw">use </span>std::fmt::{Debug, Display, Formatter};
+<span class="kw">use</span> <span class="ident">std::cmp::Ordering</span>;
+<span class="kw">use</span> <span class="ident">std::fmt</span>::{<span class="ident">Debug</span>, <span class="ident">Display</span>, <span class="ident">Formatter</span>};
 
-<span class="doccomment">/// A sparse map representation over a totally ordered key type.
-///
-/// Used in [crate::ExecutableReactions]
-///
-</span><span class="kw">pub struct </span>VecMap&lt;K, V&gt;
-<span class="kw">where
-    </span>K: Eq + Ord,
+<span class="doccomment">/// A sparse map representation over a totally ordered key type.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Used in [crate::ExecutableReactions]</span>
+<span class="doccomment">///</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">VecMap</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">K</span>: <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Ord</span>,
 {
-    v: Vec&lt;(K, V)&gt;,
+    <span class="ident">v</span>: <span class="ident">Vec</span><span class="op">&lt;</span>(<span class="ident">K</span>, <span class="ident">V</span>)<span class="op">&gt;</span>,
 }
 
-<span class="kw">impl</span>&lt;K, V&gt; VecMap&lt;K, V&gt;
-<span class="kw">where
-    </span>K: Eq + Ord,
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span> <span class="ident">VecMap</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">K</span>: <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Ord</span>,
 {
-    <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ v: Vec::new() }
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new</span>() -&gt; <span class="self">Self</span> {
+        <span class="self">Self</span> { <span class="ident">v</span>: <span class="ident">Vec::new</span>() }
     }
 
-    <span class="doccomment">/// Find an entry with assumption that the key is random access.
-    /// Logarithmic complexity.
-    </span><span class="kw">pub fn </span>entry(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: K) -&gt; Entry&lt;K, V&gt; {
-        <span class="kw">match </span><span class="self">self</span>.find_k(<span class="kw-2">&amp;</span>key) {
-            <span class="prelude-val">Ok</span>(index) =&gt; Entry::Occupied(OccupiedEntry { map: <span class="self">self</span>, index, key }),
-            <span class="prelude-val">Err</span>(index) =&gt; Entry::Vacant(VacantEntry { map: <span class="self">self</span>, index, key }),
+    <span class="doccomment">/// Find an entry with assumption that the key is random access.</span>
+    <span class="doccomment">/// Logarithmic complexity.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">entry</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="ident">K</span>) -&gt; <span class="ident">Entry</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">find_k</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
+            <span class="prelude-val">Ok</span>(<span class="ident">index</span>) =&gt; <span class="ident">Entry::Occupied</span>(<span class="ident">OccupiedEntry</span> { <span class="ident">map</span>: <span class="self">self</span>, <span class="ident">index</span>, <span class="ident">key</span> }),
+            <span class="prelude-val">Err</span>(<span class="ident">index</span>) =&gt; <span class="ident">Entry::Vacant</span>(<span class="ident">VacantEntry</span> { <span class="ident">map</span>: <span class="self">self</span>, <span class="ident">index</span>, <span class="ident">key</span> }),
         }
     }
 
-    <span class="kw">pub fn </span>entry_from_ref(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key_hint: KeyRef&lt;K&gt;, key: K) -&gt; Entry&lt;K, V&gt; {
-        <span class="macro">debug_assert!</span>(<span class="self">self</span>.is_valid_keyref(<span class="kw-2">&amp;</span>key_hint.as_ref()));
-        <span class="kw">let </span>KeyRef { min_idx, .. } = key_hint;
-        <span class="kw">for </span>i <span class="kw">in </span>min_idx..<span class="self">self</span>.v.len() {
-            <span class="kw">match </span><span class="self">self</span>.v[i].<span class="number">0</span>.cmp(<span class="kw-2">&amp;</span>key) {
-                Ordering::Equal =&gt; <span class="kw">return </span>Entry::Occupied(OccupiedEntry { map: <span class="self">self</span>, index: i, key }),
-                Ordering::Greater =&gt; {
-                    <span class="macro">assert!</span>(i &gt;= <span class="number">1</span>, <span class="string">&quot;keyref was invalid&quot;</span>); <span class="comment">// otherwise min_idx
-                    </span><span class="kw">return </span>Entry::Vacant(VacantEntry { map: <span class="self">self</span>, index: i, key });
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">entry_from_ref</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">key_hint</span>: <span class="ident">KeyRef</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span>, <span class="ident">key</span>: <span class="ident">K</span>) -&gt; <span class="ident">Entry</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span> {
+        <span class="macro">debug_assert!</span>(<span class="self">self</span>.<span class="ident">is_valid_keyref</span>(<span class="kw-2">&amp;</span><span class="ident">key_hint</span>.<span class="ident">as_ref</span>()));
+        <span class="kw">let</span> <span class="ident">KeyRef</span> { <span class="ident">min_idx</span>, .. } <span class="op">=</span> <span class="ident">key_hint</span>;
+        <span class="kw">for</span> <span class="ident">i</span> <span class="kw">in</span> <span class="ident">min_idx</span>..<span class="self">self</span>.<span class="ident">v</span>.<span class="ident">len</span>() {
+            <span class="kw">match</span> <span class="self">self</span>.<span class="ident">v</span>[<span class="ident">i</span>].<span class="number">0</span>.<span class="ident">cmp</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
+                <span class="ident">Ordering::Equal</span> =&gt; <span class="kw">return</span> <span class="ident">Entry::Occupied</span>(<span class="ident">OccupiedEntry</span> { <span class="ident">map</span>: <span class="self">self</span>, <span class="ident">index</span>: <span class="ident">i</span>, <span class="ident">key</span> }),
+                <span class="ident">Ordering::Greater</span> =&gt; {
+                    <span class="macro">assert!</span>(<span class="ident">i</span> <span class="op">&gt;</span><span class="op">=</span> <span class="number">1</span>, <span class="string">&quot;keyref was invalid&quot;</span>); <span class="comment">// otherwise min_idx</span>
+                    <span class="kw">return</span> <span class="ident">Entry::Vacant</span>(<span class="ident">VacantEntry</span> { <span class="ident">map</span>: <span class="self">self</span>, <span class="ident">index</span>: <span class="ident">i</span>, <span class="ident">key</span> });
                 }
-                <span class="kw">_ </span>=&gt; {}
+                <span class="kw">_</span> =&gt; {}
             }
         }
-        <span class="kw">let </span>i = <span class="self">self</span>.v.len();
-        Entry::Vacant(VacantEntry { map: <span class="self">self</span>, index: i, key })
+        <span class="kw">let</span> <span class="ident">i</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">len</span>();
+        <span class="ident">Entry::Vacant</span>(<span class="ident">VacantEntry</span> { <span class="ident">map</span>: <span class="self">self</span>, <span class="ident">index</span>: <span class="ident">i</span>, <span class="ident">key</span> })
     }
 
-    <span class="doccomment">/// Finds entry reference, either directly associated with `min_key_inclusive`, or the entry with the
-    /// closest key (in terms of sorting order) greater than `min_key_inclusive`. Returns `None` if
-    /// map does not contain entry with key greater or equal to `min_key_inclusive`.
-    </span><span class="kw">pub fn </span>find_random_mapping_after(<span class="kw-2">&amp;</span><span class="self">self</span>, min_key_inclusive: K) -&gt; <span class="prelude-ty">Option</span>&lt;(KeyRef&lt;<span class="kw-2">&amp;</span>K&gt;, <span class="kw-2">&amp;</span>V)&gt; {
-        <span class="kw">match </span><span class="self">self</span>.find_k(<span class="kw-2">&amp;</span>min_key_inclusive) {
-            <span class="prelude-val">Ok</span>(index) =&gt; {
-                <span class="kw">let </span>(key, v) = <span class="kw-2">&amp;</span><span class="self">self</span>.v[index];
-                <span class="prelude-val">Some</span>((KeyRef { key, min_idx: index }, v))
+    <span class="doccomment">/// Finds entry reference, either directly associated with `min_key_inclusive`, or the entry with the</span>
+    <span class="doccomment">/// closest key (in terms of sorting order) greater than `min_key_inclusive`. Returns `None` if</span>
+    <span class="doccomment">/// map does not contain entry with key greater or equal to `min_key_inclusive`.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">find_random_mapping_after</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">min_key_inclusive</span>: <span class="ident">K</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">KeyRef</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">K</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="ident">V</span>)<span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">find_k</span>(<span class="kw-2">&amp;</span><span class="ident">min_key_inclusive</span>) {
+            <span class="prelude-val">Ok</span>(<span class="ident">index</span>) =&gt; {
+                <span class="kw">let</span> (<span class="ident">key</span>, <span class="ident">v</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">v</span>[<span class="ident">index</span>];
+                <span class="prelude-val">Some</span>((<span class="ident">KeyRef</span> { <span class="ident">key</span>, <span class="ident">min_idx</span>: <span class="ident">index</span> }, <span class="ident">v</span>))
             }
-            <span class="prelude-val">Err</span>(index) =&gt; <span class="self">self</span>.v.get(index).map(<span class="kw">move </span>|(k, v)| {
-                <span class="macro">assert!</span>(k &gt;= <span class="kw-2">&amp;</span>min_key_inclusive);
-                (KeyRef { key: k, min_idx: index }, v)
+            <span class="prelude-val">Err</span>(<span class="ident">index</span>) =&gt; <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">get</span>(<span class="ident">index</span>).<span class="ident">map</span>(<span class="kw">move</span> <span class="op">|</span>(<span class="ident">k</span>, <span class="ident">v</span>)<span class="op">|</span> {
+                <span class="macro">assert!</span>(<span class="ident">k</span> <span class="op">&gt;</span><span class="op">=</span> <span class="kw-2">&amp;</span><span class="ident">min_key_inclusive</span>);
+                (<span class="ident">KeyRef</span> { <span class="ident">key</span>: <span class="ident">k</span>, <span class="ident">min_idx</span>: <span class="ident">index</span> }, <span class="ident">v</span>)
             }),
         }
     }
 
-    <span class="kw">pub fn </span>insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: K, value: V) -&gt; <span class="prelude-ty">Option</span>&lt;V&gt; {
-        <span class="kw">match </span><span class="self">self</span>.find_k(<span class="kw-2">&amp;</span>key) {
-            <span class="prelude-val">Ok</span>(index) =&gt; <span class="prelude-val">Some</span>(std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.v[index].<span class="number">1</span>, value)),
-            <span class="prelude-val">Err</span>(index) =&gt; {
-                <span class="self">self</span>.v.insert(index, (key, value));
-                <span class="prelude-val">None
-            </span>}
-        }
-    }
-
-    <span class="kw">pub fn </span>remove(<span class="kw-2">&amp;mut </span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>K) -&gt; <span class="prelude-ty">Option</span>&lt;V&gt; {
-        <span class="kw">match </span><span class="self">self</span>.find_k(key) {
-            <span class="prelude-val">Ok</span>(index) =&gt; <span class="prelude-val">Some</span>(<span class="self">self</span>.v.remove(index).<span class="number">1</span>),
-            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
-        }
-    }
-
-    <span class="kw">pub fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>K) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>V&gt; {
-        <span class="kw">match </span><span class="self">self</span>.find_k(key) {
-            <span class="prelude-val">Ok</span>(index) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.v[index].<span class="number">1</span>),
-            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
-        }
-    }
-
-    <span class="kw">pub fn </span>contains_key(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>K) -&gt; bool {
-        <span class="self">self</span>.find_k(key).is_ok()
-    }
-
-    <span class="doccomment">/// Produces the first mapping that follows the given key
-    /// in the ascending order on keys.
-    </span><span class="kw">pub fn </span>next_mapping(<span class="kw-2">&amp;</span><span class="self">self</span>, key: KeyRef&lt;<span class="kw-2">&amp;</span>K&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;(KeyRef&lt;<span class="kw-2">&amp;</span>K&gt;, <span class="kw-2">&amp;</span>V)&gt; {
-        <span class="kw">let </span>from = <span class="kw">if </span><span class="self">self</span>.is_valid_keyref(<span class="kw-2">&amp;</span>key) {
-            key.min_idx
-        } <span class="kw">else </span>{
-            <span class="number">0 </span><span class="comment">// it&#39;s not, maybe it was produced by another vecmap
-        </span>};
-
-        <span class="kw">for </span>idx <span class="kw">in </span>from..<span class="self">self</span>.v.len() {
-            <span class="kw">if </span><span class="kw-2">&amp;</span><span class="self">self</span>.v[idx].<span class="number">0 </span>&gt; key.key {
-                <span class="kw">let </span>(key, v) = <span class="kw-2">&amp;</span><span class="self">self</span>.v[idx];
-                <span class="kw">return </span><span class="prelude-val">Some</span>((KeyRef { min_idx: idx, key }, v));
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">insert</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="ident">K</span>, <span class="ident">value</span>: <span class="ident">V</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">find_k</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
+            <span class="prelude-val">Ok</span>(<span class="ident">index</span>) =&gt; <span class="prelude-val">Some</span>(<span class="ident">std::mem::replace</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">v</span>[<span class="ident">index</span>].<span class="number">1</span>, <span class="ident">value</span>)),
+            <span class="prelude-val">Err</span>(<span class="ident">index</span>) =&gt; {
+                <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">insert</span>(<span class="ident">index</span>, (<span class="ident">key</span>, <span class="ident">value</span>));
+                <span class="prelude-val">None</span>
             }
         }
-        <span class="prelude-val">None
-    </span>}
-
-    <span class="kw">fn </span>is_valid_keyref(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>KeyRef&lt;<span class="kw-2">&amp;</span>K&gt;) -&gt; bool {
-        <span class="self">self</span>.v.get(key.min_idx).filter(|(k, <span class="kw">_</span>)| k &lt;= key.key).is_some()
     }
 
-    <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>(K, V)&gt; + <span class="lifetime">&#39;_ </span>{
-        <span class="self">self</span>.v.iter()
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">remove</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="ident">K</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">find_k</span>(<span class="ident">key</span>) {
+            <span class="prelude-val">Ok</span>(<span class="ident">index</span>) =&gt; <span class="prelude-val">Some</span>(<span class="self">self</span>.<span class="ident">v</span>.<span class="ident">remove</span>(<span class="ident">index</span>).<span class="number">1</span>),
+            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
+        }
     }
 
-    <span class="kw">pub fn </span>min_entry(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;(KeyRef&lt;<span class="kw-2">&amp;</span>K&gt;, <span class="kw-2">&amp;</span>V)&gt; {
-        <span class="self">self</span>.v.first().map(|(key, v)| (KeyRef { key, min_idx: <span class="number">0 </span>}, v))
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="ident">K</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">V</span><span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="self">self</span>.<span class="ident">find_k</span>(<span class="ident">key</span>) {
+            <span class="prelude-val">Ok</span>(<span class="ident">index</span>) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">v</span>[<span class="ident">index</span>].<span class="number">1</span>),
+            <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="prelude-val">None</span>,
+        }
     }
 
-    <span class="kw">pub fn </span>max_key(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>K&gt; {
-        <span class="self">self</span>.v.last().map(|e| <span class="kw-2">&amp;</span>e.<span class="number">0</span>)
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">contains_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="ident">K</span>) -&gt; <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">find_k</span>(<span class="ident">key</span>).<span class="ident">is_ok</span>()
     }
 
-    <span class="doccomment">/// Attempts to find the given `key`. If found, it returns `Ok` with the index of the key in the
-    /// underlying `Vec`. Otherwise it returns `Err` with the index where a matching element could be
-    /// inserted while maintaining sorted order.
-    </span><span class="kw">fn </span>find_k(<span class="kw-2">&amp;</span><span class="self">self</span>, key: <span class="kw-2">&amp;</span>K) -&gt; <span class="prelude-ty">Result</span>&lt;usize, usize&gt; {
-        <span class="self">self</span>.v.binary_search_by_key(<span class="kw-2">&amp;</span>key, |(k, <span class="kw">_</span>)| k)
+    <span class="doccomment">/// Produces the first mapping that follows the given key</span>
+    <span class="doccomment">/// in the ascending order on keys.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">next_mapping</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="ident">KeyRef</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">K</span><span class="op">&gt;</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">KeyRef</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">K</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="ident">V</span>)<span class="op">&gt;</span> {
+        <span class="kw">let</span> <span class="ident">from</span> <span class="op">=</span> <span class="kw">if</span> <span class="self">self</span>.<span class="ident">is_valid_keyref</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>) {
+            <span class="ident">key</span>.<span class="ident">min_idx</span>
+        } <span class="kw">else</span> {
+            <span class="number">0</span> <span class="comment">// it&#39;s not, maybe it was produced by another vecmap</span>
+        };
+
+        <span class="kw">for</span> <span class="ident">idx</span> <span class="kw">in</span> <span class="ident">from</span>..<span class="self">self</span>.<span class="ident">v</span>.<span class="ident">len</span>() {
+            <span class="kw">if</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">v</span>[<span class="ident">idx</span>].<span class="number">0</span> <span class="op">&gt;</span> <span class="ident">key</span>.<span class="ident">key</span> {
+                <span class="kw">let</span> (<span class="ident">key</span>, <span class="ident">v</span>) <span class="op">=</span> <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">v</span>[<span class="ident">idx</span>];
+                <span class="kw">return</span> <span class="prelude-val">Some</span>((<span class="ident">KeyRef</span> { <span class="ident">min_idx</span>: <span class="ident">idx</span>, <span class="ident">key</span> }, <span class="ident">v</span>));
+            }
+        }
+        <span class="prelude-val">None</span>
     }
 
-    <span class="doccomment">/// Directly insert into the underlying `Vec`. This does not maintain the sorting of elements
-    /// by itself.
-    </span><span class="kw">fn </span>insert_internal(<span class="kw-2">&amp;mut </span><span class="self">self</span>, idx: usize, key: K, value: V) {
-        <span class="self">self</span>.v.insert(idx, (key, value))
+    <span class="kw">fn</span> <span class="ident">is_valid_keyref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="ident">KeyRef</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">K</span><span class="op">&gt;</span>) -&gt; <span class="ident">bool</span> {
+        <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">get</span>(<span class="ident">key</span>.<span class="ident">min_idx</span>).<span class="ident">filter</span>(<span class="op">|</span>(<span class="ident">k</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">k</span> <span class="op">&lt;</span><span class="op">=</span> <span class="ident">key</span>.<span class="ident">key</span>).<span class="ident">is_some</span>()
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">iter</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl</span> <span class="ident">Iterator</span><span class="op">&lt;</span><span class="ident">Item</span> <span class="op">=</span> <span class="kw-2">&amp;</span>(<span class="ident">K</span>, <span class="ident">V</span>)<span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;_</span> {
+        <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">iter</span>()
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">min_entry</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span>(<span class="ident">KeyRef</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">K</span><span class="op">&gt;</span>, <span class="kw-2">&amp;</span><span class="ident">V</span>)<span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">first</span>().<span class="ident">map</span>(<span class="op">|</span>(<span class="ident">key</span>, <span class="ident">v</span>)<span class="op">|</span> (<span class="ident">KeyRef</span> { <span class="ident">key</span>, <span class="ident">min_idx</span>: <span class="number">0</span> }, <span class="ident">v</span>))
+    }
+
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">max_key</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">K</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">last</span>().<span class="ident">map</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="kw-2">&amp;</span><span class="ident">e</span>.<span class="number">0</span>)
+    }
+
+    <span class="doccomment">/// Attempts to find the given `key`. If found, it returns `Ok` with the index of the key in the</span>
+    <span class="doccomment">/// underlying `Vec`. Otherwise it returns `Err` with the index where a matching element could be</span>
+    <span class="doccomment">/// inserted while maintaining sorted order.</span>
+    <span class="kw">fn</span> <span class="ident">find_k</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="ident">K</span>) -&gt; <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">usize</span>, <span class="ident">usize</span><span class="op">&gt;</span> {
+        <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">binary_search_by_key</span>(<span class="kw-2">&amp;</span><span class="ident">key</span>, <span class="op">|</span>(<span class="ident">k</span>, <span class="kw">_</span>)<span class="op">|</span> <span class="ident">k</span>)
+    }
+
+    <span class="doccomment">/// Directly insert into the underlying `Vec`. This does not maintain the sorting of elements</span>
+    <span class="doccomment">/// by itself.</span>
+    <span class="kw">fn</span> <span class="ident">insert_internal</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">idx</span>: <span class="ident">usize</span>, <span class="ident">key</span>: <span class="ident">K</span>, <span class="ident">value</span>: <span class="ident">V</span>) {
+        <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">insert</span>(<span class="ident">idx</span>, (<span class="ident">key</span>, <span class="ident">value</span>))
     }
 }
 
-<span class="kw">impl</span>&lt;K: Clone + Eq + Ord, V: Clone&gt; Clone <span class="kw">for </span>VecMap&lt;K, V&gt; {
-    <span class="kw">fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
-        VecMap { v: <span class="self">self</span>.v.clone() }
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">K</span>: <span class="ident">Clone</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Ord</span>, <span class="ident">V</span>: <span class="ident">Clone</span><span class="op">&gt;</span> <span class="ident">Clone</span> <span class="kw">for</span> <span class="ident">VecMap</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">clone</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self</span> {
+        <span class="ident">VecMap</span> { <span class="ident">v</span>: <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">clone</span>() }
     }
 }
 
-<span class="kw">impl</span>&lt;K: Ord + Eq + Debug, V: Debug&gt; Debug <span class="kw">for </span>VecMap&lt;K, V&gt; {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
-        <span class="self">self</span>.v.iter().collect::&lt;Vec&lt;<span class="kw-2">&amp;</span>(K, V)&gt;&gt;().fmt(f)
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">K</span>: <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Eq</span> <span class="op">+</span> <span class="ident">Debug</span>, <span class="ident">V</span>: <span class="ident">Debug</span><span class="op">&gt;</span> <span class="ident">Debug</span> <span class="kw">for</span> <span class="ident">VecMap</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">std::fmt::Result</span> {
+        <span class="self">self</span>.<span class="ident">v</span>.<span class="ident">iter</span>().<span class="ident">collect</span>::<span class="op">&lt;</span><span class="ident">Vec</span><span class="op">&lt;</span><span class="kw-2">&amp;</span>(<span class="ident">K</span>, <span class="ident">V</span>)<span class="op">&gt;</span><span class="op">&gt;</span>().<span class="ident">fmt</span>(<span class="ident">f</span>)
     }
 }
 
-<span class="kw">impl</span>&lt;K: Ord + Eq, V&gt; Default <span class="kw">for </span>VecMap&lt;K, V&gt; {
-    <span class="kw">fn </span>default() -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ v: Vec::new() }
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">K</span>: <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Eq</span>, <span class="ident">V</span><span class="op">&gt;</span> <span class="ident">Default</span> <span class="kw">for</span> <span class="ident">VecMap</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">default</span>() -&gt; <span class="self">Self</span> {
+        <span class="self">Self</span> { <span class="ident">v</span>: <span class="ident">Vec::new</span>() }
     }
 }
 
-<span class="doccomment">/// A view into a single entry in a map, which may either be vacant or occupied.
-</span><span class="kw">pub enum </span>Entry&lt;<span class="lifetime">&#39;a</span>, K, V&gt;
-<span class="kw">where
-    </span>K: Ord + Eq,
+<span class="doccomment">/// A view into a single entry in a map, which may either be vacant or occupied.</span>
+<span class="kw">pub</span> <span class="kw">enum</span> <span class="ident">Entry</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">K</span>: <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Eq</span>,
 {
-    <span class="doccomment">/// A vacant Entry
-    </span>Vacant(VacantEntry&lt;<span class="lifetime">&#39;a</span>, K, V&gt;),
+    <span class="doccomment">/// A vacant Entry</span>
+    <span class="ident">Vacant</span>(<span class="ident">VacantEntry</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>),
 
-    <span class="doccomment">/// An occupied Entry
-    </span>Occupied(OccupiedEntry&lt;<span class="lifetime">&#39;a</span>, K, V&gt;),
+    <span class="doccomment">/// An occupied Entry</span>
+    <span class="ident">Occupied</span>(<span class="ident">OccupiedEntry</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>),
 }
 
-<span class="doccomment">/// A vacant Entry.
-</span><span class="kw">pub struct </span>VacantEntry&lt;<span class="lifetime">&#39;a</span>, K, V&gt;
-<span class="kw">where
-    </span>K: Ord + Eq,
+<span class="doccomment">/// A vacant Entry.</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">VacantEntry</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">K</span>: <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Eq</span>,
 {
-    map: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>VecMap&lt;K, V&gt;,
-    key: K,
-    index: usize,
+    <span class="ident">map</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">VecMap</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>,
+    <span class="ident">key</span>: <span class="ident">K</span>,
+    <span class="ident">index</span>: <span class="ident">usize</span>,
 }
 
-<span class="doccomment">/// An occupied Entry.
-</span><span class="kw">pub struct </span>OccupiedEntry&lt;<span class="lifetime">&#39;a</span>, K, V&gt;
-<span class="kw">where
-    </span>K: Ord + Eq,
+<span class="doccomment">/// An occupied Entry.</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">OccupiedEntry</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">K</span>: <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Eq</span>,
 {
-    map: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>VecMap&lt;K, V&gt;,
-    key: K,
-    index: usize,
+    <span class="ident">map</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="kw-2">mut</span> <span class="ident">VecMap</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>,
+    <span class="ident">key</span>: <span class="ident">K</span>,
+    <span class="ident">index</span>: <span class="ident">usize</span>,
 }
 
-<span class="kw">impl</span>&lt;K, V&gt; Entry&lt;<span class="lifetime">&#39;_</span>, K, V&gt;
-<span class="kw">where
-    </span>K: Ord + Eq,
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span> <span class="ident">Entry</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">K</span>: <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Eq</span>,
 {
-    <span class="kw">pub fn </span>keyref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; KeyRef&lt;<span class="kw-2">&amp;</span>K&gt; {
-        <span class="kw">match </span><span class="self">self </span>{
-            Entry::Vacant(VacantEntry { key, index, .. }) =&gt; KeyRef { min_idx: <span class="kw-2">*</span>index, key },
-            Entry::Occupied(OccupiedEntry { key, index, .. }) =&gt; KeyRef { min_idx: <span class="kw-2">*</span>index, key },
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">keyref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">KeyRef</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">K</span><span class="op">&gt;</span> {
+        <span class="kw">match</span> <span class="self">self</span> {
+            <span class="ident">Entry::Vacant</span>(<span class="ident">VacantEntry</span> { <span class="ident">key</span>, <span class="ident">index</span>, .. }) =&gt; <span class="ident">KeyRef</span> { <span class="ident">min_idx</span>: <span class="kw-2">*</span><span class="ident">index</span>, <span class="ident">key</span> },
+            <span class="ident">Entry::Occupied</span>(<span class="ident">OccupiedEntry</span> { <span class="ident">key</span>, <span class="ident">index</span>, .. }) =&gt; <span class="ident">KeyRef</span> { <span class="ident">min_idx</span>: <span class="kw-2">*</span><span class="ident">index</span>, <span class="ident">key</span> },
         }
     }
 }
 
-<span class="kw">impl</span>&lt;K, V&gt; VacantEntry&lt;<span class="lifetime">&#39;_</span>, K, V&gt;
-<span class="kw">where
-    </span>K: Ord + Eq,
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span> <span class="ident">VacantEntry</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">K</span>: <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Eq</span>,
 {
-    <span class="doccomment">/// Sets the value of the entry with the VacantEntry&#39;s key,
-    /// and returns a mutable reference to it.
-    </span><span class="kw">pub fn </span>insert(<span class="self">self</span>, value: V) {
-        <span class="kw">let </span>index = <span class="self">self</span>.index;
-        <span class="self">self</span>.map.insert_internal(index, <span class="self">self</span>.key, value)
+    <span class="doccomment">/// Sets the value of the entry with the VacantEntry&#39;s key,</span>
+    <span class="doccomment">/// and returns a mutable reference to it.</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">insert</span>(<span class="self">self</span>, <span class="ident">value</span>: <span class="ident">V</span>) {
+        <span class="kw">let</span> <span class="ident">index</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">index</span>;
+        <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">insert_internal</span>(<span class="ident">index</span>, <span class="self">self</span>.<span class="ident">key</span>, <span class="ident">value</span>)
     }
 }
 
-<span class="kw">impl</span>&lt;K, V&gt; OccupiedEntry&lt;<span class="lifetime">&#39;_</span>, K, V&gt;
-<span class="kw">where
-    </span>K: Ord + Eq,
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span> <span class="ident">OccupiedEntry</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span>, <span class="ident">K</span>, <span class="ident">V</span><span class="op">&gt;</span>
+<span class="kw">where</span>
+    <span class="ident">K</span>: <span class="ident">Ord</span> <span class="op">+</span> <span class="ident">Eq</span>,
 {
-    <span class="kw">pub fn </span>replace(<span class="self">self</span>, value: V) {
-        <span class="self">self</span>.map.v[<span class="self">self</span>.index].<span class="number">1 </span>= value;
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">replace</span>(<span class="self">self</span>, <span class="ident">value</span>: <span class="ident">V</span>) {
+        <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">v</span>[<span class="self">self</span>.<span class="ident">index</span>].<span class="number">1</span> <span class="op">=</span> <span class="ident">value</span>;
     }
 
-    <span class="kw">pub fn </span>get_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut </span>V {
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>.map.v[<span class="self">self</span>.index].<span class="number">1
-    </span>}
-}
-
-<span class="doccomment">/// A key zipped with its internal index in this map.
-/// For some operations, like manually implemented iteration,
-/// the index can be used for optimisation.
-</span><span class="attribute">#[derive(Copy, Clone)]
-</span><span class="kw">pub struct </span>KeyRef&lt;K&gt; {
-    <span class="kw">pub </span>key: K,
-    <span class="doccomment">/// This is a lower bound on the actual index of key K,
-    /// it doesn&#39;t need to be the index (though it usually will be).
-    </span>min_idx: usize,
-}
-
-<span class="kw">impl</span>&lt;K: Clone&gt; KeyRef&lt;<span class="kw-2">&amp;</span>K&gt; {
-    <span class="attribute">#[inline]
-    </span><span class="kw">pub fn </span>cloned(<span class="self">self</span>) -&gt; KeyRef&lt;K&gt; {
-        KeyRef { min_idx: <span class="self">self</span>.min_idx, key: <span class="self">self</span>.key.clone() }
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">get_mut</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>) -&gt; <span class="kw-2">&amp;mut</span> <span class="ident">V</span> {
+        <span class="kw-2">&amp;mut</span> <span class="self">self</span>.<span class="ident">map</span>.<span class="ident">v</span>[<span class="self">self</span>.<span class="ident">index</span>].<span class="number">1</span>
     }
 }
 
-<span class="kw">impl</span>&lt;K&gt; KeyRef&lt;K&gt; {
-    <span class="attribute">#[inline]
-    </span><span class="kw">pub fn </span>as_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; KeyRef&lt;<span class="kw-2">&amp;</span>K&gt; {
-        KeyRef { min_idx: <span class="self">self</span>.min_idx, key: <span class="kw-2">&amp;</span><span class="self">self</span>.key }
+<span class="doccomment">/// A key zipped with its internal index in this map.</span>
+<span class="doccomment">/// For some operations, like manually implemented iteration,</span>
+<span class="doccomment">/// the index can be used for optimisation.</span>
+<span class="attribute">#[<span class="ident">derive</span>(<span class="ident">Copy</span>, <span class="ident">Clone</span>)]</span>
+<span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">KeyRef</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span> {
+    <span class="kw">pub</span> <span class="ident">key</span>: <span class="ident">K</span>,
+    <span class="doccomment">/// This is a lower bound on the actual index of key K,</span>
+    <span class="doccomment">/// it doesn&#39;t need to be the index (though it usually will be).</span>
+    <span class="ident">min_idx</span>: <span class="ident">usize</span>,
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">K</span>: <span class="ident">Clone</span><span class="op">&gt;</span> <span class="ident">KeyRef</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">K</span><span class="op">&gt;</span> {
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">cloned</span>(<span class="self">self</span>) -&gt; <span class="ident">KeyRef</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span> {
+        <span class="ident">KeyRef</span> { <span class="ident">min_idx</span>: <span class="self">self</span>.<span class="ident">min_idx</span>, <span class="ident">key</span>: <span class="self">self</span>.<span class="ident">key</span>.<span class="ident">clone</span>() }
     }
 }
 
-<span class="kw">impl</span>&lt;K: Display&gt; Display <span class="kw">for </span>KeyRef&lt;K&gt; {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
-        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.key)
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span> <span class="ident">KeyRef</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span> {
+    <span class="attribute">#[<span class="ident">inline</span>]</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">as_ref</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">KeyRef</span><span class="op">&lt;</span><span class="kw-2">&amp;</span><span class="ident">K</span><span class="op">&gt;</span> {
+        <span class="ident">KeyRef</span> { <span class="ident">min_idx</span>: <span class="self">self</span>.<span class="ident">min_idx</span>, <span class="ident">key</span>: <span class="kw-2">&amp;</span><span class="self">self</span>.<span class="ident">key</span> }
     }
 }
 
-<span class="kw">impl</span>&lt;K&gt; From&lt;K&gt; <span class="kw">for </span>KeyRef&lt;K&gt; {
-    <span class="kw">fn </span>from(key: K) -&gt; <span class="self">Self </span>{
-        <span class="self">Self </span>{ key, min_idx: <span class="number">0 </span>}
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">K</span>: <span class="ident">Display</span><span class="op">&gt;</span> <span class="ident">Display</span> <span class="kw">for</span> <span class="ident">KeyRef</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">fmt</span>(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="ident">f</span>: <span class="kw-2">&amp;mut</span> <span class="ident">Formatter</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) -&gt; <span class="ident">std::fmt::Result</span> {
+        <span class="macro">write!</span>(<span class="ident">f</span>, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="ident">key</span>)
+    }
+}
+
+<span class="kw">impl</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span> <span class="ident">From</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span> <span class="kw">for</span> <span class="ident">KeyRef</span><span class="op">&lt;</span><span class="ident">K</span><span class="op">&gt;</span> {
+    <span class="kw">fn</span> <span class="ident">from</span>(<span class="ident">key</span>: <span class="ident">K</span>) -&gt; <span class="self">Self</span> {
+        <span class="self">Self</span> { <span class="ident">key</span>, <span class="ident">min_idx</span>: <span class="number">0</span> }
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (4b8f43199 2022-10-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>

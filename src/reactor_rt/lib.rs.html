@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" href="../../normalize.css"><link rel="stylesheet" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" href="../../ayu.css" disabled><link rel="stylesheet" href="../../dark.css" disabled><link rel="stylesheet" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><a class="sidebar-logo" href="../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../reactor_rt/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><span id="1">1</span>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/lib.rs`."><meta name="keywords" content="rust, rustlang, rust-lang"><title>lib.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Regular.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../FiraSans-Medium.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Regular.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceSerif4-Bold.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../SourceCodePro-Semibold.ttf.woff2"><link rel="stylesheet" type="text/css" href="../../normalize.css"><link rel="stylesheet" type="text/css" href="../../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../../ayu.css" disabled><link rel="stylesheet" type="text/css" href="../../dark.css" disabled><link rel="stylesheet" type="text/css" href="../../light.css" id="themeStyle"><script id="default-settings" ></script><script src="../../storage.js"></script><script defer src="../../source-script.js"></script><script defer src="../../source-files.js"></script><script defer src="../../main.js"></script><noscript><link rel="stylesheet" href="../../noscript.css"></noscript><link rel="alternate icon" type="image/png" href="../../favicon-16x16.png"><link rel="alternate icon" type="image/png" href="../../favicon-32x32.png"><link rel="icon" type="image/svg+xml" href="../../favicon.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle">&#9776;</button><a class="sidebar-logo" href="../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a><h2 class="location"></h2></nav><nav class="sidebar"><a class="sidebar-logo" href="../../reactor_rt/index.html"><div class="logo-container"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></div></a></nav><main><div class="width-limiter"><div class="sub-container"><a class="sub-logo-container" href="../../reactor_rt/index.html"><img class="rust-logo" src="../../rust-logo.svg" alt="logo"></a><nav class="sub"><form class="search-form"><div class="search-container"><span></span><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><button type="button">?</button></div><div id="settings-menu" tabindex="-1"><a href="../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../wheel.svg"></a></div></div></form></nav></div><section id="main-content" class="content"><div class="example-wrap"><pre class="line-numbers"><span id="1">1</span>
 <span id="2">2</span>
 <span id="3">3</span>
 <span id="4">4</span>
@@ -185,148 +185,148 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ */</span>
 
-</span><span class="doccomment">//! The runtime library for reactor programs generated by LFC,
-//! the [Lingua Franca](https://github.com/lf-lang/lingua-franca) compiler.
-//!
-//! Most of this crate consists of types that are manipulated
-//! only by the generated code. User-written Rust code mostly
-//! interacts with the type [ReactionCtx], which is the entry
-//! point for user documentation.
-//!
-//! Crate-level features include:
-//! - `parallel-runtime`: use Rayon to execute reactions in parallel
-//! when possible. This is not yet the default. For some applications,
-//! where there is no data parallelism, this may harm performance
-//! (as well as pull in unneeded dependencies) and should be off.
-//! - `wide-ids`: Enables 64-bit wide reaction ids on 64-bit
-//! architectures. This may reduce performance, but allows for
-//! 2^32 reactor instances compared to the default of 2^16,
-//! which may feel a bit tight for some applications. On machines
-//! with a pointer-width of less than 64 bits, ID types are
-//! always 32 bits. The feature also widens trigger ids to 64 bits
-//! if possible, which enables 2^64 individual trigger components
-//! (ports, actions, etc.) instead of 2^32.
-//! - `vec-id-sets`: Change the implementation of reaction sets
-//! to be a sorted vector instead of a hash set. This has a positive
-//! performance impact, as reaction sets are typically very small.
-//! More testing is required to determine pathological cases.
-//! This is a default feature.
-//! - `no-unsafe`: disable optimisations that use unsafe code in this runtime.
-//! Just provided for comparison, should probably be removed (unsafe code is fine).
+<span class="doccomment">//! The runtime library for reactor programs generated by LFC,</span>
+<span class="doccomment">//! the [Lingua Franca](https://github.com/lf-lang/lingua-franca) compiler.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Most of this crate consists of types that are manipulated</span>
+<span class="doccomment">//! only by the generated code. User-written Rust code mostly</span>
+<span class="doccomment">//! interacts with the type [ReactionCtx], which is the entry</span>
+<span class="doccomment">//! point for user documentation.</span>
+<span class="doccomment">//!</span>
+<span class="doccomment">//! Crate-level features include:</span>
+<span class="doccomment">//! - `parallel-runtime`: use Rayon to execute reactions in parallel</span>
+<span class="doccomment">//! when possible. This is not yet the default. For some applications,</span>
+<span class="doccomment">//! where there is no data parallelism, this may harm performance</span>
+<span class="doccomment">//! (as well as pull in unneeded dependencies) and should be off.</span>
+<span class="doccomment">//! - `wide-ids`: Enables 64-bit wide reaction ids on 64-bit</span>
+<span class="doccomment">//! architectures. This may reduce performance, but allows for</span>
+<span class="doccomment">//! 2^32 reactor instances compared to the default of 2^16,</span>
+<span class="doccomment">//! which may feel a bit tight for some applications. On machines</span>
+<span class="doccomment">//! with a pointer-width of less than 64 bits, ID types are</span>
+<span class="doccomment">//! always 32 bits. The feature also widens trigger ids to 64 bits</span>
+<span class="doccomment">//! if possible, which enables 2^64 individual trigger components</span>
+<span class="doccomment">//! (ports, actions, etc.) instead of 2^32.</span>
+<span class="doccomment">//! - `vec-id-sets`: Change the implementation of reaction sets</span>
+<span class="doccomment">//! to be a sorted vector instead of a hash set. This has a positive</span>
+<span class="doccomment">//! performance impact, as reaction sets are typically very small.</span>
+<span class="doccomment">//! More testing is required to determine pathological cases.</span>
+<span class="doccomment">//! This is a default feature.</span>
+<span class="doccomment">//! - `no-unsafe`: disable optimisations that use unsafe code in this runtime.</span>
+<span class="doccomment">//! Just provided for comparison, should probably be removed (unsafe code is fine).</span>
 
-</span><span class="comment">// #![deny(unused_crate_dependencies)]
-</span><span class="attribute">#![deny(unused_extern_crates)]
-</span><span class="comment">// #![warn(unreachable_pub)]
-</span><span class="attribute">#![warn(unused_lifetimes)]
-#![warn(single_use_lifetimes)]
-#![warn(explicit_outlives_requirements)]
+<span class="comment">// #![deny(unused_crate_dependencies)]</span>
+<span class="attribute">#![<span class="ident">deny</span>(<span class="ident">unused_extern_crates</span>)]</span>
+<span class="comment">// #![warn(unreachable_pub)]</span>
+<span class="attribute">#![<span class="ident">warn</span>(<span class="ident">unused_lifetimes</span>)]</span>
+<span class="attribute">#![<span class="ident">warn</span>(<span class="ident">single_use_lifetimes</span>)]</span>
+<span class="attribute">#![<span class="ident">warn</span>(<span class="ident">explicit_outlives_requirements</span>)]</span>
 
-#[macro_use]
-</span><span class="kw">extern crate </span>array_macro;
-<span class="attribute">#[cfg(test)]
-#[macro_use]
-#[allow(unused)]
-</span><span class="kw">extern crate </span>assert_matches;
-<span class="attribute">#[macro_use]
-</span><span class="kw">extern crate </span>index_vec;
-<span class="attribute">#[macro_use]
-</span><span class="kw">extern crate </span>log;
-<span class="attribute">#[cfg(feature = <span class="string">&quot;parallel-runtime&quot;</span>)]
-</span><span class="kw">extern crate </span>rayon;
-<span class="attribute">#[macro_use]
-</span><span class="kw">extern crate </span>smallvec;
-<span class="attribute">#[macro_use]
-</span><span class="kw">extern crate </span>static_assertions;
-<span class="attribute">#[macro_use]
-</span><span class="kw">extern crate </span>cfg_if;
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">array_macro</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="attribute">#[<span class="ident">allow</span>(<span class="ident">unused</span>)]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">assert_matches</span>;
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">index_vec</span>;
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">log</span>;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;parallel-runtime&quot;</span>)]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">rayon</span>;
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">smallvec</span>;
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">static_assertions</span>;
+<span class="attribute">#[<span class="ident">macro_use</span>]</span>
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">cfg_if</span>;
 
-<span class="kw">pub use </span>std::time::{Duration, Instant};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">std::time</span>::{<span class="ident">Duration</span>, <span class="ident">Instant</span>};
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>scheduler::debug::<span class="kw-2">*</span>;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use</span> <span class="ident">scheduler::debug</span>::<span class="kw-2">*</span>;
 
-<span class="kw">pub use </span><span class="self">self</span>::actions::<span class="kw-2">*</span>;
-<span class="kw">pub use </span><span class="self">self</span>::ids::<span class="kw-2">*</span>;
-<span class="kw">pub use </span><span class="self">self</span>::ports::<span class="kw-2">*</span>;
-<span class="kw">pub use </span><span class="self">self</span>::scheduler::<span class="kw-2">*</span>;
-<span class="kw">pub use </span><span class="self">self</span>::time::<span class="kw-2">*</span>;
-<span class="kw">pub use </span><span class="self">self</span>::timers::<span class="kw-2">*</span>;
-<span class="kw">pub use </span><span class="self">self</span>::triggers::ReactionTrigger;
-<span class="kw">pub use </span><span class="self">self</span>::util::<span class="kw-2">*</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::actions</span>::<span class="kw-2">*</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::ids</span>::<span class="kw-2">*</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::ports</span>::<span class="kw-2">*</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::scheduler</span>::<span class="kw-2">*</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::time</span>::<span class="kw-2">*</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::timers</span>::<span class="kw-2">*</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::triggers::ReactionTrigger</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="self">self</span>::util</span>::<span class="kw-2">*</span>;
 
-<span class="attribute">#[cfg(test)]
-</span><span class="kw">pub mod </span>test;
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">test</span>)]</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">test</span>;
 
-<span class="kw">mod </span>actions;
-<span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">mod </span>ids;
-<span class="kw">mod </span>ports;
-<span class="kw">mod </span>scheduler;
-<span class="kw">mod </span>time;
-<span class="kw">mod </span>timers;
-<span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">mod </span>triggers;
-<span class="kw">mod </span>util;
+<span class="kw">mod</span> <span class="ident">actions</span>;
+<span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">mod</span> <span class="ident">ids</span>;
+<span class="kw">mod</span> <span class="ident">ports</span>;
+<span class="kw">mod</span> <span class="ident">scheduler</span>;
+<span class="kw">mod</span> <span class="ident">time</span>;
+<span class="kw">mod</span> <span class="ident">timers</span>;
+<span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">mod</span> <span class="ident">triggers</span>;
+<span class="kw">mod</span> <span class="ident">util</span>;
 
-<span class="kw">pub mod </span>assembly;
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">assembly</span>;
 
-<span class="doccomment">/// The prelude that is imported at the top of reactor files
-/// generated by LFC.
-</span><span class="kw">pub mod </span>prelude {
-    <span class="kw">pub use </span><span class="kw">crate</span>::Offset::<span class="kw-2">*</span>;
-    <span class="kw">pub use crate</span>::{
-        after, assert_tag_is, delay, tag, AsyncCtx, Duration, EventTag, Instant, LogicalAction, PhysicalActionRef, Port,
-        PortBank, ReactionCtx, Timer,
+<span class="doccomment">/// The prelude that is imported at the top of reactor files</span>
+<span class="doccomment">/// generated by LFC.</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">prelude</span> {
+    <span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::Offset</span>::<span class="kw-2">*</span>;
+    <span class="kw">pub</span> <span class="kw">use</span> <span class="kw">crate</span>::{
+        <span class="ident">after</span>, <span class="ident">assert_tag_is</span>, <span class="ident">delay</span>, <span class="ident">tag</span>, <span class="ident">AsyncCtx</span>, <span class="ident">Duration</span>, <span class="ident">EventTag</span>, <span class="ident">Instant</span>, <span class="ident">LogicalAction</span>, <span class="ident">PhysicalActionRef</span>, <span class="ident">ReactionCtx</span>,
+        <span class="ident">ReadablePort</span>, <span class="ident">ReadablePortBank</span>, <span class="ident">Timer</span>, <span class="ident">WritablePort</span>, <span class="ident">WritablePortBank</span>,
     };
 
-    <span class="doccomment">/// Alias for the unit type, so that it can be written without quotes in LF.
-    /// Otherwise it needs to be written `{= () =}`.
-    /// It is not camel-case as it is actually a primitive type.
-    </span><span class="attribute">#[allow(non_camel_case_types)]
-    </span><span class="kw">pub type </span>unit = ();
+    <span class="doccomment">/// Alias for the unit type, so that it can be written without quotes in LF.</span>
+    <span class="doccomment">/// Otherwise it needs to be written `{= () =}`.</span>
+    <span class="doccomment">/// It is not camel-case as it is actually a primitive type.</span>
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">non_camel_case_types</span>)]</span>
+    <span class="kw">pub</span> <span class="kw">type</span> <span class="ident">unit</span> <span class="op">=</span> ();
 }
 
-<span class="doccomment">/// The trait used by the framework to interact with the reactor
-/// during runtime.
-///
-/// Importantly, it&#39;s object-safe and has no type parameters
-/// or associated types. This allows us to wrap it into a
-/// `Box&lt;dyn ReactorBehavior&gt;`.
-</span><span class="kw">pub trait </span>ReactorBehavior {
-    <span class="doccomment">/// The unique ID of this reactor. This is given by the
-    /// framework upon construction.
-    </span><span class="kw">fn </span>id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ReactorId;
+<span class="doccomment">/// The trait used by the framework to interact with the reactor</span>
+<span class="doccomment">/// during runtime.</span>
+<span class="doccomment">///</span>
+<span class="doccomment">/// Importantly, it&#39;s object-safe and has no type parameters</span>
+<span class="doccomment">/// or associated types. This allows us to wrap it into a</span>
+<span class="doccomment">/// `Box&lt;dyn ReactorBehavior&gt;`.</span>
+<span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">ReactorBehavior</span> {
+    <span class="doccomment">/// The unique ID of this reactor. This is given by the</span>
+    <span class="doccomment">/// framework upon construction.</span>
+    <span class="kw">fn</span> <span class="ident">id</span>(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="ident">ReactorId</span>;
 
-    <span class="doccomment">/// Execute a single user-written reaction.
-    /// Dispatches on the reaction id, and unpacks parameters,
-    /// which are the reactor components declared as fields of
-    /// this struct.
-    ///
-    /// It must always be the case that `local_rid &lt; Self::MAX_REACTION_ID`,
-    /// where `Self::MAX_REACTION_ID` is defined by the [assembly::ReactorInitializer],
-    /// because of object safety.
-    </span><span class="kw">fn </span>react(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ctx: <span class="kw-2">&amp;mut </span>ReactionCtx, local_rid: LocalReactionId);
+    <span class="doccomment">/// Execute a single user-written reaction.</span>
+    <span class="doccomment">/// Dispatches on the reaction id, and unpacks parameters,</span>
+    <span class="doccomment">/// which are the reactor components declared as fields of</span>
+    <span class="doccomment">/// this struct.</span>
+    <span class="doccomment">///</span>
+    <span class="doccomment">/// It must always be the case that `local_rid &lt; Self::MAX_REACTION_ID`,</span>
+    <span class="doccomment">/// where `Self::MAX_REACTION_ID` is defined by the [assembly::ReactorInitializer],</span>
+    <span class="doccomment">/// because of object safety.</span>
+    <span class="kw">fn</span> <span class="ident">react</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">ctx</span>: <span class="kw-2">&amp;mut</span> <span class="ident">ReactionCtx</span>, <span class="ident">local_rid</span>: <span class="ident">LocalReactionId</span>);
 
-    <span class="doccomment">/// Acknowledge that the given tag is done executing and
-    /// free resources if need be.
-    </span><span class="kw">fn </span>cleanup_tag(<span class="kw-2">&amp;mut </span><span class="self">self</span>, ctx: <span class="kw-2">&amp;</span>CleanupCtx);
+    <span class="doccomment">/// Acknowledge that the given tag is done executing and</span>
+    <span class="doccomment">/// free resources if need be.</span>
+    <span class="kw">fn</span> <span class="ident">cleanup_tag</span>(<span class="kw-2">&amp;mut</span> <span class="self">self</span>, <span class="ident">ctx</span>: <span class="kw-2">&amp;</span><span class="ident">CleanupCtx</span>);
 }
-<span class="macro">assert_obj_safe!</span>(ReactorBehavior);
+<span class="macro">assert_obj_safe!</span>(<span class="ident">ReactorBehavior</span>);
 
-<span class="doccomment">/// Used for benchmarking to access private API of the crate.
-</span><span class="attribute">#[cfg(feature = <span class="string">&quot;public-internals&quot;</span>)]
-#[doc(hidden)]
-</span><span class="kw">pub mod </span>internals {
-    <span class="kw">pub mod </span>vecmap {
-        <span class="kw">pub use </span><span class="kw">crate</span>::util::vecmap::<span class="kw-2">*</span>;
+<span class="doccomment">/// Used for benchmarking to access private API of the crate.</span>
+<span class="attribute">#[<span class="ident">cfg</span>(<span class="ident">feature</span> <span class="op">=</span> <span class="string">&quot;public-internals&quot;</span>)]</span>
+<span class="attribute">#[<span class="ident">doc</span>(<span class="ident">hidden</span>)]</span>
+<span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">internals</span> {
+    <span class="kw">pub</span> <span class="kw">mod</span> <span class="ident">vecmap</span> {
+        <span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::util::vecmap</span>::<span class="kw-2">*</span>;
     }
 
-    <span class="kw">pub use </span><span class="kw">crate</span>::ids::impl_types::<span class="kw-2">*</span>;
-    <span class="kw">pub use </span><span class="kw">crate</span>::scheduler::internals::<span class="kw-2">*</span>;
-    <span class="kw">use crate</span>::{GlobalId, GlobalReactionId};
+    <span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::ids::impl_types</span>::<span class="kw-2">*</span>;
+    <span class="kw">pub</span> <span class="kw">use</span> <span class="ident"><span class="kw">crate</span>::scheduler::internals</span>::<span class="kw-2">*</span>;
+    <span class="kw">use</span> <span class="kw">crate</span>::{<span class="ident">GlobalId</span>, <span class="ident">GlobalReactionId</span>};
 
-    <span class="kw">pub fn </span>new_global_rid(u: GlobalIdImpl) -&gt; GlobalReactionId {
-        GlobalReactionId(GlobalId::from_raw(u))
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">new_global_rid</span>(<span class="ident">u</span>: <span class="ident">GlobalIdImpl</span>) -&gt; <span class="ident">GlobalReactionId</span> {
+        <span class="ident">GlobalReactionId</span>(<span class="ident">GlobalId::from_raw</span>(<span class="ident">u</span>))
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0-nightly (4b8f43199 2022-10-19)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.64.0 (a55dd71d5 2022-09-19)" ></div></body></html>
