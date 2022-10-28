@@ -112,7 +112,7 @@ where
     /// Receiver through which asynchronous events are
     /// communicated to the scheduler. We only block when
     /// no events are ready to be processed.
-    rx: Receiver<Event<'x>>,
+    rx: Receiver<PhysicalEvent>,
 
     /// Initial time of the logical system.
     #[allow(unused)] // might be useful someday
@@ -204,6 +204,7 @@ where
         loop {
             // flush pending events, this doesn't block
             for evt in self.rx.try_iter() {
+                let evt = evt.make_executable(self.dataflow);
                 push_event!(self, evt);
             }
 
@@ -216,6 +217,7 @@ where
                 match self.catch_up_physical_time(evt.tag.to_logical_time(self.initial_time)) {
                     Ok(_) => {}
                     Err(async_event) => {
+                        let async_event = async_event.make_executable(self.dataflow);
                         // an asynchronous event woke our sleep
                         if async_event.tag < evt.tag {
                             // reinsert both events to order them and try again.
@@ -236,6 +238,7 @@ where
 
                 self.process_tag(false, evt.tag, evt.reactions);
             } else if let Some(evt) = self.receive_event() {
+                let evt = evt.make_executable(self.dataflow);
                 // this may block
                 push_event!(self, evt);
                 continue;
@@ -271,7 +274,7 @@ where
             warn!("'keepalive' runtime parameter has no effect in the Rust target")
         }
 
-        let (_, rx) = unbounded::<Event<'x>>();
+        let (_, rx) = unbounded::<PhysicalEvent>();
         Self {
             rx,
 
@@ -327,7 +330,7 @@ where
 
     /// Wait for an asynchronous event for as long as we can
     /// expect it.
-    fn receive_event(&mut self) -> Option<Event<'x>> {
+    fn receive_event(&mut self) -> Option<PhysicalEvent> {
         if let Some(shutdown_t) = self.shutdown_time {
             let absolute = shutdown_t.to_logical_time(self.initial_time);
             if let Some(timeout) = absolute.checked_duration_since(Instant::now()) {
@@ -345,7 +348,7 @@ where
 
     /// Sleep/wait until the given time OR an asynchronous
     /// event is received first.
-    fn catch_up_physical_time(&mut self, target: Instant) -> Result<(), Event<'x>> {
+    fn catch_up_physical_time(&mut self, target: Instant) -> Result<(), PhysicalEvent> {
         let now = Instant::now();
 
         if now < target {
@@ -391,7 +394,7 @@ where
         &self,
         tag: EventTag,
         todo: ReactionPlan<'x>,
-        rx: &'a Receiver<Event<'x>>,
+        rx: &'a Receiver<PhysicalEvent>,
         debug_info: DebugInfoProvider<'a>,
         was_terminated_atomic: &'a Arc<AtomicBool>,
         was_terminated: bool,

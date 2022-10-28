@@ -38,7 +38,7 @@ where
     current_reaction: Option<GlobalReactionId>,
 
     /// Sender to schedule events that should be executed later than this wave.
-    rx: &'a Receiver<Event<'x>>,
+    rx: &'a Receiver<PhysicalEvent>,
 
     /// Start time of the program.
     initial_time: Instant,
@@ -415,19 +415,17 @@ where
     ///
     pub fn spawn_physical_thread<F, R>(&mut self, f: F) -> ScopedJoinHandle<R>
     where
-        F: FnOnce(&mut AsyncCtx<'_, 'x, 't>) -> R,
+        F: FnOnce(&mut AsyncCtx<'_, 't>) -> R,
         F: 'x + Send,
         R: 'x + Send,
     {
         let tx = self.rx.new_sender();
-        let dataflow = self.dataflow;
         let initial_time = self.initial_time;
         let was_terminated = self.was_terminated_atomic.clone();
 
         self.thread_spawner.spawn(move |subscope| {
             let mut link = AsyncCtx {
                 tx,
-                dataflow,
                 initial_time,
                 thread_spawner: subscope,
                 was_terminated,
@@ -504,7 +502,7 @@ where
     }
 
     pub(super) fn new(
-        rx: &'a Receiver<Event<'x>>,
+        rx: &'a Receiver<PhysicalEvent>,
         tag: EventTag,
         initial_time: Instant,
         todo: ReactionPlan<'x>,
@@ -589,17 +587,16 @@ impl RContextForwardableStuff<'_> {
 /// See [ReactionCtx::spawn_physical_thread].
 ///
 #[derive(Clone)]
-pub struct AsyncCtx<'a, 'x, 't> {
-    tx: Sender<Event<'x>>,
+pub struct AsyncCtx<'a, 't> {
+    tx: Sender<PhysicalEvent>,
     initial_time: Instant,
-    dataflow: &'x DataflowInfo,
     /// Whether the scheduler has been terminated.
     was_terminated: Arc<AtomicBool>,
     #[allow(unused)] // maybe add a spawn_physical_thread to this type
     thread_spawner: &'a Scope<'t>,
 }
 
-impl AsyncCtx<'_, '_, '_> {
+impl AsyncCtx<'_, '_> {
     /// Returns true if the scheduler has been shutdown. When
     /// that's true, calls to other methods of this type will
     /// fail with [SendError].
@@ -621,7 +618,7 @@ impl AsyncCtx<'_, '_, '_> {
         // this event is scheduled for the future
         let tag = EventTag::absolute(self.initial_time, Instant::now() + offset.to_duration());
 
-        let evt = Event::terminate_at(tag);
+        let evt = PhysicalEvent::terminate_at(tag);
         self.tx.send(evt).map_err(|e| {
             warn!("Event could not be sent! {:?}", e);
             SendError(())
@@ -675,8 +672,7 @@ impl AsyncCtx<'_, '_, '_> {
                 let tag = EventTag::absolute(self.initial_time, Instant::now() + offset.to_duration());
                 action.0.schedule_future_value(tag, value);
 
-                let downstream = self.dataflow.reactions_triggered_by(&action.get_id());
-                let evt = Event::execute(tag, Cow::Borrowed(downstream));
+                let evt = PhysicalEvent::trigger(tag, action.get_id());
                 self.tx.send(evt).map_err(|e| {
                     warn!("Event could not be sent! {:?}", e);
                     SendError(action.0.forget_value(&tag))

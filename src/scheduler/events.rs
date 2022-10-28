@@ -4,7 +4,8 @@ use std::fmt::{Display, Formatter};
 use std::time::Instant;
 
 use super::ReactionPlan;
-use crate::scheduler::dependencies::ExecutableReactions;
+use crate::scheduler::dependencies::{DataflowInfo, ExecutableReactions};
+use crate::triggers::TriggerId;
 use crate::*;
 
 /// The tag of an event.
@@ -155,6 +156,37 @@ impl<'x> Event<'x> {
     }
     pub fn terminate_at(tag: EventTag) -> Self {
         Self { tag, reactions: None, terminate: true }
+    }
+}
+
+/// An event sent by a physical action from an asynchronous
+/// thread. This is distinct from [Event] so as not to have
+/// to send references, which require quantifying the lifetime
+/// of the event and event queue and everything.
+pub(super) struct PhysicalEvent {
+    /// The tag.
+    pub tag: EventTag,
+    /// The ID of the physical action that triggered this event.
+    pub trigger_id: Option<TriggerId>,
+    pub terminate: bool,
+}
+
+impl PhysicalEvent {
+    /// Turn a [PhysicalEvent] into an [Event] within the scheduler.
+    pub(super) fn make_executable(self, dataflow: &DataflowInfo) -> Event {
+        let PhysicalEvent { tag, trigger_id, terminate } = self;
+        Event {
+            tag,
+            terminate,
+            reactions: trigger_id.map(|id| Cow::Borrowed(dataflow.reactions_triggered_by(&id))),
+        }
+    }
+
+    pub fn trigger(tag: EventTag, trigger: TriggerId) -> Self {
+        Self { tag, trigger_id: Some(trigger), terminate: false }
+    }
+    pub fn terminate_at(tag: EventTag) -> Self {
+        Self { tag, trigger_id: None, terminate: true }
     }
 }
 
