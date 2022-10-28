@@ -28,7 +28,6 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use crossbeam_channel::reconnectable::*;
-use crossbeam_utils::thread::{scope, Scope};
 
 use super::assembly_impl::RootAssembler;
 use super::*;
@@ -88,20 +87,13 @@ macro_rules! push_event {
 /// 'x allows us to take references into the dataflow graph, and
 /// 't to spawn new scoped threads for physical actions. 'a is more
 /// useless but is needed to compile.
-pub struct SyncScheduler<'a, 'x, 't>
-where
-    'x: 't,
-{
+pub struct SyncScheduler<'x> {
     /// The latest processed logical time (necessarily behind physical time).
     latest_processed_tag: Option<EventTag>,
 
     /// Reference to the data flow graph, which allows us to
     /// order reactions properly for each tag.
     dataflow: &'x DataflowInfo,
-
-    /// Can spawn scoped threads, which are used for threads
-    /// producing physical actions.
-    thread_spawner: &'a Scope<'t>,
 
     /// All reactors.
     reactors: ReactorVec<'x>,
@@ -135,10 +127,7 @@ where
     id_registry: DebugInfoRegistry,
 }
 
-impl<'a, 'x, 't> SyncScheduler<'a, 'x, 't>
-where
-    'x: 't,
-{
+impl<'x> SyncScheduler<'x> {
     pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
         let start = Instant::now();
         info!("Starting assembly...");
@@ -167,30 +156,27 @@ where
         // dataflow_info outlives 't, so that physical contexts
         // can be spawned in threads that capture references
         // to 'x.
-        scope(|scope| {
-            let initial_time = Instant::now();
-            #[cfg(feature = "parallel-runtime")]
-            let rayon_thread_pool = rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap();
+        let initial_time = Instant::now();
+        #[cfg(feature = "parallel-runtime")]
+        let rayon_thread_pool = rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap();
 
-            let scheduler = SyncScheduler::new(options, id_registry, &dataflow_info, scope, reactors, initial_time);
+        let scheduler = SyncScheduler::new(options, id_registry, &dataflow_info, reactors, initial_time);
 
-            cfg_if::cfg_if! {
-                if #[cfg(feature = "parallel-runtime")] {
-                    /// The unsafe impl is safe if scheduler instances
-                    /// are only sent between threads like this (their Rc
-                    /// internals are not copied).
-                    /// So long as the framework entirely controls the lifetime
-                    /// of SyncScheduler instances, this is enforceable.
-                    unsafe impl Send for SyncScheduler<'_, '_, '_> {}
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "parallel-runtime")] {
+                /// The unsafe impl is safe if scheduler instances
+                /// are only sent between threads like this (their Rc
+                /// internals are not copied).
+                /// So long as the framework entirely controls the lifetime
+                /// of SyncScheduler instances, this is enforceable.
+                unsafe impl Send for SyncScheduler<'_> {}
 
-                    // install makes calls to parallel iterators use that thread pool
-                    rayon_thread_pool.install(|| scheduler.launch_event_loop());
-                } else {
-                    scheduler.launch_event_loop();
-                }
+                // install makes calls to parallel iterators use that thread pool
+                rayon_thread_pool.install(|| scheduler.launch_event_loop());
+            } else {
+                scheduler.launch_event_loop();
             }
-        })
-        .unwrap();
+        }
     }
 
     /// Launch the event loop in this thread.
@@ -262,7 +248,6 @@ where
         options: SchedulerOptions,
         id_registry: DebugInfoRegistry,
         dependency_info: &'x DataflowInfo,
-        thread_spawner: &'a Scope<'t>,
         reactors: ReactorVec<'x>,
         initial_time: Instant,
     ) -> Self {
@@ -290,7 +275,6 @@ where
             }),
             dataflow: dependency_info,
             id_registry,
-            thread_spawner,
             was_terminated: Default::default(),
         }
     }
@@ -390,7 +374,7 @@ where
 
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    fn new_reaction_ctx(
+    fn new_reaction_ctx<'a>(
         &self,
         tag: EventTag,
         todo: ReactionPlan<'x>,
@@ -398,14 +382,13 @@ where
         debug_info: DebugInfoProvider<'a>,
         was_terminated_atomic: &'a Arc<AtomicBool>,
         was_terminated: bool,
-    ) -> ReactionCtx<'a, 'x, 't> {
+    ) -> ReactionCtx<'a, 'x> {
         ReactionCtx::new(
             rx,
             tag,
             self.initial_time,
             todo,
             self.dataflow,
-            self.thread_spawner,
             debug_info,
             was_terminated_atomic,
             was_terminated,
@@ -480,7 +463,7 @@ mod parallel_rt_impl {
     use super::*;
     use crate::scheduler::dependencies::Level;
 
-    pub(super) fn process_batch(ctx: &mut ReactionCtx<'_, '_, '_>, reactors: &mut ReactorVec<'_>, batch: &Level) {
+    pub(super) fn process_batch(ctx: &mut ReactionCtx<'_, '_>, reactors: &mut ReactorVec<'_>, batch: &Level) {
         let reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
 
         ctx.insides.absorb(
@@ -515,9 +498,9 @@ mod parallel_rt_impl {
 
     /// We need a Clone bound to use fold_with, but this clone
     /// implementation is not general purpose so I hide it.
-    struct CloneableCtx<'a, 'x, 't>(ReactionCtx<'a, 'x, 't>);
+    struct CloneableCtx<'a, 'x>(ReactionCtx<'a, 'x>);
 
-    impl Clone for CloneableCtx<'_, '_, '_> {
+    impl Clone for CloneableCtx<'_, '_> {
         fn clone(&self) -> Self {
             Self(self.0.fork())
         }

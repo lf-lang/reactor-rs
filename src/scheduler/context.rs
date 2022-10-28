@@ -2,9 +2,9 @@ use std::borrow::{Borrow, BorrowMut};
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::thread::JoinHandle;
 
 use crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
-use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
 
 use super::*;
@@ -21,10 +21,7 @@ use crate::*;
 // ReactionCtx is an API built around a ReactionWave. A single
 // ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&mut).
-pub struct ReactionCtx<'a, 'x, 't>
-where
-    'x: 't,
-{
+pub struct ReactionCtx<'a, 'x> {
     pub(super) insides: RContextForwardableStuff<'x>,
 
     /// Logical time of the execution of this wave, constant
@@ -46,7 +43,6 @@ where
     // globals, also they might be copied and passed to AsyncCtx
     dataflow: &'x DataflowInfo,
     debug_info: DebugInfoProvider<'a>,
-    thread_spawner: &'a Scope<'t>,
     /// Whether the scheduler has been shut down.
     was_terminated_atomic: &'a Arc<AtomicBool>,
     /// In ReactionCtx, this will only be true if this is the shutdown tag.
@@ -55,10 +51,7 @@ where
     was_terminated: bool,
 }
 
-impl<'a, 'x, 't> ReactionCtx<'a, 'x, 't>
-where
-    'x: 't,
-{
+impl<'a, 'x> ReactionCtx<'a, 'x> {
     /// Returns the start time of the execution of this program.
     ///
     /// This is a logical instant with microstep zero.
@@ -413,23 +406,19 @@ where
     /// }
     /// ```
     ///
-    pub fn spawn_physical_thread<F, R>(&mut self, f: F) -> ScopedJoinHandle<R>
+    pub fn spawn_physical_thread<F, R>(&mut self, f: F) -> JoinHandle<R>
     where
-        F: FnOnce(&mut AsyncCtx<'_, 't>) -> R,
-        F: 'x + Send,
-        R: 'x + Send,
+        // is there a practical reason to encapsulate this?
+        F: FnOnce(&mut AsyncCtx) -> R,
+        F: Send + 'static,
+        R: Send + 'static,
     {
         let tx = self.rx.new_sender();
         let initial_time = self.initial_time;
         let was_terminated = self.was_terminated_atomic.clone();
 
-        self.thread_spawner.spawn(move |subscope| {
-            let mut link = AsyncCtx {
-                tx,
-                initial_time,
-                thread_spawner: subscope,
-                was_terminated,
-            };
+        std::thread::spawn(move || {
+            let mut link = AsyncCtx { tx, initial_time, was_terminated };
             f(&mut link)
         })
     }
@@ -507,7 +496,6 @@ where
         initial_time: Instant,
         todo: ReactionPlan<'x>,
         dataflow: &'x DataflowInfo,
-        thread_spawner: &'a Scope<'t>,
         debug_info: DebugInfoProvider<'a>,
         was_terminated_atomic: &'a Arc<AtomicBool>,
         was_terminated: bool,
@@ -520,7 +508,6 @@ where
             rx,
             initial_time,
             dataflow,
-            thread_spawner,
             was_terminated_atomic,
             debug_info,
             was_terminated,
@@ -539,7 +526,6 @@ where
             rx: self.rx,
             cur_level: self.cur_level,
             initial_time: self.initial_time,
-            thread_spawner: self.thread_spawner,
             dataflow: self.dataflow,
             was_terminated: self.was_terminated,
             was_terminated_atomic: self.was_terminated_atomic,
@@ -587,16 +573,14 @@ impl RContextForwardableStuff<'_> {
 /// See [ReactionCtx::spawn_physical_thread].
 ///
 #[derive(Clone)]
-pub struct AsyncCtx<'a, 't> {
+pub struct AsyncCtx {
     tx: Sender<PhysicalEvent>,
     initial_time: Instant,
     /// Whether the scheduler has been terminated.
     was_terminated: Arc<AtomicBool>,
-    #[allow(unused)] // maybe add a spawn_physical_thread to this type
-    thread_spawner: &'a Scope<'t>,
 }
 
-impl AsyncCtx<'_, '_> {
+impl AsyncCtx {
     /// Returns true if the scheduler has been shutdown. When
     /// that's true, calls to other methods of this type will
     /// fail with [SendError].
