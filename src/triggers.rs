@@ -131,7 +131,10 @@ impl Idx for TriggerId {
         TriggerId(idx as TriggerIdImpl)
     }
 
+    #[allow(clippy::unnecessary_cast)]
     fn index(self) -> usize {
+        // The cast may be unnecessary if TriggerIdImpl resolves
+        // to usize, but that depends on compile-time features.
         self.0 as usize
     }
 }
