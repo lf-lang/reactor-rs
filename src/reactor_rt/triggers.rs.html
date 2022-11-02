@@ -145,6 +145,9 @@
 <span id="145">145</span>
 <span id="146">146</span>
 <span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -278,7 +281,10 @@
         <span class="ident">TriggerId</span>(<span class="ident">idx</span> <span class="kw">as</span> <span class="ident">TriggerIdImpl</span>)
     }
 
+    <span class="attribute">#[<span class="ident">allow</span>(<span class="ident">clippy::unnecessary_cast</span>)]</span>
     <span class="kw">fn</span> <span class="ident">index</span>(<span class="self">self</span>) -&gt; <span class="ident">usize</span> {
+        <span class="comment">// The cast may be unnecessary if TriggerIdImpl resolves</span>
+        <span class="comment">// to usize, but that depends on compile-time features.</span>
         <span class="self">self</span>.<span class="number">0</span> <span class="kw">as</span> <span class="ident">usize</span>
     }
 }
