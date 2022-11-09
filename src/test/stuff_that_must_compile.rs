@@ -83,6 +83,10 @@ fn readable_port_bank_iter(ctx: &mut ReactionCtx, bank: &PortBank<u32>) {
     for (i, pi) in bank.iter().enumerate() {}
 }
 
+fn readable_port_bank_iter2(ctx: &mut ReactionCtx, bank: &PortBank<u32>) {
+    let count = bank.iter().filter(|&p| ctx.is_present(p)).count();
+}
+
 fn writable_port_bank_index(ctx: &mut ReactionCtx, bank: &PortBank<u32>) {
     let x: &Port<u32> = &bank[1];
 }
