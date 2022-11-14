@@ -37,7 +37,7 @@ use atomic_refcell::AtomicRefCell;
 use AssemblyErrorImpl::{CannotBind, CyclicDependency};
 
 use crate::assembly::{AssemblyError, AssemblyErrorImpl, PortId, PortKind, TriggerId, TriggerLike};
-use crate::{EventTag, ReactionCtx, ReactionTrigger};
+use crate::{EventTag, ReactionTrigger};
 
 /// Represents a port, which carries values of type `T`.
 /// Ports reify the data inputs and outputs of a reactor.
@@ -369,19 +369,28 @@ impl<T: Sync> PortBank<T> {
 
     /// Iterate over only those ports in the bank that are set.
     /// The returned ports are not necessarily contiguous. See
-    /// [enumerate_set] to get access to their index.
+    /// [Self::enumerate_set] to get access to their index.
     pub fn iterate_set(&self) -> impl Iterator<Item = &Port<T>> {
         self.iter().filter(|&p| p.is_present_now())
     }
 
-    /// Iterate over only those ports in the bank that are set,
-    /// yielding a tuple with their index in the bank and a copy of the value.
-    pub fn enumerate_values(&self, _ctx: &ReactionCtx) -> impl Iterator<Item = (usize, T)> + '_
+    /// Iterate over only those ports in the bank that are set.
+    /// The returned ports are not necessarily contiguous. See
+    /// [Self::enumerate_values] to get access to their index.
+    pub fn iterate_values(&self) -> impl Iterator<Item = T> + '_
     where
         T: Copy,
     {
-        // note: the impl doesn't need the context, it's still there for forward compatibility
-        self.enumerate_set().map(|(i, p)| p.use_ref(|value| (i, value.unwrap())))
+        self.iter().filter_map(|p| p.get())
+    }
+
+    /// Iterate over only those ports in the bank that are set,
+    /// yielding a tuple with their index in the bank and a copy of the value.
+    pub fn enumerate_values(&self) -> impl Iterator<Item = (usize, T)> + '_
+    where
+        T: Copy,
+    {
+        self.iter().enumerate().filter_map(|(i, p)| p.get().map(|v| (i, v)))
     }
 }
 
