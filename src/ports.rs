@@ -367,6 +367,13 @@ impl<T: Sync> PortBank<T> {
         self.iter().enumerate().filter(|&(_, p)| p.is_present_now())
     }
 
+    /// Iterate over only those ports in the bank that are set.
+    /// The returned ports are not necessarily contiguous. See
+    /// [enumerate_set] to get access to their index.
+    pub fn iterate_set(&self) -> impl Iterator<Item = &Port<T>> {
+        self.iter().filter(|&p| p.is_present_now())
+    }
+
     /// Iterate over only those ports in the bank that are set,
     /// yielding a tuple with their index in the bank and a copy of the value.
     pub fn enumerate_values(&self, _ctx: &ReactionCtx) -> impl Iterator<Item = (usize, T)> + '_
