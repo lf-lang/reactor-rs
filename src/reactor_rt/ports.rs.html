@@ -462,8 +462,6 @@
 <span id="462">462</span>
 <span id="463">463</span>
 <span id="464">464</span>
-<span id="465">465</span>
-<span id="466">466</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -569,8 +567,8 @@
     }
     <span class="attribute">#[inline]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;T&gt;
-        <span class="kw">where
-            </span>T: Copy,
+    <span class="kw">where
+        </span>T: Copy,
     {
         <span class="self">self</span>.use_ref(<span class="prelude-ty">Option</span>::&lt;T&gt;::clone)
     }
@@ -870,8 +868,7 @@
     /// The returned ports are not necessarily contiguous. See
     /// [Self::enumerate_values] to get access to their index.
     </span><span class="attribute">#[cfg(not(feature = <span class="string">&quot;no-unsafe&quot;</span>))]
-    </span><span class="kw">pub fn </span>iterate_values_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>T&gt; + <span class="lifetime">&#39;_
-    </span>{
+    </span><span class="kw">pub fn </span>iterate_values_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>T&gt; + <span class="lifetime">&#39;_ </span>{
         <span class="self">self</span>.iter().filter_map(|p| p.get_ref())
     }
 
@@ -887,8 +884,7 @@
     <span class="doccomment">/// Iterate over only those ports in the bank that are set,
     /// yielding a tuple with their index in the bank and a reference to the value.
     </span><span class="attribute">#[cfg(not(feature = <span class="string">&quot;no-unsafe&quot;</span>))]
-    </span><span class="kw">pub fn </span>enumerate_values_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (usize, <span class="kw-2">&amp;</span>T)&gt; + <span class="lifetime">&#39;_
-    </span>{
+    </span><span class="kw">pub fn </span>enumerate_values_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (usize, <span class="kw-2">&amp;</span>T)&gt; + <span class="lifetime">&#39;_ </span>{
         <span class="self">self</span>.iter().enumerate().filter_map(|(i, p)| p.get_ref().map(|v| (i, v)))
     }
 }
