@@ -136,6 +136,20 @@ impl<T: Sync> Port<T> {
             }
 
         } else {
+
+             /// Returns a reference to the value. It is not possible to
+             /// implement this in safe code without reimplementing the same
+             /// kind of logic as AtomicRef, because the ref has to hold
+             /// two borrows at the same time.
+             pub(crate) fn get_ref(&self) -> Option<&T> {
+                 let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
+                 unsafe {
+                     let cell = &*binding.get();
+                     let opt = &*cell.value.get();
+                    opt.as_ref()
+                 }
+             }
+
              #[inline]
              pub(crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
                 let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
@@ -374,7 +388,8 @@ impl<T: Sync> PortBank<T> {
         self.iter().filter(|&p| p.is_present_now())
     }
 
-    /// Iterate over only those ports in the bank that are set.
+    /// Iterate over only those ports in the bank that are set,
+    /// and return a copy of the value.
     /// The returned ports are not necessarily contiguous. See
     /// [Self::enumerate_values] to get access to their index.
     pub fn iterate_values(&self) -> impl Iterator<Item = T> + '_
@@ -385,12 +400,28 @@ impl<T: Sync> PortBank<T> {
     }
 
     /// Iterate over only those ports in the bank that are set,
+    /// and return a reference to the value.
+    /// The returned ports are not necessarily contiguous. See
+    /// [Self::enumerate_values] to get access to their index.
+    #[cfg(not(feature = "no-unsafe"))]
+    pub fn iterate_values_ref(&self) -> impl Iterator<Item = &T> + '_ {
+        self.iter().filter_map(|p| p.get_ref())
+    }
+
+    /// Iterate over only those ports in the bank that are set,
     /// yielding a tuple with their index in the bank and a copy of the value.
     pub fn enumerate_values(&self) -> impl Iterator<Item = (usize, T)> + '_
     where
         T: Copy,
     {
         self.iter().enumerate().filter_map(|(i, p)| p.get().map(|v| (i, v)))
+    }
+
+    /// Iterate over only those ports in the bank that are set,
+    /// yielding a tuple with their index in the bank and a reference to the value.
+    #[cfg(not(feature = "no-unsafe"))]
+    pub fn enumerate_values_ref(&self) -> impl Iterator<Item = (usize, &T)> + '_ {
+        self.iter().enumerate().filter_map(|(i, p)| p.get_ref().map(|v| (i, v)))
     }
 }
 
