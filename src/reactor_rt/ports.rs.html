@@ -464,8 +464,6 @@
 <span id="464">464</span>
 <span id="465">465</span>
 <span id="466">466</span>
-<span id="467">467</span>
-<span id="468">468</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -890,9 +888,7 @@
     /// yielding a tuple with their index in the bank and a reference to the value.
     </span><span class="attribute">#[cfg(not(feature = <span class="string">&quot;no-unsafe&quot;</span>))]
     </span><span class="kw">pub fn </span>enumerate_values_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (usize, <span class="kw-2">&amp;</span>T)&gt; + <span class="lifetime">&#39;_
-    </span><span class="kw">where
-        </span>T: Copy,
-    {
+    </span>{
         <span class="self">self</span>.iter().enumerate().filter_map(|(i, p)| p.get_ref().map(|v| (i, v)))
     }
 }
