@@ -545,6 +545,11 @@
 <span id="545">545</span>
 <span id="546">546</span>
 <span id="547">547</span>
+<span id="548">548</span>
+<span id="549">549</span>
+<span id="550">550</span>
+<span id="551">551</span>
+<span id="552">552</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -867,16 +872,19 @@
 }
 
 <span class="kw">impl</span>&lt;S: ReactorInitializer&gt; DependencyDeclarator&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, S&gt; {
-    <span class="kw">pub fn </span>declare_triggers(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trigger: TriggerId, reaction: GlobalReactionId) -&gt; AssemblyResult&lt;()&gt; {
+    <span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>declare_triggers(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trigger: TriggerId, reaction: GlobalReactionId) -&gt; AssemblyResult&lt;()&gt; {
         <span class="self">self</span>.graph().triggers_reaction(trigger, reaction);
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub fn </span>effects_port&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reaction: GlobalReactionId, port: <span class="kw-2">&amp;</span>Port&lt;T&gt;) -&gt; AssemblyResult&lt;()&gt; {
+    <span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>effects_port&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reaction: GlobalReactionId, port: <span class="kw-2">&amp;</span>Port&lt;T&gt;) -&gt; AssemblyResult&lt;()&gt; {
         <span class="self">self</span>.effects_instantaneous(reaction, port.get_id())
     }
 
-    <span class="kw">pub fn </span>effects_bank&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reaction: GlobalReactionId, port: <span class="kw-2">&amp;</span>PortBank&lt;T&gt;) -&gt; AssemblyResult&lt;()&gt; {
+    <span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>effects_multiport&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reaction: GlobalReactionId, port: <span class="kw-2">&amp;</span>Multiport&lt;T&gt;) -&gt; AssemblyResult&lt;()&gt; {
         <span class="self">self</span>.effects_instantaneous(reaction, port.get_id())
     }
 
@@ -885,12 +893,14 @@
         <span class="self">self</span>.effects_instantaneous(reaction, timer.get_id())
     }
 
-    <span class="kw">fn </span>effects_instantaneous(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reaction: GlobalReactionId, trigger: TriggerId) -&gt; AssemblyResult&lt;()&gt; {
+    <span class="attribute">#[inline]
+    </span><span class="kw">fn </span>effects_instantaneous(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reaction: GlobalReactionId, trigger: TriggerId) -&gt; AssemblyResult&lt;()&gt; {
         <span class="self">self</span>.graph().reaction_effects(reaction, trigger);
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub fn </span>declare_uses(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reaction: GlobalReactionId, trigger: TriggerId) -&gt; AssemblyResult&lt;()&gt; {
+    <span class="attribute">#[inline]
+    </span><span class="kw">pub fn </span>declare_uses(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reaction: GlobalReactionId, trigger: TriggerId) -&gt; AssemblyResult&lt;()&gt; {
         <span class="self">self</span>.graph().reaction_uses(reaction, trigger);
         <span class="prelude-val">Ok</span>(())
     }
@@ -968,10 +978,10 @@
         lf_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
         kind: PortKind,
         len: usize,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;PortBank&lt;T&gt;, AssemblyError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Multiport&lt;T&gt;, AssemblyError&gt; {
         <span class="kw">let </span>bank_id = <span class="self">self</span>.next_comp_id(Cow::Borrowed(lf_name));
         <span class="self">self</span>.graph().record_port_bank(bank_id, len)<span class="question-mark">?</span>;
-        <span class="prelude-val">Ok</span>(PortBank::new(
+        <span class="prelude-val">Ok</span>(Multiport::new(
             (<span class="number">0</span>..len)
                 .into_iter()
                 .map(|i| <span class="self">self</span>.new_port_bank_component(lf_name, kind, bank_id, i))

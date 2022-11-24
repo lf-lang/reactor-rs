@@ -814,59 +814,59 @@
     }
 }
 
-<span class="doccomment">/// A port bank is a vector of independent ports (its _channels_)
-/// Port banks have special Lingua Franca syntax.
-</span><span class="kw">pub struct </span>PortBank&lt;T: Sync&gt; {
+<span class="doccomment">/// A multiport is a vector of independent ports (its _channels_)
+/// Multiports have special Lingua Franca syntax, similar to reactor banks.
+</span><span class="kw">pub struct </span>Multiport&lt;T: Sync&gt; {
     ports: Vec&lt;Port&lt;T&gt;&gt;,
     id: TriggerId,
 }
 
-<span class="kw">impl</span>&lt;T: Sync&gt; PortBank&lt;T&gt; {
-    <span class="doccomment">/// Create a bank from the given vector of ports.
+<span class="kw">impl</span>&lt;T: Sync&gt; Multiport&lt;T&gt; {
+    <span class="doccomment">/// Create a multiport from the given vector of ports.
     </span><span class="attribute">#[inline(always)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(ports: Vec&lt;Port&lt;T&gt;&gt;, id: TriggerId) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ ports, id }
     }
 
-    <span class="doccomment">/// Returns the length of the bank
+    <span class="doccomment">/// Returns the number of channels.
     </span><span class="attribute">#[inline(always)]
     </span><span class="kw">pub fn </span>len(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.ports.len()
     }
 
-    <span class="doccomment">/// Returns true if the bank is empty.
+    <span class="doccomment">/// Returns true if this multiport is empty.
     </span><span class="attribute">#[inline(always)]
     </span><span class="kw">pub fn </span>is_empty(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.ports.is_empty()
     }
 
-    <span class="doccomment">/// Iterate over the bank and return mutable references to individual ports.
+    <span class="doccomment">/// Iterate over the multiport and return mutable references to individual channels.
     </span><span class="attribute">#[inline(always)]
     </span><span class="kw">pub fn </span>iter_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;mut </span>Port&lt;T&gt;&gt; {
         <span class="self">self</span>.ports.iter_mut()
     }
 
-    <span class="doccomment">/// Iterate over the ports of this bank. Returns read-only
+    <span class="doccomment">/// Iterate over the channels of this multiport. Returns read-only
     /// references to individual ports.
     </span><span class="attribute">#[inline(always)]
     </span><span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>Port&lt;T&gt;&gt; {
         <span class="self">self</span>.into_iter()
     }
 
-    <span class="doccomment">/// Iterate over only those ports in the bank that are set.
-    /// Returns a tuple with their index in the bank (not necessarily contiguous).
+    <span class="doccomment">/// Iterate over only those channels that are set (have a value).
+    /// Returns a tuple with their index (not necessarily contiguous).
     </span><span class="kw">pub fn </span>enumerate_set(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (usize, <span class="kw-2">&amp;</span>Port&lt;T&gt;)&gt; {
         <span class="self">self</span>.iter().enumerate().filter(|<span class="kw-2">&amp;</span>(<span class="kw">_</span>, p)| p.is_present_now())
     }
 
-    <span class="doccomment">/// Iterate over only those ports in the bank that are set.
+    <span class="doccomment">/// Iterate over only those channels that are set (have a value).
     /// The returned ports are not necessarily contiguous. See
     /// [Self::enumerate_set] to get access to their index.
     </span><span class="kw">pub fn </span>iterate_set(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>Port&lt;T&gt;&gt; {
         <span class="self">self</span>.iter().filter(|<span class="kw-2">&amp;</span>p| p.is_present_now())
     }
 
-    <span class="doccomment">/// Iterate over only those ports in the bank that are set,
+    <span class="doccomment">/// Iterate over only those channels that are set (have a value),
     /// and return a copy of the value.
     /// The returned ports are not necessarily contiguous. See
     /// [Self::enumerate_values] to get access to their index.
@@ -877,7 +877,7 @@
         <span class="self">self</span>.iter().filter_map(|p| p.get())
     }
 
-    <span class="doccomment">/// Iterate over only those ports in the bank that are set,
+    <span class="doccomment">/// Iterate over only those ports that are set (have a value),
     /// and return a reference to the value.
     /// The returned ports are not necessarily contiguous. See
     /// [Self::enumerate_values] to get access to their index.
@@ -886,7 +886,7 @@
         <span class="self">self</span>.iter().filter_map(|p| p.get_ref())
     }
 
-    <span class="doccomment">/// Iterate over only those ports in the bank that are set,
+    <span class="doccomment">/// Iterate over only those channels that are set (have a value),
     /// yielding a tuple with their index in the bank and a copy of the value.
     </span><span class="kw">pub fn </span>enumerate_values(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (usize, T)&gt; + <span class="lifetime">&#39;_
     </span><span class="kw">where
@@ -895,7 +895,7 @@
         <span class="self">self</span>.iter().enumerate().filter_map(|(i, p)| p.get().map(|v| (i, v)))
     }
 
-    <span class="doccomment">/// Iterate over only those ports in the bank that are set,
+    <span class="doccomment">/// Iterate over only those channels that are set (have a value),
     /// yielding a tuple with their index in the bank and a reference to the value.
     </span><span class="attribute">#[cfg(not(feature = <span class="string">&quot;no-unsafe&quot;</span>))]
     </span><span class="kw">pub fn </span>enumerate_values_ref(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = (usize, <span class="kw-2">&amp;</span>T)&gt; + <span class="lifetime">&#39;_ </span>{
@@ -903,13 +903,13 @@
     }
 }
 
-<span class="kw">impl</span>&lt;T: Sync&gt; TriggerLike <span class="kw">for </span>PortBank&lt;T&gt; {
+<span class="kw">impl</span>&lt;T: Sync&gt; TriggerLike <span class="kw">for </span>Multiport&lt;T&gt; {
     <span class="kw">fn </span>get_id(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; TriggerId {
         <span class="self">self</span>.id
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>PortBank&lt;T&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>Multiport&lt;T&gt; {
     <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>Port&lt;T&gt;;
     <span class="kw">type </span>IntoIter = std::slice::IterMut&lt;<span class="lifetime">&#39;a</span>, Port&lt;T&gt;&gt;;
 
@@ -918,7 +918,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>PortBank&lt;T&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, T: Sync&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Multiport&lt;T&gt; {
     <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Port&lt;T&gt;;
     <span class="kw">type </span>IntoIter = std::slice::Iter&lt;<span class="lifetime">&#39;a</span>, Port&lt;T&gt;&gt;;
 
@@ -927,7 +927,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;T: Sync&gt; Index&lt;usize&gt; <span class="kw">for </span>PortBank&lt;T&gt; {
+<span class="kw">impl</span>&lt;T: Sync&gt; Index&lt;usize&gt; <span class="kw">for </span>Multiport&lt;T&gt; {
     <span class="kw">type </span>Output = Port&lt;T&gt;;
 
     <span class="kw">fn </span>index(<span class="kw-2">&amp;</span><span class="self">self</span>, index: usize) -&gt; <span class="kw-2">&amp;</span><span class="self">Self</span>::Output {
@@ -935,7 +935,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;T: Sync&gt; IndexMut&lt;usize&gt; <span class="kw">for </span>PortBank&lt;T&gt; {
+<span class="kw">impl</span>&lt;T: Sync&gt; IndexMut&lt;usize&gt; <span class="kw">for </span>Multiport&lt;T&gt; {
     <span class="kw">fn </span>index_mut(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: usize) -&gt; <span class="kw-2">&amp;mut </span><span class="self">Self</span>::Output {
         <span class="kw-2">&amp;mut </span><span class="self">self</span>.ports[index]
     }

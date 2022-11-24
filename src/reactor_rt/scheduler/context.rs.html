@@ -1633,7 +1633,7 @@
 }
 
 <span class="kw">impl </span>CleanupCtx {
-    <span class="kw">pub fn </span>cleanup_multiport&lt;T: Sync&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, port: <span class="kw-2">&amp;mut </span>PortBank&lt;T&gt;) {
+    <span class="kw">pub fn </span>cleanup_multiport&lt;T: Sync&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, port: <span class="kw-2">&amp;mut </span>Multiport&lt;T&gt;) {
         <span class="comment">// todo bound ports don&#39;t need to be cleared
         </span><span class="kw">for </span>channel <span class="kw">in </span>port {
             channel.clear_value()
