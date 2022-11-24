@@ -462,6 +462,13 @@
 <span id="462">462</span>
 <span id="463">463</span>
 <span id="464">464</span>
+<span id="465">465</span>
+<span id="466">466</span>
+<span id="467">467</span>
+<span id="468">468</span>
+<span id="469">469</span>
+<span id="470">470</span>
+<span id="471">471</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -708,6 +715,13 @@
     <span class="attribute">#[inline]
     </span><span class="kw">fn </span>use_value_ref&lt;O&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, _now: <span class="kw-2">&amp;</span>EventTag, _start: <span class="kw-2">&amp;</span>Instant, action: <span class="kw">impl </span>FnOnce(<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>T&gt;) -&gt; O) -&gt; O {
         <span class="self">self</span>.use_ref(|opt| action(opt.as_ref()))
+    }
+}
+
+<span class="attribute">#[cfg(not(feature = <span class="string">&quot;no-unsafe&quot;</span>))]
+</span><span class="kw">impl</span>&lt;T: Sync&gt; <span class="kw">crate</span>::triggers::ReactionTriggerWithRefAccess&lt;T&gt; <span class="kw">for </span>Port&lt;T&gt; {
+    <span class="kw">fn </span>get_value_ref(<span class="kw-2">&amp;</span><span class="self">self</span>, _now: <span class="kw-2">&amp;</span>EventTag, _start: <span class="kw-2">&amp;</span>Instant) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>T&gt; {
+        <span class="self">self</span>.get_ref()
     }
 }
 

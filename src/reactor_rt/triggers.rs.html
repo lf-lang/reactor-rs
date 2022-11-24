@@ -145,6 +145,18 @@
 <span id="145">145</span>
 <span id="146">146</span>
 <span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -201,6 +213,18 @@
     /// The closure is called even if the value is absent (with a [None]
     /// argument).
     </span><span class="kw">fn </span>use_value_ref&lt;O&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, now: <span class="kw-2">&amp;</span>EventTag, start: <span class="kw-2">&amp;</span>Instant, action: <span class="kw">impl </span>FnOnce(<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>T&gt;) -&gt; O) -&gt; O;
+}
+
+<span class="attribute">#[cfg(not(feature = <span class="string">&quot;no-unsafe&quot;</span>))]
+</span><span class="kw">pub trait </span>ReactionTriggerWithRefAccess&lt;T&gt; {
+    <span class="doccomment">/// Returns a reference to the value, if it is present. Whether a *value*
+    /// is present is not in general the same thing as whether *this trigger*
+    /// [Self::is_present]. See [crate::ReactionCtx::get_ref].
+    ///
+    /// This does not require the value to be Copy, however, the implementation
+    /// of this method currently may require unsafe code. The method is therefore
+    /// not offered when compiling with the `no-unsafe` feature.
+    </span><span class="kw">fn </span>get_value_ref(<span class="kw-2">&amp;</span><span class="self">self</span>, now: <span class="kw-2">&amp;</span>EventTag, start: <span class="kw-2">&amp;</span>Instant) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>T&gt;;
 }
 
 <span class="doccomment">/// Something on which we can declare a trigger dependency
