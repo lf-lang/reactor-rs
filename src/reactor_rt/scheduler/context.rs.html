@@ -824,21 +824,19 @@
 <span id="824">824</span>
 <span id="825">825</span>
 <span id="826">826</span>
-<span id="827">827</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::borrow::Borrow;
 <span class="kw">use </span>std::hash::{Hash, Hasher};
-<span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>std::sync::atomic::{AtomicBool, Ordering};
+<span class="kw">use </span>std::sync::Arc;
 
-<span class="kw">use </span>crossbeam_channel::reconnectable::{Receiver, Sender, SendError};
+<span class="kw">use </span>crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
 <span class="kw">use </span>crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 <span class="kw">use </span>smallvec::SmallVec;
 
-<span class="kw">use crate</span>::<span class="kw-2">*</span>;
+<span class="kw">use super</span>::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::assembly::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::scheduler::dependencies::{DataflowInfo, ExecutableReactions, LevelIx};
-
-<span class="kw">use super</span>::<span class="kw-2">*</span>;
+<span class="kw">use crate</span>::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
