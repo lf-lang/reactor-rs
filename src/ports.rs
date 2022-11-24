@@ -343,59 +343,59 @@ impl<T: Sync> Default for PortCell<T> {
     }
 }
 
-/// A port bank is a vector of independent ports (its _channels_)
-/// Port banks have special Lingua Franca syntax.
-pub struct PortBank<T: Sync> {
+/// A multiport is a vector of independent ports (its _channels_)
+/// Multiports have special Lingua Franca syntax, similar to reactor banks.
+pub struct Multiport<T: Sync> {
     ports: Vec<Port<T>>,
     id: TriggerId,
 }
 
-impl<T: Sync> PortBank<T> {
-    /// Create a bank from the given vector of ports.
+impl<T: Sync> Multiport<T> {
+    /// Create a multiport from the given vector of ports.
     #[inline(always)]
     pub(crate) fn new(ports: Vec<Port<T>>, id: TriggerId) -> Self {
         Self { ports, id }
     }
 
-    /// Returns the length of the bank
+    /// Returns the number of channels.
     #[inline(always)]
     pub fn len(&self) -> usize {
         self.ports.len()
     }
 
-    /// Returns true if the bank is empty.
+    /// Returns true if this multiport is empty.
     #[inline(always)]
     pub fn is_empty(&self) -> bool {
         self.ports.is_empty()
     }
 
-    /// Iterate over the bank and return mutable references to individual ports.
+    /// Iterate over the multiport and return mutable references to individual channels.
     #[inline(always)]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Port<T>> {
         self.ports.iter_mut()
     }
 
-    /// Iterate over the ports of this bank. Returns read-only
+    /// Iterate over the channels of this multiport. Returns read-only
     /// references to individual ports.
     #[inline(always)]
     pub fn iter(&self) -> impl Iterator<Item = &Port<T>> {
         self.into_iter()
     }
 
-    /// Iterate over only those ports in the bank that are set.
-    /// Returns a tuple with their index in the bank (not necessarily contiguous).
+    /// Iterate over only those channels that are set (have a value).
+    /// Returns a tuple with their index (not necessarily contiguous).
     pub fn enumerate_set(&self) -> impl Iterator<Item = (usize, &Port<T>)> {
         self.iter().enumerate().filter(|&(_, p)| p.is_present_now())
     }
 
-    /// Iterate over only those ports in the bank that are set.
+    /// Iterate over only those channels that are set (have a value).
     /// The returned ports are not necessarily contiguous. See
     /// [Self::enumerate_set] to get access to their index.
     pub fn iterate_set(&self) -> impl Iterator<Item = &Port<T>> {
         self.iter().filter(|&p| p.is_present_now())
     }
 
-    /// Iterate over only those ports in the bank that are set,
+    /// Iterate over only those channels that are set (have a value),
     /// and return a copy of the value.
     /// The returned ports are not necessarily contiguous. See
     /// [Self::enumerate_values] to get access to their index.
@@ -406,7 +406,7 @@ impl<T: Sync> PortBank<T> {
         self.iter().filter_map(|p| p.get())
     }
 
-    /// Iterate over only those ports in the bank that are set,
+    /// Iterate over only those ports that are set (have a value),
     /// and return a reference to the value.
     /// The returned ports are not necessarily contiguous. See
     /// [Self::enumerate_values] to get access to their index.
@@ -415,7 +415,7 @@ impl<T: Sync> PortBank<T> {
         self.iter().filter_map(|p| p.get_ref())
     }
 
-    /// Iterate over only those ports in the bank that are set,
+    /// Iterate over only those channels that are set (have a value),
     /// yielding a tuple with their index in the bank and a copy of the value.
     pub fn enumerate_values(&self) -> impl Iterator<Item = (usize, T)> + '_
     where
@@ -424,7 +424,7 @@ impl<T: Sync> PortBank<T> {
         self.iter().enumerate().filter_map(|(i, p)| p.get().map(|v| (i, v)))
     }
 
-    /// Iterate over only those ports in the bank that are set,
+    /// Iterate over only those channels that are set (have a value),
     /// yielding a tuple with their index in the bank and a reference to the value.
     #[cfg(not(feature = "no-unsafe"))]
     pub fn enumerate_values_ref(&self) -> impl Iterator<Item = (usize, &T)> + '_ {
@@ -432,13 +432,13 @@ impl<T: Sync> PortBank<T> {
     }
 }
 
-impl<T: Sync> TriggerLike for PortBank<T> {
+impl<T: Sync> TriggerLike for Multiport<T> {
     fn get_id(&self) -> TriggerId {
         self.id
     }
 }
 
-impl<'a, T: Sync> IntoIterator for &'a mut PortBank<T> {
+impl<'a, T: Sync> IntoIterator for &'a mut Multiport<T> {
     type Item = &'a mut Port<T>;
     type IntoIter = std::slice::IterMut<'a, Port<T>>;
 
@@ -447,7 +447,7 @@ impl<'a, T: Sync> IntoIterator for &'a mut PortBank<T> {
     }
 }
 
-impl<'a, T: Sync> IntoIterator for &'a PortBank<T> {
+impl<'a, T: Sync> IntoIterator for &'a Multiport<T> {
     type Item = &'a Port<T>;
     type IntoIter = std::slice::Iter<'a, Port<T>>;
 
@@ -456,7 +456,7 @@ impl<'a, T: Sync> IntoIterator for &'a PortBank<T> {
     }
 }
 
-impl<T: Sync> Index<usize> for PortBank<T> {
+impl<T: Sync> Index<usize> for Multiport<T> {
     type Output = Port<T>;
 
     fn index(&self, index: usize) -> &Self::Output {
@@ -464,7 +464,7 @@ impl<T: Sync> Index<usize> for PortBank<T> {
     }
 }
 
-impl<T: Sync> IndexMut<usize> for PortBank<T> {
+impl<T: Sync> IndexMut<usize> for Multiport<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.ports[index]
     }

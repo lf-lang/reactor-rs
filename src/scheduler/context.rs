@@ -1,17 +1,16 @@
 use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
-use crossbeam_channel::reconnectable::{Receiver, Sender, SendError};
+use crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
 
-use crate::*;
+use super::*;
 use crate::assembly::*;
 use crate::scheduler::dependencies::{DataflowInfo, ExecutableReactions, LevelIx};
-
-use super::*;
+use crate::*;
 
 /// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
@@ -806,7 +805,7 @@ pub struct CleanupCtx {
 }
 
 impl CleanupCtx {
-    pub fn cleanup_multiport<T: Sync>(&self, port: &mut PortBank<T>) {
+    pub fn cleanup_multiport<T: Sync>(&self, port: &mut Multiport<T>) {
         // todo bound ports don't need to be cleared
         for channel in port {
             channel.clear_value()

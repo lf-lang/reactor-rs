@@ -320,16 +320,19 @@ pub struct DependencyDeclarator<'a, 'x, S: ReactorInitializer> {
 }
 
 impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
+    #[inline]
     pub fn declare_triggers(&mut self, trigger: TriggerId, reaction: GlobalReactionId) -> AssemblyResult<()> {
         self.graph().triggers_reaction(trigger, reaction);
         Ok(())
     }
 
+    #[inline]
     pub fn effects_port<T: Sync>(&mut self, reaction: GlobalReactionId, port: &Port<T>) -> AssemblyResult<()> {
         self.effects_instantaneous(reaction, port.get_id())
     }
 
-    pub fn effects_bank<T: Sync>(&mut self, reaction: GlobalReactionId, port: &PortBank<T>) -> AssemblyResult<()> {
+    #[inline]
+    pub fn effects_multiport<T: Sync>(&mut self, reaction: GlobalReactionId, port: &Multiport<T>) -> AssemblyResult<()> {
         self.effects_instantaneous(reaction, port.get_id())
     }
 
@@ -338,11 +341,13 @@ impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
         self.effects_instantaneous(reaction, timer.get_id())
     }
 
+    #[inline]
     fn effects_instantaneous(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> AssemblyResult<()> {
         self.graph().reaction_effects(reaction, trigger);
         Ok(())
     }
 
+    #[inline]
     pub fn declare_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) -> AssemblyResult<()> {
         self.graph().reaction_uses(reaction, trigger);
         Ok(())
@@ -416,15 +421,15 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
         Port::new(id, kind)
     }
 
-    pub fn new_port_bank<T: Sync>(
+    pub fn new_multiport<T: Sync>(
         &mut self,
         lf_name: &'static str,
         kind: PortKind,
         len: usize,
-    ) -> Result<PortBank<T>, AssemblyError> {
+    ) -> Result<Multiport<T>, AssemblyError> {
         let bank_id = self.next_comp_id(Cow::Borrowed(lf_name));
         self.graph().record_port_bank(bank_id, len)?;
-        Ok(PortBank::new(
+        Ok(Multiport::new(
             (0..len)
                 .into_iter()
                 .map(|i| self.new_port_bank_component(lf_name, kind, bank_id, i))
