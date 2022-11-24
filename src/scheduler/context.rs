@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, BorrowMut};
+use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -157,16 +157,42 @@ where
     /// ### Examples
     ///
     /// ```no_run
-    /// # use reactor_rt::{ReactionCtx, ReadablePort};
+    /// # use reactor_rt::{ReactionCtx, Port};
     /// # let ctx: &mut ReactionCtx = panic!();
-    /// # let port: &ReadablePort<'_, u32> = panic!();
+    /// # let port: &Port<u32> = panic!();
     /// if let Some(value) = ctx.get(port) {
-    ///     // branch is taken if the port is set -- note, this moves `port`!
+    ///     // branch is taken if the port is set
     /// }
     /// ```
     #[inline]
     pub fn get<T: Copy>(&self, container: &impl ReactionTrigger<T>) -> Option<T> {
         container.borrow().get_value(&self.get_tag(), &self.get_start_time())
+    }
+
+    /// Returns a reference to the current value of a port or action at this
+    /// logical time. If the value is absent, [Option::None] is
+    /// returned.  This is the case if the action or port is
+    /// not present ([Self::is_present]), or if no value was
+    /// scheduled (action values are optional, see [Self::schedule_with_v]).
+    ///
+    /// This does not require the value to be Copy, however, the implementation
+    /// of this method currently may require unsafe code. The method is therefore
+    /// not offered when compiling with the `no-unsafe` feature.
+    ///
+    /// ### Examples
+    ///
+    /// ```no_run
+    /// # use reactor_rt::{Port, ReactionCtx};
+    /// # let ctx: &mut ReactionCtx = panic!();
+    /// # let port: &Port<u32> = panic!();
+    /// if let Some(value) = ctx.get_ref(port) {
+    ///     // value is a ref to the internal value
+    /// }
+    /// ```
+    #[inline]
+    #[cfg(not(feature = "no-unsafe"))]
+    pub fn get_ref<'q, T>(&self, container: &'q impl crate::triggers::ReactionTriggerWithRefAccess<T>) -> Option<&'q T> {
+        container.get_value_ref(&self.get_tag(), &self.get_start_time())
     }
 
     /// Executes the provided closure on the value of the port
@@ -176,17 +202,17 @@ where
     /// ### Examples
     ///
     /// ```no_run
-    /// # use reactor_rt::{ReactionCtx, ReadablePort};
+    /// # use reactor_rt::{ReactionCtx, Port};
     /// # let ctx: &mut ReactionCtx = panic!();
-    /// # let port: &ReadablePort<String> = panic!();
+    /// # let port: &Port<String> = panic!();
     /// let len = ctx.use_ref(port, |str| str.map(String::len).unwrap_or(0));
     /// // equivalent to
     /// let len = ctx.use_ref_opt(port, String::len).unwrap_or(0);
     /// ```
     /// ```no_run
-    /// # use reactor_rt::{ReactionCtx, ReadablePort};
+    /// # use reactor_rt::{ReactionCtx, Port};
     /// # let ctx: &mut ReactionCtx = unimplemented!();
-    /// # let port: &ReadablePort<String> = unimplemented!();
+    /// # let port: &Port<String> = unimplemented!();
     ///
     /// if let Some(str) = ctx.use_ref_opt(port, Clone::clone) {
     ///     // only entered if the port value is present, so no need to check is_present
@@ -217,25 +243,22 @@ where
     /// schedule more reactions that should execute at the
     /// same logical time.
     #[inline]
-    pub fn set<'b, T, W>(&mut self, mut port: W, value: T)
+    pub fn set<T>(&mut self, port: &mut Port<T>, value: T)
     where
-        T: Sync + 'b,
-        W: BorrowMut<WritablePort<'b, T>>,
+        T: Sync,
     {
-        let port = port.borrow_mut();
-
         if cfg!(debug_assertions) {
             self.check_set_port_is_legal(port)
         }
-        port.set_impl(value);
+        port.set_impl(Some(value));
         self.enqueue_now(Cow::Borrowed(self.reactions_triggered_by(port.get_id())));
     }
 
-    fn check_set_port_is_legal<T: Sync>(&self, port: &mut WritablePort<T>) {
+    fn check_set_port_is_legal<T: Sync>(&self, port: &mut Port<T>) {
         let port_id = port.get_id();
         let port_container = self.debug_info.id_registry.get_trigger_container(port_id).unwrap();
         let reaction_container = self.current_reaction.unwrap().0.container();
-        match port.kind() {
+        match port.get_kind() {
             PortKind::Input => {
                 let port_grandpa = self.debug_info.id_registry.get_container(port_container);
                 assert_eq!(
@@ -270,10 +293,10 @@ where
     /// same logical time.
     ///
     /// ```no_run
-    /// # use reactor_rt::{ReactionCtx, ReadablePort, WritablePort};
+    /// # use reactor_rt::{ReactionCtx, Port};
     /// # let ctx: &mut ReactionCtx = unimplemented!();
-    /// # let source: &ReadablePort<u32> = unimplemented!();
-    /// # let sink: &mut WritablePort<u32> = unimplemented!();
+    /// # let source: &Port<u32> = unimplemented!();
+    /// # let sink: &mut Port<u32> = unimplemented!();
     ///
     /// ctx.set_opt(sink, ctx.get(source));
     /// // equivalent to
@@ -283,10 +306,9 @@ where
     /// ```
     ///
     #[inline]
-    pub fn set_opt<'b, T, W>(&mut self, port: W, value: Option<T>)
+    pub fn set_opt<T>(&mut self, port: &mut Port<T>, value: Option<T>)
     where
-        T: Sync + 'b,
-        W: BorrowMut<WritablePort<'b, T>>,
+        T: Sync,
     {
         if let Some(v) = value {
             self.set(port, v)
@@ -783,7 +805,7 @@ pub struct CleanupCtx {
 }
 
 impl CleanupCtx {
-    pub fn cleanup_multiport<T: Sync>(&self, port: &mut PortBank<T>) {
+    pub fn cleanup_multiport<T: Sync>(&self, port: &mut Multiport<T>) {
         // todo bound ports don't need to be cleared
         for channel in port {
             channel.clear_value()
