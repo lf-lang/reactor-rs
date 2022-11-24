@@ -247,6 +247,13 @@ impl<T: Sync> ReactionTrigger<T> for Port<T> {
     }
 }
 
+#[cfg(not(feature = "no-unsafe"))]
+impl<T: Sync> crate::triggers::ReactionTriggerWithRefAccess<T> for Port<T> {
+    fn get_value_ref(&self, _now: &EventTag, _start: &Instant) -> Option<&T> {
+        self.get_ref()
+    }
+}
+
 impl<T: Sync> TriggerLike for Port<T> {
     fn get_id(&self) -> TriggerId {
         self.id

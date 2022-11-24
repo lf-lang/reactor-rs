@@ -1,16 +1,17 @@
 use std::borrow::Borrow;
 use std::hash::{Hash, Hasher};
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
+use crossbeam_channel::reconnectable::{Receiver, Sender, SendError};
 use crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 use smallvec::SmallVec;
 
-use super::*;
+use crate::*;
 use crate::assembly::*;
 use crate::scheduler::dependencies::{DataflowInfo, ExecutableReactions, LevelIx};
-use crate::*;
+
+use super::*;
 
 /// The context in which a reaction executes. Its API
 /// allows mutating the event queue of the scheduler.
@@ -161,12 +162,38 @@ where
     /// # let ctx: &mut ReactionCtx = panic!();
     /// # let port: &Port<u32> = panic!();
     /// if let Some(value) = ctx.get(port) {
-    ///     // branch is taken if the port is set -- note, this moves `port`!
+    ///     // branch is taken if the port is set
     /// }
     /// ```
     #[inline]
     pub fn get<T: Copy>(&self, container: &impl ReactionTrigger<T>) -> Option<T> {
         container.borrow().get_value(&self.get_tag(), &self.get_start_time())
+    }
+
+    /// Returns a reference to the current value of a port or action at this
+    /// logical time. If the value is absent, [Option::None] is
+    /// returned.  This is the case if the action or port is
+    /// not present ([Self::is_present]), or if no value was
+    /// scheduled (action values are optional, see [Self::schedule_with_v]).
+    ///
+    /// This does not require the value to be Copy, however, the implementation
+    /// of this method currently may require unsafe code. The method is therefore
+    /// not offered when compiling with the `no-unsafe` feature.
+    ///
+    /// ### Examples
+    ///
+    /// ```no_run
+    /// # use reactor_rt::{Port, ReactionCtx};
+    /// # let ctx: &mut ReactionCtx = panic!();
+    /// # let port: &Port<u32> = panic!();
+    /// if let Some(value) = ctx.get_ref(port) {
+    ///     // value is a ref to the internal value
+    /// }
+    /// ```
+    #[inline]
+    #[cfg(not(feature = "no-unsafe"))]
+    pub fn get_ref<'q, T>(&self, container: &'q impl crate::triggers::ReactionTriggerWithRefAccess<T>) -> Option<&'q T> {
+        container.get_value_ref(&self.get_tag(), &self.get_start_time())
     }
 
     /// Executes the provided closure on the value of the port

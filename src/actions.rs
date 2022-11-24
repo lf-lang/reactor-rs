@@ -112,6 +112,13 @@ impl<T: Sync, K> ReactionTrigger<T> for Action<K, T> {
     }
 }
 
+#[cfg(not(feature = "no-unsafe"))]
+impl<T: Sync, K> triggers::ReactionTriggerWithRefAccess<T> for Action<K, T> {
+    fn get_value_ref(&self, now: &EventTag, _start: &Instant) -> Option<&T> {
+        self.map.get(&Reverse(*now)).map(|a| a.as_ref()).flatten()
+    }
+}
+
 impl<T: Sync> ReactionTrigger<T> for LogicalAction<T> {
     #[inline]
     fn is_present(&self, now: &EventTag, start: &Instant) -> bool {
@@ -129,6 +136,13 @@ impl<T: Sync> ReactionTrigger<T> for LogicalAction<T> {
     #[inline]
     fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
         self.0.use_value_ref(now, start, action)
+    }
+}
+
+#[cfg(not(feature = "no-unsafe"))]
+impl<T: Sync> triggers::ReactionTriggerWithRefAccess<T> for LogicalAction<T> {
+    fn get_value_ref(&self, now: &EventTag, start: &Instant) -> Option<&T> {
+        self.0.get_value_ref(now, start)
     }
 }
 
