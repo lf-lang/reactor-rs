@@ -79,5 +79,9 @@ jobs:
     needs: fetch-lf
     uses: lf-lang/lingua-franca/.github/workflows/rs-tests.yml@master
     with:
-      runtime-ref: ${{github.ref}}
+      # If this is a PR build, use the head_ref. That ref is the tip of the PR branch,
+      # not merged with master. This therefore assumes the PR is up-to-date with the main branch.
+      # This is important because we can't ask Cargo to fetch github.ref if that ref is
+      # a merge commit automatically committed by GitHub.
+      runtime-ref: ${{ github.head_ref || github.ref }}
       compiler-ref: ${{ needs.fetch-lf.outputs.ref }}
