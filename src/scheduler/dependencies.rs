@@ -34,13 +34,12 @@ use index_vec::{Idx, IndexVec};
 use petgraph::graph::{DiGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::Direction::Outgoing;
+use vecmap::{Entry as VEntry, KeyRef, VecMap};
 
 use super::ReactionPlan;
 use crate::assembly::*;
 use crate::impl_types::GlobalIdImpl;
 use crate::scheduler::dependencies::NodeKind::MultiportUpstream;
-use crate::util::vecmap::{Entry as VEntry, VecMap};
-use crate::vecmap::KeyRef;
 use crate::*;
 
 type GraphIx = NodeIndex<GlobalIdImpl>;

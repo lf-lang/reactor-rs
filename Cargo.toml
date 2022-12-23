@@ -19,6 +19,7 @@ crossbeam-utils = "0.8"
 crossbeam-channel = { git = "https://github.com/oowekyala/crossbeam.git", rev = "9eed66904f969156dedad4eef61ce91d23b9cccb" }
 static_assertions = "1.1.0"
 rayon = { version = "1.5", optional = true }
+vecmap = { git = "https://github.com/jhaye/vecmap", rev = "b86c31848194d55b87d03578350173d142144c90" }
 cfg-if = "1.0.0"
 
 [dev-dependencies]
