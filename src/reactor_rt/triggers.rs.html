@@ -157,6 +157,7 @@
 <span id="157">157</span>
 <span id="158">158</span>
 <span id="159">159</span>
+<span id="160">160</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -302,7 +303,8 @@
         </span>TriggerId(idx <span class="kw">as </span>TriggerIdImpl)
     }
 
-    <span class="kw">fn </span>index(<span class="self">self</span>) -&gt; usize {
+    <span class="attribute">#[allow(clippy::unnecessary_cast)]
+    </span><span class="kw">fn </span>index(<span class="self">self</span>) -&gt; usize {
         <span class="self">self</span>.<span class="number">0 </span><span class="kw">as </span>usize
     }
 }
