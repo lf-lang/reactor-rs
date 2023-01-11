@@ -56,6 +56,18 @@ pub trait ReactionTrigger<T> {
     fn use_value_ref<O>(&self, now: &EventTag, start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O;
 }
 
+#[cfg(not(feature = "no-unsafe"))]
+pub trait ReactionTriggerWithRefAccess<T> {
+    /// Returns a reference to the value, if it is present. Whether a *value*
+    /// is present is not in general the same thing as whether *this trigger*
+    /// [Self::is_present]. See [crate::ReactionCtx::get_ref].
+    ///
+    /// This does not require the value to be Copy, however, the implementation
+    /// of this method currently may require unsafe code. The method is therefore
+    /// not offered when compiling with the `no-unsafe` feature.
+    fn get_value_ref(&self, now: &EventTag, start: &Instant) -> Option<&T>;
+}
+
 /// Something on which we can declare a trigger dependency
 /// in the dependency graph.
 #[doc(hidden)]

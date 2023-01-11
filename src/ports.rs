@@ -39,186 +39,6 @@ use AssemblyErrorImpl::{CannotBind, CyclicDependency};
 use crate::assembly::{AssemblyError, AssemblyErrorImpl, PortId, PortKind, TriggerId, TriggerLike};
 use crate::{EventTag, ReactionTrigger};
 
-/// A read-only reference to a port.
-#[repr(transparent)]
-pub struct ReadablePort<'a, T: Sync>(&'a Port<T>);
-
-impl<'a, T: Sync> ReadablePort<'a, T> {
-    #[inline(always)]
-    pub fn new(port: &'a Port<T>) -> Self {
-        Self(port)
-    }
-}
-
-impl<T: Sync> ReactionTrigger<T> for ReadablePort<'_, T> {
-    #[inline]
-    fn get_value(&self, _now: &EventTag, _start: &Instant) -> Option<T>
-    where
-        T: Copy,
-    {
-        self.0.get()
-    }
-
-    #[inline]
-    fn use_value_ref<O>(&self, _now: &EventTag, _start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
-        self.0.use_ref(|opt| action(opt.as_ref()))
-    }
-}
-
-/// A write-only reference to a port.
-pub struct WritablePort<'a, T: Sync>(&'a mut Port<T>);
-
-impl<'a, T: Sync> WritablePort<'a, T> {
-    #[inline(always)]
-    #[doc(hidden)]
-    pub fn new(port: &'a mut Port<T>) -> Self {
-        Self(port)
-    }
-
-    /// Set the value, see [super::ReactionCtx::set]
-    /// Note: we use a closure to process the dependencies to
-    /// avoid having to clone the dependency list just to return it.
-    pub(crate) fn set_impl(&mut self, v: T) {
-        self.0.set_impl(Some(v))
-    }
-
-    pub(crate) fn get_id(&self) -> TriggerId {
-        self.0.get_id()
-    }
-
-    pub(crate) fn kind(&self) -> PortKind {
-        self.0.kind
-    }
-}
-
-/// Internal type, not communicated to reactions.
-pub struct PortBank<T: Sync> {
-    ports: Vec<Port<T>>,
-    id: TriggerId,
-}
-
-impl<T: Sync> PortBank<T> {
-    pub(crate) fn new(ports: Vec<Port<T>>, id: TriggerId) -> Self {
-        Self { ports, id }
-    }
-
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Port<T>> {
-        self.ports.iter_mut()
-    }
-
-    pub fn len(&self) -> usize {
-        self.ports.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.ports.is_empty()
-    }
-}
-
-impl<T: Sync> TriggerLike for PortBank<T> {
-    fn get_id(&self) -> TriggerId {
-        self.id
-    }
-}
-
-impl<'a, T: Sync> IntoIterator for &'a mut PortBank<T> {
-    type Item = &'a mut Port<T>;
-    type IntoIter = std::slice::IterMut<'a, Port<T>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.ports.iter_mut()
-    }
-}
-
-impl<T: Sync> Index<usize> for PortBank<T> {
-    type Output = Port<T>;
-
-    fn index(&self, index: usize) -> &Self::Output {
-        &self.ports[index]
-    }
-}
-
-impl<T: Sync> IndexMut<usize> for PortBank<T> {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.ports[index]
-    }
-}
-
-/// A read-only reference to a port bank.
-pub struct ReadablePortBank<'a, T: Sync>(&'a PortBank<T>);
-
-impl<'a, T: Sync> ReadablePortBank<'a, T> {
-    #[inline(always)]
-    #[doc(hidden)]
-    pub fn new(port: &'a PortBank<T>) -> Self {
-        Self(port)
-    }
-
-    /// Returns the length of the bank
-    #[inline(always)]
-    pub fn len(&self) -> usize {
-        self.0.ports.len()
-    }
-
-    /// Returns true if the bank is empty.
-    #[inline(always)]
-    pub fn is_empty(&self) -> bool {
-        self.0.ports.is_empty()
-    }
-
-    /// Returns the ith component
-    #[inline(always)]
-    pub fn get(&self, i: usize) -> ReadablePort<T> {
-        ReadablePort(&self.0.ports[i])
-    }
-}
-
-impl<'a, T: Sync> IntoIterator for ReadablePortBank<'a, T> {
-    type Item = ReadablePort<'a, T>;
-    type IntoIter = std::iter::Map<std::slice::Iter<'a, Port<T>>, fn(&'a Port<T>) -> ReadablePort<'a, T>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.ports.iter().map(ReadablePort)
-    }
-}
-
-pub struct WritablePortBank<'a, T: Sync>(&'a mut PortBank<T>);
-
-impl<'a, T: Sync> WritablePortBank<'a, T> {
-    #[doc(hidden)]
-    #[inline(always)]
-    pub fn new(port: &'a mut PortBank<T>) -> Self {
-        Self(port)
-    }
-
-    /// Returns the length of the bank
-    #[inline(always)]
-    pub fn len(&self) -> usize {
-        self.0.ports.len()
-    }
-
-    /// Returns true if the bank is empty.
-    #[inline(always)]
-    pub fn is_empty(&self) -> bool {
-        self.0.ports.is_empty()
-    }
-
-    /// Returns the ith component
-    #[inline(always)]
-    pub fn get(&mut self, i: usize) -> WritablePort<T> {
-        WritablePort(&mut self.0.ports[i])
-    }
-}
-
-impl<'a, T: Sync> IntoIterator for WritablePortBank<'a, T> {
-    type Item = WritablePort<'a, T>;
-    type IntoIter = std::iter::Map<std::slice::IterMut<'a, Port<T>>, fn(&'a mut Port<T>) -> WritablePort<'a, T>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.ports.iter_mut().map(WritablePort)
-    }
-}
-
 /// Represents a port, which carries values of type `T`.
 /// Ports reify the data inputs and outputs of a reactor.
 ///
@@ -236,16 +56,12 @@ impl<'a, T: Sync> IntoIterator for WritablePortBank<'a, T> {
 /// able to add conditional compilation flags that enable
 /// runtime checks.
 ///
-///
 pub struct Port<T: Sync> {
     id: TriggerId,
     kind: PortKind,
     bind_status: BindStatus,
-    #[cfg(feature = "no-unsafe")]
-    upstream_binding: Rc<AtomicRefCell<Rc<PortCell<T>>>>,
-    #[cfg(not(feature = "no-unsafe"))]
-    upstream_binding: Rc<UnsafeCell<Rc<PortCell<T>>>>,
-    //                              ^^
+    upstream_binding: Rc<UncheckedCell<Rc<PortCell<T>>>>,
+    //                                 ^^
     // Note that manipulating this Rc is really unsafe and
     // requires care to avoid UB.
     // - Cloning the Rc from different threads concurrently is UB.
@@ -278,6 +94,13 @@ impl<T: Sync> Port<T> {
         }
     }
 
+    pub(crate) fn is_present_now(&self) -> bool {
+        self.use_ref(|opt| opt.is_some())
+    }
+
+    pub(crate) fn get_kind(&self) -> PortKind {
+        self.kind
+    }
     #[inline]
     pub(crate) fn get(&self) -> Option<T>
     where
@@ -313,6 +136,20 @@ impl<T: Sync> Port<T> {
             }
 
         } else {
+
+             /// Returns a reference to the value. It is not possible to
+             /// implement this in safe code without reimplementing the same
+             /// kind of logic as AtomicRef, because the ref has to hold
+             /// two borrows at the same time.
+             pub(crate) fn get_ref(&self) -> Option<&T> {
+                 let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
+                 unsafe {
+                     let cell = &*binding.get();
+                     let opt = &*cell.value.get();
+                    opt.as_ref()
+                 }
+             }
+
              #[inline]
              pub(crate) fn use_ref<R>(&self, f: impl FnOnce(&Option<T>) -> R) -> R {
                 let binding: &UnsafeCell<Rc<PortCell<T>>> = Rc::borrow(&self.upstream_binding);
@@ -390,6 +227,33 @@ impl<T: Sync> Port<T> {
     }
 }
 
+impl<T: Sync> ReactionTrigger<T> for Port<T> {
+    #[inline]
+    fn is_present(&self, _now: &EventTag, _start: &Instant) -> bool {
+        self.is_present_now()
+    }
+
+    #[inline]
+    fn get_value(&self, _now: &EventTag, _start: &Instant) -> Option<T>
+    where
+        T: Copy,
+    {
+        self.get()
+    }
+
+    #[inline]
+    fn use_value_ref<O>(&self, _now: &EventTag, _start: &Instant, action: impl FnOnce(Option<&T>) -> O) -> O {
+        self.use_ref(|opt| action(opt.as_ref()))
+    }
+}
+
+#[cfg(not(feature = "no-unsafe"))]
+impl<T: Sync> crate::triggers::ReactionTriggerWithRefAccess<T> for Port<T> {
+    fn get_value_ref(&self, _now: &EventTag, _start: &Instant) -> Option<&T> {
+        self.get_ref()
+    }
+}
+
 impl<T: Sync> TriggerLike for Port<T> {
     fn get_id(&self) -> TriggerId {
         self.id
@@ -410,18 +274,20 @@ enum BindStatus {
     Bound,
 }
 
-#[cfg(feature = "no-unsafe")]
-type DownstreamsSafe<T> = AtomicRefCell<HashMap<PortId, Rc<AtomicRefCell<Rc<PortCell<T>>>>>>;
-#[cfg(not(feature = "no-unsafe"))]
-type DownstreamsUnsafe<T> = AtomicRefCell<HashMap<PortId, Rc<UnsafeCell<Rc<PortCell<T>>>>>>;
+cfg_if! {
+    if #[cfg(feature = "no-unsafe")] {
+        type Downstreams<T> = AtomicRefCell<HashMap<PortId, Rc<AtomicRefCell<Rc<PortCell<T>>>>>>;
+        type UncheckedCell<T> = AtomicRefCell<T>;
+    } else {
+        type Downstreams<T> = AtomicRefCell<HashMap<PortId, Rc<UnsafeCell<Rc<PortCell<T>>>>>>;
+        type UncheckedCell<T> = UnsafeCell<T>;
+    }
+}
 
 /// This is the internal cell type that is shared by ports.
 struct PortCell<T: Sync> {
     /// Cell for the value.
-    #[cfg(feature = "no-unsafe")]
-    value: AtomicRefCell<Option<T>>,
-    #[cfg(not(feature = "no-unsafe"))]
-    value: UnsafeCell<Option<T>>,
+    value: UncheckedCell<Option<T>>,
 
     /// This is the set of ports that are "forwarded to".
     /// When you bind 2 ports A -> B, then the binding of B
@@ -439,10 +305,7 @@ struct PortCell<T: Sync> {
     /// - so all three refer to the equiv class of A, whose downstream is now {B, C}
     /// - if you then try binding C -> A, then we can know
     /// that C is in the downstream of A, indicating that there is a cycle.
-    #[cfg(feature = "no-unsafe")]
-    downstreams: DownstreamsSafe<T>,
-    #[cfg(not(feature = "no-unsafe"))]
-    downstreams: DownstreamsUnsafe<T>,
+    downstreams: Downstreams<T>,
 }
 
 impl<T: Sync> PortCell<T> {
@@ -477,5 +340,132 @@ impl<T: Sync> Default for PortCell<T> {
             value: Default::default(),
             downstreams: Default::default(),
         }
+    }
+}
+
+/// A multiport is a vector of independent ports (its _channels_)
+/// Multiports have special Lingua Franca syntax, similar to reactor banks.
+pub struct Multiport<T: Sync> {
+    ports: Vec<Port<T>>,
+    id: TriggerId,
+}
+
+impl<T: Sync> Multiport<T> {
+    /// Create a multiport from the given vector of ports.
+    #[inline(always)]
+    pub(crate) fn new(ports: Vec<Port<T>>, id: TriggerId) -> Self {
+        Self { ports, id }
+    }
+
+    /// Returns the number of channels.
+    #[inline(always)]
+    pub fn len(&self) -> usize {
+        self.ports.len()
+    }
+
+    /// Returns true if this multiport is empty.
+    #[inline(always)]
+    pub fn is_empty(&self) -> bool {
+        self.ports.is_empty()
+    }
+
+    /// Iterate over the multiport and return mutable references to individual channels.
+    #[inline(always)]
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Port<T>> {
+        self.ports.iter_mut()
+    }
+
+    /// Iterate over the channels of this multiport. Returns read-only
+    /// references to individual ports.
+    #[inline(always)]
+    pub fn iter(&self) -> impl Iterator<Item = &Port<T>> {
+        self.into_iter()
+    }
+
+    /// Iterate over only those channels that are set (have a value).
+    /// Returns a tuple with their index (not necessarily contiguous).
+    pub fn enumerate_set(&self) -> impl Iterator<Item = (usize, &Port<T>)> {
+        self.iter().enumerate().filter(|&(_, p)| p.is_present_now())
+    }
+
+    /// Iterate over only those channels that are set (have a value).
+    /// The returned ports are not necessarily contiguous. See
+    /// [Self::enumerate_set] to get access to their index.
+    pub fn iterate_set(&self) -> impl Iterator<Item = &Port<T>> {
+        self.iter().filter(|&p| p.is_present_now())
+    }
+
+    /// Iterate over only those channels that are set (have a value),
+    /// and return a copy of the value.
+    /// The returned ports are not necessarily contiguous. See
+    /// [Self::enumerate_values] to get access to their index.
+    pub fn iterate_values(&self) -> impl Iterator<Item = T> + '_
+    where
+        T: Copy,
+    {
+        self.iter().filter_map(|p| p.get())
+    }
+
+    /// Iterate over only those ports that are set (have a value),
+    /// and return a reference to the value.
+    /// The returned ports are not necessarily contiguous. See
+    /// [Self::enumerate_values] to get access to their index.
+    #[cfg(not(feature = "no-unsafe"))]
+    pub fn iterate_values_ref(&self) -> impl Iterator<Item = &T> + '_ {
+        self.iter().filter_map(|p| p.get_ref())
+    }
+
+    /// Iterate over only those channels that are set (have a value),
+    /// yielding a tuple with their index in the bank and a copy of the value.
+    pub fn enumerate_values(&self) -> impl Iterator<Item = (usize, T)> + '_
+    where
+        T: Copy,
+    {
+        self.iter().enumerate().filter_map(|(i, p)| p.get().map(|v| (i, v)))
+    }
+
+    /// Iterate over only those channels that are set (have a value),
+    /// yielding a tuple with their index in the bank and a reference to the value.
+    #[cfg(not(feature = "no-unsafe"))]
+    pub fn enumerate_values_ref(&self) -> impl Iterator<Item = (usize, &T)> + '_ {
+        self.iter().enumerate().filter_map(|(i, p)| p.get_ref().map(|v| (i, v)))
+    }
+}
+
+impl<T: Sync> TriggerLike for Multiport<T> {
+    fn get_id(&self) -> TriggerId {
+        self.id
+    }
+}
+
+impl<'a, T: Sync> IntoIterator for &'a mut Multiport<T> {
+    type Item = &'a mut Port<T>;
+    type IntoIter = std::slice::IterMut<'a, Port<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.ports.iter_mut()
+    }
+}
+
+impl<'a, T: Sync> IntoIterator for &'a Multiport<T> {
+    type Item = &'a Port<T>;
+    type IntoIter = std::slice::Iter<'a, Port<T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.ports.iter()
+    }
+}
+
+impl<T: Sync> Index<usize> for Multiport<T> {
+    type Output = Port<T>;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.ports[index]
+    }
+}
+
+impl<T: Sync> IndexMut<usize> for Multiport<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.ports[index]
     }
 }

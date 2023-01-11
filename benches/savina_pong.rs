@@ -104,8 +104,8 @@ mod reactors {
             fn react_0(
                 &mut self,
                 #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
-                receive: &::reactor_rt::ReadablePort<u32>,
-                #[allow(unused_mut)] mut send: ::reactor_rt::WritablePort<u32>,
+                receive: &::reactor_rt::Port<u32>,
+                send: &mut ::reactor_rt::Port<u32>,
             ) {
                 self.count += 1;
                 ctx.set(send, ctx.get(receive).unwrap());
@@ -215,11 +215,7 @@ mod reactors {
 
             fn react(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
                 match rid.raw() {
-                    0 => self.__impl.react_0(
-                        ctx,
-                        &::reactor_rt::ReadablePort::new(&self.__receive),
-                        ::reactor_rt::WritablePort::new(&mut self.__send),
-                    ),
+                    0 => self.__impl.react_0(ctx, &self.__receive, &mut self.__send),
                     1 => self.__impl.react_1(ctx),
 
                     _ => panic!(
@@ -261,7 +257,7 @@ mod reactors {
                 &mut self,
                 #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
                 #[allow(unused)] serve: &::reactor_rt::LogicalAction<()>,
-                #[allow(unused_mut)] mut send: ::reactor_rt::WritablePort<u32>,
+                send: &mut ::reactor_rt::Port<u32>,
             ) {
                 ctx.set(send, self.pingsLeft);
                 self.pingsLeft -= 1;
@@ -271,8 +267,8 @@ mod reactors {
             fn react_1(
                 &mut self,
                 #[allow(unused)] ctx: &mut ::reactor_rt::ReactionCtx,
-                _receive: &::reactor_rt::ReadablePort<u32>,
-                #[allow(unused_mut)] mut serve: &mut ::reactor_rt::LogicalAction<()>,
+                _receive: &::reactor_rt::Port<u32>,
+                serve: &mut ::reactor_rt::LogicalAction<()>,
             ) {
                 if self.pingsLeft > 0 {
                     ctx.schedule(serve, Asap);
@@ -378,12 +374,8 @@ mod reactors {
 
             fn react(&mut self, ctx: &mut ::reactor_rt::ReactionCtx, rid: ::reactor_rt::LocalReactionId) {
                 match rid.raw() {
-                    0 => self
-                        .__impl
-                        .react_0(ctx, &self.__serve, ::reactor_rt::WritablePort::new(&mut self.__send)),
-                    1 => self
-                        .__impl
-                        .react_1(ctx, &::reactor_rt::ReadablePort::new(&self.__receive), &mut self.__serve),
+                    0 => self.__impl.react_0(ctx, &self.__serve, &mut self.__send),
+                    1 => self.__impl.react_1(ctx, &self.__receive, &mut self.__serve),
 
                     _ => panic!(
                         "Invalid reaction ID: {} should be < {}",

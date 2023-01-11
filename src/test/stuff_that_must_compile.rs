@@ -28,11 +28,8 @@
 #![allow(unused)]
 
 use crate::assembly::{AssemblyCtx, ReactorInitializer};
-use crate::Offset::Asap;
-use crate::{
-    CleanupCtx, LogicalAction, PhysicalAction, PhysicalActionRef, Port, ReactionCtx, ReadablePort, SchedulerOptions,
-    SyncScheduler, WritablePort,
-};
+use crate::prelude::*;
+use crate::{CleanupCtx, Port};
 
 fn actions_get(ctx: &mut ReactionCtx, act_mut: &mut LogicalAction<u32>, act: &LogicalAction<u32>) {
     assert!(ctx.get(act_mut).is_some());
@@ -62,12 +59,36 @@ fn actions_use_ref(ctx: &mut ReactionCtx, act: &LogicalAction<u32>) {
     assert!(ctx.use_ref(act, |v| v.is_some()));
 }
 
-fn port_get(ctx: &mut ReactionCtx, port: &ReadablePort<u32>) {
+fn port_get(ctx: &mut ReactionCtx, port: &Port<u32>) {
     assert!(ctx.get(port).is_some());
 }
 
-fn port_set(ctx: &mut ReactionCtx, mut port: WritablePort<u32>) {
+fn port_is_present(ctx: &mut ReactionCtx, port: &Port<u32>) {
+    assert!(ctx.is_present(port));
+}
+
+fn port_set(ctx: &mut ReactionCtx, port: &mut Port<u32>) {
     assert_eq!(ctx.set(port, 3), ());
+}
+
+fn readable_port_bank_iter(ctx: &mut ReactionCtx, bank: &Multiport<u32>) {
+    for p in bank {
+        assert!(ctx.get(p).is_some());
+    }
+    for p in bank {
+        // should be ok to do it twice bc not moved
+        assert!(ctx.get(p).is_some());
+    }
+
+    for (i, pi) in bank.iter().enumerate() {}
+}
+
+fn readable_port_bank_iter2(ctx: &mut ReactionCtx, bank: &Multiport<u32>) {
+    let count = bank.iter().filter(|&p| ctx.is_present(p)).count();
+}
+
+fn writable_port_bank_index(ctx: &mut ReactionCtx, bank: &Multiport<u32>) {
+    let x: &Port<u32> = &bank[1];
 }
 
 fn physical_spawn_elided(ctx: &mut ReactionCtx, mut action: PhysicalActionRef<u32>) {
