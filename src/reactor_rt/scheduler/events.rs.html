@@ -199,13 +199,46 @@
 <span id="199">199</span>
 <span id="200">200</span>
 <span id="201">201</span>
+<span id="202">202</span>
+<span id="203">203</span>
+<span id="204">204</span>
+<span id="205">205</span>
+<span id="206">206</span>
+<span id="207">207</span>
+<span id="208">208</span>
+<span id="209">209</span>
+<span id="210">210</span>
+<span id="211">211</span>
+<span id="212">212</span>
+<span id="213">213</span>
+<span id="214">214</span>
+<span id="215">215</span>
+<span id="216">216</span>
+<span id="217">217</span>
+<span id="218">218</span>
+<span id="219">219</span>
+<span id="220">220</span>
+<span id="221">221</span>
+<span id="222">222</span>
+<span id="223">223</span>
+<span id="224">224</span>
+<span id="225">225</span>
+<span id="226">226</span>
+<span id="227">227</span>
+<span id="228">228</span>
+<span id="229">229</span>
+<span id="230">230</span>
+<span id="231">231</span>
+<span id="232">232</span>
+<span id="233">233</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::fmt::{Display, Formatter};
 <span class="kw">use </span>std::time::Instant;
 
 <span class="kw">use </span><span class="kw">super</span>::ReactionPlan;
-<span class="kw">use </span><span class="kw">crate</span>::scheduler::dependencies::ExecutableReactions;
+<span class="kw">use </span><span class="kw">crate</span>::scheduler::dependencies::{DataflowInfo, ExecutableReactions};
+<span class="kw">use </span><span class="kw">crate</span>::triggers::TriggerId;
 <span class="kw">use crate</span>::<span class="kw-2">*</span>;
 
 <span class="doccomment">/// The tag of an event.
@@ -359,6 +392,37 @@
     }
 }
 
+<span class="doccomment">/// An event sent by a physical action from an asynchronous
+/// thread. This is distinct from [Event] so as not to have
+/// to send references, which require quantifying the lifetime
+/// of the event and event queue and everything.
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>PhysicalEvent {
+    <span class="doccomment">/// The tag.
+    </span><span class="kw">pub </span>tag: EventTag,
+    <span class="doccomment">/// The ID of the physical action that triggered this event.
+    </span><span class="kw">pub </span>trigger_id: <span class="prelude-ty">Option</span>&lt;TriggerId&gt;,
+    <span class="kw">pub </span>terminate: bool,
+}
+
+<span class="kw">impl </span>PhysicalEvent {
+    <span class="doccomment">/// Turn a [PhysicalEvent] into an [Event] within the scheduler.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>make_executable(<span class="self">self</span>, dataflow: <span class="kw-2">&amp;</span>DataflowInfo) -&gt; Event {
+        <span class="kw">let </span>PhysicalEvent { tag, trigger_id, terminate } = <span class="self">self</span>;
+        Event {
+            tag,
+            terminate,
+            reactions: trigger_id.map(|id| Cow::Borrowed(dataflow.reactions_triggered_by(<span class="kw-2">&amp;</span>id))),
+        }
+    }
+
+    <span class="kw">pub fn </span>trigger(tag: EventTag, trigger: TriggerId) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ tag, trigger_id: <span class="prelude-val">Some</span>(trigger), terminate: <span class="bool-val">false </span>}
+    }
+    <span class="kw">pub fn </span>terminate_at(tag: EventTag) -&gt; <span class="self">Self </span>{
+        <span class="self">Self </span>{ tag, trigger_id: <span class="prelude-val">None</span>, terminate: <span class="bool-val">true </span>}
+    }
+}
+
 <span class="doccomment">/// A queue of pending [Event]s. Events are ordered by tag,
 /// so this is not a FIFO queue.
 </span><span class="attribute">#[derive(Default)]
@@ -401,4 +465,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0 (69f9c33d7 2022-12-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.1 (90743e729 2023-01-10)" ></div></body></html>

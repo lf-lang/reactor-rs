@@ -973,6 +973,7 @@
 <span id="973">973</span>
 <span id="974">974</span>
 <span id="975">975</span>
+<span id="976">976</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -1009,12 +1010,13 @@
 <span class="kw">use </span>petgraph::graph::{DiGraph, NodeIndex};
 <span class="kw">use </span>petgraph::visit::EdgeRef;
 <span class="kw">use </span>petgraph::Direction::Outgoing;
-<span class="kw">use </span>vecmap::{Entry <span class="kw">as </span>VEntry, KeyRef, VecMap};
 
 <span class="kw">use </span><span class="kw">super</span>::ReactionPlan;
 <span class="kw">use </span><span class="kw">crate</span>::assembly::<span class="kw-2">*</span>;
 <span class="kw">use </span><span class="kw">crate</span>::impl_types::GlobalIdImpl;
 <span class="kw">use </span><span class="kw">crate</span>::scheduler::dependencies::NodeKind::MultiportUpstream;
+<span class="kw">use </span><span class="kw">crate</span>::util::vecmap::{Entry <span class="kw">as </span>VEntry, VecMap};
+<span class="kw">use </span><span class="kw">crate</span>::vecmap::KeyRef;
 <span class="kw">use crate</span>::<span class="kw-2">*</span>;
 
 <span class="kw">type </span>GraphIx = NodeIndex&lt;GlobalIdImpl&gt;;
@@ -1949,4 +1951,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0 (69f9c33d7 2022-12-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.1 (90743e729 2023-01-10)" ></div></body></html>

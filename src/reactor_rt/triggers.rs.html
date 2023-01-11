@@ -158,6 +158,8 @@
 <span id="158">158</span>
 <span id="159">159</span>
 <span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -305,7 +307,9 @@
 
     <span class="attribute">#[allow(clippy::unnecessary_cast)]
     </span><span class="kw">fn </span>index(<span class="self">self</span>) -&gt; usize {
-        <span class="self">self</span>.<span class="number">0 </span><span class="kw">as </span>usize
+        <span class="comment">// The cast may be unnecessary if TriggerIdImpl resolves
+        // to usize, but that depends on compile-time features.
+        </span><span class="self">self</span>.<span class="number">0 </span><span class="kw">as </span>usize
     }
 }
 
@@ -319,4 +323,4 @@
     }
 }
 </code></pre></div>
-</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.0 (69f9c33d7 2022-12-12)" ></div></body></html>
+</section></div></main><div id="rustdoc-vars" data-root-path="../../" data-current-crate="reactor_rt" data-themes="ayu,dark,light" data-resource-suffix="" data-rustdoc-version="1.66.1 (90743e729 2023-01-10)" ></div></body></html>
