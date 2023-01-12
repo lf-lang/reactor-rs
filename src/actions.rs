@@ -29,8 +29,9 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use crate::assembly::{TriggerId, TriggerLike};
-use crate::vecmap::{Entry, VecMap};
 use crate::*;
+
+use vecmap::{Entry, VecMap};
 
 /// A logical action.
 pub struct LogicalAction<T: Sync>(pub(crate) Action<Logical, T>);
@@ -66,7 +67,7 @@ impl<K, T: Sync> Action<K, T> {
     pub(crate) fn schedule_future_value(&mut self, time: EventTag, value: Option<T>) {
         match self.map.entry(Reverse(time)) {
             Entry::Vacant(e) => e.insert(value),
-            Entry::Occupied(e) => {
+            Entry::Occupied(ref mut e) => {
                 trace!("Value overwritten in an action for tag {}", time);
                 trace!("This means an action was scheduled several times for the same tag.");
                 e.replace(value)

@@ -29,9 +29,9 @@ use std::fmt::{Display, Formatter, Result};
 use std::ops::Range;
 
 use index_vec::{Idx, IndexVec};
+use vecmap::VecMap;
 
 use crate::assembly::{ReactorInitializer, TriggerId};
-use crate::vecmap::VecMap;
 use crate::{GlobalReactionId, ReactorId};
 
 /// Maps IDs to debug information, stores all the debug info.
