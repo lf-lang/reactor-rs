@@ -159,10 +159,6 @@
 <span id="159">159</span>
 <span id="160">160</span>
 <span id="161">161</span>
-<span id="162">162</span>
-<span id="163">163</span>
-<span id="164">164</span>
-<span id="165">165</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -316,10 +312,6 @@
 </span><span class="attribute">#[cfg(feature = <span class="string">&quot;public-internals&quot;</span>)]
 #[doc(hidden)]
 </span><span class="kw">pub mod </span>internals {
-    <span class="kw">pub mod </span>vecmap {
-        <span class="kw">pub use </span><span class="kw">crate</span>::util::vecmap::<span class="kw-2">*</span>;
-    }
-
     <span class="kw">pub use </span><span class="kw">crate</span>::ids::impl_types::<span class="kw-2">*</span>;
     <span class="kw">pub use </span><span class="kw">crate</span>::scheduler::internals::<span class="kw-2">*</span>;
     <span class="kw">use crate</span>::{GlobalId, GlobalReactionId};

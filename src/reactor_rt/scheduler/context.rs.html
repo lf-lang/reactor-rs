@@ -804,13 +804,33 @@
 <span id="804">804</span>
 <span id="805">805</span>
 <span id="806">806</span>
+<span id="807">807</span>
+<span id="808">808</span>
+<span id="809">809</span>
+<span id="810">810</span>
+<span id="811">811</span>
+<span id="812">812</span>
+<span id="813">813</span>
+<span id="814">814</span>
+<span id="815">815</span>
+<span id="816">816</span>
+<span id="817">817</span>
+<span id="818">818</span>
+<span id="819">819</span>
+<span id="820">820</span>
+<span id="821">821</span>
+<span id="822">822</span>
+<span id="823">823</span>
+<span id="824">824</span>
+<span id="825">825</span>
+<span id="826">826</span>
 </pre><pre class="rust"><code><span class="kw">use </span>std::borrow::Borrow;
 <span class="kw">use </span>std::hash::{Hash, Hasher};
 <span class="kw">use </span>std::sync::atomic::{AtomicBool, Ordering};
 <span class="kw">use </span>std::sync::Arc;
-<span class="kw">use </span>std::thread::JoinHandle;
 
 <span class="kw">use </span>crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
+<span class="kw">use </span>crossbeam_utils::thread::{Scope, ScopedJoinHandle};
 <span class="kw">use </span>smallvec::SmallVec;
 
 <span class="kw">use super</span>::<span class="kw-2">*</span>;
@@ -827,7 +847,10 @@
 // ReactionCtx is an API built around a ReactionWave. A single
 // ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&amp;mut).
-</span><span class="kw">pub struct </span>ReactionCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>&gt; {
+</span><span class="kw">pub struct </span>ReactionCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt;
+<span class="kw">where
+    </span><span class="lifetime">&#39;x</span>: <span class="lifetime">&#39;t</span>,
+{
     <span class="kw">pub</span>(<span class="kw">super</span>) insides: RContextForwardableStuff&lt;<span class="lifetime">&#39;x</span>&gt;,
 
     <span class="doccomment">/// Logical time of the execution of this wave, constant
@@ -841,7 +864,7 @@
     </span>current_reaction: <span class="prelude-ty">Option</span>&lt;GlobalReactionId&gt;,
 
     <span class="doccomment">/// Sender to schedule events that should be executed later than this wave.
-    </span>rx: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Receiver&lt;PhysicalEvent&gt;,
+    </span>rx: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Receiver&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt;,
 
     <span class="doccomment">/// Start time of the program.
     </span>initial_time: Instant,
@@ -849,6 +872,7 @@
     <span class="comment">// globals, also they might be copied and passed to AsyncCtx
     </span>dataflow: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span>DataflowInfo,
     debug_info: DebugInfoProvider&lt;<span class="lifetime">&#39;a</span>&gt;,
+    thread_spawner: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Scope&lt;<span class="lifetime">&#39;t</span>&gt;,
     <span class="doccomment">/// Whether the scheduler has been shut down.
     </span>was_terminated_atomic: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Arc&lt;AtomicBool&gt;,
     <span class="doccomment">/// In ReactionCtx, this will only be true if this is the shutdown tag.
@@ -857,7 +881,10 @@
     </span>was_terminated: bool,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>&gt; ReactionCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt; ReactionCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt;
+<span class="kw">where
+    </span><span class="lifetime">&#39;x</span>: <span class="lifetime">&#39;t</span>,
+{
     <span class="doccomment">/// Returns the start time of the execution of this program.
     ///
     /// This is a logical instant with microstep zero.
@@ -1234,19 +1261,25 @@
     /// }
     /// ```
     ///
-    </span><span class="kw">pub fn </span>spawn_physical_thread&lt;F, R&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, f: F) -&gt; JoinHandle&lt;R&gt;
+    </span><span class="kw">pub fn </span>spawn_physical_thread&lt;F, R&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, f: F) -&gt; ScopedJoinHandle&lt;R&gt;
     <span class="kw">where
-        </span><span class="comment">// is there a practical reason to encapsulate this?
-        </span>F: FnOnce(<span class="kw-2">&amp;mut </span>AsyncCtx) -&gt; R,
-        F: Send + <span class="lifetime">&#39;static</span>,
-        R: Send + <span class="lifetime">&#39;static</span>,
+        </span>F: FnOnce(<span class="kw-2">&amp;mut </span>AsyncCtx&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt;) -&gt; R,
+        F: <span class="lifetime">&#39;x </span>+ Send,
+        R: <span class="lifetime">&#39;x </span>+ Send,
     {
         <span class="kw">let </span>tx = <span class="self">self</span>.rx.new_sender();
+        <span class="kw">let </span>dataflow = <span class="self">self</span>.dataflow;
         <span class="kw">let </span>initial_time = <span class="self">self</span>.initial_time;
         <span class="kw">let </span>was_terminated = <span class="self">self</span>.was_terminated_atomic.clone();
 
-        std::thread::spawn(<span class="kw">move </span>|| {
-            <span class="kw">let </span><span class="kw-2">mut </span>link = AsyncCtx { tx, initial_time, was_terminated };
+        <span class="self">self</span>.thread_spawner.spawn(<span class="kw">move </span>|subscope| {
+            <span class="kw">let </span><span class="kw-2">mut </span>link = AsyncCtx {
+                tx,
+                dataflow,
+                initial_time,
+                thread_spawner: subscope,
+                was_terminated,
+            };
             f(<span class="kw-2">&amp;mut </span>link)
         })
     }
@@ -1319,11 +1352,12 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(
-        rx: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Receiver&lt;PhysicalEvent&gt;,
+        rx: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Receiver&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt;,
         tag: EventTag,
         initial_time: Instant,
         todo: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;,
         dataflow: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span>DataflowInfo,
+        thread_spawner: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Scope&lt;<span class="lifetime">&#39;t</span>&gt;,
         debug_info: DebugInfoProvider&lt;<span class="lifetime">&#39;a</span>&gt;,
         was_terminated_atomic: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Arc&lt;AtomicBool&gt;,
         was_terminated: bool,
@@ -1336,6 +1370,7 @@
             rx,
             initial_time,
             dataflow,
+            thread_spawner,
             was_terminated_atomic,
             debug_info,
             was_terminated,
@@ -1354,6 +1389,7 @@
             rx: <span class="self">self</span>.rx,
             cur_level: <span class="self">self</span>.cur_level,
             initial_time: <span class="self">self</span>.initial_time,
+            thread_spawner: <span class="self">self</span>.thread_spawner,
             dataflow: <span class="self">self</span>.dataflow,
             was_terminated: <span class="self">self</span>.was_terminated,
             was_terminated_atomic: <span class="self">self</span>.was_terminated_atomic,
@@ -1401,14 +1437,17 @@
 /// See [ReactionCtx::spawn_physical_thread].
 ///
 </span><span class="attribute">#[derive(Clone)]
-</span><span class="kw">pub struct </span>AsyncCtx {
-    tx: Sender&lt;PhysicalEvent&gt;,
+</span><span class="kw">pub struct </span>AsyncCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt; {
+    tx: Sender&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt;,
     initial_time: Instant,
+    dataflow: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span>DataflowInfo,
     <span class="doccomment">/// Whether the scheduler has been terminated.
     </span>was_terminated: Arc&lt;AtomicBool&gt;,
+    <span class="attribute">#[allow(unused)] </span><span class="comment">// maybe add a spawn_physical_thread to this type
+    </span>thread_spawner: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Scope&lt;<span class="lifetime">&#39;t</span>&gt;,
 }
 
-<span class="kw">impl </span>AsyncCtx {
+<span class="kw">impl </span>AsyncCtx&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>&gt; {
     <span class="doccomment">/// Returns true if the scheduler has been shutdown. When
     /// that&#39;s true, calls to other methods of this type will
     /// fail with [SendError].
@@ -1430,7 +1469,7 @@
         // this event is scheduled for the future
         </span><span class="kw">let </span>tag = EventTag::absolute(<span class="self">self</span>.initial_time, Instant::now() + offset.to_duration());
 
-        <span class="kw">let </span>evt = PhysicalEvent::terminate_at(tag);
+        <span class="kw">let </span>evt = Event::terminate_at(tag);
         <span class="self">self</span>.tx.send(evt).map_err(|e| {
             <span class="macro">warn!</span>(<span class="string">&quot;Event could not be sent! {:?}&quot;</span>, e);
             SendError(())
@@ -1484,7 +1523,8 @@
                 <span class="kw">let </span>tag = EventTag::absolute(<span class="self">self</span>.initial_time, Instant::now() + offset.to_duration());
                 action.<span class="number">0</span>.schedule_future_value(tag, value);
 
-                <span class="kw">let </span>evt = PhysicalEvent::trigger(tag, action.get_id());
+                <span class="kw">let </span>downstream = <span class="self">self</span>.dataflow.reactions_triggered_by(<span class="kw-2">&amp;</span>action.get_id());
+                <span class="kw">let </span>evt = Event::execute(tag, Cow::Borrowed(downstream));
                 <span class="self">self</span>.tx.send(evt).map_err(|e| {
                     <span class="macro">warn!</span>(<span class="string">&quot;Event could not be sent! {:?}&quot;</span>, e);
                     SendError(action.<span class="number">0</span>.forget_value(<span class="kw-2">&amp;</span>tag))

@@ -276,6 +276,7 @@
 <span id="276">276</span>
 <span id="277">277</span>
 <span id="278">278</span>
+<span id="279">279</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -307,8 +308,9 @@
 <span class="kw">use </span>std::time::{Duration, Instant};
 
 <span class="kw">use </span><span class="kw">crate</span>::assembly::{TriggerId, TriggerLike};
-<span class="kw">use </span><span class="kw">crate</span>::vecmap::{Entry, VecMap};
 <span class="kw">use crate</span>::<span class="kw-2">*</span>;
+
+<span class="kw">use </span>vecmap::{Entry, VecMap};
 
 <span class="doccomment">/// A logical action.
 </span><span class="kw">pub struct </span>LogicalAction&lt;T: Sync&gt;(<span class="kw">pub</span>(<span class="kw">crate</span>) Action&lt;Logical, T&gt;);
@@ -344,7 +346,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>schedule_future_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, time: EventTag, value: <span class="prelude-ty">Option</span>&lt;T&gt;) {
         <span class="kw">match </span><span class="self">self</span>.map.entry(Reverse(time)) {
             Entry::Vacant(e) =&gt; e.insert(value),
-            Entry::Occupied(e) =&gt; {
+            Entry::Occupied(<span class="kw-2">ref mut </span>e) =&gt; {
                 <span class="macro">trace!</span>(<span class="string">&quot;Value overwritten in an action for tag {}&quot;</span>, time);
                 <span class="macro">trace!</span>(<span class="string">&quot;This means an action was scheduled several times for the same tag.&quot;</span>);
                 e.replace(value)

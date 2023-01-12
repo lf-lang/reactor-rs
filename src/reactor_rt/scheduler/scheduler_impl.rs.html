@@ -506,6 +506,20 @@
 <span id="506">506</span>
 <span id="507">507</span>
 <span id="508">508</span>
+<span id="509">509</span>
+<span id="510">510</span>
+<span id="511">511</span>
+<span id="512">512</span>
+<span id="513">513</span>
+<span id="514">514</span>
+<span id="515">515</span>
+<span id="516">516</span>
+<span id="517">517</span>
+<span id="518">518</span>
+<span id="519">519</span>
+<span id="520">520</span>
+<span id="521">521</span>
+<span id="522">522</span>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -536,6 +550,7 @@
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>crossbeam_channel::reconnectable::<span class="kw-2">*</span>;
+<span class="kw">use </span>crossbeam_utils::thread::{scope, Scope};
 
 <span class="kw">use </span><span class="kw">super</span>::assembly_impl::RootAssembler;
 <span class="kw">use super</span>::<span class="kw-2">*</span>;
@@ -595,13 +610,20 @@
 /// &#39;x allows us to take references into the dataflow graph, and
 /// &#39;t to spawn new scoped threads for physical actions. &#39;a is more
 /// useless but is needed to compile.
-</span><span class="kw">pub struct </span>SyncScheduler&lt;<span class="lifetime">&#39;x</span>&gt; {
+</span><span class="kw">pub struct </span>SyncScheduler&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt;
+<span class="kw">where
+    </span><span class="lifetime">&#39;x</span>: <span class="lifetime">&#39;t</span>,
+{
     <span class="doccomment">/// The latest processed logical time (necessarily behind physical time).
     </span>latest_processed_tag: <span class="prelude-ty">Option</span>&lt;EventTag&gt;,
 
     <span class="doccomment">/// Reference to the data flow graph, which allows us to
     /// order reactions properly for each tag.
     </span>dataflow: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span>DataflowInfo,
+
+    <span class="doccomment">/// Can spawn scoped threads, which are used for threads
+    /// producing physical actions.
+    </span>thread_spawner: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Scope&lt;<span class="lifetime">&#39;t</span>&gt;,
 
     <span class="doccomment">/// All reactors.
     </span>reactors: ReactorVec&lt;<span class="lifetime">&#39;x</span>&gt;,
@@ -612,7 +634,7 @@
     <span class="doccomment">/// Receiver through which asynchronous events are
     /// communicated to the scheduler. We only block when
     /// no events are ready to be processed.
-    </span>rx: Receiver&lt;PhysicalEvent&gt;,
+    </span>rx: Receiver&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt;,
 
     <span class="doccomment">/// Initial time of the logical system.
     </span><span class="attribute">#[allow(unused)] </span><span class="comment">// might be useful someday
@@ -635,7 +657,10 @@
     </span>id_registry: DebugInfoRegistry,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;x</span>&gt; SyncScheduler&lt;<span class="lifetime">&#39;x</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt; SyncScheduler&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt;
+<span class="kw">where
+    </span><span class="lifetime">&#39;x</span>: <span class="lifetime">&#39;t</span>,
+{
     <span class="kw">pub fn </span>run_main&lt;R: ReactorInitializer + <span class="lifetime">&#39;static</span>&gt;(options: SchedulerOptions, args: R::Params) {
         <span class="kw">let </span>start = Instant::now();
         <span class="macro">info!</span>(<span class="string">&quot;Starting assembly...&quot;</span>);
@@ -664,27 +689,30 @@
         // dataflow_info outlives &#39;t, so that physical contexts
         // can be spawned in threads that capture references
         // to &#39;x.
-        </span><span class="kw">let </span>initial_time = Instant::now();
-        <span class="attribute">#[cfg(feature = <span class="string">&quot;parallel-runtime&quot;</span>)]
-        </span><span class="kw">let </span>rayon_thread_pool = rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap();
+        </span>scope(|scope| {
+            <span class="kw">let </span>initial_time = Instant::now();
+            <span class="attribute">#[cfg(feature = <span class="string">&quot;parallel-runtime&quot;</span>)]
+            </span><span class="kw">let </span>rayon_thread_pool = rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap();
 
-        <span class="kw">let </span>scheduler = SyncScheduler::new(options, id_registry, <span class="kw-2">&amp;</span>dataflow_info, reactors, initial_time);
+            <span class="kw">let </span>scheduler = SyncScheduler::new(options, id_registry, <span class="kw-2">&amp;</span>dataflow_info, scope, reactors, initial_time);
 
-        <span class="macro">cfg_if::cfg_if! </span>{
-            <span class="kw">if </span><span class="attribute">#[cfg(feature = <span class="string">&quot;parallel-runtime&quot;</span>)] </span>{
-                <span class="doccomment">/// The unsafe impl is safe if scheduler instances
-                /// are only sent between threads like this (their Rc
-                /// internals are not copied).
-                /// So long as the framework entirely controls the lifetime
-                /// of SyncScheduler instances, this is enforceable.
-                </span><span class="kw">unsafe impl </span>Send <span class="kw">for </span>SyncScheduler&lt;<span class="lifetime">&#39;_</span>&gt; {}
+            <span class="macro">cfg_if::cfg_if! </span>{
+                <span class="kw">if </span><span class="attribute">#[cfg(feature = <span class="string">&quot;parallel-runtime&quot;</span>)] </span>{
+                    <span class="doccomment">/// The unsafe impl is safe if scheduler instances
+                    /// are only sent between threads like this (their Rc
+                    /// internals are not copied).
+                    /// So long as the framework entirely controls the lifetime
+                    /// of SyncScheduler instances, this is enforceable.
+                    </span><span class="kw">unsafe impl </span>Send <span class="kw">for </span>SyncScheduler&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>&gt; {}
 
-                <span class="comment">// install makes calls to parallel iterators use that thread pool
-                </span>rayon_thread_pool.install(|| scheduler.launch_event_loop());
-            } <span class="kw">else </span>{
-                scheduler.launch_event_loop();
+                    <span class="comment">// install makes calls to parallel iterators use that thread pool
+                    </span>rayon_thread_pool.install(|| scheduler.launch_event_loop());
+                } <span class="kw">else </span>{
+                    scheduler.launch_event_loop();
+                }
             }
-        }
+        })
+        .unwrap();
     }
 
     <span class="doccomment">/// Launch the event loop in this thread.
@@ -698,7 +726,6 @@
         <span class="kw">loop </span>{
             <span class="comment">// flush pending events, this doesn&#39;t block
             </span><span class="kw">for </span>evt <span class="kw">in </span><span class="self">self</span>.rx.try_iter() {
-                <span class="kw">let </span>evt = evt.make_executable(<span class="self">self</span>.dataflow);
                 <span class="macro">push_event!</span>(<span class="self">self</span>, evt);
             }
 
@@ -711,7 +738,6 @@
                 <span class="kw">match </span><span class="self">self</span>.catch_up_physical_time(evt.tag.to_logical_time(<span class="self">self</span>.initial_time)) {
                     <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {}
                     <span class="prelude-val">Err</span>(async_event) =&gt; {
-                        <span class="kw">let </span>async_event = async_event.make_executable(<span class="self">self</span>.dataflow);
                         <span class="comment">// an asynchronous event woke our sleep
                         </span><span class="kw">if </span>async_event.tag &lt; evt.tag {
                             <span class="comment">// reinsert both events to order them and try again.
@@ -732,7 +758,6 @@
 
                 <span class="self">self</span>.process_tag(<span class="bool-val">false</span>, evt.tag, evt.reactions);
             } <span class="kw">else if let </span><span class="prelude-val">Some</span>(evt) = <span class="self">self</span>.receive_event() {
-                <span class="kw">let </span>evt = evt.make_executable(<span class="self">self</span>.dataflow);
                 <span class="comment">// this may block
                 </span><span class="macro">push_event!</span>(<span class="self">self</span>, evt);
                 <span class="kw">continue</span>;
@@ -756,6 +781,7 @@
         options: SchedulerOptions,
         id_registry: DebugInfoRegistry,
         dependency_info: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span>DataflowInfo,
+        thread_spawner: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Scope&lt;<span class="lifetime">&#39;t</span>&gt;,
         reactors: ReactorVec&lt;<span class="lifetime">&#39;x</span>&gt;,
         initial_time: Instant,
     ) -&gt; <span class="self">Self </span>{
@@ -767,7 +793,7 @@
             <span class="macro">warn!</span>(<span class="string">&quot;&#39;keepalive&#39; runtime parameter has no effect in the Rust target&quot;</span>)
         }
 
-        <span class="kw">let </span>(<span class="kw">_</span>, rx) = unbounded::&lt;PhysicalEvent&gt;();
+        <span class="kw">let </span>(<span class="kw">_</span>, rx) = unbounded::&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt;();
         <span class="self">Self </span>{
             rx,
 
@@ -783,6 +809,7 @@
             }),
             dataflow: dependency_info,
             id_registry,
+            thread_spawner,
             was_terminated: Default::default(),
         }
     }
@@ -822,7 +849,7 @@
 
     <span class="doccomment">/// Wait for an asynchronous event for as long as we can
     /// expect it.
-    </span><span class="kw">fn </span>receive_event(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;PhysicalEvent&gt; {
+    </span><span class="kw">fn </span>receive_event(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(shutdown_t) = <span class="self">self</span>.shutdown_time {
             <span class="kw">let </span>absolute = shutdown_t.to_logical_time(<span class="self">self</span>.initial_time);
             <span class="kw">if let </span><span class="prelude-val">Some</span>(timeout) = absolute.checked_duration_since(Instant::now()) {
@@ -840,7 +867,7 @@
 
     <span class="doccomment">/// Sleep/wait until the given time OR an asynchronous
     /// event is received first.
-    </span><span class="kw">fn </span>catch_up_physical_time(<span class="kw-2">&amp;mut </span><span class="self">self</span>, target: Instant) -&gt; <span class="prelude-ty">Result</span>&lt;(), PhysicalEvent&gt; {
+    </span><span class="kw">fn </span>catch_up_physical_time(<span class="kw-2">&amp;mut </span><span class="self">self</span>, target: Instant) -&gt; <span class="prelude-ty">Result</span>&lt;(), Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt; {
         <span class="kw">let </span>now = Instant::now();
 
         <span class="kw">if </span>now &lt; target {
@@ -882,21 +909,22 @@
 
     <span class="doccomment">/// Create a new reaction wave to process the given
     /// reactions at some point in time.
-    </span><span class="kw">fn </span>new_reaction_ctx&lt;<span class="lifetime">&#39;a</span>&gt;(
+    </span><span class="kw">fn </span>new_reaction_ctx(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         tag: EventTag,
         todo: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;,
-        rx: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Receiver&lt;PhysicalEvent&gt;,
+        rx: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Receiver&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt;,
         debug_info: DebugInfoProvider&lt;<span class="lifetime">&#39;a</span>&gt;,
         was_terminated_atomic: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Arc&lt;AtomicBool&gt;,
         was_terminated: bool,
-    ) -&gt; ReactionCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>&gt; {
+    ) -&gt; ReactionCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt; {
         ReactionCtx::new(
             rx,
             tag,
             <span class="self">self</span>.initial_time,
             todo,
             <span class="self">self</span>.dataflow,
+            <span class="self">self</span>.thread_spawner,
             debug_info,
             was_terminated_atomic,
             was_terminated,
@@ -971,7 +999,7 @@
     <span class="kw">use super</span>::<span class="kw-2">*</span>;
     <span class="kw">use </span><span class="kw">crate</span>::scheduler::dependencies::Level;
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>process_batch(ctx: <span class="kw-2">&amp;mut </span>ReactionCtx&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>&gt;, reactors: <span class="kw-2">&amp;mut </span>ReactorVec&lt;<span class="lifetime">&#39;_</span>&gt;, batch: <span class="kw-2">&amp;</span>Level) {
+    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>process_batch(ctx: <span class="kw-2">&amp;mut </span>ReactionCtx&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>&gt;, reactors: <span class="kw-2">&amp;mut </span>ReactorVec&lt;<span class="lifetime">&#39;_</span>&gt;, batch: <span class="kw-2">&amp;</span>Level) {
         <span class="kw">let </span>reactors_mut = UnsafeSharedPointer(reactors.raw.as_mut_ptr());
 
         ctx.insides.absorb(
@@ -1006,9 +1034,9 @@
 
     <span class="doccomment">/// We need a Clone bound to use fold_with, but this clone
     /// implementation is not general purpose so I hide it.
-    </span><span class="kw">struct </span>CloneableCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>&gt;(ReactionCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>&gt;);
+    </span><span class="kw">struct </span>CloneableCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt;(ReactionCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, <span class="lifetime">&#39;t</span>&gt;);
 
-    <span class="kw">impl </span>Clone <span class="kw">for </span>CloneableCtx&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>&gt; {
+    <span class="kw">impl </span>Clone <span class="kw">for </span>CloneableCtx&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>&gt; {
         <span class="kw">fn </span>clone(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
             <span class="self">Self</span>(<span class="self">self</span>.<span class="number">0</span>.fork())
         }
