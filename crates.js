@@ -1,1 +1,1 @@
-window.ALL_CRATES = ["reactor_rt"];
+window.ALL_CRATES = ["reactor_rt","vecmap"];
