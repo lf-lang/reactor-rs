@@ -1,5 +1,6 @@
 [package]
 name = "vecmap-creusot"
+author = ["Johannes Hayeß <johannes.hayess@tu-dresden.de>"]
 version = "0.1.0"
 edition = "2021"
 
