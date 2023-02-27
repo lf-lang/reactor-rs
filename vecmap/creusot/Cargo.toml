@@ -1,0 +1,16 @@
+[package]
+name = "vecmap-creusot"
+author = ["Johannes Hayeß <johannes.hayess@tu-dresden.de>"]
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+creusot-contracts = { rev = "fbd66041acf5a3f2480c4cc75be024e2f99b0bb7", git = "https://github.com/xldenis/creusot" }
+
+[features]
+default=["contracts"]
+contracts = ["creusot-contracts/contracts"]
+
+[workspace]
