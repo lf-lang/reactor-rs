@@ -28,10 +28,10 @@ use std::ops::{Deref, DerefMut};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use vecmap::{Entry, VecMap};
+
 use crate::assembly::{TriggerId, TriggerLike};
 use crate::*;
-
-use vecmap::{Entry, VecMap};
 
 /// A logical action.
 pub struct LogicalAction<T: Sync>(pub(crate) Action<Logical, T>);

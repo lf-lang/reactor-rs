@@ -28,7 +28,6 @@ use std::collections::HashMap;
 use std::default::Default;
 use std::fmt::{Debug, Display, Formatter};
 use std::ops::Range;
-use std::sync::Arc;
 
 use index_vec::{Idx, IndexVec};
 use petgraph::graph::{DiGraph, NodeIndex};
@@ -192,7 +191,7 @@ impl DepGraph {
     ///
     pub(super) fn record_port_bank(&mut self, id: TriggerId, len: usize) -> Result<(), AssemblyError> {
         assert!(len > 0, "empty port bank");
-        self.record(GraphId::Trigger(id), NodeKind::MultiportUpstream);
+        self.record(GraphId::Trigger(id), MultiportUpstream);
 
         for channel_id in id
             .iter_next_range(len)
@@ -372,7 +371,7 @@ pub(super) struct DataflowInfo {
     /// Maps each trigger to the set of reactions that need
     /// to be scheduled when it is triggered.
     /// Todo: many of those are never asked for, eg those of bound ports
-    trigger_to_plan: IndexVec<TriggerId, Arc<ExecutableReactions<'static>>>,
+    trigger_to_plan: IndexVec<TriggerId, ExecutableReactions<'static>>,
 }
 
 impl DataflowInfo {
@@ -386,7 +385,7 @@ impl DataflowInfo {
     fn collect_trigger_to_plan(
         DepGraph { dataflow, .. }: &mut DepGraph,
         level_info: &ReactionLevelInfo,
-    ) -> IndexVec<TriggerId, Arc<ExecutableReactions<'static>>> {
+    ) -> IndexVec<TriggerId, ExecutableReactions<'static>> {
         let mut result = IndexVec::with_capacity(dataflow.node_count() / 2);
 
         for trigger in dataflow.node_indices() {
@@ -406,7 +405,7 @@ impl DataflowInfo {
 
                 let mut reactions = ExecutableReactions::new();
                 Self::collect_reactions_rec(dataflow, trigger, level_info, &mut reactions);
-                result.insert(trigger_id, Arc::new(reactions));
+                result.insert(trigger_id, reactions);
             }
         }
 

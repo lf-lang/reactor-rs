@@ -150,12 +150,6 @@ impl<'x> SyncScheduler<'x> {
         // collect dependency information
         let dataflow_info = DataflowInfo::new(graph).map_err(|e| e.lift(&id_registry)).unwrap();
 
-        // Using thread::scope here introduces an unnamed lifetime for
-        // the scope, which is captured as 't by the SyncScheduler.
-        // This is useful because it captures the constraint that the
-        // dataflow_info outlives 't, so that physical contexts
-        // can be spawned in threads that capture references
-        // to 'x.
         let initial_time = Instant::now();
         #[cfg(feature = "parallel-runtime")]
         let rayon_thread_pool = rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap();
