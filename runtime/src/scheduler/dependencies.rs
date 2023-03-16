@@ -251,29 +251,33 @@ impl DepGraph {
     }
 
     pub fn triggers_reaction(&mut self, trigger: TriggerId, reaction: GlobalReactionId) {
+        self.trigger_to_reaction_edge(trigger, reaction, EdgeWeight::Default);
+    }
+
+    pub fn reaction_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
+        self.trigger_to_reaction_edge(trigger, reaction, EdgeWeight::Use);
+    }
+
+    fn trigger_to_reaction_edge(&mut self, trigger: TriggerId, reaction: GlobalReactionId, weight: EdgeWeight) {
         let trigger_ix = self.get_ix(trigger.into());
+        let reaction_ix = self.get_ix(reaction.into());
+
         if self.dataflow[trigger_ix].kind == MultiportUpstream {
             for channel_id in TriggerId::iter_range(self.multiport_ranges.get(&trigger).unwrap()) {
-                self.triggers_reaction(channel_id, reaction);
+                // trigger -> reaction
+                self.dataflow.add_edge(self.get_ix(channel_id.into()), reaction_ix, weight);
             }
             return;
         }
 
         // trigger -> reaction
-        self.dataflow
-            .add_edge(trigger_ix, self.get_ix(reaction.into()), EdgeWeight::Default);
+        self.dataflow.add_edge(trigger_ix, reaction_ix, weight);
     }
 
     pub fn reaction_effects(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
         // reaction -> trigger
         self.dataflow
             .add_edge(self.get_ix(reaction.into()), self.get_ix(trigger.into()), EdgeWeight::Default);
-    }
-
-    pub fn reaction_uses(&mut self, reaction: GlobalReactionId, trigger: TriggerId) {
-        // trigger -> reaction
-        self.dataflow
-            .add_edge(self.get_ix(trigger.into()), self.get_ix(reaction.into()), EdgeWeight::Use);
     }
 
     fn get_ix(&self, id: GraphId) -> GraphIx {
@@ -330,7 +334,7 @@ impl DepGraph {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 enum EdgeWeight {
     /// Default semantics for this edge (determined by the
     /// kind of source and target vertex). This only makes a
