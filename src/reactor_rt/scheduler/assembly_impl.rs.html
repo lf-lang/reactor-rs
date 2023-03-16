@@ -548,8 +548,6 @@
 <a href="#548" id="548">548</a>
 <a href="#549" id="549">549</a>
 <a href="#550" id="550">550</a>
-<a href="#551" id="551">551</a>
-<a href="#552" id="552">552</a>
 </pre><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
@@ -822,7 +820,6 @@
         <span class="macro">trace!</span>(<span class="string">&quot;Assembling bank {}&quot;</span>, inst_name);
 
         <span class="kw">let </span><span class="kw-2">mut </span>sub = (<span class="number">0</span>..bank_width)
-            .into_iter()
             .map(|i| <span class="self">self</span>.assemble_sub(inst_name, <span class="prelude-val">Some</span>(i), arg_maker(i)))
             .collect::&lt;<span class="prelude-ty">Result</span>&lt;Vec&lt;Sub&gt;, <span class="kw">_</span>&gt;&gt;()<span class="question-mark">?</span>;
 
@@ -983,7 +980,6 @@
         <span class="self">self</span>.graph().record_port_bank(bank_id, len)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(Multiport::new(
             (<span class="number">0</span>..len)
-                .into_iter()
                 .map(|i| <span class="self">self</span>.new_port_bank_component(lf_name, kind, bank_id, i))
                 .collect(),
             bank_id,

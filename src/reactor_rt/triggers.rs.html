@@ -279,7 +279,7 @@
     /// Returns `Err` on overflow.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>iter_next_range(<span class="kw-2">&amp;</span><span class="self">self</span>, len: usize) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="kw">impl </span>Iterator&lt;Item = <span class="self">Self</span>&gt;, ()&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(upper) = <span class="self">self</span>.<span class="number">0</span>.checked_add(<span class="number">1 </span>+ (len <span class="kw">as </span>TriggerIdImpl)) {
-            <span class="prelude-val">Ok</span>(((<span class="self">self</span>.<span class="number">0 </span>+ <span class="number">1</span>)..upper).into_iter().map(TriggerId))
+            <span class="prelude-val">Ok</span>(((<span class="self">self</span>.<span class="number">0 </span>+ <span class="number">1</span>)..upper).map(TriggerId))
         } <span class="kw">else </span>{
             <span class="prelude-val">Err</span>(())
         }
@@ -294,7 +294,7 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>iter_range(range: <span class="kw-2">&amp;</span>Range&lt;TriggerId&gt;) -&gt; <span class="kw">impl </span>Iterator&lt;Item = TriggerId&gt; {
-        (range.start.<span class="number">0</span>..range.end.<span class="number">0</span>).into_iter().map(TriggerId)
+        (range.start.<span class="number">0</span>..range.end.<span class="number">0</span>).map(TriggerId)
     }
 }
 
