@@ -270,7 +270,6 @@ where
         trace!("Assembling bank {}", inst_name);
 
         let mut sub = (0..bank_width)
-            .into_iter()
             .map(|i| self.assemble_sub(inst_name, Some(i), arg_maker(i)))
             .collect::<Result<Vec<Sub>, _>>()?;
 
@@ -431,7 +430,6 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
         self.graph().record_port_bank(bank_id, len)?;
         Ok(Multiport::new(
             (0..len)
-                .into_iter()
                 .map(|i| self.new_port_bank_component(lf_name, kind, bank_id, i))
                 .collect(),
             bank_id,

@@ -117,7 +117,7 @@ impl TriggerId {
     /// Returns `Err` on overflow.
     pub(crate) fn iter_next_range(&self, len: usize) -> Result<impl Iterator<Item = Self>, ()> {
         if let Some(upper) = self.0.checked_add(1 + (len as TriggerIdImpl)) {
-            Ok(((self.0 + 1)..upper).into_iter().map(TriggerId))
+            Ok(((self.0 + 1)..upper).map(TriggerId))
         } else {
             Err(())
         }
@@ -132,7 +132,7 @@ impl TriggerId {
     }
 
     pub(crate) fn iter_range(range: &Range<TriggerId>) -> impl Iterator<Item = TriggerId> {
-        (range.start.0..range.end.0).into_iter().map(TriggerId)
+        (range.start.0..range.end.0).map(TriggerId)
     }
 }
 
