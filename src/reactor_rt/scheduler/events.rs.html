@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `runtime/src/scheduler/events.rs`."><title>events.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c4dbdcde0fbd8430.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-db279b6232be9c13.css"><link rel="stylesheet" disabled href="../../../static.files/dark-cf923f49f397b216.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-be46fdc453a55015.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-1b95b7cca98b26e5.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../reactor_rt/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/scheduler/events.rs`."><title>events.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="reactor_rt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -231,7 +232,7 @@
 <a href="#231" id="231">231</a>
 <a href="#232" id="232">232</a>
 <a href="#233" id="233">233</a>
-</pre><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::fmt::{Display, Formatter};
 <span class="kw">use </span>std::time::Instant;
@@ -346,11 +347,11 @@
 }
 
 <span class="kw">impl </span>Display <span class="kw">for </span>EventTag {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">let </span>elapsed = <span class="self">self</span>.offset_from_t0;
         <span class="macro">write!</span>(
             f,
-            <span class="string">&quot;(T0 + {} ns = {} ms, {})&quot;</span>,
+            <span class="string">"(T0 + {} ns = {} ms, {})"</span>,
             elapsed.as_nanos(),
             elapsed.as_millis(),
             <span class="self">self</span>.microstep
@@ -365,26 +366,26 @@
 /// [self::AsyncCtx] may only communicate with
 /// the scheduler by sending events.
 </span><span class="attr">#[derive(Debug)]
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>Event&lt;<span class="lifetime">&#39;x</span>&gt; {
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>Event&lt;<span class="lifetime">'x</span>&gt; {
     <span class="doccomment">/// The tag at which the reactions to this event must be executed.
     /// This is always &gt; to the latest *processed* tag, by construction
     /// of the reactor application.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) tag: EventTag,
     <span class="doccomment">/// A set of reactions to execute.
-    </span><span class="kw">pub </span>reactions: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;,
+    </span><span class="kw">pub </span>reactions: ReactionPlan&lt;<span class="lifetime">'x</span>&gt;,
     <span class="doccomment">/// Whether we should terminate the application at
     /// the tag of this event (after processing the tag).
     </span><span class="kw">pub </span>terminate: bool,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;x</span>&gt; Event&lt;<span class="lifetime">&#39;x</span>&gt; {
-    <span class="kw">pub fn </span>absorb(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: Event&lt;<span class="lifetime">&#39;x</span>&gt;) {
+<span class="kw">impl</span>&lt;<span class="lifetime">'x</span>&gt; Event&lt;<span class="lifetime">'x</span>&gt; {
+    <span class="kw">pub fn </span>absorb(<span class="kw-2">&amp;mut </span><span class="self">self</span>, other: Event&lt;<span class="lifetime">'x</span>&gt;) {
         <span class="macro">debug_assert_eq!</span>(<span class="self">self</span>.tag, other.tag);
         <span class="self">self</span>.reactions = ExecutableReactions::merge_cows(<span class="self">self</span>.reactions.take(), other.reactions);
         <span class="self">self</span>.terminate |= other.terminate;
     }
 
-    <span class="kw">pub fn </span>execute(tag: EventTag, reactions: Cow&lt;<span class="lifetime">&#39;x</span>, ExecutableReactions&lt;<span class="lifetime">&#39;x</span>&gt;&gt;) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub fn </span>execute(tag: EventTag, reactions: Cow&lt;<span class="lifetime">'x</span>, ExecutableReactions&lt;<span class="lifetime">'x</span>&gt;&gt;) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ tag, reactions: <span class="prelude-val">Some</span>(reactions), terminate: <span class="bool-val">false </span>}
     }
     <span class="kw">pub fn </span>terminate_at(tag: EventTag) -&gt; <span class="self">Self </span>{
@@ -426,30 +427,30 @@
 <span class="doccomment">/// A queue of pending [Event]s. Events are ordered by tag,
 /// so this is not a FIFO queue.
 </span><span class="attr">#[derive(Default)]
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>EventQueue&lt;<span class="lifetime">&#39;x</span>&gt; {
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>EventQueue&lt;<span class="lifetime">'x</span>&gt; {
     <span class="doccomment">/// This list is sorted by the tag of each event (in ascending order).
     ///
-    /// But insertion is at worse O(n)... And it&#39;s easy to build
+    /// But insertion is at worse O(n)... And it's easy to build
     /// a pathological program where this worse case is always hit.
     /// Theoretically using a tree/ heap would be useful here.
     ///        .
     ///       ..
     ///      ...
     ///     ....
-    </span>value_list: VecDeque&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt;,
+    </span>value_list: VecDeque&lt;Event&lt;<span class="lifetime">'x</span>&gt;&gt;,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;x</span>&gt; EventQueue&lt;<span class="lifetime">&#39;x</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'x</span>&gt; EventQueue&lt;<span class="lifetime">'x</span>&gt; {
     <span class="doccomment">/// Removes and returns the earliest tag
-    </span><span class="kw">pub fn </span>take_earliest(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Event&lt;<span class="lifetime">&#39;x</span>&gt;&gt; {
+    </span><span class="kw">pub fn </span>take_earliest(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;Event&lt;<span class="lifetime">'x</span>&gt;&gt; {
         <span class="self">self</span>.value_list.pop_front()
     }
 
     <span class="comment">// todo perf: we could make a more optimal function to push a
     //  lot of events at once. Consider the following algorithm:
     //  - start with a sorted `self.value_list` and a (non-sorted) `new_evts: Vec&lt;Event&gt;`
-    //  - sort the new events in place (in a Cow maybe). They&#39;ll
-    //  probably come in already sorted but we can&#39;t assume this.
+    //  - sort the new events in place (in a Cow maybe). They'll
+    //  probably come in already sorted but we can't assume this.
     //  Use an algorithm that best-cases for sorted data. (eg https://crates.io/crates/dmsort)
     //  - take the earliest new event and binary search to insert it.
     //  - then do the same thing but only on the remaining (to the right)
@@ -457,12 +458,11 @@
     //  sort.
 
     </span><span class="doccomment">/// Push an event into the heap.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>push(<span class="kw-2">&amp;mut </span><span class="self">self</span>, evt: Event&lt;<span class="lifetime">&#39;x</span>&gt;) {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>push(<span class="kw-2">&amp;mut </span><span class="self">self</span>, evt: Event&lt;<span class="lifetime">'x</span>&gt;) {
         <span class="kw">match </span><span class="self">self</span>.value_list.binary_search_by_key(<span class="kw-2">&amp;</span>evt.tag, |e| e.tag) {
             <span class="prelude-val">Ok</span>(idx) =&gt; <span class="self">self</span>.value_list[idx].absorb(evt),
             <span class="prelude-val">Err</span>(idx) =&gt; <span class="self">self</span>.value_list.insert(idx, evt),
         }
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="reactor_rt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0 (84c898d65 2023-04-16)" data-search-js="search-8a59a8356673ec1f.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

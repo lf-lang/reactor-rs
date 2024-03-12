@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `runtime/src/scheduler/dependencies.rs`."><title>dependencies.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c4dbdcde0fbd8430.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-db279b6232be9c13.css"><link rel="stylesheet" disabled href="../../../static.files/dark-cf923f49f397b216.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-be46fdc453a55015.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-1b95b7cca98b26e5.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../reactor_rt/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/scheduler/dependencies.rs`."><title>dependencies.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="reactor_rt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -977,7 +978,7 @@
 <a href="#977" id="977">977</a>
 <a href="#978" id="978">978</a>
 <a href="#979" id="979">979</a>
-</pre><pre class="rust"><code><span class="comment">/*
+</pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -990,7 +991,7 @@
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&quot; AND ANY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
  * THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
@@ -1067,7 +1068,7 @@
 
 <span class="kw">type </span>DepGraphImpl = DiGraph&lt;GraphNode, EdgeWeight, GlobalIdImpl&gt;;
 
-<span class="doccomment">/// Dependency graph representing &quot;instantaneous&quot; dependencies,
+<span class="doccomment">/// Dependency graph representing "instantaneous" dependencies,
 /// ie read- and write-dependencies of reactions to ports, and
 /// their trigger dependencies. This must be a DAG.
 ///
@@ -1102,12 +1103,12 @@
 }
 
 <span class="kw">impl </span>Debug <span class="kw">for </span>GraphNode {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
-            GraphNode { id: GraphId::Reaction(id), .. } =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;Reaction({:?})&quot;</span>, id),
-            GraphNode { id: GraphId::Trigger(TriggerId::STARTUP), .. } =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;startup&quot;</span>),
-            GraphNode { id: GraphId::Trigger(TriggerId::SHUTDOWN), .. } =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;shutdown&quot;</span>),
-            GraphNode { id: GraphId::Trigger(id), kind } =&gt; <span class="macro">write!</span>(f, <span class="string">&quot;{:?}({:?})&quot;</span>, kind, id.index()),
+            GraphNode { id: GraphId::Reaction(id), .. } =&gt; <span class="macro">write!</span>(f, <span class="string">"Reaction({:?})"</span>, id),
+            GraphNode { id: GraphId::Trigger(TriggerId::STARTUP), .. } =&gt; <span class="macro">write!</span>(f, <span class="string">"startup"</span>),
+            GraphNode { id: GraphId::Trigger(TriggerId::SHUTDOWN), .. } =&gt; <span class="macro">write!</span>(f, <span class="string">"shutdown"</span>),
+            GraphNode { id: GraphId::Trigger(id), kind } =&gt; <span class="macro">write!</span>(f, <span class="string">"{:?}({:?})"</span>, kind, id.index()),
         }
     }
 }
@@ -1132,19 +1133,19 @@
         <span class="kw">use </span>petgraph::dot::{Config, Dot};
 
         <span class="comment">// Map the node weights to nice strings.
-        // petgraph doesn&#39;t support custom node formatters
+        // petgraph doesn't support custom node formatters
         // https://github.com/petgraph/petgraph/issues/194
         </span><span class="kw">let </span>labeled = <span class="self">self</span>.dataflow.map(
             |<span class="kw">_</span>, n| <span class="kw">match </span>n.id {
-                GraphId::Reaction(id) =&gt; <span class="macro">format!</span>(<span class="string">&quot;Reaction({})&quot;</span>, id_registry.fmt_reaction(id)),
-                GraphId::Trigger(TriggerId::STARTUP) =&gt; <span class="string">&quot;startup&quot;</span>.to_string(),
-                GraphId::Trigger(TriggerId::SHUTDOWN) =&gt; <span class="string">&quot;shutdown&quot;</span>.to_string(),
-                GraphId::Trigger(id) =&gt; <span class="macro">format!</span>(<span class="string">&quot;{:?}({})&quot;</span>, n.kind, id_registry.fmt_component(id)),
+                GraphId::Reaction(id) =&gt; <span class="macro">format!</span>(<span class="string">"Reaction({})"</span>, id_registry.fmt_reaction(id)),
+                GraphId::Trigger(TriggerId::STARTUP) =&gt; <span class="string">"startup"</span>.to_string(),
+                GraphId::Trigger(TriggerId::SHUTDOWN) =&gt; <span class="string">"shutdown"</span>.to_string(),
+                GraphId::Trigger(id) =&gt; <span class="macro">format!</span>(<span class="string">"{:?}({})"</span>, n.kind, id_registry.fmt_component(id)),
             },
-            |<span class="kw">_</span>, <span class="kw">_</span>| <span class="string">&quot;&quot;</span>,
+            |<span class="kw">_</span>, <span class="kw">_</span>| <span class="string">""</span>,
         );
 
-        <span class="macro">format!</span>(<span class="string">&quot;{}&quot;</span>, Dot::with_config(<span class="kw-2">&amp;</span>labeled, <span class="kw-2">&amp;</span>[Config::EdgeNoLabel]))
+        <span class="macro">format!</span>(<span class="string">"{}"</span>, Dot::with_config(<span class="kw-2">&amp;</span>labeled, <span class="kw-2">&amp;</span>[Config::EdgeNoLabel]))
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>record_port(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TriggerId) {
@@ -1164,13 +1165,13 @@
     /// ```
     ///
     /// That way when someone declares a trigger on the bank,
-    /// it&#39;s forwarded to individual channels in the graph.
+    /// it's forwarded to individual channels in the graph.
     ///
     /// When X declares a trigger/uses on the entire
     /// bank, an edge is added from every channel to X.
     ///
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>record_port_bank(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TriggerId, len: usize) -&gt; <span class="prelude-ty">Result</span>&lt;(), AssemblyError&gt; {
-        <span class="macro">assert!</span>(len &gt; <span class="number">0</span>, <span class="string">&quot;empty port bank&quot;</span>);
+        <span class="macro">assert!</span>(len &gt; <span class="number">0</span>, <span class="string">"empty port bank"</span>);
         <span class="self">self</span>.record(GraphId::Trigger(id), NodeKind::MultiportUpstream);
 
         <span class="kw">for </span>channel_id <span class="kw">in </span>id
@@ -1265,7 +1266,7 @@
 
     <span class="kw">fn </span>record(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: GraphId, kind: NodeKind) -&gt; GraphIx {
         <span class="kw">match </span><span class="self">self</span>.ix_by_id.entry(id) {
-            HEntry::Occupied(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">&quot;Duplicate id {:?}&quot;</span>, id),
+            HEntry::Occupied(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"Duplicate id {:?}"</span>, id),
             HEntry::Vacant(v) =&gt; {
                 <span class="kw">let </span>ix = <span class="self">self</span>.dataflow.add_node(GraphNode { kind, id });
                 v.insert(ix);
@@ -1318,7 +1319,7 @@
     <span class="doccomment">/// Default semantics for this edge (determined by the
     /// kind of source and target vertex). This only makes a
     /// difference for edges from a port/action to a reaction:
-    /// if they&#39;re labeled `Default`, they&#39;re trigger dependencies,
+    /// if they're labeled `Default`, they're trigger dependencies,
     /// otherwise use dependencies.
     </span>Default,
     <span class="doccomment">///
@@ -1344,7 +1345,7 @@
             </span>.level_numbers
             .get(<span class="kw-2">&amp;</span>reaction)
             .copied()
-            .expect(<span class="string">&quot;reaction was not recorded in the graph&quot;</span>);
+            .expect(<span class="string">"reaction was not recorded in the graph"</span>);
         collection.insert(reaction, ix);
     }
 }
@@ -1355,7 +1356,7 @@
     <span class="doccomment">/// Maps each trigger to the set of reactions that need
     /// to be scheduled when it is triggered.
     /// Todo: many of those are never asked for, eg those of bound ports
-    </span>trigger_to_plan: IndexVec&lt;TriggerId, Arc&lt;ExecutableReactions&lt;<span class="lifetime">&#39;static</span>&gt;&gt;&gt;,
+    </span>trigger_to_plan: IndexVec&lt;TriggerId, Arc&lt;ExecutableReactions&lt;<span class="lifetime">'static</span>&gt;&gt;&gt;,
 }
 
 <span class="kw">impl </span>DataflowInfo {
@@ -1369,14 +1370,14 @@
     <span class="kw">fn </span>collect_trigger_to_plan(
         DepGraph { dataflow, .. }: <span class="kw-2">&amp;mut </span>DepGraph,
         level_info: <span class="kw-2">&amp;</span>ReactionLevelInfo,
-    ) -&gt; IndexVec&lt;TriggerId, Arc&lt;ExecutableReactions&lt;<span class="lifetime">&#39;static</span>&gt;&gt;&gt; {
+    ) -&gt; IndexVec&lt;TriggerId, Arc&lt;ExecutableReactions&lt;<span class="lifetime">'static</span>&gt;&gt;&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>result = IndexVec::with_capacity(dataflow.node_count() / <span class="number">2</span>);
 
         <span class="kw">for </span>trigger <span class="kw">in </span>dataflow.node_indices() {
             <span class="kw">if let </span>GraphId::Trigger(trigger_id) = dataflow[trigger].id {
                 <span class="comment">// if let Some(_multiport_id) = multiport_containment.get(&amp;dataflow[trigger].id) {
                 //     assert_eq!(dataflow[trigger].kind, NodeKind::Port);
-                //     todo!(&quot;multiports&quot;)
+                //     todo!("multiports")
                 // todo this is a multiport channel:
                 //  1. if someone has declared a dependency on this individual channel, collect dependencies into DEPS
                 //  2. else add trigger to DELAY goto 4
@@ -1400,7 +1401,7 @@
         dataflow: <span class="kw-2">&amp;</span>DepGraphImpl,
         trigger: GraphIx,
         level_info: <span class="kw-2">&amp;</span>ReactionLevelInfo,
-        reactions: <span class="kw-2">&amp;mut </span>ExecutableReactions&lt;<span class="lifetime">&#39;static</span>&gt;,
+        reactions: <span class="kw-2">&amp;mut </span>ExecutableReactions&lt;<span class="lifetime">'static</span>&gt;,
     ) {
         <span class="kw">for </span>downstream <span class="kw">in </span>dataflow.edges_directed(trigger, Outgoing) {
             <span class="kw">let </span>node = <span class="kw-2">&amp;</span>dataflow[downstream.target()];
@@ -1412,17 +1413,17 @@
                 NodeKind::Reaction =&gt; {
                     <span class="kw">let </span>rid = <span class="kw">match </span>node.id {
                         GraphId::Reaction(rid) =&gt; rid,
-                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">&quot;this is a reaction&quot;</span>),
+                        <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"this is a reaction"</span>),
                     };
                     <span class="comment">// trigger-&gt;reaction
                     </span><span class="kw">if </span>downstream.weight() != <span class="kw-2">&amp;</span>EdgeWeight::Use {
-                        <span class="comment">// so it&#39;s a trigger dependency
+                        <span class="comment">// so it's a trigger dependency
                         </span>level_info.augment(reactions, rid)
                     }
                 }
                 <span class="kw">_ </span>=&gt; {
                     <span class="comment">// trigger-&gt;action? this is malformed
-                    </span><span class="macro">panic!</span>(<span class="string">&quot;malformed dependency graph&quot;</span>)
+                    </span><span class="macro">panic!</span>(<span class="string">"malformed dependency graph"</span>)
                 }
             }
         }
@@ -1434,13 +1435,13 @@
     /// # Panics
     ///
     /// If the trigger id is not registered
-    </span><span class="kw">pub fn </span>reactions_triggered_by(<span class="kw-2">&amp;</span><span class="self">self</span>, trigger: <span class="kw-2">&amp;</span>TriggerId) -&gt; <span class="kw-2">&amp;</span>ExecutableReactions&lt;<span class="lifetime">&#39;static</span>&gt; {
+    </span><span class="kw">pub fn </span>reactions_triggered_by(<span class="kw-2">&amp;</span><span class="self">self</span>, trigger: <span class="kw-2">&amp;</span>TriggerId) -&gt; <span class="kw-2">&amp;</span>ExecutableReactions&lt;<span class="lifetime">'static</span>&gt; {
         <span class="kw-2">&amp;</span><span class="self">self</span>.trigger_to_plan[<span class="kw-2">*</span>trigger]
     }
 }
 
 <span class="macro">cfg_if! </span>{
-    <span class="kw">if </span><span class="attr">#[cfg(feature = <span class="string">&quot;vec-id-sets&quot;</span>)] </span>{
+    <span class="kw">if </span><span class="attr">#[cfg(feature = <span class="string">"vec-id-sets"</span>)] </span>{
         <span class="kw">type </span>LevelImpl = Vec&lt;GlobalReactionId&gt;;
     } <span class="kw">else </span>{
         <span class="kw">type </span>LevelImpl = std::collections::HashSet&lt;GlobalReactionId&gt;;
@@ -1465,7 +1466,7 @@
 
     <span class="kw">fn </span>insert(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: GlobalReactionId) {
         <span class="macro">cfg_if! </span>{
-            <span class="kw">if </span><span class="attr">#[cfg(feature = <span class="string">&quot;vec-id-sets&quot;</span>)] </span>{
+            <span class="kw">if </span><span class="attr">#[cfg(feature = <span class="string">"vec-id-sets"</span>)] </span>{
                  <span class="kw">match </span><span class="self">self</span>.<span class="number">0</span>.binary_search(<span class="kw-2">&amp;</span>id) {
                     <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {}
                     <span class="prelude-val">Err</span>(ix) =&gt; {
@@ -1485,21 +1486,21 @@
     <span class="kw">fn </span>extend(<span class="kw-2">&amp;mut </span><span class="self">self</span>, iter: <span class="kw">impl </span>Iterator&lt;Item = GlobalReactionId&gt;) {
         <span class="self">self</span>.<span class="number">0</span>.extend(iter);
         <span class="macro">cfg_if! </span>{
-            <span class="kw">if </span><span class="attr">#[cfg(feature = <span class="string">&quot;vec-id-sets&quot;</span>)] </span>{
+            <span class="kw">if </span><span class="attr">#[cfg(feature = <span class="string">"vec-id-sets"</span>)] </span>{
                 <span class="self">self</span>.<span class="number">0</span>.sort();
                 <span class="self">self</span>.<span class="number">0</span>.dedup();
             }
         }
     }
 
-    <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = GlobalReactionId&gt; + <span class="lifetime">&#39;_ </span>{
+    <span class="kw">pub fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = GlobalReactionId&gt; + <span class="lifetime">'_ </span>{
         <span class="self">self</span>.<span class="number">0</span>.iter().cloned()
     }
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Level {
-    <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>GlobalReactionId;
-    <span class="kw">type </span>IntoIter = &lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>LevelImpl <span class="kw">as </span>IntoIterator&gt;::IntoIter;
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; IntoIterator <span class="kw">for </span><span class="kw-2">&amp;</span><span class="lifetime">'a </span>Level {
+    <span class="kw">type </span>Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span>GlobalReactionId;
+    <span class="kw">type </span>IntoIter = &lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>LevelImpl <span class="kw">as </span>IntoIterator&gt;::IntoIter;
 
     <span class="kw">fn </span>into_iter(<span class="self">self</span>) -&gt; <span class="self">Self</span>::IntoIter {
         (<span class="self">self</span>.<span class="number">0</span>).iter()
@@ -1529,8 +1530,8 @@
 }
 
 <span class="kw">impl </span>Display <span class="kw">for </span>LevelIx {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
-        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.<span class="number">0</span>)
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.<span class="number">0</span>)
     }
 }
 
@@ -1545,7 +1546,7 @@
 /// 1. they may be merged together (by a [DataflowInfo]).
 /// 2. merging two plans eliminates duplicates
 </span><span class="attr">#[derive(Clone, Debug, Default)]
-</span><span class="kw">pub struct </span>ExecutableReactions&lt;<span class="lifetime">&#39;x</span>&gt; {
+</span><span class="kw">pub struct </span>ExecutableReactions&lt;<span class="lifetime">'x</span>&gt; {
     <span class="doccomment">/// An ordered list of levels to execute.
     ///
     /// It must by construction be the case that a reaction
@@ -1562,10 +1563,10 @@
     ///
     /// Note also that the last level in the list must be
     /// non-empty by construction.
-    </span>levels: VecMap&lt;LevelIx, Cow&lt;<span class="lifetime">&#39;x</span>, Level&gt;&gt;,
+    </span>levels: VecMap&lt;LevelIx, Cow&lt;<span class="lifetime">'x</span>, Level&gt;&gt;,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;x</span>&gt; ExecutableReactions&lt;<span class="lifetime">&#39;x</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'x</span>&gt; ExecutableReactions&lt;<span class="lifetime">'x</span>&gt; {
     <span class="kw">pub fn </span>new() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{ levels: VecMap::new() }
     }
@@ -1574,7 +1575,7 @@
     /// with their level. Note that this does not mutate this collection
     /// (eg drain it), because that way we can use borrowed Cows
     /// and avoid more allocation.
-    </span><span class="kw">pub fn </span>batches(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>(LevelIx, Cow&lt;<span class="lifetime">&#39;x</span>, Level&gt;)&gt; + <span class="lifetime">&#39;_ </span>{
+    </span><span class="kw">pub fn </span>batches(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span>(LevelIx, Cow&lt;<span class="lifetime">'x</span>, Level&gt;)&gt; + <span class="lifetime">'_ </span>{
         <span class="self">self</span>.levels.iter()
     }
 
@@ -1583,7 +1584,7 @@
     }
 
     <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>next_batch&lt;<span class="lifetime">&#39;a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>, min_level_exclusive: KeyRef&lt;<span class="kw-2">&amp;</span>LevelIx&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;(KeyRef&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>LevelIx&gt;, <span class="kw-2">&amp;</span>Level)&gt; {
+    </span><span class="kw">pub fn </span>next_batch&lt;<span class="lifetime">'a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="self">self</span>, min_level_exclusive: KeyRef&lt;<span class="kw-2">&amp;</span>LevelIx&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;(KeyRef&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>LevelIx&gt;, <span class="kw-2">&amp;</span>Level)&gt; {
         <span class="self">self</span>.levels
             .next_mapping(min_level_exclusive)
             .map(|(ix, cow)| (ix, cow.as_ref()))
@@ -1596,13 +1597,13 @@
 
     <span class="doccomment">/// Merge the given set of reactions into this one.
     /// Ignore levels that come strictly before `min_level_inclusive`, may even clear them.
-    </span><span class="kw">pub fn </span>absorb_after(<span class="kw-2">&amp;mut </span><span class="self">self</span>, src: <span class="kw-2">&amp;</span>ExecutableReactions&lt;<span class="lifetime">&#39;x</span>&gt;, min_level_inclusive: LevelIx) {
+    </span><span class="kw">pub fn </span>absorb_after(<span class="kw-2">&amp;mut </span><span class="self">self</span>, src: <span class="kw-2">&amp;</span>ExecutableReactions&lt;<span class="lifetime">'x</span>&gt;, min_level_inclusive: LevelIx) {
         <span class="kw">let </span>src = <span class="kw-2">&amp;</span>src.levels;
         <span class="kw">let </span>dst = <span class="kw-2">&amp;mut </span><span class="self">self</span>.levels;
 
         <span class="comment">// Find the next mapping &gt;= to the min level.
-        // We don&#39;t care about the mappings that come before.
-        // If there is none we won&#39;t loop at all.
+        // We don't care about the mappings that come before.
+        // If there is none we won't loop at all.
         </span><span class="kw">let </span><span class="kw-2">mut </span>next_src = src.find_random_mapping_after(min_level_inclusive);
         <span class="kw">let </span><span class="kw-2">mut </span>dst_position_hint: <span class="prelude-ty">Option</span>&lt;KeyRef&lt;LevelIx&gt;&gt; = <span class="prelude-val">None</span>;
 
@@ -1648,17 +1649,17 @@
     }
 
     <span class="doccomment">/// Fully merge plans of `x` and `y`.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>merge_cows(x: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;, y: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;) -&gt; ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>merge_cows(x: ReactionPlan&lt;<span class="lifetime">'x</span>&gt;, y: ReactionPlan&lt;<span class="lifetime">'x</span>&gt;) -&gt; ReactionPlan&lt;<span class="lifetime">'x</span>&gt; {
         <span class="self">Self</span>::merge_plans_after(x, y, LevelIx::ZERO)
     }
 
-    <span class="comment">// todo would be nice to simplify this, it&#39;s hot
+    <span class="comment">// todo would be nice to simplify this, it's hot
     </span><span class="doccomment">/// Produce the set union of two reaction plans.
     /// Levels below the `min_level` are not merged, and the caller
-    /// shouldn&#39;t query them. For all levels &gt;= `min_level`,
+    /// shouldn't query them. For all levels &gt;= `min_level`,
     /// the produced reaction plan has all the reactions of
     /// `x` and `y` for that level.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>merge_plans_after(x: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;, y: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;, min_level: LevelIx) -&gt; ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt; {
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>merge_plans_after(x: ReactionPlan&lt;<span class="lifetime">'x</span>&gt;, y: ReactionPlan&lt;<span class="lifetime">'x</span>&gt;, min_level: LevelIx) -&gt; ReactionPlan&lt;<span class="lifetime">'x</span>&gt; {
         <span class="kw">match </span>(x, y) {
             (x, <span class="prelude-val">None</span>) | (<span class="prelude-val">None</span>, x) =&gt; x,
             (<span class="prelude-val">Some</span>(x), y) | (y, <span class="prelude-val">Some</span>(x)) <span class="kw">if </span>x.max_level() &lt; min_level =&gt; y,
@@ -1678,13 +1679,13 @@
     }
 }
 
-<span class="kw">impl </span>Display <span class="kw">for </span>ExecutableReactions&lt;<span class="lifetime">&#39;_</span>&gt; {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; std::fmt::Result {
-        <span class="macro">write!</span>(f, <span class="string">&quot;[&quot;</span>)<span class="question-mark">?</span>;
+<span class="kw">impl </span>Display <span class="kw">for </span>ExecutableReactions&lt;<span class="lifetime">'_</span>&gt; {
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
+        <span class="macro">write!</span>(f, <span class="string">"["</span>)<span class="question-mark">?</span>;
         <span class="kw">for </span>(<span class="kw">_</span>, level) <span class="kw">in </span><span class="self">self</span>.levels.iter() {
-            <span class="macro">join_to!</span>(f, level.iter(), <span class="string">&quot;, &quot;</span>, <span class="string">&quot;{&quot;</span>, <span class="string">&quot;} ; &quot;</span>)<span class="question-mark">?</span>;
+            <span class="macro">join_to!</span>(f, level.iter(), <span class="string">", "</span>, <span class="string">"{"</span>, <span class="string">"} ; "</span>)<span class="question-mark">?</span>;
         }
-        <span class="macro">write!</span>(f, <span class="string">&quot;]&quot;</span>)
+        <span class="macro">write!</span>(f, <span class="string">"]"</span>)
     }
 }
 
@@ -1729,17 +1730,17 @@
 
         <span class="attr">#[allow(unused)]
         </span><span class="kw">fn </span>eprintln_graph(<span class="kw-2">&amp;</span><span class="self">self</span>) {
-            <span class="macro">eprintln!</span>(<span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.graph.format_dot(<span class="kw-2">&amp;</span><span class="self">self</span>.debug_info));
+            <span class="macro">eprintln!</span>(<span class="string">"{}"</span>, <span class="self">self</span>.graph.format_dot(<span class="kw-2">&amp;</span><span class="self">self</span>.debug_info));
         }
     }
 
-    <span class="kw">struct </span>TestAssembler&lt;<span class="lifetime">&#39;a</span>&gt; {
-        fixture: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>TestGraphFixture,
+    <span class="kw">struct </span>TestAssembler&lt;<span class="lifetime">'a</span>&gt; {
+        fixture: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>TestGraphFixture,
         reactor_id: ReactorId,
         first_trigger_id: TriggerId,
     }
 
-    <span class="kw">impl </span>TestAssembler&lt;<span class="lifetime">&#39;_</span>&gt; {
+    <span class="kw">impl </span>TestAssembler&lt;<span class="lifetime">'_</span>&gt; {
         <span class="kw">fn </span>new_reactions&lt;<span class="kw">const </span>N: usize&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; [GlobalReactionId; N] {
             <span class="kw">let </span>result = <span class="macro">array!</span>[i =&gt; GlobalReactionId::new(<span class="self">self</span>.reactor_id, LocalReactionId::from_usize(i)); N];
             <span class="kw">let </span><span class="kw-2">mut </span>last = <span class="prelude-val">None</span>;
@@ -1753,7 +1754,7 @@
             result
         }
 
-        <span class="kw">fn </span>new_ports&lt;<span class="kw">const </span>N: usize&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, names: [<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str; N]) -&gt; [TriggerId; N] {
+        <span class="kw">fn </span>new_ports&lt;<span class="kw">const </span>N: usize&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, names: [<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str; N]) -&gt; [TriggerId; N] {
             <span class="kw">let </span>result = <span class="macro">array!</span>[<span class="kw">_ </span>=&gt; <span class="self">self</span>.fixture.next_trigger_id.get_and_incr().unwrap(); N];
             <span class="kw">for </span>(i, p) <span class="kw">in </span>(<span class="kw-2">&amp;</span>result).iter().enumerate() {
                 <span class="self">self</span>.fixture.graph.record_port(<span class="kw-2">*</span>p);
@@ -1763,7 +1764,7 @@
         }
     }
 
-    <span class="kw">impl </span>Drop <span class="kw">for </span>TestAssembler&lt;<span class="lifetime">&#39;_</span>&gt; {
+    <span class="kw">impl </span>Drop <span class="kw">for </span>TestAssembler&lt;<span class="lifetime">'_</span>&gt; {
         <span class="kw">fn </span>drop(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
             <span class="kw">let </span>range = <span class="self">self</span>.first_trigger_id..<span class="self">self</span>.fixture.next_trigger_id;
             <span class="self">self</span>.fixture.debug_info.set_id_range(<span class="self">self</span>.reactor_id, range)
@@ -1816,9 +1817,9 @@
     </span><span class="kw">fn </span>test_level_assignment_simple() {
         <span class="kw">let </span><span class="kw-2">mut </span>test = TestGraphFixture::new();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">&quot;main&quot;</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">"main"</span>);
         <span class="kw">let </span>[n1, n2] = builder.new_reactions();
-        <span class="kw">let </span>[p0] = builder.new_ports([<span class="string">&quot;p0&quot;</span>]);
+        <span class="kw">let </span>[p0] = builder.new_ports([<span class="string">"p0"</span>]);
         drop(builder);
 
         test.graph.reaction_effects(n1, p0);
@@ -1832,9 +1833,9 @@
     </span><span class="kw">fn </span>test_level_assignment_diamond_1() {
         <span class="kw">let </span><span class="kw-2">mut </span>test = TestGraphFixture::new();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">&quot;main&quot;</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">"main"</span>);
         <span class="kw">let </span>[n1, n2] = builder.new_reactions();
-        <span class="kw">let </span>[p0, p1] = builder.new_ports([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p1&quot;</span>]);
+        <span class="kw">let </span>[p0, p1] = builder.new_ports([<span class="string">"p0"</span>, <span class="string">"p1"</span>]);
         drop(builder);
 
         test.graph.reaction_effects(n1, p0);
@@ -1851,16 +1852,16 @@
     </span><span class="kw">fn </span>test_level_assignment_diamond_1_exponential() {
         <span class="kw">let </span><span class="kw-2">mut </span>test = TestGraphFixture::new();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">&quot;top&quot;</span>);
-        <span class="kw">let </span>[<span class="kw-2">mut </span>prev_in] = builder.new_ports([<span class="string">&quot;in&quot;</span>]);
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">"top"</span>);
+        <span class="kw">let </span>[<span class="kw-2">mut </span>prev_in] = builder.new_ports([<span class="string">"in"</span>]);
         drop(builder);
 
         <span class="comment">// the number of paths in the graph is exponential
         // in this upper bound, here 3^60.
         </span><span class="kw">for </span>reactor_id <span class="kw">in </span><span class="number">0</span>..<span class="number">60 </span>{
-            <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="macro">format!</span>(<span class="string">&quot;r[{}]&quot;</span>, reactor_id));
+            <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="macro">format!</span>(<span class="string">"r[{}]"</span>, reactor_id));
             <span class="kw">let </span>[n1, n2] = builder.new_reactions();
-            <span class="kw">let </span>[p0, p1, out] = builder.new_ports([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p1&quot;</span>, <span class="string">&quot;out&quot;</span>]);
+            <span class="kw">let </span>[p0, p1, out] = builder.new_ports([<span class="string">"p0"</span>, <span class="string">"p1"</span>, <span class="string">"out"</span>]);
             drop(builder);
 
             <span class="comment">// make a diamond
@@ -1887,16 +1888,16 @@
     </span><span class="kw">fn </span>test_level_assignment_diamond_depth2_exponential() {
         <span class="kw">let </span><span class="kw-2">mut </span>test = TestGraphFixture::new();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">&quot;top&quot;</span>);
-        <span class="kw">let </span>[<span class="kw-2">mut </span>prev_in] = builder.new_ports([<span class="string">&quot;in&quot;</span>]);
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">"top"</span>);
+        <span class="kw">let </span>[<span class="kw-2">mut </span>prev_in] = builder.new_ports([<span class="string">"in"</span>]);
         drop(builder);
 
         <span class="comment">// the number of paths in the graph is exponential
         // in this upper bound, here 3^60.
         </span><span class="kw">for </span>reactor_id <span class="kw">in </span><span class="number">0</span>..<span class="number">60 </span>{
-            <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="macro">format!</span>(<span class="string">&quot;r[{}]&quot;</span>, reactor_id));
+            <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="macro">format!</span>(<span class="string">"r[{}]"</span>, reactor_id));
             <span class="kw">let </span>[n1, n2] = builder.new_reactions();
-            <span class="kw">let </span>[p0, p01, p1, p11, out] = builder.new_ports([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p01&quot;</span>, <span class="string">&quot;p1&quot;</span>, <span class="string">&quot;p11&quot;</span>, <span class="string">&quot;out&quot;</span>]);
+            <span class="kw">let </span>[p0, p01, p1, p11, out] = builder.new_ports([<span class="string">"p0"</span>, <span class="string">"p01"</span>, <span class="string">"p1"</span>, <span class="string">"p11"</span>, <span class="string">"out"</span>]);
             drop(builder);
 
             <span class="comment">// make a diamond OF DEPTH &gt; 1
@@ -1927,9 +1928,9 @@
     </span><span class="kw">fn </span>test_graph_dump() {
         <span class="kw">let </span><span class="kw-2">mut </span>test = TestGraphFixture::new();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">&quot;main&quot;</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>builder = test.new_reactor(<span class="string">"main"</span>);
         <span class="kw">let </span>[n1, n2] = builder.new_reactions();
-        <span class="kw">let </span>[p0, p1] = builder.new_ports([<span class="string">&quot;p0&quot;</span>, <span class="string">&quot;p1&quot;</span>]);
+        <span class="kw">let </span>[p0, p1] = builder.new_ports([<span class="string">"p0"</span>, <span class="string">"p1"</span>]);
         drop(builder);
 
         test.graph.reaction_effects(n1, p0);
@@ -1939,22 +1940,21 @@
 
         <span class="macro">assert_eq!</span>(
             test.graph.format_dot(<span class="kw-2">&amp;</span>test.debug_info),
-            <span class="string">r#&quot;digraph {
-    0 [ label = &quot;startup&quot; ]
-    1 [ label = &quot;shutdown&quot; ]
-    2 [ label = &quot;Reaction(main/0)&quot; ]
-    3 [ label = &quot;Reaction(main/1)&quot; ]
-    4 [ label = &quot;Port(main/p0)&quot; ]
-    5 [ label = &quot;Port(main/p1)&quot; ]
+            <span class="string">r#"digraph {
+    0 [ label = "startup" ]
+    1 [ label = "shutdown" ]
+    2 [ label = "Reaction(main/0)" ]
+    3 [ label = "Reaction(main/1)" ]
+    4 [ label = "Port(main/p0)" ]
+    5 [ label = "Port(main/p1)" ]
     2 -&gt; 3 [ ]
     2 -&gt; 4 [ ]
     2 -&gt; 5 [ ]
     4 -&gt; 3 [ ]
     5 -&gt; 3 [ ]
 }
-&quot;#
+"#
         </span>);
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="reactor_rt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0 (84c898d65 2023-04-16)" data-search-js="search-8a59a8356673ec1f.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

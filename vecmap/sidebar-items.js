@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"enum":["Entry"],"struct":["KeyRef","OccupiedEntry","VacantEntry","VecMap"]};

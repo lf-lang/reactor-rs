@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `runtime/src/scheduler/debug.rs`."><title>debug.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c4dbdcde0fbd8430.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-db279b6232be9c13.css"><link rel="stylesheet" disabled href="../../../static.files/dark-cf923f49f397b216.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-be46fdc453a55015.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-1b95b7cca98b26e5.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../reactor_rt/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/scheduler/debug.rs`."><title>debug.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="reactor_rt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -320,7 +321,7 @@
 <a href="#320" id="320">320</a>
 <a href="#321" id="321">321</a>
 <a href="#322" id="322">322</a>
-</pre><pre class="rust"><code><span class="comment">/*
+</pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -333,7 +334,7 @@
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&quot; AND ANY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
  * THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
@@ -351,7 +352,7 @@
 <span class="kw">use </span>std::ops::Range;
 
 <span class="kw">use </span>index_vec::{Idx, IndexVec};
-<span class="kw">use </span>vecmap::VecMap;
+<span class="kw">use </span><span class="kw">crate</span>::vecmap::VecMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::assembly::{ReactorInitializer, TriggerId};
 <span class="kw">use crate</span>::{GlobalReactionId, ReactorId};
@@ -371,7 +372,7 @@
 
     <span class="doccomment">/// Labels of each trigger, every trigger id in the program
     /// is registered here.
-    </span>trigger_infos: IndexVec&lt;TriggerId, Cow&lt;<span class="lifetime">&#39;static</span>, str&gt;&gt;,
+    </span>trigger_infos: IndexVec&lt;TriggerId, Cow&lt;<span class="lifetime">'static</span>, str&gt;&gt;,
 
     <span class="doccomment">/// Maps each reactor id to the id of its container.
     /// The main reactor is not registered.
@@ -381,11 +382,11 @@
 
     <span class="comment">// todo better data structure, eg IndexVec&lt;ReactorId, IndexVec&lt;LocalReactionId, _&gt;&gt;
     </span><span class="doccomment">/// Labels of each reaction, only reactions that have one are in here.
-    </span>reaction_labels: HashMap&lt;GlobalReactionId, Cow&lt;<span class="lifetime">&#39;static</span>, str&gt;&gt;,
+    </span>reaction_labels: HashMap&lt;GlobalReactionId, Cow&lt;<span class="lifetime">'static</span>, str&gt;&gt;,
 }
 
 <span class="doccomment">/// The reactor ID, and the local index within the reactor.
-/// We don&#39;t use GlobalId because the second component is not
+/// We don't use GlobalId because the second component is not
 /// a LocalReactionId, for trigger ids it may be as big as
 /// usize, so we inflate LocalReactionId to usize.
 </span><span class="kw">type </span>RawId = (ReactorId, usize);
@@ -401,8 +402,8 @@
             main_reactor: <span class="prelude-val">None</span>,
         };
 
-        <span class="macro">assert_eq!</span>(ich.trigger_infos.push(Cow::Borrowed(<span class="string">&quot;startup&quot;</span>)), TriggerId::STARTUP);
-        <span class="macro">assert_eq!</span>(ich.trigger_infos.push(Cow::Borrowed(<span class="string">&quot;shutdown&quot;</span>)), TriggerId::SHUTDOWN);
+        <span class="macro">assert_eq!</span>(ich.trigger_infos.push(Cow::Borrowed(<span class="string">"startup"</span>)), TriggerId::STARTUP);
+        <span class="macro">assert_eq!</span>(ich.trigger_infos.push(Cow::Borrowed(<span class="string">"shutdown"</span>)), TriggerId::SHUTDOWN);
 
         ich
     }
@@ -414,33 +415,33 @@
     }
 
     <span class="doccomment">/// Format the id of a component.
-    </span><span class="kw">fn </span>fmt_component_path&lt;<span class="lifetime">&#39;a</span>&gt;(
-        <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="self">self</span>,
+    </span><span class="kw">fn </span>fmt_component_path&lt;<span class="lifetime">'a</span>&gt;(
+        <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="self">self</span>,
         id: RawId,
-        label: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Cow&lt;<span class="lifetime">&#39;static</span>, str&gt;&gt;,
+        label: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>Cow&lt;<span class="lifetime">'static</span>, str&gt;&gt;,
         always_display_idx: bool,
-    ) -&gt; <span class="kw">impl </span>Display + <span class="lifetime">&#39;a </span>{
-        <span class="kw">struct </span>PathFmt&lt;<span class="lifetime">&#39;a</span>&gt; {
-            debug: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>DebugInfoRegistry,
+    ) -&gt; <span class="kw">impl </span>Display + <span class="lifetime">'a </span>{
+        <span class="kw">struct </span>PathFmt&lt;<span class="lifetime">'a</span>&gt; {
+            debug: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>DebugInfoRegistry,
             id: RawId,
-            label: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Cow&lt;<span class="lifetime">&#39;static</span>, str&gt;&gt;,
+            label: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>Cow&lt;<span class="lifetime">'static</span>, str&gt;&gt;,
             <span class="doccomment">/// If true, the index is part of the output,
             /// even if the label is present.
             </span>always_display_idx: bool,
         }
         <span class="kw">use </span>std::fmt::<span class="kw-2">*</span>;
-        <span class="kw">impl </span>Display <span class="kw">for </span>PathFmt&lt;<span class="lifetime">&#39;_</span>&gt; {
+        <span class="kw">impl </span>Display <span class="kw">for </span>PathFmt&lt;<span class="lifetime">'_</span>&gt; {
             <span class="attr">#[inline]
-            </span><span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result </span>{
-                <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.debug.get_debug_info(<span class="self">self</span>.id.<span class="number">0</span>))<span class="question-mark">?</span>;
+            </span><span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; <span class="prelude-ty">Result </span>{
+                <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.debug.get_debug_info(<span class="self">self</span>.id.<span class="number">0</span>))<span class="question-mark">?</span>;
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(label) = <span class="kw-2">&amp;</span><span class="self">self</span>.label {
                     <span class="kw">if </span><span class="self">self</span>.always_display_idx {
-                        <span class="macro">write!</span>(f, <span class="string">&quot;{}@{}&quot;</span>, <span class="self">self</span>.id.<span class="number">1</span>, label)
+                        <span class="macro">write!</span>(f, <span class="string">"{}@{}"</span>, <span class="self">self</span>.id.<span class="number">1</span>, label)
                     } <span class="kw">else </span>{
-                        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, label)
+                        <span class="macro">write!</span>(f, <span class="string">"{}"</span>, label)
                     }
                 } <span class="kw">else </span>{
-                    <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.id.<span class="number">1</span>)
+                    <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.id.<span class="number">1</span>)
                 }
             }
         }
@@ -449,13 +450,13 @@
     }
 
     <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>fmt_reaction(<span class="kw-2">&amp;</span><span class="self">self</span>, id: GlobalReactionId) -&gt; <span class="kw">impl </span>Display + <span class="lifetime">&#39;_ </span>{
+    </span><span class="kw">pub fn </span>fmt_reaction(<span class="kw-2">&amp;</span><span class="self">self</span>, id: GlobalReactionId) -&gt; <span class="kw">impl </span>Display + <span class="lifetime">'_ </span>{
         <span class="kw">let </span>raw = (id.<span class="number">0</span>.container(), id.<span class="number">0</span>.local().index());
         <span class="self">self</span>.fmt_component_path(raw, <span class="self">self</span>.reaction_labels.get(<span class="kw-2">&amp;</span>id), <span class="bool-val">true</span>)
     }
 
     <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>fmt_component(<span class="kw-2">&amp;</span><span class="self">self</span>, id: TriggerId) -&gt; <span class="kw">impl </span>Display + <span class="lifetime">&#39;_ </span>{
+    </span><span class="kw">pub fn </span>fmt_component(<span class="kw-2">&amp;</span><span class="self">self</span>, id: TriggerId) -&gt; <span class="kw">impl </span>Display + <span class="lifetime">'_ </span>{
         <span class="self">self</span>.fmt_component_path(<span class="self">self</span>.raw_id_of_trigger(id), <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span><span class="self">self</span>.trigger_infos[id]), <span class="bool-val">false</span>)
     }
 
@@ -481,7 +482,7 @@
     <span class="kw">fn </span>raw_id_of_trigger(<span class="kw-2">&amp;</span><span class="self">self</span>, id: TriggerId) -&gt; RawId {
         <span class="kw">match </span>id {
             <span class="comment">// Pretend startup and shutdown are in the last reactor.
-            // For programs built with LFC, it&#39;s the main reactor.
+            // For programs built with LFC, it's the main reactor.
             </span>TriggerId::STARTUP | TriggerId::SHUTDOWN =&gt; {
                 <span class="kw">let </span>last_reactor = <span class="self">self</span>.reactor_infos.last_idx();
                 <span class="kw">let </span>max_idx = <span class="kw-2">*</span><span class="self">self</span>.reactor_bound.last().unwrap();
@@ -491,8 +492,8 @@
 
             id =&gt; {
                 <span class="kw">match </span><span class="self">self</span>.reactor_bound.binary_search(<span class="kw-2">&amp;</span>id) {
-                    <span class="comment">// we&#39;re the upper bound of some reactor `rid`,
-                    // ie, we&#39;re the first component of the next reactor.
+                    <span class="comment">// we're the upper bound of some reactor `rid`,
+                    // ie, we're the first component of the next reactor.
                     </span><span class="prelude-val">Ok</span>(rid) =&gt; (rid.plus(<span class="number">1</span>), <span class="number">0usize</span>),
                     <span class="comment">// Here, rid is the reactor which contains the trigger.
                     // Eg if you have reactor_bound=[2, 4],
@@ -513,12 +514,12 @@
             .unwrap_or(TriggerId::FIRST_REGULAR)
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>record_trigger(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TriggerId, name: Cow&lt;<span class="lifetime">&#39;static</span>, str&gt;) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>record_trigger(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: TriggerId, name: Cow&lt;<span class="lifetime">'static</span>, str&gt;) {
         <span class="kw">let </span>ix = <span class="self">self</span>.trigger_infos.push(name);
         <span class="macro">debug_assert_eq!</span>(ix, id);
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>record_reaction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: GlobalReactionId, name: Cow&lt;<span class="lifetime">&#39;static</span>, str&gt;) {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>record_reaction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: GlobalReactionId, name: Cow&lt;<span class="lifetime">'static</span>, str&gt;) {
         <span class="kw">let </span>existing = <span class="self">self</span>.reaction_labels.insert(id, name);
         <span class="macro">debug_assert!</span>(existing.is_none())
     }
@@ -530,17 +531,17 @@
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>record_main_reactor(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ReactorId) {
         <span class="kw">let </span>prev = <span class="self">self</span>.main_reactor.replace(id);
-        <span class="macro">assert!</span>(prev.is_none(), <span class="string">&quot;cannot call record_main twice&quot;</span>);
+        <span class="macro">assert!</span>(prev.is_none(), <span class="string">"cannot call record_main twice"</span>);
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>record_reactor_container(<span class="kw-2">&amp;mut </span><span class="self">self</span>, parent: ReactorId, child: ReactorId) {
         <span class="kw">let </span>ix = <span class="self">self</span>.reactor_container.insert(child, parent);
-        <span class="macro">debug_assert!</span>(ix.is_none(), <span class="string">&quot;overwrote reactor&quot;</span>);
+        <span class="macro">debug_assert!</span>(ix.is_none(), <span class="string">"overwrote reactor"</span>);
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_id_range(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: ReactorId, range: Range&lt;TriggerId&gt;) {
-        <span class="macro">assert!</span>(range.start &lt;= range.end, <span class="string">&quot;Malformed range {:?}&quot;</span>, range);
-        <span class="macro">assert!</span>(range.start &gt;= TriggerId::FIRST_REGULAR, <span class="string">&quot;Trigger IDs 0-1 are reserved&quot;</span>);
+        <span class="macro">assert!</span>(range.start &lt;= range.end, <span class="string">"Malformed range {:?}"</span>, range);
+        <span class="macro">assert!</span>(range.start &gt;= TriggerId::FIRST_REGULAR, <span class="string">"Trigger IDs 0-1 are reserved"</span>);
 
         <span class="kw">let </span>ix = <span class="self">self</span>.reactor_bound.push(range.end);
         <span class="macro">assert_eq!</span>(ix, id);
@@ -551,11 +552,11 @@
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>ReactorDebugInfo {
     <span class="doccomment">/// Type name
     </span><span class="attr">#[allow(unused)]
-    </span><span class="kw">pub </span>type_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
+    </span><span class="kw">pub </span>type_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
     <span class="doccomment">/// Simple name of the instantiation (last segment of the path)
     </span><span class="attr">#[allow(unused)]
-    </span><span class="kw">pub </span>inst_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
-    <span class="doccomment">/// Path to this instantiation, with trailing slash (eg `&quot;/parent/child/&quot;`)
+    </span><span class="kw">pub </span>inst_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
+    <span class="doccomment">/// Path to this instantiation, with trailing slash (eg `"/parent/child/"`)
     </span>inst_path: String,
 }
 
@@ -568,10 +569,10 @@
     <span class="attr">#[cfg(test)]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>test_named(inst_path: <span class="kw">impl </span>Into&lt;String&gt;) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>inst_path = inst_path.into();
-        inst_path.push(<span class="string">&#39;/&#39;</span>);
+        inst_path.push(<span class="string">'/'</span>);
         <span class="self">Self </span>{
-            type_name: <span class="string">&quot;unknown&quot;</span>,
-            inst_name: <span class="string">&quot;unknown&quot;</span>,
+            type_name: <span class="string">"unknown"</span>,
+            inst_name: <span class="string">"unknown"</span>,
             inst_path,
         }
     }
@@ -579,31 +580,31 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>root&lt;R&gt;() -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             type_name: type_name::&lt;R&gt;(),
-            inst_name: <span class="string">&quot;/&quot;</span>,
-            inst_path: <span class="string">&quot;/&quot;</span>.into(),
+            inst_name: <span class="string">"/"</span>,
+            inst_path: <span class="string">"/"</span>.into(),
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>derive&lt;R: ReactorInitializer&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, inst_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>derive&lt;R: ReactorInitializer&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, inst_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             type_name: type_name::&lt;R::Wrapped&gt;(),
             inst_name,
-            inst_path: <span class="macro">format!</span>(<span class="string">&quot;{}{}/&quot;</span>, <span class="self">self</span>.inst_path, inst_name),
+            inst_path: <span class="macro">format!</span>(<span class="string">"{}{}/"</span>, <span class="self">self</span>.inst_path, inst_name),
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>derive_bank_item&lt;R: ReactorInitializer&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, inst_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, bank_idx: usize) -&gt; <span class="self">Self </span>{
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>derive_bank_item&lt;R: ReactorInitializer&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, inst_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, bank_idx: usize) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             type_name: type_name::&lt;R::Wrapped&gt;(),
             inst_name,
-            inst_path: <span class="macro">format!</span>(<span class="string">&quot;{}{}[{}]/&quot;</span>, <span class="self">self</span>.inst_path, inst_name, bank_idx),
+            inst_path: <span class="macro">format!</span>(<span class="string">"{}{}[{}]/"</span>, <span class="self">self</span>.inst_path, inst_name, bank_idx),
         }
     }
 }
 
 <span class="kw">impl </span>Display <span class="kw">for </span>ReactorDebugInfo {
-    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">&#39;_</span>&gt;) -&gt; <span class="prelude-ty">Result </span>{
-        <span class="macro">write!</span>(f, <span class="string">&quot;{}&quot;</span>, <span class="self">self</span>.inst_path)
+    <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; <span class="prelude-ty">Result </span>{
+        <span class="macro">write!</span>(f, <span class="string">"{}"</span>, <span class="self">self</span>.inst_path)
     }
 }
 
@@ -618,16 +619,16 @@
         <span class="kw">let </span><span class="kw-2">mut </span>trigger_id = TriggerId::FIRST_REGULAR;
         <span class="kw">let </span>reactor_0 = ReactorId::new(<span class="number">0</span>);
         <span class="kw">let </span>first_trigger = trigger_id;
-        debug.record_reactor(reactor_0, ReactorDebugInfo::test_named(<span class="string">&quot;foo&quot;</span>));
-        debug.record_trigger(trigger_id.get_and_incr()<span class="question-mark">?</span>, <span class="string">&quot;t0&quot;</span>.into());
-        debug.record_trigger(trigger_id.get_and_incr()<span class="question-mark">?</span>, <span class="string">&quot;t1&quot;</span>.into());
+        debug.record_reactor(reactor_0, ReactorDebugInfo::test_named(<span class="string">"foo"</span>));
+        debug.record_trigger(trigger_id.get_and_incr()<span class="question-mark">?</span>, <span class="string">"t0"</span>.into());
+        debug.record_trigger(trigger_id.get_and_incr()<span class="question-mark">?</span>, <span class="string">"t1"</span>.into());
         debug.set_id_range(reactor_0, first_trigger..trigger_id);
 
         <span class="kw">let </span>reactor_1 = ReactorId::new(<span class="number">1</span>);
         <span class="kw">let </span>first_trigger = trigger_id;
-        debug.record_reactor(reactor_1, ReactorDebugInfo::test_named(<span class="string">&quot;foo1&quot;</span>));
-        debug.record_trigger(trigger_id.get_and_incr()<span class="question-mark">?</span>, <span class="string">&quot;t0&quot;</span>.into());
-        debug.record_trigger(trigger_id.get_and_incr()<span class="question-mark">?</span>, <span class="string">&quot;t1&quot;</span>.into());
+        debug.record_reactor(reactor_1, ReactorDebugInfo::test_named(<span class="string">"foo1"</span>));
+        debug.record_trigger(trigger_id.get_and_incr()<span class="question-mark">?</span>, <span class="string">"t0"</span>.into());
+        debug.record_trigger(trigger_id.get_and_incr()<span class="question-mark">?</span>, <span class="string">"t1"</span>.into());
         debug.set_id_range(reactor_1, first_trigger..trigger_id);
 
         <span class="kw">let </span><span class="kw-2">mut </span>trigger_id = TriggerId::FIRST_REGULAR;
@@ -642,5 +643,4 @@
         <span class="prelude-val">Ok</span>(())
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="reactor_rt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0 (84c898d65 2023-04-16)" data-search-js="search-8a59a8356673ec1f.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

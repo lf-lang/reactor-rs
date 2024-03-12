@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"macro":["after","assert_tag_is","delay","tag"],"struct":["AsyncCtx","Duration","EventTag","Instant","LogicalAction","Multiport","PhysicalActionRef","Port","ReactionCtx","Timer"],"type":["unit"]};
+window.SIDEBAR_ITEMS = {"macro":["after","assert_tag_is","delay","tag"],"struct":["Duration","Instant"],"type":["unit"]};

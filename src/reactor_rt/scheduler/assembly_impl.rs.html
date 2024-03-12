@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `runtime/src/scheduler/assembly_impl.rs`."><title>assembly_impl.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c4dbdcde0fbd8430.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-db279b6232be9c13.css"><link rel="stylesheet" disabled href="../../../static.files/dark-cf923f49f397b216.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-be46fdc453a55015.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-1b95b7cca98b26e5.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../reactor_rt/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/scheduler/assembly_impl.rs`."><title>assembly_impl.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="reactor_rt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -548,7 +549,7 @@
 <a href="#548" id="548">548</a>
 <a href="#549" id="549">549</a>
 <a href="#550" id="550">550</a>
-</pre><pre class="rust"><code><span class="comment">/*
+</pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -561,7 +562,7 @@
  *    this list of conditions and the following disclaimer in the documentation
  *    and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&quot; AND ANY
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY
  * EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL
  * THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
@@ -585,7 +586,7 @@
 <span class="doccomment">/// Globals shared by all assemblers.
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>RootAssembler {
     <span class="doccomment">/// All registered reactors
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) reactors: IndexVec&lt;ReactorId, <span class="prelude-ty">Option</span>&lt;ReactorBox&lt;<span class="lifetime">&#39;static</span>&gt;&gt;&gt;,
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) reactors: IndexVec&lt;ReactorId, <span class="prelude-ty">Option</span>&lt;ReactorBox&lt;<span class="lifetime">'static</span>&gt;&gt;&gt;,
     <span class="doccomment">/// Dependency graph
     </span><span class="kw">pub</span>(<span class="kw">super</span>) graph: DepGraph,
     <span class="doccomment">/// Debug infos
@@ -599,26 +600,26 @@
 
 <span class="kw">impl </span>RootAssembler {
     <span class="doccomment">/// Register a reactor into the global data structure that owns them during execution.
-    </span><span class="kw">fn </span>register_reactor&lt;R: ReactorInitializer + <span class="lifetime">&#39;static</span>&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, child: R) {
+    </span><span class="kw">fn </span>register_reactor&lt;R: ReactorInitializer + <span class="lifetime">'static</span>&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, child: R) {
         <span class="kw">if </span>child.id().index() &gt;= <span class="self">self</span>.reactors.len() {
             <span class="self">self</span>.reactors.resize_with(child.id().index() + <span class="number">1</span>, || <span class="prelude-val">None</span>)
         }
         <span class="kw">let </span>prev = <span class="self">self</span>.reactors[child.id()].replace(Box::new(child));
         <span class="comment">// this is impossible because we control how we allocate IDs entirely
-        </span><span class="macro">debug_assert!</span>(prev.is_none(), <span class="string">&quot;Overwrote a reactor during initialization&quot;</span>)
+        </span><span class="macro">debug_assert!</span>(prev.is_none(), <span class="string">"Overwrote a reactor during initialization"</span>)
     }
 
     <span class="doccomment">/// Register reactors into the global data structure that owns them during execution.
-    </span><span class="kw">fn </span>register_bank&lt;R: ReactorInitializer + <span class="lifetime">&#39;static</span>&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bank: Vec&lt;R&gt;) {
+    </span><span class="kw">fn </span>register_bank&lt;R: ReactorInitializer + <span class="lifetime">'static</span>&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bank: Vec&lt;R&gt;) {
         <span class="kw">for </span>child <span class="kw">in </span>bank {
             <span class="self">self</span>.register_reactor(child)
         }
     }
 
     <span class="doccomment">/// Top level fun that assembles the main reactor
-    </span><span class="kw">pub fn </span>assemble_tree&lt;R: ReactorInitializer + <span class="lifetime">&#39;static</span>&gt;(
+    </span><span class="kw">pub fn </span>assemble_tree&lt;R: ReactorInitializer + <span class="lifetime">'static</span>&gt;(
         main_args: R::Params,
-    ) -&gt; (ReactorVec&lt;<span class="lifetime">&#39;static</span>&gt;, DepGraph, DebugInfoRegistry) {
+    ) -&gt; (ReactorVec&lt;<span class="lifetime">'static</span>&gt;, DepGraph, DebugInfoRegistry) {
         <span class="kw">let </span><span class="kw-2">mut </span>root = RootAssembler::default();
         <span class="kw">let </span>assembler = AssemblyCtx::new(<span class="kw-2">&amp;mut </span>root, ReactorDebugInfo::root::&lt;R::Wrapped&gt;());
 
@@ -631,7 +632,7 @@
 
         <span class="kw">let </span>RootAssembler { graph, reactors, debug_info: id_registry, .. } = root;
 
-        <span class="kw">let </span>reactors = reactors.into_iter().map(|r| r.expect(<span class="string">&quot;Uninitialized reactor!&quot;</span>)).collect();
+        <span class="kw">let </span>reactors = reactors.into_iter().map(|r| r.expect(<span class="string">"Uninitialized reactor!"</span>)).collect();
         (reactors, graph, id_registry)
     }
 }
@@ -649,12 +650,12 @@
 }
 
 <span class="doccomment">/// Helper struct to assemble reactors during initialization.
-/// One assembly context is used per reactor, they can&#39;t be shared.
-</span><span class="kw">pub struct </span>AssemblyCtx&lt;<span class="lifetime">&#39;x</span>, S&gt;
+/// One assembly context is used per reactor, they can't be shared.
+</span><span class="kw">pub struct </span>AssemblyCtx&lt;<span class="lifetime">'x</span>, S&gt;
 <span class="kw">where
     </span>S: ReactorInitializer,
 {
-    globals: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span><span class="kw-2">mut </span>RootAssembler,
+    globals: <span class="kw-2">&amp;</span><span class="lifetime">'x </span><span class="kw-2">mut </span>RootAssembler,
     <span class="doccomment">/// Next local ID for components != reactions
     </span>cur_local: LocalReactionId,
 
@@ -669,20 +670,20 @@
 }
 
 <span class="doccomment">/// Final result of the assembly of a reactor.
-</span><span class="kw">pub struct </span>FinishedReactor&lt;<span class="lifetime">&#39;x</span>, S&gt;(AssemblyCtx&lt;<span class="lifetime">&#39;x</span>, S&gt;, S)
+</span><span class="kw">pub struct </span>FinishedReactor&lt;<span class="lifetime">'x</span>, S&gt;(AssemblyCtx&lt;<span class="lifetime">'x</span>, S&gt;, S)
 <span class="kw">where
     </span>S: ReactorInitializer;
 
 <span class="doccomment">/// Intermediate result of assembly.
-</span><span class="kw">pub struct </span>AssemblyIntermediate&lt;<span class="lifetime">&#39;x</span>, S&gt;(AssemblyCtx&lt;<span class="lifetime">&#39;x</span>, S&gt;, S)
+</span><span class="kw">pub struct </span>AssemblyIntermediate&lt;<span class="lifetime">'x</span>, S&gt;(AssemblyCtx&lt;<span class="lifetime">'x</span>, S&gt;, S)
 <span class="kw">where
     </span>S: ReactorInitializer;
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;x</span>, S&gt; AssemblyCtx&lt;<span class="lifetime">&#39;x</span>, S&gt;
+<span class="kw">impl</span>&lt;<span class="lifetime">'x</span>, S&gt; AssemblyCtx&lt;<span class="lifetime">'x</span>, S&gt;
 <span class="kw">where
     </span>S: ReactorInitializer,
 {
-    <span class="kw">fn </span>new(globals: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span><span class="kw-2">mut </span>RootAssembler, debug: ReactorDebugInfo) -&gt; <span class="self">Self </span>{
+    <span class="kw">fn </span>new(globals: <span class="kw-2">&amp;</span><span class="lifetime">'x </span><span class="kw-2">mut </span>RootAssembler, debug: ReactorDebugInfo) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             globals,
             <span class="comment">// this is not zero, so that reaction ids and component ids are disjoint
@@ -696,8 +697,8 @@
     <span class="doccomment">/// top level function
     </span><span class="kw">pub fn </span>assemble(
         <span class="self">self</span>,
-        build_reactor_tree: <span class="kw">impl </span>FnOnce(<span class="self">Self</span>) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">&#39;x</span>, S&gt;&gt;,
-    ) -&gt; AssemblyResult&lt;FinishedReactor&lt;<span class="lifetime">&#39;x</span>, S&gt;&gt; {
+        build_reactor_tree: <span class="kw">impl </span>FnOnce(<span class="self">Self</span>) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">'x</span>, S&gt;&gt;,
+    ) -&gt; AssemblyResult&lt;FinishedReactor&lt;<span class="lifetime">'x</span>, S&gt;&gt; {
         <span class="kw">let </span>AssemblyIntermediate(ich, reactor) = build_reactor_tree(<span class="self">self</span>)<span class="question-mark">?</span>;
         <span class="prelude-val">Ok</span>(FinishedReactor(ich, reactor))
     }
@@ -707,12 +708,12 @@
         <span class="kw-2">mut </span><span class="self">self</span>,
         create_self: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>ComponentCreator&lt;S&gt;, ReactorId) -&gt; <span class="prelude-ty">Result</span>&lt;S, AssemblyError&gt;,
         num_non_synthetic_reactions: usize,
-        reaction_names: [<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str&gt;; N],
+        reaction_names: [<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;; N],
         declare_dependencies: <span class="kw">impl </span>FnOnce(<span class="kw-2">&amp;mut </span>DependencyDeclarator&lt;S&gt;, <span class="kw-2">&amp;mut </span>S, [GlobalReactionId; N]) -&gt; AssemblyResult&lt;()&gt;,
-    ) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">&#39;x</span>, S&gt;&gt; {
+    ) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">'x</span>, S&gt;&gt; {
         <span class="comment">// todo when feature(generic_const_exprs) is stabilized,
         //  replace const parameter N with S::MAX_REACTION_ID.index().
-        </span><span class="macro">debug_assert_eq!</span>(N, S::MAX_REACTION_ID.index(), <span class="string">&quot;Should initialize all reactions&quot;</span>);
+        </span><span class="macro">debug_assert_eq!</span>(N, S::MAX_REACTION_ID.index(), <span class="string">"Should initialize all reactions"</span>);
 
         <span class="comment">// note: the ID is not known until all descendants
         // have been built.
@@ -723,8 +724,8 @@
         // Effectively, IDs are assigned depth first. This
         // makes this whole debug info recording very complicated.
         </span><span class="kw">let </span>id = <span class="self">self</span>.globals.reactor_id.get_and_incr();
-        <span class="kw">let </span>debug = <span class="self">self</span>.debug.take().expect(<span class="string">&quot;unreachable - can only call assemble_self once&quot;</span>);
-        <span class="macro">trace!</span>(<span class="string">&quot;Children of {}: {:?}&quot;</span>, debug.to_string(), <span class="self">self</span>.children_ids);
+        <span class="kw">let </span>debug = <span class="self">self</span>.debug.take().expect(<span class="string">"unreachable - can only call assemble_self once"</span>);
+        <span class="macro">trace!</span>(<span class="string">"Children of {}: {:?}"</span>, debug.to_string(), <span class="self">self</span>.children_ids);
         <span class="self">self</span>.globals.debug_info.record_reactor(id, debug);
         <span class="kw">for </span>child <span class="kw">in </span><span class="self">self</span>.children_ids.drain(..) {
             <span class="self">self</span>.globals.debug_info.record_reactor_container(id, child);
@@ -754,7 +755,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         my_id: ReactorId,
         num_non_synthetic: usize,
-        names: [<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str&gt;; N],
+        names: [<span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str&gt;; N],
     ) -&gt; [GlobalReactionId; N] {
         <span class="macro">assert!</span>(num_non_synthetic &lt;= N);
 
@@ -783,20 +784,20 @@
     <span class="doccomment">/// Assembles a child reactor and makes it available in
     /// the scope of a function.
     </span><span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>with_child&lt;Sub: ReactorInitializer + <span class="lifetime">&#39;static</span>, F&gt;(
+    </span><span class="kw">pub fn </span>with_child&lt;Sub: ReactorInitializer + <span class="lifetime">'static</span>, F&gt;(
         <span class="kw-2">mut </span><span class="self">self</span>,
-        inst_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
+        inst_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
         args: Sub::Params,
         action: F,
-    ) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">&#39;x</span>, S&gt;&gt;
-    <span class="comment">// we can&#39;t use impl FnOnce(...) because we want to specify explicit type parameters in the caller
+    ) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">'x</span>, S&gt;&gt;
+    <span class="comment">// we can't use impl FnOnce(...) because we want to specify explicit type parameters in the caller
     </span><span class="kw">where
-        </span>F: FnOnce(<span class="self">Self</span>, <span class="kw-2">&amp;mut </span>Sub) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">&#39;x</span>, S&gt;&gt;,
+        </span>F: FnOnce(<span class="self">Self</span>, <span class="kw-2">&amp;mut </span>Sub) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">'x</span>, S&gt;&gt;,
     {
-        <span class="macro">trace!</span>(<span class="string">&quot;Assembling {}&quot;</span>, inst_name);
+        <span class="macro">trace!</span>(<span class="string">"Assembling {}"</span>, inst_name);
         <span class="kw">let </span><span class="kw-2">mut </span>sub = <span class="self">self</span>.assemble_sub(inst_name, <span class="prelude-val">None</span>, args)<span class="question-mark">?</span>;
         <span class="kw">let </span>AssemblyIntermediate(ich, s) = action(<span class="self">self</span>, <span class="kw-2">&amp;mut </span>sub)<span class="question-mark">?</span>;
-        <span class="macro">trace!</span>(<span class="string">&quot;Registering {}&quot;</span>, inst_name);
+        <span class="macro">trace!</span>(<span class="string">"Registering {}"</span>, inst_name);
         ich.globals.register_reactor(sub);
         <span class="prelude-val">Ok</span>(AssemblyIntermediate(ich, s))
     }
@@ -806,18 +807,18 @@
     </span><span class="attr">#[inline]
     </span><span class="kw">pub fn </span>with_child_bank&lt;Sub, A, F&gt;(
         <span class="kw-2">mut </span><span class="self">self</span>,
-        inst_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
+        inst_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
         bank_width: usize,
         arg_maker: A,
         action: F,
-    ) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">&#39;x</span>, S&gt;&gt;
+    ) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">'x</span>, S&gt;&gt;
     <span class="kw">where
-        </span>Sub: ReactorInitializer + <span class="lifetime">&#39;static</span>,
-        <span class="comment">// we can&#39;t use impl Fn(...) because we want to specify explicit type parameters in the calle
-        </span>F: FnOnce(<span class="self">Self</span>, <span class="kw-2">&amp;mut </span>Vec&lt;Sub&gt;) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">&#39;x</span>, S&gt;&gt;,
+        </span>Sub: ReactorInitializer + <span class="lifetime">'static</span>,
+        <span class="comment">// we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
+        </span>F: FnOnce(<span class="self">Self</span>, <span class="kw-2">&amp;mut </span>Vec&lt;Sub&gt;) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">'x</span>, S&gt;&gt;,
         A: Fn(<span class="comment">/*bank_index:*/ </span>usize) -&gt; Sub::Params,
     {
-        <span class="macro">trace!</span>(<span class="string">&quot;Assembling bank {}&quot;</span>, inst_name);
+        <span class="macro">trace!</span>(<span class="string">"Assembling bank {}"</span>, inst_name);
 
         <span class="kw">let </span><span class="kw-2">mut </span>sub = (<span class="number">0</span>..bank_width)
             .map(|i| <span class="self">self</span>.assemble_sub(inst_name, <span class="prelude-val">Some</span>(i), arg_maker(i)))
@@ -825,7 +826,7 @@
 
         <span class="kw">let </span>AssemblyIntermediate(ich, r) = action(<span class="self">self</span>, <span class="kw-2">&amp;mut </span>sub)<span class="question-mark">?</span>;
 
-        <span class="macro">trace!</span>(<span class="string">&quot;Registering bank {}&quot;</span>, inst_name);
+        <span class="macro">trace!</span>(<span class="string">"Registering bank {}"</span>, inst_name);
         ich.globals.register_bank(sub);
         <span class="prelude-val">Ok</span>(AssemblyIntermediate(ich, r))
     }
@@ -835,11 +836,11 @@
     </span><span class="attr">#[inline(always)]
     </span><span class="kw">fn </span>assemble_sub&lt;Sub: ReactorInitializer&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        inst_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
+        inst_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
         bank_idx: <span class="prelude-ty">Option</span>&lt;usize&gt;,
         args: Sub::Params,
     ) -&gt; AssemblyResult&lt;Sub&gt; {
-        <span class="kw">let </span>my_debug = <span class="self">self</span>.debug.as_ref().expect(<span class="string">&quot;should assemble sub-reactors before self&quot;</span>);
+        <span class="kw">let </span>my_debug = <span class="self">self</span>.debug.as_ref().expect(<span class="string">"should assemble sub-reactors before self"</span>);
 
         <span class="kw">let </span>debug_info = <span class="kw">match </span>bank_idx {
             <span class="prelude-val">None </span>=&gt; my_debug.derive::&lt;Sub&gt;(inst_name),
@@ -853,7 +854,7 @@
     }
 }
 
-<span class="kw">impl</span>&lt;S&gt; FinishedReactor&lt;<span class="lifetime">&#39;_</span>, S&gt;
+<span class="kw">impl</span>&lt;S&gt; FinishedReactor&lt;<span class="lifetime">'_</span>, S&gt;
 <span class="kw">where
     </span>S: ReactorInitializer,
 {
@@ -864,11 +865,11 @@
 }
 
 <span class="doccomment">/// Declares dependencies between components and reactions.
-</span><span class="kw">pub struct </span>DependencyDeclarator&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, S: ReactorInitializer&gt; {
-    assembler: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>AssemblyCtx&lt;<span class="lifetime">&#39;x</span>, S&gt;,
+</span><span class="kw">pub struct </span>DependencyDeclarator&lt;<span class="lifetime">'a</span>, <span class="lifetime">'x</span>, S: ReactorInitializer&gt; {
+    assembler: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>AssemblyCtx&lt;<span class="lifetime">'x</span>, S&gt;,
 }
 
-<span class="kw">impl</span>&lt;S: ReactorInitializer&gt; DependencyDeclarator&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, S&gt; {
+<span class="kw">impl</span>&lt;S: ReactorInitializer&gt; DependencyDeclarator&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, S&gt; {
     <span class="attr">#[inline]
     </span><span class="kw">pub fn </span>declare_triggers(<span class="kw-2">&amp;mut </span><span class="self">self</span>, trigger: TriggerId, reaction: GlobalReactionId) -&gt; AssemblyResult&lt;()&gt; {
         <span class="self">self</span>.graph().triggers_reaction(trigger, reaction);
@@ -915,10 +916,10 @@
     /// todo this will just throw away bindings if both iterators are not of the same size
     ///  normally this should be reported by LFC as a warning, maybe we should implement the same thing here
     </span><span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>bind_ports_zip&lt;<span class="lifetime">&#39;a</span>, T: Sync + <span class="lifetime">&#39;a</span>&gt;(
+    </span><span class="kw">pub fn </span>bind_ports_zip&lt;<span class="lifetime">'a</span>, T: Sync + <span class="lifetime">'a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        upstream: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
-        downstream: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
+        upstream: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
+        downstream: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
     ) -&gt; AssemblyResult&lt;()&gt; {
         <span class="kw">for </span>(upstream, downstream) <span class="kw">in </span>upstream.zip(downstream) {
             <span class="self">self</span>.bind_ports(upstream, downstream)<span class="question-mark">?</span>;
@@ -927,16 +928,16 @@
     }
 
     <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>bind_ports_iterated&lt;<span class="lifetime">&#39;a</span>, T: Sync + <span class="lifetime">&#39;a</span>&gt;(
+    </span><span class="kw">pub fn </span>bind_ports_iterated&lt;<span class="lifetime">'a</span>, T: Sync + <span class="lifetime">'a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        upstream: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
-        <span class="kw-2">mut </span>downstream: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
+        upstream: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
+        <span class="kw-2">mut </span>downstream: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
     ) -&gt; AssemblyResult&lt;()&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>upstream = upstream.collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-        <span class="macro">assert!</span>(!upstream.is_empty(), <span class="string">&quot;Empty upstream!&quot;</span>);
+        <span class="macro">assert!</span>(!upstream.is_empty(), <span class="string">"Empty upstream!"</span>);
         <span class="kw">let </span>up_len = upstream.len();
         <span class="comment">// we have to implement this loop manually instead of with an iterator
-        // because we can&#39;t clone mutable references in the upstream iterator
+        // because we can't clone mutable references in the upstream iterator
         </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>.. {
             <span class="kw">let </span>up = <span class="kw-2">&amp;mut </span>upstream[i % up_len];
             <span class="kw">if let </span><span class="prelude-val">Some</span>(down) = downstream.next() {
@@ -955,16 +956,16 @@
 }
 
 <span class="doccomment">/// Creates the components of a reactor.
-</span><span class="kw">pub struct </span>ComponentCreator&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>, S: ReactorInitializer&gt; {
-    assembler: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span><span class="kw-2">mut </span>AssemblyCtx&lt;<span class="lifetime">&#39;x</span>, S&gt;,
+</span><span class="kw">pub struct </span>ComponentCreator&lt;<span class="lifetime">'a</span>, <span class="lifetime">'x</span>, S: ReactorInitializer&gt; {
+    assembler: <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>AssemblyCtx&lt;<span class="lifetime">'x</span>, S&gt;,
 }
 
-<span class="kw">impl</span>&lt;S: ReactorInitializer&gt; ComponentCreator&lt;<span class="lifetime">&#39;_</span>, <span class="lifetime">&#39;_</span>, S&gt; {
-    <span class="kw">pub fn </span>new_port&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lf_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, kind: PortKind) -&gt; Port&lt;T&gt; {
+<span class="kw">impl</span>&lt;S: ReactorInitializer&gt; ComponentCreator&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, S&gt; {
+    <span class="kw">pub fn </span>new_port&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lf_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, kind: PortKind) -&gt; Port&lt;T&gt; {
         <span class="self">self</span>.new_port_impl(Cow::Borrowed(lf_name), kind)
     }
 
-    <span class="kw">fn </span>new_port_impl&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lf_name: Cow&lt;<span class="lifetime">&#39;static</span>, str&gt;, kind: PortKind) -&gt; Port&lt;T&gt; {
+    <span class="kw">fn </span>new_port_impl&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lf_name: Cow&lt;<span class="lifetime">'static</span>, str&gt;, kind: PortKind) -&gt; Port&lt;T&gt; {
         <span class="kw">let </span>id = <span class="self">self</span>.next_comp_id(lf_name);
         <span class="self">self</span>.graph().record_port(id);
         Port::new(id, kind)
@@ -972,7 +973,7 @@
 
     <span class="kw">pub fn </span>new_multiport&lt;T: Sync&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        lf_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
+        lf_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
         kind: PortKind,
         len: usize,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Multiport&lt;T&gt;, AssemblyError&gt; {
@@ -988,42 +989,42 @@
 
     <span class="kw">fn </span>new_port_bank_component&lt;T: Sync&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        lf_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str,
+        lf_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str,
         kind: PortKind,
         bank_id: TriggerId,
         index: usize,
     ) -&gt; Port&lt;T&gt; {
-        <span class="kw">let </span>channel_id = <span class="self">self</span>.next_comp_id(Cow::Owned(<span class="macro">format!</span>(<span class="string">&quot;{}[{}]&quot;</span>, lf_name, index)));
+        <span class="kw">let </span>channel_id = <span class="self">self</span>.next_comp_id(Cow::Owned(<span class="macro">format!</span>(<span class="string">"{}[{}]"</span>, lf_name, index)));
         <span class="self">self</span>.graph().record_port_bank_component(bank_id, channel_id);
         Port::new(channel_id, kind)
     }
 
-    <span class="kw">pub fn </span>new_logical_action&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lf_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, min_delay: <span class="prelude-ty">Option</span>&lt;Duration&gt;) -&gt; LogicalAction&lt;T&gt; {
+    <span class="kw">pub fn </span>new_logical_action&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lf_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, min_delay: <span class="prelude-ty">Option</span>&lt;Duration&gt;) -&gt; LogicalAction&lt;T&gt; {
         <span class="kw">let </span>id = <span class="self">self</span>.next_comp_id(Cow::Borrowed(lf_name));
         <span class="self">self</span>.graph().record_laction(id);
         LogicalAction::new(id, min_delay)
     }
 
-    <span class="kw">pub fn </span>new_physical_action&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lf_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, min_delay: <span class="prelude-ty">Option</span>&lt;Duration&gt;) -&gt; PhysicalActionRef&lt;T&gt; {
+    <span class="kw">pub fn </span>new_physical_action&lt;T: Sync&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lf_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, min_delay: <span class="prelude-ty">Option</span>&lt;Duration&gt;) -&gt; PhysicalActionRef&lt;T&gt; {
         <span class="kw">let </span>id = <span class="self">self</span>.next_comp_id(Cow::Borrowed(lf_name));
         <span class="self">self</span>.graph().record_paction(id);
         PhysicalActionRef::new(id, min_delay)
     }
 
-    <span class="kw">pub fn </span>new_timer(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lf_name: <span class="kw-2">&amp;</span><span class="lifetime">&#39;static </span>str, offset: Duration, period: Duration) -&gt; Timer {
+    <span class="kw">pub fn </span>new_timer(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lf_name: <span class="kw-2">&amp;</span><span class="lifetime">'static </span>str, offset: Duration, period: Duration) -&gt; Timer {
         <span class="kw">let </span>id = <span class="self">self</span>.next_comp_id(Cow::Borrowed(lf_name));
         <span class="self">self</span>.graph().record_timer(id);
         Timer::new(id, offset, period)
     }
 
     <span class="doccomment">/// Create and return a new id for a trigger component.
-    </span><span class="kw">fn </span>next_comp_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, debug_name: Cow&lt;<span class="lifetime">&#39;static</span>, str&gt;) -&gt; TriggerId {
+    </span><span class="kw">fn </span>next_comp_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>, debug_name: Cow&lt;<span class="lifetime">'static</span>, str&gt;) -&gt; TriggerId {
         <span class="kw">let </span>id = <span class="self">self
             </span>.assembler
             .globals
             .cur_trigger
             .get_and_incr()
-            .expect(<span class="string">&quot;Overflow while allocating ID&quot;</span>);
+            .expect(<span class="string">"Overflow while allocating ID"</span>);
         <span class="self">self</span>.assembler.globals.debug_info.record_trigger(id, debug_name);
         id
     }
@@ -1098,5 +1099,4 @@
         iter.map(<span class="kw">move </span>|(i, j)| <span class="kw">unsafe </span>{ <span class="kw-2">&amp;mut </span>(<span class="kw-2">*</span>__ptr.add(i)).<span class="macro-nonterminal">$field_name</span>[j] })
     }};
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="reactor_rt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0 (84c898d65 2023-04-16)" data-search-js="search-8a59a8356673ec1f.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>

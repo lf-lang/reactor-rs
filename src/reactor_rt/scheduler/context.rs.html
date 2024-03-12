@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `runtime/src/scheduler/context.rs`."><title>context.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Bold-a2c9cd1067f8b328.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-c4dbdcde0fbd8430.css" id="mainThemeStyle"><link rel="stylesheet" id="themeStyle" href="../../../static.files/light-db279b6232be9c13.css"><link rel="stylesheet" disabled href="../../../static.files/dark-cf923f49f397b216.css"><link rel="stylesheet" disabled href="../../../static.files/ayu-be46fdc453a55015.css"><script src="../../../static.files/storage-3891ce972e3a2bf8.js"></script><script defer src="../../../static.files/source-script-1b95b7cca98b26e5.js"></script><script defer src="../../../source-files.js"></script><script defer src="../../../static.files/main-98a684e84ae5b08b.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-13285aec31fa243e.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc source"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><main><nav class="sub"><a class="sub-logo-container" href="../../../reactor_rt/index.html"><img class="rust-logo" src="../../../static.files/rust-logo-151179464ae7ed46.svg" alt="logo"></a><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" title="help" tabindex="-1"><a href="../../../help.html">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `src/scheduler/context.rs`."><title>context.rs - source</title><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceSerif4-Regular-46f98efaafac5295.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Regular-018c141bf0843ffd.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/FiraSans-Medium-8f9a781e4970d388.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2"><link rel="preload" as="font" type="font/woff2" crossorigin href="../../../static.files/SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2"><link rel="stylesheet" href="../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../static.files/rustdoc-ac92e1bbe349e143.css"><meta name="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="reactor_rt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.76.0 (07dca489a 2024-02-04)" data-channel="1.76.0" data-search-js="search-2b6ce74ff89ae146.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../static.files/storage-f2adc0d6ca4d09fb.js"></script><script defer src="../../../static.files/src-script-39ed315d46fb705f.js"></script><script defer src="../../../src-files.js"></script><script defer src="../../../static.files/main-305769736d49e732.js"></script><noscript><link rel="stylesheet" href="../../../static.files/noscript-feafe1bb7466e4bd.css"></noscript><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-16x16-8b506e7a72182f1c.png"><link rel="alternate icon" type="image/png" href="../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"></nav><div class="sidebar-resizer"></div>
+    <main><nav class="sub"><form class="search-form"><span></span><input class="search-input" name="search" aria-label="Run search in the documentation" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"><div id="help-button" tabindex="-1"><a href="../../../help.html" title="help">?</a></div><div id="settings-menu" tabindex="-1"><a href="../../../settings.html" title="settings"><img width="22" height="22" alt="Change settings" src="../../../static.files/wheel-7b819b6101059cd0.svg"></a></div></form></nav><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -804,7 +805,7 @@
 <a href="#804" id="804">804</a>
 <a href="#805" id="805">805</a>
 <a href="#806" id="806">806</a>
-</pre><pre class="rust"><code><span class="kw">use </span>std::borrow::Borrow;
+</pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Borrow;
 <span class="kw">use </span>std::hash::{Hash, Hasher};
 <span class="kw">use </span>std::sync::atomic::{AtomicBool, Ordering};
 <span class="kw">use </span>std::sync::Arc;
@@ -827,8 +828,8 @@
 // ReactionCtx is an API built around a ReactionWave. A single
 // ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&amp;mut).
-</span><span class="kw">pub struct </span>ReactionCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>&gt; {
-    <span class="kw">pub</span>(<span class="kw">super</span>) insides: RContextForwardableStuff&lt;<span class="lifetime">&#39;x</span>&gt;,
+</span><span class="kw">pub struct </span>ReactionCtx&lt;<span class="lifetime">'a</span>, <span class="lifetime">'x</span>&gt; {
+    <span class="kw">pub</span>(<span class="kw">super</span>) insides: RContextForwardableStuff&lt;<span class="lifetime">'x</span>&gt;,
 
     <span class="doccomment">/// Logical time of the execution of this wave, constant
     /// during the existence of the object
@@ -841,23 +842,23 @@
     </span>current_reaction: <span class="prelude-ty">Option</span>&lt;GlobalReactionId&gt;,
 
     <span class="doccomment">/// Sender to schedule events that should be executed later than this wave.
-    </span>rx: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Receiver&lt;PhysicalEvent&gt;,
+    </span>rx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Receiver&lt;PhysicalEvent&gt;,
 
     <span class="doccomment">/// Start time of the program.
     </span>initial_time: Instant,
 
     <span class="comment">// globals, also they might be copied and passed to AsyncCtx
-    </span>dataflow: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span>DataflowInfo,
-    debug_info: DebugInfoProvider&lt;<span class="lifetime">&#39;a</span>&gt;,
+    </span>dataflow: <span class="kw-2">&amp;</span><span class="lifetime">'x </span>DataflowInfo,
+    debug_info: DebugInfoProvider&lt;<span class="lifetime">'a</span>&gt;,
     <span class="doccomment">/// Whether the scheduler has been shut down.
-    </span>was_terminated_atomic: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Arc&lt;AtomicBool&gt;,
+    </span>was_terminated_atomic: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Arc&lt;AtomicBool&gt;,
     <span class="doccomment">/// In ReactionCtx, this will only be true if this is the shutdown tag.
     /// It duplicates [Self::was_terminated_atomic], to avoid an atomic
     /// operation within [Self::is_shutdown].
     </span>was_terminated: bool,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>&gt; ReactionCtx&lt;<span class="lifetime">&#39;a</span>, <span class="lifetime">&#39;x</span>&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, <span class="lifetime">'x</span>&gt; ReactionCtx&lt;<span class="lifetime">'a</span>, <span class="lifetime">'x</span>&gt; {
     <span class="doccomment">/// Returns the start time of the execution of this program.
     ///
     /// This is a logical instant with microstep zero.
@@ -896,7 +897,7 @@
     }
 
     <span class="doccomment">/// Returns whether this tag is the shutdown tag of the
-    /// application. If so, it&#39;s necessarily the very last
+    /// application. If so, it's necessarily the very last
     /// invocation of the current reaction (on a given reactor
     /// instance).
     ///
@@ -919,7 +920,7 @@
     /// start of the program.
     ///
     /// Since this uses [Self::get_physical_time], be aware that
-    /// this function&#39;s result may change over time.
+    /// this function's result may change over time.
     </span><span class="attr">#[inline]
     </span><span class="kw">pub fn </span>get_elapsed_physical_time(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Duration {
         <span class="self">self</span>.get_physical_time() - <span class="self">self</span>.get_start_time()
@@ -936,7 +937,7 @@
     ///   the return value might vary.
     </span><span class="kw">pub fn </span>num_workers(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
         <span class="macro">cfg_if::cfg_if! </span>{
-            <span class="kw">if </span><span class="attr">#[cfg(feature = <span class="string">&quot;parallel-runtime&quot;</span>)] </span>{
+            <span class="kw">if </span><span class="attr">#[cfg(feature = <span class="string">"parallel-runtime"</span>)] </span>{
                 rayon::current_num_threads()
             } <span class="kw">else </span>{
                 <span class="number">1
@@ -989,8 +990,8 @@
     /// }
     /// ```
     </span><span class="attr">#[inline]
-    #[cfg(not(feature = <span class="string">&quot;no-unsafe&quot;</span>))]
-    </span><span class="kw">pub fn </span>get_ref&lt;<span class="lifetime">&#39;q</span>, T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, container: <span class="kw-2">&amp;</span><span class="lifetime">&#39;q </span><span class="kw">impl </span><span class="kw">crate</span>::triggers::ReactionTriggerWithRefAccess&lt;T&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">&#39;q </span>T&gt; {
+    #[cfg(not(feature = <span class="string">"no-unsafe"</span>))]
+    </span><span class="kw">pub fn </span>get_ref&lt;<span class="lifetime">'q</span>, T&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, container: <span class="kw-2">&amp;</span><span class="lifetime">'q </span><span class="kw">impl </span><span class="kw">crate</span>::triggers::ReactionTriggerWithRefAccess&lt;T&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'q </span>T&gt; {
         container.get_value_ref(<span class="kw-2">&amp;</span><span class="self">self</span>.get_tag(), <span class="kw-2">&amp;</span><span class="self">self</span>.get_start_time())
     }
 
@@ -1063,7 +1064,7 @@
                 <span class="macro">assert_eq!</span>(
                     <span class="prelude-val">Some</span>(reaction_container),
                     port_grandpa,
-                    <span class="string">&quot;Input port {} can only be set by reactions of its grandparent, got reaction {}&quot;</span>,
+                    <span class="string">"Input port {} can only be set by reactions of its grandparent, got reaction {}"</span>,
                     <span class="self">self</span>.debug_info.id_registry.fmt_component(port_id),
                     <span class="self">self</span>.debug_info.display_reaction(<span class="self">self</span>.current_reaction.unwrap()),
                 );
@@ -1072,7 +1073,7 @@
                 <span class="macro">assert_eq!</span>(
                     reaction_container,
                     port_container,
-                    <span class="string">&quot;Input port {} can only be set by reactions of its parent, got reaction {}&quot;</span>,
+                    <span class="string">"Input port {} can only be set by reactions of its parent, got reaction {}"</span>,
                     <span class="self">self</span>.debug_info.id_registry.fmt_component(port_id),
                     <span class="self">self</span>.debug_info.display_reaction(<span class="self">self</span>.current_reaction.unwrap()),
                 );
@@ -1166,12 +1167,12 @@
     /// ```no_run
     /// # use reactor_rt::prelude::*;
     /// # let ctx: &amp;mut ReactionCtx = panic!();
-    /// # let action: &amp;mut LogicalAction&lt;&amp;&#39;static str&gt; = panic!();
+    /// # let action: &amp;mut LogicalAction&lt;&amp;'static str&gt; = panic!();
     /// // will be executed 2 milliseconds (+ own delay) from now with that value.
-    /// ctx.schedule_with_v(action, Some(&quot;value&quot;), after!(2 msec));
+    /// ctx.schedule_with_v(action, Some("value"), after!(2 msec));
     /// // will be executed one microstep from now, with no value
     /// ctx.schedule_with_v(action, None, Asap);
-    /// // that&#39;s equivalent to
+    /// // that's equivalent to
     /// ctx.schedule(action, Asap);
     /// ```
     </span><span class="attr">#[inline]
@@ -1183,7 +1184,7 @@
     ///
     /// This is used for actions.
     </span><span class="attr">#[inline]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enqueue_later(<span class="kw-2">&amp;mut </span><span class="self">self</span>, downstream: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span>ExecutableReactions, tag: EventTag) {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enqueue_later(<span class="kw-2">&amp;mut </span><span class="self">self</span>, downstream: <span class="kw-2">&amp;</span><span class="lifetime">'x </span>ExecutableReactions, tag: EventTag) {
         <span class="macro">debug_assert!</span>(tag &gt; <span class="self">self</span>.get_tag());
 
         <span class="kw">let </span>evt = Event::execute(tag, Cow::Borrowed(downstream));
@@ -1191,14 +1192,14 @@
     }
 
     <span class="attr">#[inline]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enqueue_now(<span class="kw-2">&amp;mut </span><span class="self">self</span>, downstream: Cow&lt;<span class="lifetime">&#39;x</span>, ExecutableReactions&lt;<span class="lifetime">&#39;x</span>&gt;&gt;) {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>enqueue_now(<span class="kw-2">&amp;mut </span><span class="self">self</span>, downstream: Cow&lt;<span class="lifetime">'x</span>, ExecutableReactions&lt;<span class="lifetime">'x</span>&gt;&gt;) {
         <span class="kw">match </span><span class="kw-2">&amp;mut </span><span class="self">self</span>.insides.todo_now {
             <span class="prelude-val">Some</span>(<span class="kw-2">ref mut </span>do_next) =&gt; do_next.to_mut().absorb_after(downstream.as_ref(), <span class="self">self</span>.cur_level.next()),
             <span class="prelude-val">None </span>=&gt; <span class="self">self</span>.insides.todo_now = <span class="prelude-val">Some</span>(downstream),
         }
     }
 
-    <span class="kw">fn </span>reactions_triggered_by(<span class="kw-2">&amp;</span><span class="self">self</span>, trigger: TriggerId) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span>ExecutableReactions&lt;<span class="lifetime">&#39;x</span>&gt; {
+    <span class="kw">fn </span>reactions_triggered_by(<span class="kw-2">&amp;</span><span class="self">self</span>, trigger: TriggerId) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'x </span>ExecutableReactions&lt;<span class="lifetime">'x</span>&gt; {
         <span class="self">self</span>.dataflow.reactions_triggered_by(<span class="kw-2">&amp;</span>trigger)
     }
 
@@ -1213,7 +1214,7 @@
     /// Since the thread is allowed to keep references into the
     /// internals of the scheduler, it is joined when the scheduler
     /// shuts down. This means the scheduler will wait for the
-    /// thread to finish its task. For that reason, the thread&#39;s
+    /// thread to finish its task. For that reason, the thread's
     /// closure should not execute an infinite loop, it should at
     /// least check that the scheduler has not been terminated by
     /// polling [AsyncCtx::was_terminated].
@@ -1238,8 +1239,8 @@
     <span class="kw">where
         </span><span class="comment">// is there a practical reason to encapsulate this?
         </span>F: FnOnce(<span class="kw-2">&amp;mut </span>AsyncCtx) -&gt; R,
-        F: Send + <span class="lifetime">&#39;static</span>,
-        R: Send + <span class="lifetime">&#39;static</span>,
+        F: Send + <span class="lifetime">'static</span>,
+        R: Send + <span class="lifetime">'static</span>,
     {
         <span class="kw">let </span>tx = <span class="self">self</span>.rx.new_sender();
         <span class="kw">let </span>initial_time = <span class="self">self</span>.initial_time;
@@ -1259,7 +1260,7 @@
     /// ```no_run
     /// # use reactor_rt::prelude::*;
     /// # let ctx: &amp;mut ReactionCtx = panic!();
-    /// # let action: &amp;mut LogicalAction&lt;&amp;&#39;static str&gt; = panic!();
+    /// # let action: &amp;mut LogicalAction&lt;&amp;'static str&gt; = panic!();
     /// // trigger shutdown on the next microstep
     /// ctx.request_stop(Asap);
     ///
@@ -1278,7 +1279,7 @@
 
     <span class="doccomment">/// Reschedule a periodic timer if need be.
     /// This is called by a reaction synthesized for each timer.
-    </span><span class="comment">// note: reactions can&#39;t call this as they&#39;re only passed a shared reference to a timer.
+    </span><span class="comment">// note: reactions can't call this as they're only passed a shared reference to a timer.
     </span><span class="attr">#[doc(hidden)]
     #[inline]
     </span><span class="kw">pub fn </span>reschedule_timer(<span class="kw-2">&amp;mut </span><span class="self">self</span>, timer: <span class="kw-2">&amp;mut </span>Timer) {
@@ -1290,11 +1291,11 @@
 
     <span class="doccomment">/// Schedule the first triggering of the given timer.
     /// This is called by a reaction synthesized for each timer.
-    </span><span class="comment">// note: reactions can&#39;t call this as they&#39;re only passed a shared references to timers.
+    </span><span class="comment">// note: reactions can't call this as they're only passed a shared references to timers.
     </span><span class="attr">#[doc(hidden)]
     #[inline]
     </span><span class="kw">pub fn </span>bootstrap_timer(<span class="kw-2">&amp;mut </span><span class="self">self</span>, timer: <span class="kw-2">&amp;mut </span>Timer) {
-        <span class="comment">// we&#39;re in startup
+        <span class="comment">// we're in startup
         </span><span class="kw">let </span>downstream = <span class="self">self</span>.reactions_triggered_by(timer.get_id());
         <span class="kw">if </span>timer.offset.is_zero() {
             <span class="comment">// no offset
@@ -1308,24 +1309,24 @@
     </span><span class="attr">#[inline]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>execute(<span class="kw-2">&amp;mut </span><span class="self">self</span>, reactor: <span class="kw-2">&amp;mut </span>ReactorBox, reaction_id: GlobalReactionId) {
         <span class="macro">trace!</span>(
-            <span class="string">&quot;  - Executing {} (level {})&quot;</span>,
+            <span class="string">"  - Executing {} (level {})"</span>,
             <span class="self">self</span>.debug_info.display_reaction(reaction_id),
             <span class="self">self</span>.cur_level
         );
-        <span class="macro">debug_assert_eq!</span>(reactor.id(), reaction_id.<span class="number">0</span>.container(), <span class="string">&quot;Wrong reactor&quot;</span>);
+        <span class="macro">debug_assert_eq!</span>(reactor.id(), reaction_id.<span class="number">0</span>.container(), <span class="string">"Wrong reactor"</span>);
         <span class="self">self</span>.current_reaction.replace(reaction_id);
         reactor.react(<span class="self">self</span>, reaction_id.<span class="number">0</span>.local());
         <span class="self">self</span>.current_reaction.take();
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>new(
-        rx: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Receiver&lt;PhysicalEvent&gt;,
+        rx: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Receiver&lt;PhysicalEvent&gt;,
         tag: EventTag,
         initial_time: Instant,
-        todo: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;,
-        dataflow: <span class="kw-2">&amp;</span><span class="lifetime">&#39;x </span>DataflowInfo,
-        debug_info: DebugInfoProvider&lt;<span class="lifetime">&#39;a</span>&gt;,
-        was_terminated_atomic: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a </span>Arc&lt;AtomicBool&gt;,
+        todo: ReactionPlan&lt;<span class="lifetime">'x</span>&gt;,
+        dataflow: <span class="kw-2">&amp;</span><span class="lifetime">'x </span>DataflowInfo,
+        debug_info: DebugInfoProvider&lt;<span class="lifetime">'a</span>&gt;,
+        was_terminated_atomic: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Arc&lt;AtomicBool&gt;,
         was_terminated: bool,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
@@ -1344,7 +1345,7 @@
 
     <span class="doccomment">/// Fork a context. Some things are shared, but not the
     /// mutable stuff.
-    </span><span class="attr">#[cfg(feature = <span class="string">&quot;parallel-runtime&quot;</span>)]
+    </span><span class="attr">#[cfg(feature = <span class="string">"parallel-runtime"</span>)]
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>fork(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             insides: Default::default(),
@@ -1365,7 +1366,7 @@
 
 <span class="doccomment">/// Info that executing reactions need to make known to the scheduler.
 </span><span class="attr">#[derive(Default)]
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>RContextForwardableStuff&lt;<span class="lifetime">&#39;x</span>&gt; {
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>RContextForwardableStuff&lt;<span class="lifetime">'x</span>&gt; {
     <span class="doccomment">/// Remaining reactions to execute before the wave dies.
     /// Using [Option] and [Cow] optimises for the case where
     /// zero or exactly one port/action is set, and minimises
@@ -1374,15 +1375,15 @@
     /// This is mutable: if a reaction sets a port, then the
     /// downstream of that port is inserted in into this
     /// data structure.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) todo_now: ReactionPlan&lt;<span class="lifetime">&#39;x</span>&gt;,
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) todo_now: ReactionPlan&lt;<span class="lifetime">'x</span>&gt;,
 
     <span class="doccomment">/// Events that were produced for a strictly greater
     /// logical time than a current one.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) future_events: SmallVec&lt;[Event&lt;<span class="lifetime">&#39;x</span>&gt;; <span class="number">4</span>]&gt;,
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) future_events: SmallVec&lt;[Event&lt;<span class="lifetime">'x</span>&gt;; <span class="number">4</span>]&gt;,
 }
 
-<span class="attr">#[cfg(feature = <span class="string">&quot;parallel-runtime&quot;</span>)]
-</span><span class="kw">impl </span>RContextForwardableStuff&lt;<span class="lifetime">&#39;_</span>&gt; {
+<span class="attr">#[cfg(feature = <span class="string">"parallel-runtime"</span>)]
+</span><span class="kw">impl </span>RContextForwardableStuff&lt;<span class="lifetime">'_</span>&gt; {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>merge(<span class="kw-2">mut </span><span class="self">self</span>, other: <span class="self">Self</span>) -&gt; <span class="self">Self </span>{
         <span class="self">self</span>.absorb(other);
         <span class="self">self
@@ -1395,7 +1396,7 @@
 }
 
 <span class="doccomment">/// A type that can affect the logical event queue to implement
-/// asynchronous physical actions. This is a &quot;link&quot; to the event
+/// asynchronous physical actions. This is a "link" to the event
 /// system, from the outside world.
 ///
 /// See [ReactionCtx::spawn_physical_thread].
@@ -1410,7 +1411,7 @@
 
 <span class="kw">impl </span>AsyncCtx {
     <span class="doccomment">/// Returns true if the scheduler has been shutdown. When
-    /// that&#39;s true, calls to other methods of this type will
+    /// that's true, calls to other methods of this type will
     /// fail with [SendError].
     </span><span class="kw">pub fn </span>was_terminated(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
         <span class="self">self</span>.was_terminated.load(Ordering::SeqCst)
@@ -1432,7 +1433,7 @@
 
         <span class="kw">let </span>evt = PhysicalEvent::terminate_at(tag);
         <span class="self">self</span>.tx.send(evt).map_err(|e| {
-            <span class="macro">warn!</span>(<span class="string">&quot;Event could not be sent! {:?}&quot;</span>, e);
+            <span class="macro">warn!</span>(<span class="string">"Event could not be sent! {:?}"</span>, e);
             SendError(())
         })
     }
@@ -1486,7 +1487,7 @@
 
                 <span class="kw">let </span>evt = PhysicalEvent::trigger(tag, action.get_id());
                 <span class="self">self</span>.tx.send(evt).map_err(|e| {
-                    <span class="macro">warn!</span>(<span class="string">&quot;Event could not be sent! {:?}&quot;</span>, e);
+                    <span class="macro">warn!</span>(<span class="string">"Event could not be sent! {:?}"</span>, e);
                     SendError(action.<span class="number">0</span>.forget_value(<span class="kw-2">&amp;</span>tag))
                 })
             })
@@ -1532,7 +1533,7 @@
     ///
     /// If the duration is zero (eg [Asap](Self::Asap)), it does not
     /// mean that the trigger will fire right away. For actions, the
-    /// action&#39;s inherent minimum delay must be taken into account,
+    /// action's inherent minimum delay must be taken into account,
     /// and even with a zero minimal delay, a delay of one microstep
     /// is applied.
     ///
@@ -1546,7 +1547,7 @@
 
     <span class="doccomment">/// Specify that the trigger will fire as soon as possible.
     /// This does not mean that the action will trigger right away. The
-    /// action&#39;s inherent minimum delay must be taken into account,
+    /// action's inherent minimum delay must be taken into account,
     /// and even with a zero minimal delay, a delay of one microstep
     /// is applied. This is equivalent to
     /// ```
@@ -1582,17 +1583,17 @@
 
 <span class="doccomment">/// Cleans up a tag
 /// TODO get rid of this!
-///  At least for multiports it&#39;s really bad
+///  At least for multiports it's really bad
 ///  Maybe we can keep a set of the ports that are present in ReactionCtx
 </span><span class="attr">#[doc(hidden)]
 </span><span class="kw">pub struct </span>CleanupCtx {
-    <span class="doccomment">/// Tag we&#39;re cleaning up
+    <span class="doccomment">/// Tag we're cleaning up
     </span><span class="kw">pub </span>tag: EventTag,
 }
 
 <span class="kw">impl </span>CleanupCtx {
     <span class="kw">pub fn </span>cleanup_multiport&lt;T: Sync&gt;(<span class="kw-2">&amp;</span><span class="self">self</span>, port: <span class="kw-2">&amp;mut </span>Multiport&lt;T&gt;) {
-        <span class="comment">// todo bound ports don&#39;t need to be cleared
+        <span class="comment">// todo bound ports don't need to be cleared
         </span><span class="kw">for </span>channel <span class="kw">in </span>port {
             channel.clear_value()
         }
@@ -1610,5 +1611,4 @@
         action.use_mut(|a| a.<span class="number">0</span>.forget_value(<span class="kw-2">&amp;</span><span class="self">self</span>.tag)).ok();
     }
 }
-</code></pre></div>
-</section></main><div id="rustdoc-vars" data-root-path="../../../" data-static-root-path="../../../static.files/" data-current-crate="reactor_rt" data-themes="" data-resource-suffix="" data-rustdoc-version="1.69.0 (84c898d65 2023-04-16)" data-search-js="search-8a59a8356673ec1f.js" data-settings-js="settings-f0c5c39777a9a2f6.js" data-settings-css="settings-0bcba95ff279c1db.css" ></div></body></html>
+</code></pre></div></section></main></body></html>
