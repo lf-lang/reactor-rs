@@ -453,7 +453,7 @@ mod reactors {
         impl ::reactor_rt::assembly::ReactorInitializer for SavinaPongAdapter {
             type Wrapped = SavinaPong;
             type Params = SavinaPongParams;
-            const MAX_REACTION_ID: ::reactor_rt::LocalReactionId = ::reactor_rt::LocalReactionId::new(1 - 1);
+            const MAX_REACTION_ID: ::reactor_rt::LocalReactionId = ::reactor_rt::LocalReactionId::new(0);
 
             fn assemble(
                 __params: Self::Params,

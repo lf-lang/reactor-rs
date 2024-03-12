@@ -45,13 +45,13 @@ pub mod internals {
     pub use super::dependencies::{ExecutableReactions, Level, LevelIx, ReactionLevelInfo};
 }
 
-pub(self) type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions<'x>>>;
-pub(self) type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a>;
-pub(self) type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
+type ReactionPlan<'x> = Option<Cow<'x, ExecutableReactions<'x>>>;
+type ReactorBox<'a> = Box<dyn ReactorBehavior + 'a>;
+type ReactorVec<'a> = IndexVec<ReactorId, ReactorBox<'a>>;
 
 /// Can format stuff for trace messages.
 #[derive(Clone)]
-pub(self) struct DebugInfoProvider<'a> {
+struct DebugInfoProvider<'a> {
     id_registry: &'a DebugInfoRegistry,
 }
 

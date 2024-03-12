@@ -61,8 +61,8 @@
 #[macro_use]
 extern crate array_macro;
 #[cfg(test)]
-#[macro_use]
 #[allow(unused)]
+#[macro_use]
 extern crate assert_matches;
 #[macro_use]
 extern crate index_vec;
@@ -94,12 +94,12 @@ pub use self::util::*;
 pub mod test;
 
 mod actions;
-pub(self) mod ids;
+mod ids;
 mod ports;
 mod scheduler;
 mod time;
 mod timers;
-pub(self) mod triggers;
+mod triggers;
 mod util;
 
 pub mod assembly;

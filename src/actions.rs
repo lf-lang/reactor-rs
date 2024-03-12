@@ -116,7 +116,7 @@ impl<T: Sync, K> ReactionTrigger<T> for Action<K, T> {
 #[cfg(not(feature = "no-unsafe"))]
 impl<T: Sync, K> triggers::ReactionTriggerWithRefAccess<T> for Action<K, T> {
     fn get_value_ref(&self, now: &EventTag, _start: &Instant) -> Option<&T> {
-        self.map.get(&Reverse(*now)).map(|a| a.as_ref()).flatten()
+        self.map.get(&Reverse(*now)).and_then(|a| a.as_ref())
     }
 }
 
