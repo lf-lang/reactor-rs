@@ -1756,7 +1756,7 @@
 
         <span class="kw">fn </span>new_ports&lt;<span class="kw">const </span>N: usize&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, names: [<span class="kw-2">&amp;</span><span class="lifetime">'static </span>str; N]) -&gt; [TriggerId; N] {
             <span class="kw">let </span>result = <span class="macro">array!</span>[<span class="kw">_ </span>=&gt; <span class="self">self</span>.fixture.next_trigger_id.get_and_incr().unwrap(); N];
-            <span class="kw">for </span>(i, p) <span class="kw">in </span>(<span class="kw-2">&amp;</span>result).iter().enumerate() {
+            <span class="kw">for </span>(i, p) <span class="kw">in </span>result.iter().enumerate() {
                 <span class="self">self</span>.fixture.graph.record_port(<span class="kw-2">*</span>p);
                 <span class="self">self</span>.fixture.debug_info.record_trigger(<span class="kw-2">*</span>p, Cow::Borrowed(names[i]));
             }

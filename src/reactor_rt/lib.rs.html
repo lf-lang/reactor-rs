@@ -223,8 +223,8 @@
 #[macro_use]
 </span><span class="kw">extern crate </span>array_macro;
 <span class="attr">#[cfg(test)]
-#[macro_use]
 #[allow(unused)]
+#[macro_use]
 </span><span class="kw">extern crate </span>assert_matches;
 <span class="attr">#[macro_use]
 </span><span class="kw">extern crate </span>index_vec;
@@ -256,12 +256,12 @@
 </span><span class="kw">pub mod </span>test;
 
 <span class="kw">mod </span>actions;
-<span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">mod </span>ids;
+<span class="kw">mod </span>ids;
 <span class="kw">mod </span>ports;
 <span class="kw">mod </span>scheduler;
 <span class="kw">mod </span>time;
 <span class="kw">mod </span>timers;
-<span class="kw">pub</span>(<span class="self">self</span>) <span class="kw">mod </span>triggers;
+<span class="kw">mod </span>triggers;
 <span class="kw">mod </span>util;
 
 <span class="kw">pub mod </span>assembly;
