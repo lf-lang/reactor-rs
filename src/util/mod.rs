@@ -25,6 +25,8 @@
 use std::convert::TryFrom;
 use std::time::Duration;
 
+pub(crate) mod vecmap;
+
 #[macro_export]
 #[doc(hidden)]
 macro_rules! join_to {

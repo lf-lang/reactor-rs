@@ -28,8 +28,8 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter, Result};
 use std::ops::Range;
 
+use crate::vecmap::VecMap;
 use index_vec::{Idx, IndexVec};
-use vecmap::VecMap;
 
 use crate::assembly::{ReactorInitializer, TriggerId};
 use crate::{GlobalReactionId, ReactorId};
