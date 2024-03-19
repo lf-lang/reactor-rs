@@ -138,10 +138,10 @@ macro_rules! delay {
 /// syntax of [tag](crate::tag).
 ///
 /// ```no_run
-/// // use reactor_rt::{assert_tag_is, delay, ReactionCtx};
-/// // let ctx : ReactionCtx = unimplemented!();
-/// // struct Foo { i: u32 }
-/// // let foo = Foo { i: 0 };
+/// # use reactor_rt::{assert_tag_is, delay, ReactionCtx};
+/// # let ctx : ReactionCtx = unimplemented!();
+/// # struct Foo { i: u32 }
+/// # let foo = Foo { i: 0 };
 ///
 /// assert_tag_is!(ctx, T0 + 20 ms);
 /// assert_tag_is!(ctx, T0 + 60 ms);
