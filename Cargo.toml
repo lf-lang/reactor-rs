@@ -31,7 +31,7 @@ dmsort = "1.0.1"
 default=["vec-id-sets"]
 # Enable the parallel runtime implementation # TODO make default
 parallel-runtime=["rayon"]
-# Enables 64-bit wide reaction ids on 64 bit architectures.
+# Enables 64-bit wide reaction ids on 64-bit architectures.
 # This may reduce performance, but allows for 2^32 reactor
 # instances compared to the default of 2^16, which may feel
 # a bit tight for some applications.

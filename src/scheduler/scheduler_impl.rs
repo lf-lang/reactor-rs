@@ -83,9 +83,9 @@ macro_rules! push_event {
 
 /// The runtime scheduler.
 ///
-/// Lifetime parameters: 'x and 't are carried around everywhere,
-/// 'x allows us to take references into the dataflow graph, and
-/// 't to spawn new scoped threads for physical actions. 'a is more
+/// Lifetime parameters: `'x` and `'t` are carried around everywhere,
+/// `'x` allows us to take references into the dataflow graph, and
+/// `'t` to spawn new scoped threads for physical actions. `'a` is more
 /// useless but is needed to compile.
 pub struct SyncScheduler<'x> {
     /// The latest processed logical time (necessarily behind physical time).
@@ -351,8 +351,8 @@ impl<'x> SyncScheduler<'x> {
                 }
                 Err(RecvTimeoutError::Timeout) => { /*great*/ }
                 Err(RecvTimeoutError::Disconnected) => {
-                    // ok, there are no physical actions in the program so it's useless to block on self.rx
-                    // we still need to wait though..
+                    // ok, there are no physical actions in the program, so it's useless to block on self.rx
+                    // we still need to wait though...
                     if let Some(remaining) = target.checked_duration_since(Instant::now()) {
                         std::thread::sleep(remaining);
                     }
@@ -446,7 +446,7 @@ impl<'x> SyncScheduler<'x> {
             push_event!(self, evt)
         }
 
-        // cleanup tag-specific resources, eg clear port values
+        // cleanup tag-specific resources, e.g. clear port values
         let ctx = CleanupCtx { tag };
         // TODO measure performance of cleaning up all reactors w/ virtual dispatch like this.
         //   see also efforts in the C runtime to  avoid this
@@ -497,7 +497,7 @@ mod parallel_rt_impl {
     unsafe impl<T> Sync for UnsafeSharedPointer<T> {}
 
     /// We need a Clone bound to use fold_with, but this clone
-    /// implementation is not general purpose so I hide it.
+    /// implementation is not general purpose, so I hide it. 
     struct CloneableCtx<'a, 'x>(ReactionCtx<'a, 'x>);
 
     impl Clone for CloneableCtx<'_, '_> {

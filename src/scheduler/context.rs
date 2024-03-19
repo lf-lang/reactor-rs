@@ -278,7 +278,7 @@ impl<'a, 'x> ReactionCtx<'a, 'x> {
     }
 
     /// Sets the value of the given port, if the given value is `Some`.
-    /// Otherwise the port is not set and no reactions are triggered.
+    /// Otherwise, the port is not set and no reactions are triggered.
     ///
     /// The change is visible at the same logical time, i.e.
     /// the value propagates immediately. This may hence
@@ -724,7 +724,7 @@ pub enum Offset {
     /// Specify that the trigger will fire at least after
     /// the provided duration.
     ///
-    /// If the duration is zero (eg [Asap](Self::Asap)), it does not
+    /// If the duration is zero (e.g. [Asap](Self::Asap)), it does not
     /// mean that the trigger will fire right away. For actions, the
     /// action's inherent minimum delay must be taken into account,
     /// and even with a zero minimal delay, a delay of one microstep

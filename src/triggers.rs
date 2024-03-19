@@ -84,7 +84,7 @@ pub struct TriggerId(TriggerIdImpl);
 // info. But it also forces us to use inefficient data structures to get a Map<TriggerId, ...>,
 // because ids were not allocated consecutively. We were previously using
 // hashmaps, now we use IndexVec.
-// Also the structure of GlobalId used to set relatively low
+// Also, the structure of GlobalId used to set relatively low
 // ceilings on the number of components and reactions of each
 // reactor. Previously, we could have max 2^16 (reactions+components)
 // per reactor. Now we can have 2^16 reactions per reactor,

@@ -569,7 +569,7 @@ impl From<u32> for LevelIx {
 pub struct ExecutableReactions<'x> {
     /// An ordered list of levels to execute.
     ///
-    /// It must by construction be the case that a reaction
+    /// It must, by construction, be the case that a reaction
     /// in level `i` has no dependency(1) on reactions in levels `j >= i`.
     /// This way, the execution of reactions in the same level
     /// may be parallelized.
@@ -593,7 +593,7 @@ impl<'x> ExecutableReactions<'x> {
 
     /// Returns an iterator which associates batches of reactions
     /// with their level. Note that this does not mutate this collection
-    /// (eg drain it), because that way we can use borrowed Cows
+    /// (e.g. drain it), because that way we can use borrowed Cows
     /// and avoid more allocation.
     pub fn batches(&self) -> impl Iterator<Item = &(LevelIx, Cow<'x, Level>)> + '_ {
         self.levels.iter()
@@ -890,9 +890,9 @@ pub mod test {
             test.graph.triggers_reaction(p0, n2);
             test.graph.triggers_reaction(p1, n2);
 
-            // connect to prev_in
+            // connect to `prev_in`
             test.graph.triggers_reaction(prev_in, n1);
-            // replace prev_in with out
+            // replace `prev_in` with `out`
             test.graph.reaction_effects(n2, out);
             prev_in = out;
         }
@@ -930,9 +930,9 @@ pub mod test {
             test.graph.triggers_reaction(p01, n2);
             test.graph.triggers_reaction(p11, n2);
 
-            // connect to prev_in
+            // connect to `prev_in`
             test.graph.triggers_reaction(prev_in, n1);
-            // replace prev_in with out
+            // replace `prev_in` with `out`
             test.graph.reaction_effects(n2, out);
             prev_in = out;
         }

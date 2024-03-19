@@ -199,7 +199,7 @@ where
     /// priority edges, as they are taken to be those declared
     /// in LF by the user.
     /// The rest do not have priority edges, and their
-    /// implementation must hence have no observable side-effect.
+    /// implementation must hence have no observable side effect.
     fn new_reactions<const N: usize>(
         &mut self,
         my_id: ReactorId,
@@ -490,7 +490,7 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
 /// we trust the code generator to fail if a port is both on
 /// the LHS and RHS of a connection.
 ///
-/// This is necessary to be iterate the same bank over distinct
+/// This is necessary to be able to iterate the same bank over distinct
 /// ports or multiports to bind them together.
 #[macro_export]
 #[doc(hidden)]

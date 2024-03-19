@@ -173,7 +173,7 @@ impl DebugInfoRegistry {
                     // ie, we're the first component of the next reactor.
                     Ok(rid) => (rid.plus(1), 0usize),
                     // Here, rid is the reactor which contains the trigger.
-                    // Eg if you have reactor_bound=[2, 4],
+                    // E.g. if you have reactor_bound=[2, 4],
                     // that corresponds to two reactors [2..2, 2..4].
                     // If you ask for 2, it will take the branch Ok above.
                     // If you ask for 3, it will fail with Err(0), and reactor_bound[0]==2
@@ -233,7 +233,7 @@ pub(crate) struct ReactorDebugInfo {
     /// Simple name of the instantiation (last segment of the path)
     #[allow(unused)]
     pub inst_name: &'static str,
-    /// Path to this instantiation, with trailing slash (eg `"/parent/child/"`)
+    /// Path to this instantiation, with trailing slash (e.g. `"/parent/child/"`)
     inst_path: String,
 }
 
