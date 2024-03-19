@@ -497,7 +497,7 @@ mod parallel_rt_impl {
     unsafe impl<T> Sync for UnsafeSharedPointer<T> {}
 
     /// We need a Clone bound to use fold_with, but this clone
-    /// implementation is not general purpose, so I hide it. 
+    /// implementation is not general purpose, so I hide it.
     struct CloneableCtx<'a, 'x>(ReactionCtx<'a, 'x>);
 
     impl Clone for CloneableCtx<'_, '_> {
