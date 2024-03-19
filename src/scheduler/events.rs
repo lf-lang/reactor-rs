@@ -212,7 +212,7 @@ impl<'x> EventQueue<'x> {
         self.value_list.pop_front()
     }
 
-    // todo perf: we could make a more optimal function to push a
+    // TODO perf: we could make a more optimal function to push a
     //  lot of events at once. Consider the following algorithm:
     //  - start with a sorted `self.value_list` and a (non-sorted) `new_evts: Vec<Event>`
     //  - sort the new events in place (in a Cow maybe). They'll

@@ -160,7 +160,7 @@ where
         reaction_names: [Option<&'static str>; N],
         declare_dependencies: impl FnOnce(&mut DependencyDeclarator<S>, &mut S, [GlobalReactionId; N]) -> AssemblyResult<()>,
     ) -> AssemblyResult<AssemblyIntermediate<'x, S>> {
-        // todo when feature(generic_const_exprs) is stabilized,
+        // TODO when feature(generic_const_exprs) is stabilized,
         //  replace const parameter N with S::MAX_REACTION_ID.index().
         debug_assert_eq!(N, S::MAX_REACTION_ID.index(), "Should initialize all reactions");
 
@@ -362,8 +362,9 @@ impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
 
     /// Bind the ports of the upstream to those of the downstream,
     /// as if zipping both iterators.
-    /// todo this will just throw away bindings if both iterators are not of the same size
-    ///  normally this should be reported by LFC as a warning, maybe we should implement the same thing here
+    /// TODO this will just throw away bindings if both iterators are not of the same size
+    ///  normally this should be reported by LFC as a warning, maybe we should implement the same
+    ///  thing here
     #[inline]
     pub fn bind_ports_zip<'a, T: Sync + 'a>(
         &mut self,

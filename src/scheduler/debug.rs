@@ -57,7 +57,7 @@ pub(crate) struct DebugInfoRegistry {
 
     main_reactor: Option<ReactorId>,
 
-    // todo better data structure, eg IndexVec<ReactorId, IndexVec<LocalReactionId, _>>
+    // TODO better data structure, e.g. IndexVec<ReactorId, IndexVec<LocalReactionId, _>>
     /// Labels of each reaction, only reactions that have one are in here.
     reaction_labels: HashMap<GlobalReactionId, Cow<'static, str>>,
 }
