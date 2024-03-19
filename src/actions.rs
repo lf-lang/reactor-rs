@@ -51,8 +51,8 @@ pub(crate) struct Action<Kind, T: Sync> {
     _logical: PhantomData<Kind>,
 
     /// Stores values of an action for future scheduled events.
-    /// We rely strongly on the fact that any value put in there by [Action.schedule_future_value]
-    /// will be cleaned up after that tag. Otherwise the map will
+    /// We rely strongly on the fact that any value put therein by [Action.schedule_future_value]
+    /// will be cleaned up after that tag. Otherwise, the map will
     /// blow up the heap.
     map: VecMap<Reverse<EventTag>, Option<T>>,
 }
@@ -61,8 +61,6 @@ impl<K, T: Sync> Action<K, T> {
     /// Record a future value that can be queried at a future logical time.
     /// Note that we don't check that the given time is in the future. If it's
     /// in the past, the value will never be reclaimed.
-    ///
-    ///
     #[inline]
     pub(crate) fn schedule_future_value(&mut self, time: EventTag, value: Option<T>) {
         match self.map.entry(Reverse(time)) {

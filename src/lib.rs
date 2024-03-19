@@ -114,7 +114,7 @@ pub mod prelude {
     };
 
     /// Alias for the unit type, so that it can be written without quotes in LF.
-    /// Otherwise it needs to be written `{= () =}`.
+    /// Otherwise, it needs to be written `{= () =}`.
     /// It is not camel-case as it is actually a primitive type.
     #[allow(non_camel_case_types)]
     pub type unit = ();

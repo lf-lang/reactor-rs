@@ -295,7 +295,7 @@ struct PortCell<T: Sync> {
     /// field of that equiv class is updated to contain B.
     ///
     /// Why?
-    /// When you have bound eg A -> B and *then* bind U -> A,
+    /// When you have bound e.g. A -> B and *then* bind U -> A,
     /// then both the equiv class of A and B (the downstream of A)
     /// need to be updated to point to the equiv class of U
     ///

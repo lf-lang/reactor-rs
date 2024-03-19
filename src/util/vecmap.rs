@@ -181,8 +181,8 @@ where
     }
 
     /// Attempts to find the given `key`. If found, it returns `Ok` with the index of the key in the
-    /// underlying `Vec`. Otherwise it returns `Err` with the index where a matching element could be
-    /// inserted while maintaining sorted order.
+    /// underlying `Vec`. Otherwise, it returns `Err` with the index where a matching element could
+    /// be inserted while maintaining sorted order.
     fn find_k(&self, key: &K) -> Result<usize, usize> {
         let mut size = self.v.len();
         let mut left = 0;

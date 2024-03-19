@@ -39,9 +39,7 @@ The ping/pong game from Savina benchmarks. This can be compared
 to the C implementation (see results.md).
 
 See original at https://github.com/icyphy/lingua-franca/blob/f5868bec199e02f784393f32b594be5df935e2ee/benchmark/C/Savina/PingPong.lf
-
-
- */
+*/
 
 criterion_group!(benches, reactor_main);
 criterion_main!(benches);
