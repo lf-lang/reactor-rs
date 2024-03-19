@@ -64,7 +64,7 @@ pub(crate) fn do_write<X>(
     write!(f, "{}", suffix)
 }
 
-/// Shorthand for using [After](crate::Offset::After) together with [delay].
+/// Shorthand for using [After](crate::Offset::After) together with [delay](crate::delay).
 ///
 /// ```
 /// use std::time::Duration;
@@ -78,7 +78,7 @@ macro_rules! after {
     ($amount:tt $unit:tt) => { $crate::Offset::After($crate::delay!($amount $unit)) }
 }
 
-/// Creates a [Duration] value using the same syntax as in LF.
+/// Creates a [Duration](Duration) value using the same syntax as in LF.
 ///
 /// ```
 /// use std::time::Duration;
@@ -135,13 +135,13 @@ macro_rules! delay {
 
 /// Convenient macro to assert equality of the current tag.
 /// This is just shorthand for using `assert_eq!` with the
-/// syntax of [tag].
+/// syntax of [tag](crate::tag).
 ///
 /// ```no_run
-/// # use reactor_rt::{assert_tag_is, delay, ReactionCtx};
-/// # let ctx : ReactionCtx = unimplemented!();
-/// # struct Foo { i: u32 }
-/// # let foo = Foo { i: 0 };
+/// // use reactor_rt::{assert_tag_is, delay, ReactionCtx};
+/// // let ctx : ReactionCtx = unimplemented!();
+/// // struct Foo { i: u32 }
+/// // let foo = Foo { i: 0 };
 ///
 /// assert_tag_is!(ctx, T0 + 20 ms);
 /// assert_tag_is!(ctx, T0 + 60 ms);
@@ -166,7 +166,7 @@ macro_rules! assert_tag_is {
 
 /// Convenient macro to [create a tag](crate::EventTag).
 /// This is just a shorthand for using the constructor together
-/// with the syntax of [delay].
+/// with the syntax of [delay](crate::delay).
 ///
 /// ```no_run
 /// use reactor_rt::{tag, delay};
