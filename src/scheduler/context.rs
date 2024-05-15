@@ -271,9 +271,19 @@ impl<'a, 'x> ReactionCtx<'a, 'x> {
                     self.debug_info.display_reaction(self.current_reaction.unwrap()),
                 );
             }
-            // TODO ... (is this TODO still needed?)
-            PortKind::ChildInputReference => {}
-            PortKind::ChildOutputReference => {}
+            PortKind::ChildInputReference => {
+                // Here there is actually no way we can check this at runtime currently.
+                // The problem is that the port ID's container is this reactor and not the
+                // child reactor. This doesn't matter much in practice as programs generated
+                // with LFC will never fail these checks anyway.
+            }
+            PortKind::ChildOutputReference => {
+                panic!(
+                    "Cannot set an output port of a child (port {} set by reaction {})!",
+                    self.debug_info.id_registry.fmt_component(port_id),
+                    self.debug_info.display_reaction(self.current_reaction.unwrap()),
+                )
+            }
         }
     }
 
