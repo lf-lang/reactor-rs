@@ -119,7 +119,7 @@ where
 }
 
 /// Final result of the assembly of a reactor.
-pub struct FinishedReactor<'x, S>(AssemblyCtx<'x, S>, S)
+pub struct FinishedReactor<S>(S)
 where
     S: ReactorInitializer;
 
@@ -147,9 +147,9 @@ where
     pub fn assemble(
         self,
         build_reactor_tree: impl FnOnce(Self) -> AssemblyResult<AssemblyIntermediate<'x, S>>,
-    ) -> AssemblyResult<FinishedReactor<'x, S>> {
-        let AssemblyIntermediate(ich, reactor) = build_reactor_tree(self)?;
-        Ok(FinishedReactor(ich, reactor))
+    ) -> AssemblyResult<FinishedReactor<S>> {
+        let AssemblyIntermediate(_, reactor) = build_reactor_tree(self)?;
+        Ok(FinishedReactor(reactor))
     }
 
     /// Innermost function.
@@ -160,7 +160,7 @@ where
         reaction_names: [Option<&'static str>; N],
         declare_dependencies: impl FnOnce(&mut DependencyDeclarator<S>, &mut S, [GlobalReactionId; N]) -> AssemblyResult<()>,
     ) -> AssemblyResult<AssemblyIntermediate<'x, S>> {
-        // todo when feature(generic_const_exprs) is stabilized,
+        // TODO when feature(generic_const_exprs) is stabilized,
         //  replace const parameter N with S::MAX_REACTION_ID.index().
         debug_assert_eq!(N, S::MAX_REACTION_ID.index(), "Should initialize all reactions");
 
@@ -199,7 +199,7 @@ where
     /// priority edges, as they are taken to be those declared
     /// in LF by the user.
     /// The rest do not have priority edges, and their
-    /// implementation must hence have no observable side-effect.
+    /// implementation must hence have no observable side effect.
     fn new_reactions<const N: usize>(
         &mut self,
         my_id: ReactorId,
@@ -303,13 +303,12 @@ where
     }
 }
 
-impl<S> FinishedReactor<'_, S>
+impl<S> FinishedReactor<S>
 where
     S: ReactorInitializer,
 {
     fn finish(self) -> S {
-        let FinishedReactor(_, reactor) = self;
-        reactor
+        self.0
     }
 }
 
@@ -362,8 +361,9 @@ impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
 
     /// Bind the ports of the upstream to those of the downstream,
     /// as if zipping both iterators.
-    /// todo this will just throw away bindings if both iterators are not of the same size
-    ///  normally this should be reported by LFC as a warning, maybe we should implement the same thing here
+    /// TODO this will just throw away bindings if both iterators are not of the same size
+    ///  normally this should be reported by LFC as a warning, maybe we should implement the same
+    ///  thing here
     #[inline]
     pub fn bind_ports_zip<'a, T: Sync + 'a>(
         &mut self,
@@ -489,7 +489,7 @@ impl<S: ReactorInitializer> ComponentCreator<'_, '_, S> {
 /// we trust the code generator to fail if a port is both on
 /// the LHS and RHS of a connection.
 ///
-/// This is necessary to be iterate the same bank over distinct
+/// This is necessary to be able to iterate the same bank over distinct
 /// ports or multiports to bind them together.
 #[macro_export]
 #[doc(hidden)]

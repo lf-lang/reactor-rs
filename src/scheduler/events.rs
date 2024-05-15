@@ -212,12 +212,12 @@ impl<'x> EventQueue<'x> {
         self.value_list.pop_front()
     }
 
-    // todo perf: we could make a more optimal function to push a
+    // TODO perf: we could make a more optimal function to push a
     //  lot of events at once. Consider the following algorithm:
     //  - start with a sorted `self.value_list` and a (non-sorted) `new_evts: Vec<Event>`
     //  - sort the new events in place (in a Cow maybe). They'll
     //  probably come in already sorted but we can't assume this.
-    //  Use an algorithm that best-cases for sorted data. (eg https://crates.io/crates/dmsort)
+    //  Use an algorithm that best-cases for sorted data. (e.g. https://crates.io/crates/dmsort)
     //  - take the earliest new event and binary search to insert it.
     //  - then do the same thing but only on the remaining (to the right)
     //  portion of `self.value_list`. Basically the routine of an insertion

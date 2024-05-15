@@ -116,7 +116,7 @@ pub(super) struct DepGraph {
     ix_by_id: HashMap<GraphId, GraphIx>,
 
     /// Map of multiport component ID -> multiport ID.
-    /// todo data structure is bad.
+    /// TODO data structure is bad.
     multiport_containment: HashMap<GraphId, TriggerId>,
     /// Map of multiport ID -> range of IDs for its channels
     multiport_ranges: VecMap<TriggerId, Range<TriggerId>>,
@@ -342,7 +342,6 @@ enum EdgeWeight {
     /// if they're labeled `Default`, they're trigger dependencies,
     /// otherwise use dependencies.
     Default,
-    ///
     Use,
 }
 
@@ -375,7 +374,7 @@ impl ReactionLevelInfo {
 pub(super) struct DataflowInfo {
     /// Maps each trigger to the set of reactions that need
     /// to be scheduled when it is triggered.
-    /// Todo: many of those are never asked for, eg those of bound ports
+    /// TODO: many of those are never asked for, e.g. those of bound ports
     trigger_to_plan: IndexVec<TriggerId, Arc<ExecutableReactions<'static>>>,
 }
 
@@ -398,7 +397,7 @@ impl DataflowInfo {
                 // if let Some(_multiport_id) = multiport_containment.get(&dataflow[trigger].id) {
                 //     assert_eq!(dataflow[trigger].kind, NodeKind::Port);
                 //     todo!("multiports")
-                // todo this is a multiport channel:
+                // TODO this is a multiport channel:
                 //  1. if someone has declared a dependency on this individual channel, collect dependencies into DEPS
                 //  2. else add trigger to DELAY goto 4
                 //  3. merge DEPS into dependencies ALL for the whole multiport
@@ -569,7 +568,7 @@ impl From<u32> for LevelIx {
 pub struct ExecutableReactions<'x> {
     /// An ordered list of levels to execute.
     ///
-    /// It must by construction be the case that a reaction
+    /// It must, by construction, be the case that a reaction
     /// in level `i` has no dependency(1) on reactions in levels `j >= i`.
     /// This way, the execution of reactions in the same level
     /// may be parallelized.
@@ -593,7 +592,7 @@ impl<'x> ExecutableReactions<'x> {
 
     /// Returns an iterator which associates batches of reactions
     /// with their level. Note that this does not mutate this collection
-    /// (eg drain it), because that way we can use borrowed Cows
+    /// (e.g. drain it), because that way we can use borrowed Cows
     /// and avoid more allocation.
     pub fn batches(&self) -> impl Iterator<Item = &(LevelIx, Cow<'x, Level>)> + '_ {
         self.levels.iter()
@@ -645,7 +644,7 @@ impl<'x> ExecutableReactions<'x> {
                     if e.get_mut().is_empty() {
                         e.replace(src_level.clone());
                     } else {
-                        // todo maybe set is not modified by the union
+                        // TODO maybe set is not modified by the union
                         e.get_mut().to_mut().extend(src_level.iter());
                     }
                 }
@@ -673,7 +672,7 @@ impl<'x> ExecutableReactions<'x> {
         Self::merge_plans_after(x, y, LevelIx::ZERO)
     }
 
-    // todo would be nice to simplify this, it's hot
+    // TODO It would be nice to simplify this, it's hot
     /// Produce the set union of two reaction plans.
     /// Levels below the `min_level` are not merged, and the caller
     /// shouldn't query them. For all levels >= `min_level`,
@@ -890,9 +889,9 @@ pub mod test {
             test.graph.triggers_reaction(p0, n2);
             test.graph.triggers_reaction(p1, n2);
 
-            // connect to prev_in
+            // connect to `prev_in`
             test.graph.triggers_reaction(prev_in, n1);
-            // replace prev_in with out
+            // replace `prev_in` with `out`
             test.graph.reaction_effects(n2, out);
             prev_in = out;
         }
@@ -930,9 +929,9 @@ pub mod test {
             test.graph.triggers_reaction(p01, n2);
             test.graph.triggers_reaction(p11, n2);
 
-            // connect to prev_in
+            // connect to `prev_in`
             test.graph.triggers_reaction(prev_in, n1);
-            // replace prev_in with out
+            // replace `prev_in` with `out`
             test.graph.reaction_effects(n2, out);
             prev_in = out;
         }

@@ -271,14 +271,24 @@ impl<'a, 'x> ReactionCtx<'a, 'x> {
                     self.debug_info.display_reaction(self.current_reaction.unwrap()),
                 );
             }
-            // todo
-            PortKind::ChildInputReference => {}
-            PortKind::ChildOutputReference => {}
+            PortKind::ChildInputReference => {
+                // Here there is actually no way we can check this at runtime currently.
+                // The problem is that the port ID's container is this reactor and not the
+                // child reactor. This doesn't matter much in practice as programs generated
+                // with LFC will never fail these checks anyway.
+            }
+            PortKind::ChildOutputReference => {
+                panic!(
+                    "Cannot set an output port of a child (port {} set by reaction {})!",
+                    self.debug_info.id_registry.fmt_component(port_id),
+                    self.debug_info.display_reaction(self.current_reaction.unwrap()),
+                )
+            }
         }
     }
 
     /// Sets the value of the given port, if the given value is `Some`.
-    /// Otherwise the port is not set and no reactions are triggered.
+    /// Otherwise, the port is not set and no reactions are triggered.
     ///
     /// The change is visible at the same logical time, i.e.
     /// the value propagates immediately. This may hence
@@ -724,7 +734,7 @@ pub enum Offset {
     /// Specify that the trigger will fire at least after
     /// the provided duration.
     ///
-    /// If the duration is zero (eg [Asap](Self::Asap)), it does not
+    /// If the duration is zero (e.g. [Asap](Self::Asap)), it does not
     /// mean that the trigger will fire right away. For actions, the
     /// action's inherent minimum delay must be taken into account,
     /// and even with a zero minimal delay, a delay of one microstep
@@ -786,7 +796,7 @@ pub struct CleanupCtx {
 
 impl CleanupCtx {
     pub fn cleanup_multiport<T: Sync>(&self, port: &mut Multiport<T>) {
-        // todo bound ports don't need to be cleared
+        // TODO bound ports don't need to be cleared
         for channel in port {
             channel.clear_value()
         }
