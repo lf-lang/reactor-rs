@@ -119,7 +119,7 @@ where
 }
 
 /// Final result of the assembly of a reactor.
-pub struct FinishedReactor<'x, S>(AssemblyCtx<'x, S>, S)
+pub struct FinishedReactor<S>(S)
 where
     S: ReactorInitializer;
 
@@ -147,9 +147,9 @@ where
     pub fn assemble(
         self,
         build_reactor_tree: impl FnOnce(Self) -> AssemblyResult<AssemblyIntermediate<'x, S>>,
-    ) -> AssemblyResult<FinishedReactor<'x, S>> {
-        let AssemblyIntermediate(ich, reactor) = build_reactor_tree(self)?;
-        Ok(FinishedReactor(ich, reactor))
+    ) -> AssemblyResult<FinishedReactor<S>> {
+        let AssemblyIntermediate(_, reactor) = build_reactor_tree(self)?;
+        Ok(FinishedReactor(reactor))
     }
 
     /// Innermost function.
@@ -303,13 +303,12 @@ where
     }
 }
 
-impl<S> FinishedReactor<'_, S>
+impl<S> FinishedReactor<S>
 where
     S: ReactorInitializer,
 {
     fn finish(self) -> S {
-        let FinishedReactor(_, reactor) = self;
-        reactor
+        self.0
     }
 }
 

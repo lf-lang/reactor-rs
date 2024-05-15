@@ -342,7 +342,6 @@ enum EdgeWeight {
     /// if they're labeled `Default`, they're trigger dependencies,
     /// otherwise use dependencies.
     Default,
-    ///
     Use,
 }
 

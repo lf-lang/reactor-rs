@@ -65,13 +65,9 @@ extern crate array_macro;
 #[macro_use]
 extern crate assert_matches;
 #[macro_use]
-extern crate index_vec;
-#[macro_use]
 extern crate log;
 #[cfg(feature = "parallel-runtime")]
 extern crate rayon;
-#[macro_use]
-extern crate smallvec;
 #[macro_use]
 extern crate static_assertions;
 #[macro_use]
