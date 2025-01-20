@@ -1088,7 +1088,7 @@
     /// - port/action -&gt; reaction: the port/action triggers the reaction
     /// - port -&gt; port: a binding of a port to another
     /// - reaction n -&gt; reaction m: means n has higher priority
-    /// than m, only filled in for reactions of the same reactor.
+    ///   than m, only filled in for reactions of the same reactor.
     </span>dataflow: DepGraphImpl,
 
     <span class="doccomment">/// Maps global IDs back to graph indices.
@@ -1321,7 +1321,7 @@
     /// if they're labeled `Default`, they're trigger dependencies,
     /// otherwise use dependencies.
     </span>Default,
-    <span class="doccomment">///
+    <span class="doccomment">/// See [Default].
     </span>Use,
 }
 
@@ -1583,7 +1583,7 @@
     }
 
     <span class="attr">#[inline]
-    </span><span class="kw">pub fn </span>next_batch&lt;<span class="lifetime">'a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="self">self</span>, min_level_exclusive: KeyRef&lt;<span class="kw-2">&amp;</span>LevelIx&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;(KeyRef&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>LevelIx&gt;, <span class="kw-2">&amp;</span>Level)&gt; {
+    </span><span class="kw">pub fn </span>next_batch&lt;<span class="lifetime">'a</span>&gt;(<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="self">self</span>, min_level_exclusive: KeyRef&lt;<span class="kw-2">&amp;</span>LevelIx&gt;) -&gt; <span class="prelude-ty">Option</span>&lt;(KeyRef&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>LevelIx&gt;, <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Level)&gt; {
         <span class="self">self</span>.levels
             .next_mapping(min_level_exclusive)
             .map(|(ix, cow)| (ix, cow.as_ref()))

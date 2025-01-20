@@ -506,7 +506,8 @@
 <a href="#505" id="505">505</a>
 <a href="#506" id="506">506</a>
 <a href="#507" id="507">507</a>
-<a href="#508" id="508">508</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -677,6 +678,7 @@
                 /// internals are not copied).
                 /// So long as the framework entirely controls the lifetime
                 /// of SyncScheduler instances, this is enforceable.
+                </span><span class="attr">#[allow(non_local_definitions)]
                 </span><span class="kw">unsafe impl </span>Send <span class="kw">for </span>SyncScheduler&lt;<span class="lifetime">'_</span>&gt; {}
 
                 <span class="comment">// install makes calls to parallel iterators use that thread pool

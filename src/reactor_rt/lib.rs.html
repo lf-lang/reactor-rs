@@ -157,9 +157,7 @@
 <a href="#156" id="156">156</a>
 <a href="#157" id="157">157</a>
 <a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a></pre></div><pre class="rust"><code><span class="comment">/*
+<a href="#159" id="159">159</a></pre></div><pre class="rust"><code><span class="comment">/*
  * Copyright (c) 2021, TU Dresden.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -193,24 +191,24 @@
 //!
 //! Crate-level features include:
 //! - `parallel-runtime`: use Rayon to execute reactions in parallel
-//! when possible. This is not yet the default. For some applications,
-//! where there is no data parallelism, this may harm performance
-//! (as well as pull in unneeded dependencies) and should be off.
+//!   when possible. This is not yet the default. For some applications,
+//!   where there is no data parallelism, this may harm performance
+//!   (as well as pull in unneeded dependencies) and should be off.
 //! - `wide-ids`: Enables 64-bit wide reaction ids on 64-bit
-//! architectures. This may reduce performance, but allows for
-//! 2^32 reactor instances compared to the default of 2^16,
-//! which may feel a bit tight for some applications. On machines
-//! with a pointer-width of less than 64 bits, ID types are
-//! always 32 bits. The feature also widens trigger ids to 64 bits
-//! if possible, which enables 2^64 individual trigger components
-//! (ports, actions, etc.) instead of 2^32.
+//!   architectures. This may reduce performance, but allows for
+//!   2^32 reactor instances compared to the default of 2^16,
+//!   which may feel a bit tight for some applications. On machines
+//!   with a pointer-width of less than 64 bits, ID types are
+//!   always 32 bits. The feature also widens trigger ids to 64 bits
+//!   if possible, which enables 2^64 individual trigger components
+//!   (ports, actions, etc.) instead of 2^32.
 //! - `vec-id-sets`: Change the implementation of reaction sets
-//! to be a sorted vector instead of a hash set. This has a positive
-//! performance impact, as reaction sets are typically very small.
-//! More testing is required to determine pathological cases.
-//! This is a default feature.
+//!   to be a sorted vector instead of a hash set. This has a positive
+//!   performance impact, as reaction sets are typically very small.
+//!   More testing is required to determine pathological cases.
+//!   This is a default feature.
 //! - `no-unsafe`: disable optimisations that use unsafe code in this runtime.
-//! Just provided for comparison, should probably be removed (unsafe code is fine).
+//!   Just provided for comparison, should probably be removed (unsafe code is fine).
 
 </span><span class="comment">// #![deny(unused_crate_dependencies)]
 </span><span class="attr">#![deny(unused_extern_crates)]
@@ -222,17 +220,15 @@
 #[macro_use]
 </span><span class="kw">extern crate </span>array_macro;
 <span class="attr">#[cfg(test)]
-#[allow(unused)]
+#[allow(unused, unused_imports)]
 #[macro_use]
 </span><span class="kw">extern crate </span>assert_matches;
-<span class="attr">#[macro_use]
-</span><span class="kw">extern crate </span>index_vec;
-<span class="attr">#[macro_use]
+<span class="comment">// #[macro_use]
+// extern crate index_vec;
+</span><span class="attr">#[macro_use]
 </span><span class="kw">extern crate </span>log;
 <span class="attr">#[cfg(feature = <span class="string">"parallel-runtime"</span>)]
 </span><span class="kw">extern crate </span>rayon;
-<span class="attr">#[macro_use]
-</span><span class="kw">extern crate </span>smallvec;
 <span class="attr">#[macro_use]
 </span><span class="kw">extern crate </span>static_assertions;
 <span class="attr">#[macro_use]
