@@ -16,7 +16,7 @@ use crate::*;
 /// allows mutating the event queue of the scheduler.
 /// Only the interactions declared at assembly time
 /// are allowed.
-
+///
 // Implementation details:
 // ReactionCtx is an API built around a ReactionWave. A single
 // ReactionCtx may be used for multiple ReactionWaves, but
