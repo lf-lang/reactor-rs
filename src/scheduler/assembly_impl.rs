@@ -264,7 +264,7 @@ where
     ) -> AssemblyResult<AssemblyIntermediate<'x, S>>
     where
         Sub: ReactorInitializer + 'static,
-    // we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
+        // we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
         F: FnOnce(Self, &mut Vec<Sub>) -> AssemblyResult<AssemblyIntermediate<'x, S>>,
         A: Fn(/*bank_index:*/ usize) -> Sub::Params,
     {
@@ -368,8 +368,8 @@ impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
     #[inline]
     pub fn bind_ports_zip<'a, T: Sync + 'a>(
         &mut self,
-        upstream: impl Iterator<Item=&'a mut Port<T>>,
-        downstream: impl Iterator<Item=&'a mut Port<T>>,
+        upstream: impl Iterator<Item = &'a mut Port<T>>,
+        downstream: impl Iterator<Item = &'a mut Port<T>>,
     ) -> AssemblyResult<()> {
         for (upstream, downstream) in upstream.zip(downstream) {
             self.bind_ports(upstream, downstream)?;
@@ -380,8 +380,8 @@ impl<S: ReactorInitializer> DependencyDeclarator<'_, '_, S> {
     #[inline]
     pub fn bind_ports_iterated<'a, T: Sync + 'a>(
         &mut self,
-        upstream: impl Iterator<Item=&'a mut Port<T>>,
-        mut downstream: impl Iterator<Item=&'a mut Port<T>>,
+        upstream: impl Iterator<Item = &'a mut Port<T>>,
+        mut downstream: impl Iterator<Item = &'a mut Port<T>>,
     ) -> AssemblyResult<()> {
         let mut upstream = upstream.collect::<Vec<_>>();
         assert!(!upstream.is_empty(), "Empty upstream!");

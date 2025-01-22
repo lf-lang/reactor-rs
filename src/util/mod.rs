@@ -64,7 +64,6 @@ pub(crate) fn do_write<X>(
     write!(f, "{}", suffix)
 }
 
-
 /// Creates a [Duration] value using the same syntax as in LF.
 ///
 /// ```
@@ -157,7 +156,6 @@ macro_rules! tag {
         $crate::EventTag::offset($crate::delay!($amount $unit), $microstep)
     };
 }
-
 
 /// Convenient macro to assert equality of the current tag.
 /// This is just shorthand for using `assert_eq!` with the
