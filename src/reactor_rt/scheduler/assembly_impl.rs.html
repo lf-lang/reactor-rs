@@ -815,7 +815,7 @@
     ) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">'x</span>, S&gt;&gt;
     <span class="kw">where
         </span>Sub: ReactorInitializer + <span class="lifetime">'static</span>,
-    <span class="comment">// we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
+        <span class="comment">// we can't use impl Fn(...) because we want to specify explicit type parameters in the calle
         </span>F: FnOnce(<span class="self">Self</span>, <span class="kw-2">&amp;mut </span>Vec&lt;Sub&gt;) -&gt; AssemblyResult&lt;AssemblyIntermediate&lt;<span class="lifetime">'x</span>, S&gt;&gt;,
         A: Fn(<span class="comment">/*bank_index:*/ </span>usize) -&gt; Sub::Params,
     {
@@ -919,8 +919,8 @@
     </span><span class="attr">#[inline]
     </span><span class="kw">pub fn </span>bind_ports_zip&lt;<span class="lifetime">'a</span>, T: Sync + <span class="lifetime">'a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        upstream: <span class="kw">impl </span>Iterator&lt;Item=<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
-        downstream: <span class="kw">impl </span>Iterator&lt;Item=<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
+        upstream: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
+        downstream: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
     ) -&gt; AssemblyResult&lt;()&gt; {
         <span class="kw">for </span>(upstream, downstream) <span class="kw">in </span>upstream.zip(downstream) {
             <span class="self">self</span>.bind_ports(upstream, downstream)<span class="question-mark">?</span>;
@@ -931,8 +931,8 @@
     <span class="attr">#[inline]
     </span><span class="kw">pub fn </span>bind_ports_iterated&lt;<span class="lifetime">'a</span>, T: Sync + <span class="lifetime">'a</span>&gt;(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        upstream: <span class="kw">impl </span>Iterator&lt;Item=<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
-        <span class="kw-2">mut </span>downstream: <span class="kw">impl </span>Iterator&lt;Item=<span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
+        upstream: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
+        <span class="kw-2">mut </span>downstream: <span class="kw">impl </span>Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span><span class="kw-2">mut </span>Port&lt;T&gt;&gt;,
     ) -&gt; AssemblyResult&lt;()&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>upstream = upstream.collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
         <span class="macro">assert!</span>(!upstream.is_empty(), <span class="string">"Empty upstream!"</span>);
