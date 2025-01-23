@@ -119,7 +119,8 @@ where
 }
 
 /// Final result of the assembly of a reactor.
-pub struct FinishedReactor<'x, S>(AssemblyCtx<'x, S>, S)
+#[allow(unused_variables)]
+pub struct FinishedReactor<'x, S>(PhantomData<&'x mut u8>, S)
 where
     S: ReactorInitializer;
 
@@ -148,8 +149,8 @@ where
         self,
         build_reactor_tree: impl FnOnce(Self) -> AssemblyResult<AssemblyIntermediate<'x, S>>,
     ) -> AssemblyResult<FinishedReactor<'x, S>> {
-        let AssemblyIntermediate(ich, reactor) = build_reactor_tree(self)?;
-        Ok(FinishedReactor(ich, reactor))
+        let AssemblyIntermediate(_, reactor) = build_reactor_tree(self)?;
+        Ok(FinishedReactor(PhantomData, reactor))
     }
 
     /// Innermost function.

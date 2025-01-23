@@ -304,7 +304,7 @@ struct PortCell<T: Sync> {
     /// - say you have bound A -> B, then B -> C
     /// - so all three refer to the equiv class of A, whose downstream is now {B, C}
     /// - if you then try binding C -> A, then we can know
-    /// that C is in the downstream of A, indicating that there is a cycle.
+    ///   that C is in the downstream of A, indicating that there is a cycle.
     downstreams: Downstreams<T>,
 }
 
