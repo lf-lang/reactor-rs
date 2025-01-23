@@ -109,7 +109,7 @@ pub(super) struct DepGraph {
     /// - port/action -> reaction: the port/action triggers the reaction
     /// - port -> port: a binding of a port to another
     /// - reaction n -> reaction m: means n has higher priority
-    /// than m, only filled in for reactions of the same reactor.
+    ///   than m, only filled in for reactions of the same reactor.
     dataflow: DepGraphImpl,
 
     /// Maps global IDs back to graph indices.
@@ -342,7 +342,7 @@ enum EdgeWeight {
     /// if they're labeled `Default`, they're trigger dependencies,
     /// otherwise use dependencies.
     Default,
-    ///
+    /// See [Default].
     Use,
 }
 
@@ -604,7 +604,7 @@ impl<'x> ExecutableReactions<'x> {
     }
 
     #[inline]
-    pub fn next_batch<'a>(&'a self, min_level_exclusive: KeyRef<&LevelIx>) -> Option<(KeyRef<&'a LevelIx>, &Level)> {
+    pub fn next_batch<'a>(&'a self, min_level_exclusive: KeyRef<&LevelIx>) -> Option<(KeyRef<&'a LevelIx>, &'a Level)> {
         self.levels
             .next_mapping(min_level_exclusive)
             .map(|(ix, cow)| (ix, cow.as_ref()))

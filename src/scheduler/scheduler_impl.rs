@@ -169,6 +169,7 @@ impl<'x> SyncScheduler<'x> {
                 /// internals are not copied).
                 /// So long as the framework entirely controls the lifetime
                 /// of SyncScheduler instances, this is enforceable.
+                #[allow(non_local_definitions)]
                 unsafe impl Send for SyncScheduler<'_> {}
 
                 // install makes calls to parallel iterators use that thread pool

@@ -32,24 +32,24 @@
 //!
 //! Crate-level features include:
 //! - `parallel-runtime`: use Rayon to execute reactions in parallel
-//! when possible. This is not yet the default. For some applications,
-//! where there is no data parallelism, this may harm performance
-//! (as well as pull in unneeded dependencies) and should be off.
+//!   when possible. This is not yet the default. For some applications,
+//!   where there is no data parallelism, this may harm performance
+//!   (as well as pull in unneeded dependencies) and should be off.
 //! - `wide-ids`: Enables 64-bit wide reaction ids on 64-bit
-//! architectures. This may reduce performance, but allows for
-//! 2^32 reactor instances compared to the default of 2^16,
-//! which may feel a bit tight for some applications. On machines
-//! with a pointer-width of less than 64 bits, ID types are
-//! always 32 bits. The feature also widens trigger ids to 64 bits
-//! if possible, which enables 2^64 individual trigger components
-//! (ports, actions, etc.) instead of 2^32.
+//!   architectures. This may reduce performance, but allows for
+//!   2^32 reactor instances compared to the default of 2^16,
+//!   which may feel a bit tight for some applications. On machines
+//!   with a pointer-width of less than 64 bits, ID types are
+//!   always 32 bits. The feature also widens trigger ids to 64 bits
+//!   if possible, which enables 2^64 individual trigger components
+//!   (ports, actions, etc.) instead of 2^32.
 //! - `vec-id-sets`: Change the implementation of reaction sets
-//! to be a sorted vector instead of a hash set. This has a positive
-//! performance impact, as reaction sets are typically very small.
-//! More testing is required to determine pathological cases.
-//! This is a default feature.
+//!   to be a sorted vector instead of a hash set. This has a positive
+//!   performance impact, as reaction sets are typically very small.
+//!   More testing is required to determine pathological cases.
+//!   This is a default feature.
 //! - `no-unsafe`: disable optimisations that use unsafe code in this runtime.
-//! Just provided for comparison, should probably be removed (unsafe code is fine).
+//!   Just provided for comparison, should probably be removed (unsafe code is fine).
 
 // #![deny(unused_crate_dependencies)]
 #![deny(unused_extern_crates)]
@@ -61,17 +61,15 @@
 #[macro_use]
 extern crate array_macro;
 #[cfg(test)]
-#[allow(unused)]
+#[allow(unused, unused_imports)]
 #[macro_use]
 extern crate assert_matches;
-#[macro_use]
-extern crate index_vec;
+// #[macro_use]
+// extern crate index_vec;
 #[macro_use]
 extern crate log;
 #[cfg(feature = "parallel-runtime")]
 extern crate rayon;
-#[macro_use]
-extern crate smallvec;
 #[macro_use]
 extern crate static_assertions;
 #[macro_use]
