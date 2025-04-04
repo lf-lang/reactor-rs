@@ -26,6 +26,7 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::time::SystemTime;
 
 use crossbeam_channel::reconnectable::*;
 
@@ -107,8 +108,12 @@ pub struct SyncScheduler<'x> {
     rx: Receiver<PhysicalEvent>,
 
     /// Initial time of the logical system.
-    #[allow(unused)] // might be useful someday
     initial_time: Instant,
+    /// Initial time of the logical system, measured as [SystemTime].
+    /// This is used as a reference to convert Instants to SystemTime,
+    /// with the assumption that [initial_time] and [initial_time_system]
+    /// refer to the same instant.
+    initial_time_system: SystemTime,
 
     /// Scheduled shutdown time. If Some, shutdown will be
     /// initiated at that logical time.
@@ -150,17 +155,20 @@ impl<'x> SyncScheduler<'x> {
         // collect dependency information
         let dataflow_info = DataflowInfo::new(graph).map_err(|e| e.lift(&id_registry)).unwrap();
 
-        // Using thread::scope here introduces an unnamed lifetime for
-        // the scope, which is captured as 't by the SyncScheduler.
-        // This is useful because it captures the constraint that the
-        // dataflow_info outlives 't, so that physical contexts
-        // can be spawned in threads that capture references
-        // to 'x.
         let initial_time = Instant::now();
+        let initial_time_system = SystemTime::now();
+
         #[cfg(feature = "parallel-runtime")]
         let rayon_thread_pool = rayon::ThreadPoolBuilder::new().num_threads(options.threads).build().unwrap();
 
-        let scheduler = SyncScheduler::new(options, id_registry, &dataflow_info, reactors, initial_time);
+        let scheduler = SyncScheduler::new(
+            options,
+            id_registry,
+            &dataflow_info,
+            reactors,
+            initial_time,
+            initial_time_system,
+        );
 
         cfg_if::cfg_if! {
             if #[cfg(feature = "parallel-runtime")] {
@@ -251,6 +259,7 @@ impl<'x> SyncScheduler<'x> {
         dependency_info: &'x DataflowInfo,
         reactors: ReactorVec<'x>,
         initial_time: Instant,
+        initial_time_system: SystemTime,
     ) -> Self {
         if !cfg!(feature = "parallel-runtime") && options.threads != 0 {
             warn!("'workers' runtime parameter has no effect unless feature 'parallel-runtime' is enabled")
@@ -268,6 +277,7 @@ impl<'x> SyncScheduler<'x> {
             reactors,
 
             initial_time,
+            initial_time_system,
             latest_processed_tag: None,
             shutdown_time: options.timeout.map(|timeout| {
                 let shutdown_tag = EventTag::ORIGIN.successor(timeout);
@@ -388,6 +398,7 @@ impl<'x> SyncScheduler<'x> {
             rx,
             tag,
             self.initial_time,
+            self.initial_time_system,
             todo,
             self.dataflow,
             debug_info,
