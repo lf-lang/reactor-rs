@@ -175,7 +175,7 @@
 <a href=#175 id=175 data-nosnippet>175</a>        // makes this whole debug info recording very complicated.
 <a href=#176 id=176 data-nosnippet>176</a>        </span><span class="kw">let </span>id = <span class="self">self</span>.globals.reactor_id.get_and_incr();
 <a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">let </span>debug = <span class="self">self</span>.debug.take().expect(<span class="string">"unreachable - can only call assemble_self once"</span>);
-<a href=#178 id=178 data-nosnippet>178</a>        <span class="macro">trace!</span>(<span class="string">"Children of {}: {:?}"</span>, debug, <span class="self">self</span>.children_ids);
+<a href=#178 id=178 data-nosnippet>178</a>        <span class="macro">trace!</span>(<span class="string">"Children of {}: {:?}"</span>, debug.to_string(), <span class="self">self</span>.children_ids);
 <a href=#179 id=179 data-nosnippet>179</a>        <span class="self">self</span>.globals.debug_info.record_reactor(id, debug);
 <a href=#180 id=180 data-nosnippet>180</a>        <span class="kw">for </span>child <span class="kw">in </span><span class="self">self</span>.children_ids.drain(..) {
 <a href=#181 id=181 data-nosnippet>181</a>            <span class="self">self</span>.globals.debug_info.record_reactor_container(id, child);
@@ -546,6 +546,6 @@
 <a href=#546 id=546 data-nosnippet>546</a>            bank_idx += <span class="number">1</span>;
 <a href=#547 id=547 data-nosnippet>547</a>            <span class="prelude-val">Some</span>((bank_idx_copy, multiport_idx))
 <a href=#548 id=548 data-nosnippet>548</a>        });
-<a href=#549 id=549 data-nosnippet>549</a>        iter.map(<span class="kw">move </span>|(i, j)| <span class="kw">unsafe </span>{ <span class="kw-2">&amp;mut </span>(<span class="kw-2">*</span>__ptr.add(i)).<span class="macro-nonterminal">$field_name</span>[j] })
+<a href=#549 id=549 data-nosnippet>549</a>        iter.map(<span class="kw">move </span>|(i, j)| <span class="kw">unsafe </span>{ <span class="kw-2">&amp;mut </span>(<span class="kw-2">&amp;mut *</span>__ptr.add(i)).<span class="macro-nonterminal">$field_name</span>[j] })
 <a href=#550 id=550 data-nosnippet>550</a>    }};
 <a href=#551 id=551 data-nosnippet>551</a>}</code></pre></div></section></main></body></html>
