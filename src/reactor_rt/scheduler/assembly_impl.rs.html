@@ -175,7 +175,7 @@
 <a href=#175 id=175 data-nosnippet>175</a>        // makes this whole debug info recording very complicated.
 <a href=#176 id=176 data-nosnippet>176</a>        </span><span class="kw">let </span>id = <span class="self">self</span>.globals.reactor_id.get_and_incr();
 <a href=#177 id=177 data-nosnippet>177</a>        <span class="kw">let </span>debug = <span class="self">self</span>.debug.take().expect(<span class="string">"unreachable - can only call assemble_self once"</span>);
-<a href=#178 id=178 data-nosnippet>178</a>        <span class="macro">trace!</span>(<span class="string">"Children of {}: {:?}"</span>, debug.to_string(), <span class="self">self</span>.children_ids);
+<a href=#178 id=178 data-nosnippet>178</a>        <span class="macro">trace!</span>(<span class="string">"Children of {}: {:?}"</span>, debug, <span class="self">self</span>.children_ids);
 <a href=#179 id=179 data-nosnippet>179</a>        <span class="self">self</span>.globals.debug_info.record_reactor(id, debug);
 <a href=#180 id=180 data-nosnippet>180</a>        <span class="kw">for </span>child <span class="kw">in </span><span class="self">self</span>.children_ids.drain(..) {
 <a href=#181 id=181 data-nosnippet>181</a>            <span class="self">self</span>.globals.debug_info.record_reactor_container(id, child);
