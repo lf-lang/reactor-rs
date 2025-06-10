@@ -175,7 +175,7 @@ where
         // makes this whole debug info recording very complicated.
         let id = self.globals.reactor_id.get_and_incr();
         let debug = self.debug.take().expect("unreachable - can only call assemble_self once");
-        trace!("Children of {}: {:?}", debug.to_string(), self.children_ids);
+        trace!("Children of {}: {:?}", debug, self.children_ids);
         self.globals.debug_info.record_reactor(id, debug);
         for child in self.children_ids.drain(..) {
             self.globals.debug_info.record_reactor_container(id, child);
