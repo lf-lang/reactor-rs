@@ -546,6 +546,6 @@ macro_rules! unsafe_iter_bank {
             bank_idx += 1;
             Some((bank_idx_copy, multiport_idx))
         });
-        iter.map(move |(i, j)| unsafe { &mut (*__ptr.add(i)).$field_name[j] })
+        iter.map(move |(i, j)| unsafe { &mut (&mut *__ptr.add(i)).$field_name[j] })
     }};
 }
