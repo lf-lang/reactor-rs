@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
+use std::time::SystemTime;
 
 use crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
 use smallvec::SmallVec;
@@ -22,8 +23,6 @@ use crate::*;
 // ReactionCtx may be used for multiple ReactionWaves, but
 // obviously at disjoint times (&mut).
 pub struct ReactionCtx<'a, 'x> {
-    pub(super) insides: RContextForwardableStuff<'x>,
-
     /// Logical time of the execution of this wave, constant
     /// during the existence of the object
     tag: EventTag,
@@ -39,16 +38,20 @@ pub struct ReactionCtx<'a, 'x> {
 
     /// Start time of the program.
     initial_time: Instant,
+    /// Start time of the program (absolute).
+    initial_time_system: SystemTime,
 
     // globals, also they might be copied and passed to AsyncCtx
     dataflow: &'x DataflowInfo,
-    debug_info: DebugInfoProvider<'a>,
     /// Whether the scheduler has been shut down.
     was_terminated_atomic: &'a Arc<AtomicBool>,
     /// In ReactionCtx, this will only be true if this is the shutdown tag.
     /// It duplicates [Self::was_terminated_atomic], to avoid an atomic
     /// operation within [Self::is_shutdown].
     was_terminated: bool,
+
+    debug_info: DebugInfoProvider<'a>,
+    pub(super) insides: RContextForwardableStuff<'x>,
 }
 
 impl<'a, 'x> ReactionCtx<'a, 'x> {
@@ -78,6 +81,14 @@ impl<'a, 'x> ReactionCtx<'a, 'x> {
     #[inline]
     pub fn get_logical_time(&self) -> Instant {
         self.tag.to_logical_time(self.get_start_time())
+    }
+
+    /// Convert an opaque [Instant] to a [SystemTime] instance for inspection.
+    /// Internally the runtime uses [Instant] as a monotonously non-decreasing clock.
+    /// For inspection purposes, and comparison between systems, it may be useful to
+    /// convert to [SystemTime].
+    pub fn to_system_time(&self, instant: Instant) -> SystemTime {
+        self.initial_time_system + (instant - self.initial_time)
     }
 
     /// Returns the tag at which the reaction executes.
@@ -516,6 +527,7 @@ impl<'a, 'x> ReactionCtx<'a, 'x> {
         rx: &'a Receiver<PhysicalEvent>,
         tag: EventTag,
         initial_time: Instant,
+        initial_time_system: SystemTime,
         todo: ReactionPlan<'x>,
         dataflow: &'x DataflowInfo,
         debug_info: DebugInfoProvider<'a>,
@@ -529,6 +541,7 @@ impl<'a, 'x> ReactionCtx<'a, 'x> {
             current_reaction: None,
             rx,
             initial_time,
+            initial_time_system,
             dataflow,
             was_terminated_atomic,
             debug_info,
@@ -541,18 +554,20 @@ impl<'a, 'x> ReactionCtx<'a, 'x> {
     #[cfg(feature = "parallel-runtime")]
     pub(super) fn fork(&self) -> Self {
         Self {
-            insides: Default::default(),
-
             // all of that is common to all contexts
             tag: self.tag,
             rx: self.rx,
             cur_level: self.cur_level,
             initial_time: self.initial_time,
+            initial_time_system: self.initial_time_system,
             dataflow: self.dataflow,
             was_terminated: self.was_terminated,
             was_terminated_atomic: self.was_terminated_atomic,
-            debug_info: self.debug_info.clone(),
             current_reaction: self.current_reaction,
+
+            // this is the context-specific part
+            debug_info: self.debug_info.clone(),
+            insides: Default::default(),
         }
     }
 }
