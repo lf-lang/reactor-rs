@@ -397,7 +397,7 @@ impl<'x> SyncScheduler<'x> {
     }
 
     #[inline]
-    pub(super) fn debug(&self) -> DebugInfoProvider {
+    pub(super) fn debug(&self) -> DebugInfoProvider<'_> {
         debug_info!(self)
     }
 

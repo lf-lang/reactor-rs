@@ -173,7 +173,7 @@ pub(super) struct PhysicalEvent {
 
 impl PhysicalEvent {
     /// Turn a [PhysicalEvent] into an [Event] within the scheduler.
-    pub(super) fn make_executable(self, dataflow: &DataflowInfo) -> Event {
+    pub(super) fn make_executable(self, dataflow: &DataflowInfo) -> Event<'_> {
         let PhysicalEvent { tag, trigger_id, terminate } = self;
         Event {
             tag,

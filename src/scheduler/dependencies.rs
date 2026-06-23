@@ -731,7 +731,7 @@ pub mod test {
             }
         }
 
-        fn new_reactor(&mut self, name: impl Into<String>) -> TestAssembler {
+        fn new_reactor(&mut self, name: impl Into<String>) -> TestAssembler<'_> {
             let reactor_id = self.next_reactor_id.get_and_incr();
             self.debug_info.record_reactor(reactor_id, ReactorDebugInfo::test_named(name));
             TestAssembler {
