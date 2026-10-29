@@ -1,7 +1,7 @@
-use std::borrow::Cow;
-use std::collections::VecDeque;
-use std::fmt::{Display, Formatter};
-use std::time::Instant;
+use alloc::borrow::Cow;
+use alloc::collections::VecDeque;
+use core::fmt::{Display, Formatter};
+use crate::Instant;
 
 use super::ReactionPlan;
 use crate::scheduler::dependencies::{DataflowInfo, ExecutableReactions};
@@ -46,7 +46,7 @@ impl EventTag {
     /// of the app.
     ///
     /// ```no_run
-    /// # use std::time::Instant;
+    /// # use reactor_rt::Instant;
     /// # use reactor_rt::EventTag;
     /// # let t0: Instant = unimplemented!();
     /// # let tag1: EventTag = unimplemented!();
@@ -113,7 +113,7 @@ impl EventTag {
 }
 
 impl Display for EventTag {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         let elapsed = self.offset_from_t0;
         write!(
             f,
@@ -187,6 +187,26 @@ impl PhysicalEvent {
     }
     pub fn terminate_at(tag: EventTag) -> Self {
         Self { tag, trigger_id: None, terminate: true }
+    }
+}
+
+// The channel through which physical events reach the scheduler.
+cfg_if! {
+    if #[cfg(feature = "std")] {
+        pub(super) type EventReceiver = crate::platform::Receiver<PhysicalEvent>;
+        pub(super) type EventSender = crate::platform::Sender<PhysicalEvent>;
+    } else {
+        /// Max number of physical events waiting for the scheduler.
+        /// When the queue is full, sending more fails.
+        pub(super) const EVENT_QUEUE_CAPACITY: usize = 16;
+
+        /// There is no OS to allocate channels, and interrupts need
+        /// to reach the queue, so it's a static.
+        pub(super) static EVENTS: crate::platform::EventChannel<PhysicalEvent, EVENT_QUEUE_CAPACITY> =
+            crate::platform::EventChannel::new();
+
+        pub(super) type EventReceiver = crate::platform::Receiver<PhysicalEvent, EVENT_QUEUE_CAPACITY>;
+        pub(super) type EventSender = crate::platform::Sender<PhysicalEvent, EVENT_QUEUE_CAPACITY>;
     }
 }
 

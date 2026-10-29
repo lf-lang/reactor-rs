@@ -22,10 +22,10 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::cmp::Ordering;
-use std::fmt::{Debug, Display, Formatter, Result as FmtResult};
-use std::hash::{Hash, Hasher};
-use std::str::FromStr;
+use core::cmp::Ordering;
+use core::fmt::{Debug, Display, Formatter, Result as FmtResult};
+use core::hash::{Hash, Hasher};
+use core::str::FromStr;
 
 use impl_types::{GlobalIdImpl, ReactionIdImpl, ReactorIdImpl};
 use index_vec::Idx;
@@ -107,13 +107,13 @@ macro_rules! global_id_newtype {
         }
 
         impl Debug for $id {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 write!(f, "{:?}", self.0)
             }
         }
 
         impl Display for $id {
-            fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                 write!(f, "{}", self.0)
             }
         }
@@ -140,7 +140,7 @@ impl GlobalId {
 
     #[allow(unused)]
     pub(crate) fn from_raw(u: GlobalIdImpl) -> Self {
-        unsafe { std::mem::transmute(u) }
+        unsafe { core::mem::transmute(u) }
     }
 
     pub(crate) const fn container(&self) -> ReactorId {
@@ -173,7 +173,7 @@ impl FromStr for GlobalId {
 impl Hash for GlobalId {
     #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        let as_impl: &GlobalIdImpl = unsafe { std::mem::transmute(self) };
+        let as_impl: &GlobalIdImpl = unsafe { core::mem::transmute(self) };
         // this is written so that it works regardless of the concrete type of GlobalIdImpl
         Hash::hash(as_impl, state);
     }
@@ -182,8 +182,8 @@ impl Hash for GlobalId {
 // Since Hash was implemented explicitly, we have to do it for PartialEq as well.
 impl PartialEq for GlobalId {
     fn eq(&self, other: &Self) -> bool {
-        let self_impl: &GlobalIdImpl = unsafe { std::mem::transmute(self) };
-        let other_impl: &GlobalIdImpl = unsafe { std::mem::transmute(other) };
+        let self_impl: &GlobalIdImpl = unsafe { core::mem::transmute(self) };
+        let other_impl: &GlobalIdImpl = unsafe { core::mem::transmute(other) };
         self_impl == other_impl
     }
 }
@@ -192,8 +192,8 @@ impl PartialEq for GlobalId {
 // sets sorted, when feature `vec-id-sets` is enabled.
 impl Ord for GlobalId {
     fn cmp(&self, other: &Self) -> Ordering {
-        let self_as_impl: &GlobalIdImpl = unsafe { std::mem::transmute(self) };
-        let other_as_impl: &GlobalIdImpl = unsafe { std::mem::transmute(other) };
+        let self_as_impl: &GlobalIdImpl = unsafe { core::mem::transmute(self) };
+        let other_as_impl: &GlobalIdImpl = unsafe { core::mem::transmute(other) };
         self_as_impl.cmp(other_as_impl)
     }
 }

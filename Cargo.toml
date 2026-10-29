@@ -7,19 +7,27 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0.4"
+log = { version = "0.4", default-features = false }
 index_vec = "0.1"
 #itertools = "0.10.1"
 #bit-set = "0.5"
 smallvec = { version = "1.10", features = ["const_generics"] }
-petgraph = "0.6"
+petgraph = { version = "0.8", default-features = false }
 array-macro = "2.1"
 atomic_refcell = "0.1"
-crossbeam-utils = "0.8"
-crossbeam-channel = { git = "https://github.com/oowekyala/crossbeam.git", rev = "9eed66904f969156dedad4eef61ce91d23b9cccb" }
+crossbeam-utils = { version = "0.8", default-features = false }
 static_assertions = "1.1.0"
-rayon = { version = "1.5", optional = true }
 cfg-if = "1.0.0"
+
+# std backend
+crossbeam-channel = { git = "https://github.com/oowekyala/crossbeam.git", rev = "9eed66904f969156dedad4eef61ce91d23b9cccb", optional = true }
+rayon = { version = "1.5", optional = true }
+
+# embassy (no_std) backend
+hashbrown = { version = "0.17", optional = true, default-features = false, features = ["default-hasher"] }
+embassy-time = { version = "0.5", optional = true }
+embassy-sync = { version = "0.8", optional = true }
+embassy-futures = { version = "0.1", optional = true }
 
 [dev-dependencies]
 criterion = "0.3"
@@ -28,9 +36,14 @@ assert_matches = "1.5"
 dmsort = "1.0.1"
 
 [features]
-default=["vec-id-sets"]
+default=["std", "vec-id-sets"]
+# Run on an OS: std clock, OS threads for physical actions.
+std=["dep:crossbeam-channel", "petgraph/std", "crossbeam-utils/std"]
+# Run on a microcontroller with embassy (no_std + alloc).
+# Use with `default-features = false`. If `std` is also on, std wins.
+embassy=["dep:hashbrown", "dep:embassy-time", "dep:embassy-sync", "dep:embassy-futures"]
 # Enable the parallel runtime implementation todo make default
-parallel-runtime=["rayon"]
+parallel-runtime=["std", "dep:rayon"]
 # Enables 64-bit wide reaction ids on 64 bit architectures.
 # This may reduce performance, but allows for 2^32 reactor
 # instances compared to the default of 2^16, which may feel

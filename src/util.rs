@@ -22,8 +22,9 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::convert::TryFrom;
-use std::time::Duration;
+use crate::alloc_prelude::*;
+use core::convert::TryFrom;
+use core::time::Duration;
 
 pub(crate) mod vecmap;
 
@@ -45,13 +46,13 @@ macro_rules! join_to {
 }
 
 pub(crate) fn do_write<X>(
-    f: &mut impl std::fmt::Write,
+    f: &mut impl core::fmt::Write,
     iter: impl Iterator<Item = X>,
     sep: &'static str,
     prefix: &'static str,
     suffix: &'static str,
     formatter: impl Fn(X) -> String,
-) -> std::fmt::Result {
+) -> core::fmt::Result {
     let mut iter = iter;
     write!(f, "{}", prefix)?;
     if let Some(first) = iter.next() {
@@ -67,7 +68,7 @@ pub(crate) fn do_write<X>(
 /// Creates a [Duration] value using the same syntax as in LF.
 ///
 /// ```
-/// use std::time::Duration;
+/// use core::time::Duration;
 /// use reactor_rt::delay;
 ///
 /// assert_eq!(delay!(10 ns), Duration::from_nanos(10));
@@ -122,7 +123,7 @@ macro_rules! delay {
 /// Shorthand for using [After](crate::Offset::After) together with [delay].
 ///
 /// ```
-/// use std::time::Duration;
+/// use core::time::Duration;
 /// use reactor_rt::{after, Offset::After};
 ///
 /// assert_eq!(after!(10 ns), After(Duration::from_nanos(10)));
@@ -242,7 +243,7 @@ impl TimeUnit {
 ///
 /// ```
 /// use reactor_rt::try_parse_duration;
-/// use std::time::Duration;
+/// use core::time::Duration;
 ///
 /// assert_eq!(try_parse_duration("3 ms"),   Ok(Duration::from_millis(3)));
 /// assert_eq!(try_parse_duration("3ms"),    Ok(Duration::from_millis(3)));

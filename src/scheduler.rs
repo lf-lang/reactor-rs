@@ -22,8 +22,8 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::borrow::Cow;
-use std::fmt::Display;
+use alloc::borrow::Cow;
+use core::fmt::Display;
 
 pub use context::*;
 pub use events::*;
@@ -67,7 +67,7 @@ impl DebugInfoProvider<'_> {
     }
 
     pub(self) fn display_reactions(&self, reactions: &ReactionPlan) -> String {
-        use std::fmt::*;
+        use core::fmt::*;
 
         let mut str = "[".to_string();
 

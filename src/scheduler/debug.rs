@@ -22,11 +22,12 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+use crate::alloc_prelude::*;
 use core::any::type_name;
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::fmt::{Display, Formatter, Result};
-use std::ops::Range;
+use alloc::borrow::Cow;
+use crate::platform::HashMap;
+use core::fmt::{Display, Formatter, Result};
+use core::ops::Range;
 
 use crate::vecmap::VecMap;
 use index_vec::{Idx, IndexVec};
@@ -106,7 +107,7 @@ impl DebugInfoRegistry {
             /// even if the label is present.
             always_display_idx: bool,
         }
-        use std::fmt::*;
+        use core::fmt::*;
         impl Display for PathFmt<'_> {
             #[inline]
             fn fmt(&self, f: &mut Formatter<'_>) -> Result {

@@ -22,8 +22,8 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::borrow::Cow;
-use std::marker::PhantomData;
+use alloc::borrow::Cow;
+use core::marker::PhantomData;
 
 use index_vec::{Idx, IndexVec};
 
@@ -74,7 +74,10 @@ impl RootAssembler {
 
         let main_reactor = match R::assemble(main_args, assembler) {
             Ok(main) => main.finish(),
+            #[cfg(feature = "std")]
             Err(e) => std::panic::panic_any(e.lift(&root.debug_info)),
+            #[cfg(not(feature = "std"))]
+            Err(e) => panic!("{}", e.lift(&root.debug_info)),
         };
         root.debug_info.record_main_reactor(main_reactor.id());
         root.register_reactor(main_reactor);
@@ -529,7 +532,7 @@ macro_rules! unsafe_iter_bank {
         // respective bank element and multiport.
         let mut bank_idx = 0;
         let mut multiport_idx = 0;
-        let mut iter = std::iter::from_fn(move || {
+        let mut iter = core::iter::from_fn(move || {
             // The inner loop iterates over bank_idx.
             if bank_idx >= __bank_len {
                 // When one iteration is done we reset the bank_idx

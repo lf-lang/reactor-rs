@@ -22,16 +22,17 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::borrow::Borrow;
+use crate::alloc_prelude::*;
+use core::borrow::Borrow;
 #[cfg(not(feature = "no-unsafe"))]
-use std::cell::UnsafeCell;
-use std::collections::HashMap;
-use std::fmt::Debug;
+use core::cell::UnsafeCell;
+use crate::platform::HashMap;
+use core::fmt::Debug;
 #[cfg(feature = "no-unsafe")]
-use std::ops::Deref;
-use std::ops::{DerefMut, Index, IndexMut};
-use std::rc::Rc;
-use std::time::Instant;
+use core::ops::Deref;
+use core::ops::{DerefMut, Index, IndexMut};
+use alloc::rc::Rc;
+use crate::Instant;
 
 use atomic_refcell::AtomicRefCell;
 use AssemblyErrorImpl::{CannotBind, CyclicDependency};
@@ -440,7 +441,7 @@ impl<T: Sync> TriggerLike for Multiport<T> {
 
 impl<'a, T: Sync> IntoIterator for &'a mut Multiport<T> {
     type Item = &'a mut Port<T>;
-    type IntoIter = std::slice::IterMut<'a, Port<T>>;
+    type IntoIter = core::slice::IterMut<'a, Port<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.ports.iter_mut()
@@ -449,7 +450,7 @@ impl<'a, T: Sync> IntoIterator for &'a mut Multiport<T> {
 
 impl<'a, T: Sync> IntoIterator for &'a Multiport<T> {
     type Item = &'a Port<T>;
-    type IntoIter = std::slice::Iter<'a, Port<T>>;
+    type IntoIter = core::slice::Iter<'a, Port<T>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.ports.iter()

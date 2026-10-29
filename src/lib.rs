@@ -31,6 +31,18 @@
 //! point for user documentation.
 //!
 //! Crate-level features include:
+//! - `std`: run on an operating system. Physical actions are fed
+//!   by OS threads ([ReactionCtx::spawn_physical_thread]), and the
+//!   program is started with `SyncScheduler::run_main`. This is a
+//!   default feature.
+//! - `embassy`: run on a microcontroller without std (`no_std` + `alloc`),
+//!   using [embassy](https://embassy.dev). Build with
+//!   `default-features = false, features = ["embassy"]`. The program is
+//!   started by awaiting `SyncScheduler::run_main_async` in an embassy task,
+//!   and physical actions are fed by tasks or interrupts through
+//!   `ReactionCtx::new_async_ctx`. The binary must provide a global
+//!   allocator (e.g. `esp-alloc` or `embedded-alloc`) and an embassy time
+//!   driver (usually from the HAL). If `std` is also enabled, `std` wins.
 //! - `parallel-runtime`: use Rayon to execute reactions in parallel
 //!   when possible. This is not yet the default. For some applications,
 //!   where there is no data parallelism, this may harm performance
@@ -57,6 +69,9 @@
 #![warn(unused_lifetimes)]
 #![warn(single_use_lifetimes)]
 #![warn(explicit_outlives_requirements)]
+#![cfg_attr(not(feature = "std"), no_std)]
+
+extern crate alloc;
 
 #[macro_use]
 extern crate array_macro;
@@ -75,7 +90,27 @@ extern crate static_assertions;
 #[macro_use]
 extern crate cfg_if;
 
-pub use std::time::{Duration, Instant};
+pub use core::time::Duration;
+pub use platform::Instant;
+#[cfg(not(feature = "std"))]
+pub use platform::SendError;
+
+/// Items that the std prelude provides but core doesn't, so that
+/// the crate builds without std. Modules that `use crate::*` get
+/// them too.
+mod alloc_prelude {
+    #[allow(unused_imports)]
+    pub(crate) use alloc::{
+        borrow::{Cow, ToOwned},
+        boxed::Box,
+        format,
+        string::{String, ToString},
+        vec,
+        vec::Vec,
+    };
+}
+#[allow(unused_imports)]
+pub(crate) use alloc_prelude::*;
 
 pub(crate) use scheduler::debug::*;
 
@@ -93,6 +128,7 @@ pub mod test;
 
 mod actions;
 mod ids;
+mod platform;
 mod ports;
 mod scheduler;
 mod time;
