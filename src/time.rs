@@ -22,8 +22,8 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::fmt::{Debug, Display, Formatter};
-use std::ops::Add;
+use core::fmt::{Debug, Display, Formatter};
+use core::ops::Add;
 
 /// Private concrete type of a microstep.
 pub(crate) type MS = u32;
@@ -40,7 +40,7 @@ impl MicroStep {
 }
 
 impl Display for MicroStep {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         Display::fmt(&self.0, f)
     }
 }

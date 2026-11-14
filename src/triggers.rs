@@ -22,10 +22,10 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::fmt::{Debug, Formatter};
-use std::hash::Hash;
-use std::ops::Range;
-use std::time::Instant;
+use core::fmt::{Debug, Formatter};
+use core::hash::Hash;
+use core::ops::Range;
+use crate::Instant;
 
 use index_vec::Idx;
 
@@ -152,7 +152,7 @@ impl Idx for TriggerId {
 }
 
 impl Debug for TriggerId {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match *self {
             TriggerId::STARTUP => write!(f, "startup"),
             TriggerId::SHUTDOWN => write!(f, "shutdown"),

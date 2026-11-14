@@ -22,13 +22,13 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::borrow::Cow;
-use std::collections::hash_map::Entry as HEntry;
-use std::collections::HashMap;
-use std::default::Default;
-use std::fmt::{Debug, Display, Formatter};
-use std::ops::Range;
-use std::sync::Arc;
+use alloc::borrow::Cow;
+use crate::platform::HashMapEntry as HEntry;
+use crate::platform::HashMap;
+use core::default::Default;
+use core::fmt::{Debug, Display, Formatter};
+use core::ops::Range;
+use alloc::sync::Arc;
 
 use index_vec::{Idx, IndexVec};
 use petgraph::graph::{DiGraph, NodeIndex};
@@ -123,7 +123,7 @@ pub(super) struct DepGraph {
 }
 
 impl Debug for GraphNode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         match self {
             GraphNode { id: GraphId::Reaction(id), .. } => write!(f, "Reaction({:?})", id),
             GraphNode { id: GraphId::Trigger(TriggerId::STARTUP), .. } => write!(f, "startup"),
@@ -149,6 +149,7 @@ impl DepGraph {
     /// Produce a dot representation of the graph.
     #[cold]
     #[inline(never)]
+    #[cfg_attr(not(feature = "std"), allow(dead_code))] // only used to dump the graph to a file
     pub fn format_dot(&self, id_registry: &DebugInfoRegistry) -> String {
         use petgraph::dot::{Config, Dot};
 
@@ -464,7 +465,7 @@ cfg_if! {
     if #[cfg(feature = "vec-id-sets")] {
         type LevelImpl = Vec<GlobalReactionId>;
     } else {
-        type LevelImpl = std::collections::HashSet<GlobalReactionId>;
+        type LevelImpl = crate::platform::HashSet<GlobalReactionId>;
     }
 }
 
@@ -550,7 +551,7 @@ impl LevelIx {
 }
 
 impl Display for LevelIx {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
@@ -689,7 +690,7 @@ impl<'x> ExecutableReactions<'x> {
             }
             (Some(mut x), Some(mut y)) => {
                 if x.max_level() > y.max_level() {
-                    std::mem::swap(&mut x, &mut y);
+                    core::mem::swap(&mut x, &mut y);
                 }
                 // x is the largest one here
                 x.to_mut().absorb_after(&y, min_level);
@@ -700,7 +701,7 @@ impl<'x> ExecutableReactions<'x> {
 }
 
 impl Display for ExecutableReactions<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "[")?;
         for (_, level) in self.levels.iter() {
             join_to!(f, level.iter(), ", ", "{", "} ; ")?;
@@ -731,7 +732,7 @@ pub mod test {
             }
         }
 
-        fn new_reactor(&mut self, name: impl Into<String>) -> TestAssembler {
+        fn new_reactor(&mut self, name: impl Into<String>) -> TestAssembler<'_> {
             let reactor_id = self.next_reactor_id.get_and_incr();
             self.debug_info.record_reactor(reactor_id, ReactorDebugInfo::test_named(name));
             TestAssembler {

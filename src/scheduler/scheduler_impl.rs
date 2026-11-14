@@ -24,10 +24,11 @@
 
 //! Home of the scheduler component.
 
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use alloc::sync::Arc;
+use core::sync::atomic::{AtomicBool, Ordering};
 
-use crossbeam_channel::reconnectable::*;
+#[cfg(feature = "std")]
+use crate::platform::{unbounded, RecvTimeoutError};
 
 use super::assembly_impl::RootAssembler;
 use super::*;
@@ -81,6 +82,73 @@ macro_rules! push_event {
     }};
 }
 
+/// The main event loop of the scheduler. It's a macro so that the
+/// blocking (std) and async (embassy) schedulers share it. Only
+/// the two places where the scheduler waits are different:
+/// - `|$target| $catch_up`: wait until physical time reaches `$target`,
+///   or an async event arrives first (see [SyncScheduler::catch_up_physical_time]).
+/// - `$receive`: wait for an async event when the queue is empty
+///   (see [SyncScheduler::receive_event]).
+macro_rules! event_loop {
+    ($s:ident, |$target:ident| $catch_up:expr, $receive:expr) => {{
+        $s.startup();
+
+        loop {
+            // flush pending events, this doesn't block
+            for evt in $s.rx.try_iter() {
+                let evt = evt.make_executable($s.dataflow);
+                push_event!($s, evt);
+            }
+
+            if let Some(evt) = $s.event_queue.take_earliest() {
+                if $s.is_after_shutdown(evt.tag) {
+                    trace!("Event is late, shutting down - event tag: {}", evt.tag);
+                    break;
+                }
+                trace!("Processing event {}", $s.debug().display_event(&evt));
+                let $target = evt.tag.to_logical_time($s.initial_time);
+                match $catch_up {
+                    Ok(_) => {}
+                    Err(async_event) => {
+                        let async_event = async_event.make_executable($s.dataflow);
+                        // an asynchronous event woke our sleep
+                        if async_event.tag < evt.tag {
+                            // reinsert both events to order them and try again.
+                            push_event!($s, evt);
+                            push_event!($s, async_event);
+                            continue;
+                        } else {
+                            // we can process this event first and not care about the async event
+                            push_event!($s, async_event);
+                        }
+                    }
+                };
+                // at this point we're at the correct time
+
+                if evt.terminate || $s.shutdown_time == Some(evt.tag) {
+                    return $s.shutdown(evt.tag, evt.reactions);
+                }
+
+                $s.process_tag(false, evt.tag, evt.reactions);
+            } else if let Some(evt) = $receive {
+                let evt = evt.make_executable($s.dataflow);
+                // this may block
+                push_event!($s, evt);
+                continue;
+            } else {
+                // all senders have hung up, or timeout
+                info!("Event queue is empty forever, shutting down.");
+                break;
+            }
+        } // end loop
+
+        let shutdown_tag = $s.shutdown_time.unwrap_or_else(|| EventTag::now($s.initial_time));
+        $s.shutdown(shutdown_tag, None);
+
+        // self destructor is called here
+    }};
+}
+
 /// The runtime scheduler.
 ///
 /// Lifetime parameters: 'x and 't are carried around everywhere,
@@ -104,7 +172,7 @@ pub struct SyncScheduler<'x> {
     /// Receiver through which asynchronous events are
     /// communicated to the scheduler. We only block when
     /// no events are ready to be processed.
-    rx: Receiver<PhysicalEvent>,
+    rx: EventReceiver,
 
     /// Initial time of the logical system.
     #[allow(unused)] // might be useful someday
@@ -128,6 +196,9 @@ pub struct SyncScheduler<'x> {
 }
 
 impl<'x> SyncScheduler<'x> {
+    /// Assemble the reactor program and run it in this thread
+    /// until it shuts down.
+    #[cfg(feature = "std")]
     pub fn run_main<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
         let start = Instant::now();
         info!("Starting assembly...");
@@ -181,65 +252,51 @@ impl<'x> SyncScheduler<'x> {
     }
 
     /// Launch the event loop in this thread.
+    #[cfg(feature = "std")]
     fn launch_event_loop(mut self) {
-        /************************************************
-         * This is the main event loop of the scheduler *
-         ************************************************/
+        event_loop!(self, |target| self.catch_up_physical_time(target), self.receive_event())
+    }
 
-        self.startup();
+    /// Assemble the reactor program and run it until it shuts down.
+    ///
+    /// The returned future is meant to be awaited by an embassy task,
+    /// for example:
+    /// ```ignore
+    /// #[embassy_executor::task]
+    /// async fn reactor_main() {
+    ///     SyncScheduler::run_main_async::<MainReactor>(SchedulerOptions::default(), params).await
+    /// }
+    /// ```
+    /// Reactions run synchronously; the scheduler only yields to
+    /// other tasks while it waits for the next event.
+    #[cfg(not(feature = "std"))]
+    pub async fn run_main_async<R: ReactorInitializer + 'static>(options: SchedulerOptions, args: R::Params) {
+        let start = Instant::now();
+        info!("Starting assembly...");
+        let (reactors, graph, id_registry) = RootAssembler::assemble_tree::<R>(args);
+        let time = Instant::now() - start;
+        info!("Assembly done in {} µs...", time.as_micros());
 
-        loop {
-            // flush pending events, this doesn't block
-            for evt in self.rx.try_iter() {
-                let evt = evt.make_executable(self.dataflow);
-                push_event!(self, evt);
-            }
+        if options.dump_graph {
+            warn!("'dump_graph' is not supported without the 'std' feature");
+        }
 
-            if let Some(evt) = self.event_queue.take_earliest() {
-                if self.is_after_shutdown(evt.tag) {
-                    trace!("Event is late, shutting down - event tag: {}", evt.tag);
-                    break;
-                }
-                trace!("Processing event {}", self.debug().display_event(&evt));
-                match self.catch_up_physical_time(evt.tag.to_logical_time(self.initial_time)) {
-                    Ok(_) => {}
-                    Err(async_event) => {
-                        let async_event = async_event.make_executable(self.dataflow);
-                        // an asynchronous event woke our sleep
-                        if async_event.tag < evt.tag {
-                            // reinsert both events to order them and try again.
-                            push_event!(self, evt);
-                            push_event!(self, async_event);
-                            continue;
-                        } else {
-                            // we can process this event first and not care about the async event
-                            push_event!(self, async_event);
-                        }
-                    }
-                };
-                // at this point we're at the correct time
+        // collect dependency information
+        let dataflow_info = DataflowInfo::new(graph).map_err(|e| e.lift(&id_registry)).unwrap();
 
-                if evt.terminate || self.shutdown_time == Some(evt.tag) {
-                    return self.shutdown(evt.tag, evt.reactions);
-                }
+        let initial_time = Instant::now();
+        let scheduler = SyncScheduler::new(options, id_registry, &dataflow_info, reactors, initial_time);
+        scheduler.launch_event_loop_async().await
+    }
 
-                self.process_tag(false, evt.tag, evt.reactions);
-            } else if let Some(evt) = self.receive_event() {
-                let evt = evt.make_executable(self.dataflow);
-                // this may block
-                push_event!(self, evt);
-                continue;
-            } else {
-                // all senders have hung up, or timeout
-                info!("Event queue is empty forever, shutting down.");
-                break;
-            }
-        } // end loop
-
-        let shutdown_tag = self.shutdown_time.unwrap_or_else(|| EventTag::now(self.initial_time));
-        self.shutdown(shutdown_tag, None);
-
-        // self destructor is called here
+    /// Run the event loop, yielding to the executor while waiting.
+    #[cfg(not(feature = "std"))]
+    async fn launch_event_loop_async(mut self) {
+        event_loop!(
+            self,
+            |target| self.catch_up_physical_time_async(target).await,
+            self.receive_event_async().await
+        )
     }
 
     /// Creates a new scheduler. An empty scheduler doesn't
@@ -260,7 +317,10 @@ impl<'x> SyncScheduler<'x> {
             warn!("'keepalive' runtime parameter has no effect in the Rust target")
         }
 
+        #[cfg(feature = "std")]
         let (_, rx) = unbounded::<PhysicalEvent>();
+        #[cfg(not(feature = "std"))]
+        let rx = EventReceiver::new(&EVENTS);
         Self {
             rx,
 
@@ -315,6 +375,7 @@ impl<'x> SyncScheduler<'x> {
 
     /// Wait for an asynchronous event for as long as we can
     /// expect it.
+    #[cfg(feature = "std")]
     fn receive_event(&mut self) -> Option<PhysicalEvent> {
         if let Some(shutdown_t) = self.shutdown_time {
             let absolute = shutdown_t.to_logical_time(self.initial_time);
@@ -333,6 +394,7 @@ impl<'x> SyncScheduler<'x> {
 
     /// Sleep/wait until the given time OR an asynchronous
     /// event is received first.
+    #[cfg(feature = "std")]
     fn catch_up_physical_time(&mut self, target: Instant) -> Result<(), PhysicalEvent> {
         let now = Instant::now();
 
@@ -373,13 +435,75 @@ impl<'x> SyncScheduler<'x> {
         Ok(())
     }
 
+    /// Async version of [Self::receive_event]: wait for an
+    /// asynchronous event for as long as we can expect it.
+    #[cfg(not(feature = "std"))]
+    async fn receive_event_async(&mut self) -> Option<PhysicalEvent> {
+        use embassy_futures::select::{select, Either};
+
+        if let Some(shutdown_t) = self.shutdown_time {
+            let absolute = shutdown_t.to_logical_time(self.initial_time);
+            if let Some(timeout) = absolute.checked_duration_since(Instant::now()) {
+                trace!("Will wait for asynchronous event {} ns", timeout.as_nanos());
+                match select(embassy_time::Timer::at(absolute.to_embassy()), self.rx.recv()).await {
+                    Either::First(()) => None,
+                    Either::Second(evt) => evt,
+                }
+            } else {
+                trace!("Cannot wait, already past programmed shutdown time...");
+                None
+            }
+        } else {
+            trace!("Will wait for asynchronous event without timeout");
+            self.rx.recv().await
+        }
+    }
+
+    /// Async version of [Self::catch_up_physical_time]: wait until
+    /// the given time OR an asynchronous event is received first.
+    #[cfg(not(feature = "std"))]
+    async fn catch_up_physical_time_async(&mut self, target: Instant) -> Result<(), PhysicalEvent> {
+        use embassy_futures::select::{select, Either};
+
+        let now = Instant::now();
+
+        if now < target {
+            trace!("  - Need to sleep {} ns", (target - now).as_nanos());
+            match select(embassy_time::Timer::at(target.to_embassy()), self.rx.recv()).await {
+                Either::First(()) => { /*great*/ }
+                Either::Second(Some(async_evt)) => {
+                    trace!(
+                        "  - Sleep interrupted by async event for tag {}, going back to queue",
+                        async_evt.tag
+                    );
+                    return Err(async_evt);
+                }
+                Either::Second(None) => {
+                    // no one can send events anymore, we still need to wait though
+                    embassy_time::Timer::at(target.to_embassy()).await;
+                }
+            }
+        }
+
+        if now > target {
+            let delay = now - target;
+            trace!(
+                "  - Running late by {} ns = {} µs = {} ms",
+                delay.as_nanos(),
+                delay.as_micros(),
+                delay.as_millis()
+            )
+        }
+        Ok(())
+    }
+
     /// Create a new reaction wave to process the given
     /// reactions at some point in time.
     fn new_reaction_ctx<'a>(
         &self,
         tag: EventTag,
         todo: ReactionPlan<'x>,
-        rx: &'a Receiver<PhysicalEvent>,
+        rx: &'a EventReceiver,
         debug_info: DebugInfoProvider<'a>,
         was_terminated_atomic: &'a Arc<AtomicBool>,
         was_terminated: bool,
@@ -397,7 +521,7 @@ impl<'x> SyncScheduler<'x> {
     }
 
     #[inline]
-    pub(super) fn debug(&self) -> DebugInfoProvider {
+    pub(super) fn debug(&self) -> DebugInfoProvider<'_> {
         debug_info!(self)
     }
 

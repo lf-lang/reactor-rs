@@ -22,11 +22,13 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::cmp::Reverse;
-use std::marker::PhantomData;
-use std::ops::{Deref, DerefMut};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use core::cmp::Reverse;
+use core::marker::PhantomData;
+use core::time::Duration;
+
+use alloc::sync::Arc;
+
+use crate::platform::Mutex;
 
 use crate::assembly::{TriggerId, TriggerLike};
 use crate::*;
@@ -236,22 +238,19 @@ impl<T: Sync> PhysicalActionRef<T> {
     }
 
     pub(crate) fn use_mut<O>(&self, f: impl FnOnce(&mut PhysicalAction<T>) -> O) -> Result<O, ()> {
-        let mut refmut = self.0.deref().lock().map_err(|_| ())?;
-
-        Ok(f(refmut.deref_mut()))
+        self.0.with(f)
     }
 
     pub(crate) fn use_mut_p<O, P>(&self, p: P, f: impl FnOnce(&mut PhysicalAction<T>, P) -> O) -> Result<O, P> {
-        match self.0.deref().lock() {
-            Ok(mut refmut) => Ok(f(refmut.deref_mut(), p)),
-            Err(_) => Err(p),
-        }
+        let mut p = Some(p);
+        // if the lock fails, the closure isn't called and `p` is still there
+        self.0
+            .with(|action| f(action, p.take().unwrap()))
+            .map_err(|()| p.take().unwrap())
     }
 
     pub(crate) fn use_value<O>(&self, f: impl FnOnce(&PhysicalAction<T>) -> O) -> Result<O, ()> {
-        let r#ref = self.0.deref().lock().map_err(|_| ())?;
-
-        Ok(f(r#ref.deref()))
+        self.0.with(|action| f(action))
     }
 }
 

@@ -1,11 +1,13 @@
-use std::borrow::Borrow;
-use std::hash::{Hash, Hasher};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
+use alloc::sync::Arc;
+use core::borrow::Borrow;
+use core::hash::{Hash, Hasher};
+use core::sync::atomic::{AtomicBool, Ordering};
+#[cfg(feature = "std")]
 use std::thread::JoinHandle;
 
-use crossbeam_channel::reconnectable::{Receiver, SendError, Sender};
 use smallvec::SmallVec;
+
+use crate::platform::SendError;
 
 use super::*;
 use crate::assembly::*;
@@ -35,7 +37,7 @@ pub struct ReactionCtx<'a, 'x> {
     current_reaction: Option<GlobalReactionId>,
 
     /// Sender to schedule events that should be executed later than this wave.
-    rx: &'a Receiver<PhysicalEvent>,
+    rx: &'a EventReceiver,
 
     /// Start time of the program.
     initial_time: Instant,
@@ -428,6 +430,7 @@ impl<'a, 'x> ReactionCtx<'a, 'x> {
     /// }
     /// ```
     ///
+    #[cfg(feature = "std")]
     pub fn spawn_physical_thread<F, R>(&mut self, f: F) -> JoinHandle<R>
     where
         // is there a practical reason to encapsulate this?
@@ -443,6 +446,40 @@ impl<'a, 'x> ReactionCtx<'a, 'x> {
             let mut link = AsyncCtx { tx, initial_time, was_terminated };
             f(&mut link)
         })
+    }
+
+    /// Create an [AsyncCtx] that embassy tasks or interrupt handlers
+    /// can use to push asynchronous events to the reaction queue.
+    /// This is only useful with [physical actions](crate::PhysicalAction).
+    /// It replaces [Self::spawn_physical_thread] when there are no threads.
+    ///
+    /// The context is `Send + 'static`, so it can be passed to a task
+    /// spawned with an embassy `SendSpawner`, or stored in a `static`.
+    /// Events are pushed without waiting, so sending fails when the
+    /// queue is full, or once the scheduler has shut down.
+    ///
+    /// ### Example
+    ///
+    /// ```ignore
+    /// #[embassy_executor::task]
+    /// async fn button_task(mut link: AsyncCtx, action: PhysicalActionRef<u32>, mut button: ExtiInput<'static>) {
+    ///     while !link.was_terminated() {
+    ///         button.wait_for_rising_edge().await;
+    ///         link.schedule_physical_with_v(&action, Some(1), Asap).ok();
+    ///     }
+    /// }
+    ///
+    /// fn some_reaction(ctx: &mut ReactionCtx, phys_action: &PhysicalActionRef<u32>, spawner: SendSpawner) {
+    ///     spawner.spawn(button_task(ctx.new_async_ctx(), phys_action.clone(), take_button())).unwrap();
+    /// }
+    /// ```
+    #[cfg(not(feature = "std"))]
+    pub fn new_async_ctx(&self) -> AsyncCtx {
+        AsyncCtx {
+            tx: self.rx.new_sender(),
+            initial_time: self.initial_time,
+            was_terminated: self.was_terminated_atomic.clone(),
+        }
     }
 
     /// Request that the application shutdown, possibly with
@@ -513,7 +550,7 @@ impl<'a, 'x> ReactionCtx<'a, 'x> {
     }
 
     pub(super) fn new(
-        rx: &'a Receiver<PhysicalEvent>,
+        rx: &'a EventReceiver,
         tag: EventTag,
         initial_time: Instant,
         todo: ReactionPlan<'x>,
@@ -596,7 +633,7 @@ impl RContextForwardableStuff<'_> {
 ///
 #[derive(Clone)]
 pub struct AsyncCtx {
-    tx: Sender<PhysicalEvent>,
+    tx: EventSender,
     initial_time: Instant,
     /// Whether the scheduler has been terminated.
     was_terminated: Arc<AtomicBool>,
@@ -608,6 +645,18 @@ impl AsyncCtx {
     /// fail with [SendError].
     pub fn was_terminated(&self) -> bool {
         self.was_terminated.load(Ordering::SeqCst)
+    }
+
+    /// Send an event to the scheduler.
+    fn send(&self, evt: PhysicalEvent) -> Result<(), SendError<PhysicalEvent>> {
+        // With std, sending fails once the scheduler drops its receiver.
+        // The embassy channel is a static that outlives the scheduler,
+        // so check explicitly.
+        #[cfg(not(feature = "std"))]
+        if self.was_terminated() {
+            return Err(SendError(evt));
+        }
+        self.tx.send(evt)
     }
 
     /// Request that the application shutdown, possibly with
@@ -625,7 +674,7 @@ impl AsyncCtx {
         let tag = EventTag::absolute(self.initial_time, Instant::now() + offset.to_duration());
 
         let evt = PhysicalEvent::terminate_at(tag);
-        self.tx.send(evt).map_err(|e| {
+        self.send(evt).map_err(|e| {
             warn!("Event could not be sent! {:?}", e);
             SendError(())
         })
@@ -679,7 +728,7 @@ impl AsyncCtx {
                 action.0.schedule_future_value(tag, value);
 
                 let evt = PhysicalEvent::trigger(tag, action.get_id());
-                self.tx.send(evt).map_err(|e| {
+                self.send(evt).map_err(|e| {
                     warn!("Event could not be sent! {:?}", e);
                     SendError(action.0.forget_value(&tag))
                 })

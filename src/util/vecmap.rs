@@ -25,8 +25,9 @@
 //! This is a formally verified implementation of a sparse map that uses [Vec] underneath.
 //! Entries are retained in sorted order by key to facilitate fast search.
 
-use ::std::cmp::Ordering;
-use ::std::fmt::{Debug, Display, Formatter};
+use crate::alloc_prelude::*;
+use core::cmp::Ordering;
+use core::fmt::{Debug, Display, Formatter};
 
 /// A sparse map representation over a totally ordered key type.
 pub struct VecMap<K, V>
@@ -46,7 +47,7 @@ where
 
     /// Find an entry with assumption that the key is random access.
     /// Logarithmic complexity.
-    pub fn entry(&mut self, key: K) -> Entry<K, V> {
+    pub fn entry(&mut self, key: K) -> Entry<'_, K, V> {
         match self.find_k(&key) {
             Ok(index) => Entry::Occupied(OccupiedEntry { map: self, index, key }),
             Err(index) => Entry::Vacant(VacantEntry { map: self, index, key }),
@@ -62,7 +63,7 @@ where
     ///
     /// If either of these assumptions is violated, you might obtain an entry which allows
     /// destroying the well-kept order of the items.
-    pub fn entry_from_ref(&mut self, key_hint: KeyRef<K>, key: K) -> Entry<K, V> {
+    pub fn entry_from_ref(&mut self, key_hint: KeyRef<K>, key: K) -> Entry<'_, K, V> {
         debug_assert!(self.is_valid_keyref(&key_hint.as_ref()));
         let KeyRef { min_idx, .. } = key_hint;
 
@@ -103,7 +104,7 @@ where
     /// replaces the previously held value and returns it.
     pub fn insert(&mut self, key: K, value: V) -> Option<V> {
         match self.find_k(&key) {
-            Ok(index) => Some(std::mem::replace(&mut self.v[index].1, value)),
+            Ok(index) => Some(core::mem::replace(&mut self.v[index].1, value)),
             Err(index) => {
                 self.insert_internal(index, key, value);
                 None
@@ -219,12 +220,12 @@ impl<K: Clone + Eq + Ord, V: Clone> Clone for VecMap<K, V> {
 }
 
 impl<K: Ord + Eq + Debug, V: Debug> Debug for VecMap<K, V> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         self.v.iter().collect::<Vec<&(K, V)>>().fmt(f)
     }
 }
 
-impl<K: Ord + Eq, V> ::std::default::Default for VecMap<K, V> {
+impl<K: Ord + Eq, V> core::default::Default for VecMap<K, V> {
     fn default() -> Self {
         Self { v: Vec::new() }
     }
@@ -325,7 +326,7 @@ impl<K> KeyRef<K> {
 }
 
 impl<K: Display> Display for KeyRef<K> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.key)
     }
 }
