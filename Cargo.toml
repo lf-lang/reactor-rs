@@ -1,5 +1,5 @@
 [package]
-name = "reactor_rt"
+name = "reactor-rs"
 version = "0.1.0"
 authors = ["Clément Fournier <clement.fournier76@gmail.com>"]
 edition = "2021"
