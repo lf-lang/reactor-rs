@@ -28,7 +28,7 @@ use crate::platform::HashMap;
 use core::default::Default;
 use core::fmt::{Debug, Display, Formatter};
 use core::ops::Range;
-use alloc::sync::Arc;
+use crate::platform::Arc;
 
 use index_vec::{Idx, IndexVec};
 use petgraph::graph::{DiGraph, NodeIndex};

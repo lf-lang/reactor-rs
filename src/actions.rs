@@ -26,7 +26,7 @@ use core::cmp::Reverse;
 use core::marker::PhantomData;
 use core::time::Duration;
 
-use alloc::sync::Arc;
+use crate::platform::Arc;
 
 use crate::platform::Mutex;
 

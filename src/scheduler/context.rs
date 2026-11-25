@@ -1,4 +1,4 @@
-use alloc::sync::Arc;
+use crate::platform::Arc;
 use core::borrow::Borrow;
 use core::hash::{Hash, Hasher};
 use core::sync::atomic::{AtomicBool, Ordering};

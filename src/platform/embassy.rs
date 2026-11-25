@@ -6,7 +6,11 @@
 use core::fmt::{Debug, Formatter};
 use core::hash::{Hash, Hasher};
 use core::ops::{Add, Sub};
-use core::sync::atomic::{AtomicUsize, Ordering};
+use core::sync::atomic::Ordering;
+#[cfg(not(feature = "portable-atomic"))]
+use core::sync::atomic::AtomicUsize;
+#[cfg(feature = "portable-atomic")]
+use portable_atomic::AtomicUsize;
 use core::time::Duration;
 
 use atomic_refcell::AtomicRefCell;

@@ -24,7 +24,7 @@
 
 //! Home of the scheduler component.
 
-use alloc::sync::Arc;
+use crate::platform::Arc;
 use core::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(feature = "std")]
