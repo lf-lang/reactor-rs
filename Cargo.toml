@@ -1,5 +1,5 @@
 [package]
-name = "reactor_rt"
+name = "reactor-rs"
 version = "0.1.0"
 authors = ["Clément Fournier <clement.fournier76@gmail.com>"]
 edition = "2021"
@@ -28,6 +28,8 @@ hashbrown = { version = "0.17", optional = true, default-features = false, featu
 embassy-time = { version = "0.5", optional = true }
 embassy-sync = { version = "0.8", optional = true }
 embassy-futures = { version = "0.1", optional = true }
+portable-atomic = { version = "1", optional = true, default-features = false }
+portable-atomic-util = { version = "0.2", optional = true, default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 criterion = "0.3"
@@ -42,6 +44,10 @@ std=["dep:crossbeam-channel", "petgraph/std", "crossbeam-utils/std"]
 # Run on a microcontroller with embassy (no_std + alloc).
 # Use with `default-features = false`. If `std` is also on, std wins.
 embassy=["dep:hashbrown", "dep:embassy-time", "dep:embassy-sync", "dep:embassy-futures"]
+# For targets without compare-and-swap atomics (ARMv6-M, e.g. the RP2040).
+# The binary must also enable one of portable-atomic's CAS backends,
+# such as its `critical-section` feature.
+portable-atomic=["dep:portable-atomic", "dep:portable-atomic-util", "atomic_refcell/portable-atomic"]
 # Enable the parallel runtime implementation todo make default
 parallel-runtime=["std", "dep:rayon"]
 # Enables 64-bit wide reaction ids on 64 bit architectures.

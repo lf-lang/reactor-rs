@@ -19,3 +19,11 @@ cfg_if! {
         compile_error!("reactor_rt needs a platform: enable either the `std` or the `embassy` feature");
     }
 }
+
+// `alloc::sync::Arc` needs compare-and-swap atomics, which targets like
+// ARMv6-M (Cortex-M0/M0+, e.g. the RP2040) don't have. The `portable-atomic`
+// feature swaps in an `Arc` that emulates them (with a critical section).
+#[cfg(not(feature = "portable-atomic"))]
+pub(crate) use alloc::sync::Arc;
+#[cfg(feature = "portable-atomic")]
+pub(crate) use portable_atomic_util::Arc;

@@ -22,7 +22,7 @@
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-use std::borrow::Cow;
+use alloc::borrow::Cow;
 
 use crate::assembly::{PortKind, TriggerId};
 use crate::*;
